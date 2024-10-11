@@ -1,0 +1,160 @@
+V5.12.35
+mod: modify server n°1 to download the latest DCE_Manager files
+add: ASTI (All Static Template Importer)
+	a tool for importing templates, especially those in static mode where selection,
+	rotation and deletion are particularly difficult.
+
+
+V5.11.33
+fix: news display not working properly
+mod: n-depth rewriting of the code, especially the class systems, with a slightly more 'academic' approach... ^^
+fix: cloning a campaign does not automatically activate the selected aircraft
+
+V5.11.32
+mod: ability to add campaigns with a simplified architecture (no ModScripts, no folders...)
+mod: new distribution with a "real" executable
+
+V5.11.30
+fix: many DCE_Manager crashes
+fix: when deleting a campaign, the image file is not deleted
+fix: the slot player is not always the right one when cloning a campaign
+fix: if DCS is set to C, DCE_Manager refuses to run
+
+V5.11.29
+fix: download of .ogg files is ignored
+
+V5.11.28
+add: selects the campaign image according to the selected player's device. 
+	To do this, the images must be saved in this way:
+	\Images\planescreen_planescreen_default.png
+	\Images\planescreen_AH-64D_BLK_II.png
+	\Images\planescreen_planescreen_A-10C_2.png
+	etc...
+mod: adds green "+" icon to clone/save all campaigns
+fix: save oob_air generates a corrupt oob_air file (again !!!)
+
+V5.11.27
+fix: save oob_air generates a corrupt oob_air file
+the names of the bases not found are recorded without the space characters
+
+V5.11.26
+mod:  "active" tooltips (progress)
+mod: displays all the possibilities of the tasks, depending on the type of aircraft/helicopter (progress)
+
+V5.11.25
+add: ability to activate/deactivate squads and much more. (click on the campaign image to display the information on the right)
+mod: updates will be checked once a day
+mod: the number of files available to be updated will be displayed in the tabList title
+mod: the update window displays errors
+add: you can directly open the ScriptsMod directory by clicking on its version, in the Update tab
+
+V4.10.24
+fix: impossible to check the version of the files
+fix: changing the server does not immediately update the version of the files available on that server
+add: checkBox MissionScripting Mod
+
+V4.10.23
+fix: campaign cloning bug
+
+V4.10.21
+fix: various bug
+
+V4.10.20
+add: Campaign clone button, for campaigns designed for this purpose (to come)
+add: delete campaign button
+mod: DCE_Manager is installed as an application to take advantage of future developments, such as lua support. On the other hand, you must install the lua54.dll file in the c:\windows\system32 folder
+
+V3.10.19
+add: Notification of updates when you select the "upgrade" tab
+add: can download the whole scriptMod folder if needed
+add: add reset buton
+mod: the server is kept in memory
+add: automatically corrects path errors in the path.bat file
+mod: doesn't look for the presence of the scriptsMod in the campaign ZIP files, since the update scriptsmod button will upload it
+
+V3.9.18
+fix: wrong path for the file upgrade.txt
+
+V3.9.17
+add: notified if a mod is to be used for a campaign
+fix: server 2 is always selected
+add: tab and popup news window
+add: checkbox overwrite ScriptsMod.NG folder
+
+V3.9.16
+add: OvGME link
+add: progress bar
+add: check the campaign links if the campaign tab is selected (CEF request) 
+add: miniature
+
+V3.8.14
+add: 3eme server
+add: dynamic scriptsMod changelog
+
+V3.8.13
+add: update scripmod available for users
+add: button DCS.exe
+add: select server
+changed : no longer assigns the majority of campaigns to the scriptsMod.NG version
+
+V3.8.12
+add: 2nd server : "Google drive" , automatic choice
+
+V3.8.11
+add: statut DEV
+changed : organization of server files
+add: 2 more info in the "campaign" tab Campaign version and number of missions played
+
+V3.8.10
+fix: impossible to download if the "path" savedGames is not filled in
+
+V3.8.9
+changed: explorer windows opens in normal mode (campaign link)
+changed: automatically opens the DCE_Manager.zip after downloading
+
+V3.8.8
+fix: The last namePathConf is not kept in memory
+fix: the installation does not detect wrong paths
+
+V3.8.7
+fix: Update campaign
+fix: campaign path on install path
+fix: the option.txt fills up considerably with empty lines
+fix: ghost update campaign list
+
+V3.8.5
+add: changelog in about tab
+changed: ergonomics of button locations
+fix: long name of the campaigns will not appear
+add: a link on the campaign names to open a windows explorer window of this campaign
+add: button to update DCE_Manager.exe
+
+V3.7
+fix: path, config name
+
+V3.6
+add: campaign management page
+
+V2.5
+add: setting up a system for updating the scriptsMod
+	From now on, the script folder will be named "ScriptsMod.NG".
+	Updates will be done in it.
+	There will be no more different folder for different updates, it was a tedious system to follow.
+	Attention, the path.bat of compatible campaigns will be automatically linked to the last version of the script
+add: log (Documents\DCE_Installer\log.txt)
+add: "save" path button
+
+V1.4
+add: added checkboxes to avoid deleting a particular ScriptsMod or campaign progress.
+
+V1.3
+fix: bug if he can't write options.txt
+
+V1.2
+fix: impossible to register the DCS path
+
+V1.1
+fix: does not block if a file has the name "ScriptsMod".
+
+V1.0 
+Stable
