@@ -9,7 +9,7 @@ using System.Windows.Forms;
 using DCE_Manager;
 using DCE_Manager.Parameters;
 using Microsoft.Win32;
-//using Test;
+
 
 // Utils.cs
 namespace DCE_Manager.Utils
@@ -27,10 +27,11 @@ namespace DCE_Manager.Utils
             MessageBox.Show("Fonction commune appelée !");
         }
 
+        private static readonly object lockObj = new object();
+
         public static void LogRegister(string log)
         {
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-
             bool exists = System.IO.Directory.Exists(pathOptionInstaller);
 
             if (!exists)
@@ -41,75 +42,57 @@ namespace DCE_Manager.Utils
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                    MessageBox.Show(e.ToString(), "The process failed");
+                    MessageBox.Show($"Failed to create directory: {e.Message}", "Directory Error");
+                    return;
                 }
             }
-
-
-            //Datetime.Now // renvoi la date d'aujourdhui
-            //DateTime.Now.Minuts // les minutes
-            //DateTime.Now.Hour // l'heure
-            //DateTime.Now.Seconds // les secondes
 
             string path = pathOptionInstaller + @"\log.txt";
 
-            long length = 0;
-
-            if (File.Exists(path))
-            {
-
-                try
-                {
-                    length = new System.IO.FileInfo(path).Length;
-                }
-                catch (System.Exception ex)
-                {
-                    System.Console.WriteLine(ex.Message);
-                    throw;
-                }
-            }
-
-            DateTime dt = DateTime.Now;
-            dt.ToString("MM/dd/yyyy HH:mm:ss");
-            //log = dt + " " + log + "|||" + length + "|||" + "\r\n";
-            log = dt + " " + log + "\r\n";
-
-            if (length > 200000)
+            lock (lockObj)
             {
                 try
                 {
-                    StreamWriter sr2 = new StreamWriter(path);
-                    sr2.WriteLine(log);
-                    sr2.Close();
-                }
-                catch (Exception ex)
-                {
-                    string errorMsg = string.Format("Exception File : {0}, Error : {1}", path, ex.Message);
-                    //MessageBox.Show(errorMsg.ToString(), "Error");
-                    //Console.WriteLine(errorMsg);
-                    LogRegister("LogRegister ModifierLigneByNumber() 1594 " + errorMsg + "\r\n");
-                }
-            }
-            else
-            {
-                // Create the file, or overwrite if the file exists.
-                try
-                {
-                    //ajoute du texte
-                    using (FileStream fs = File.Open(path, FileMode.Append))
+                    if (!File.Exists(path))
                     {
-                        Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
-                        fs.Write(info, 0, log.Length);
-                        fs.Close();
+                        // Create the file if it doesn't exist
+                        using (FileStream fs = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
+                            fs.Write(info, 0, info.Length);
+                        }
+                    }
+                    else
+                    {
+                        // Append to the file
+                        using (FileStream fs = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
+                        {
+                            fs.Seek(0, SeekOrigin.End); // Move to the end of the file
+                            Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
+                            fs.Write(info, 0, info.Length);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.StackTrace, "Error");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    // Construire le message d'erreur
+                    string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}, Path: {path}";
+
+                    // Afficher un message d'erreur plus synthétique
+                    MessageBox.Show($"The file is locked or access is denied: {path}\n\nMore details: {errorDetails}", "Access error");
+
                 }
             }
         }
+
 
         public static void DeleteAllFilesInDirectory(string sourcePath, bool FolderDelete)
         {

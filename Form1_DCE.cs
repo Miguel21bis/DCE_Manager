@@ -454,13 +454,14 @@ namespace DCE_Manager
 
                     }
                     catch (Exception ex)
-                    {
-                        string toto = ex.StackTrace;
-                        FormUtils.LogRegister("LogRegister 347 Failed server: " + ParamServ.FileServDgUpgradeTXT);
-                        FormUtils.LogRegister("Or local: " + pathManager + upgradelocFile);
-                        FormUtils.LogRegister(toto );
+                    {                   
+
+                        string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, FileServDgUpgradeTXT: {ParamServ.FileServDgUpgradeTXT}";
+                        FormUtils.LogRegister("Error in LogRegister: " + errorDetails);
 
                         MessageBox.Show("Failed to download upgrade.txt ", "Report");
+                        MessageBox.Show("Failed to download upgrade.txt " +"\r\n" +
+                                        errorDetails, "Error");
                         return;
                     }
                     client.Dispose();
@@ -787,6 +788,7 @@ namespace DCE_Manager
                                 if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
                                 {
                                     FormUtils.LogRegister("LogRegister 671 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
+
 
                                     DcemanagUpToDate = false;
                                 }
@@ -2277,15 +2279,22 @@ namespace DCE_Manager
                         }
                         catch (Exception ex2)
                         {
-                            string toto2 = ex2.StackTrace;
-                            FormUtils.LogRegister("LogRegister 2430 " + newsLocFile + " Failed server: " + ParamServ.FileServerName03 + "\r\n");
-                            FormUtils.LogRegister("Or local: " + pathManager + newsLocFile + "\r\n");
-                            FormUtils.LogRegister(toto2 + "\r\n");
+                            //string toto2 = ex2.StackTrace;
+                            //FormUtils.LogRegister("LogRegister 2430 " + newsLocFile + " Failed server: " + ParamServ.FileServerName03 + "\r\n");
+                            //FormUtils.LogRegister("Or local: " + pathManager + newsLocFile + "\r\n");
+                            //FormUtils.LogRegister(toto2 + "\r\n");
+
+                            string errorDetails2 = $"Error: {ex2.Message}, StackTrace: {ex2.StackTrace}, ServerSelected: {ParamServ.ServerSelected}";
+                            FormUtils.LogRegister("Failed server: " + errorDetails2);
                         }
-                        string toto = ex.StackTrace;
-                        FormUtils.LogRegister("LogRegister 2435 " +newsLocFile + " Failed server: " + ParamServ.ServerSelected + "\r\n");
-                        FormUtils.LogRegister("Or local: " + pathManager + newsLocFile + "\r\n");
-                        FormUtils.LogRegister(toto + "\r\n");
+
+                        string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, ServerSelected: {ParamServ.ServerSelected}";
+                        FormUtils.LogRegister("Failed server: " + errorDetails);
+
+                        //MessageBox.Show("Failed to download upgrade.txt ", "Report");
+                        //MessageBox.Show("Failed to download upgrade.txt " + "\r\n" +
+                        //                errorDetails, "Error");
+
                     }
                     client.Dispose();
                 }
