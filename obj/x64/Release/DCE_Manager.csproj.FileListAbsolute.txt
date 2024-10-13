@@ -133,3 +133,4 @@ C:\Users\Miguel\source\repos\SolutionDCE_Manager\DCE_Manager\obj\x64\Release\DCE
 C:\Users\Miguel\source\repos\SolutionDCE_Manager\DCE_Manager\obj\x64\Release\DCE_Manager.application
 C:\Users\Miguel\source\repos\SolutionDCE_Manager\DCE_Manager\obj\x64\Release\DCE_Manager.csproj.CopyComplete
 C:\Users\Miguel\source\repos\SolutionDCE_Manager\DCE_Manager\obj\x64\Release\DCE_Manager.exe
+C:\Users\Miguel\source\repos\SolutionDCE_Manager\DCE_Manager\obj\x64\Release\DCE_Manager.csprojAssemblyReference.cache
