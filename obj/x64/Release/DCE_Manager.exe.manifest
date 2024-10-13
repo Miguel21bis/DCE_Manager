@@ -4,7 +4,7 @@
   <description asmv2:iconFile="xp04.ico" asmv2:publisher="DCE" asmv2:product="DCE_Manager" xmlns="urn:schemas-microsoft-com:asm.v1" />
   <application />
   <entryPoint>
-    <assemblyIdentity name="DCE_Manager" version="6.12.35.116" language="neutral" processorArchitecture="amd64" />
+    <assemblyIdentity name="DCE_Manager" version="6.12.35.118" language="neutral" processorArchitecture="amd64" />
     <commandLine file="DCE_Manager.exe" parameters="" />
   </entryPoint>
   <co.v1:useManifestForTrust xmlns="urn:schemas-microsoft-com:asm.v1" />
@@ -45,13 +45,13 @@
   </dependency>
   <dependency>
     <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="DCE_Manager.exe" size="887808">
-      <assemblyIdentity name="DCE_Manager" version="6.12.35.116" language="neutral" processorArchitecture="amd64" />
+      <assemblyIdentity name="DCE_Manager" version="6.12.35.118" language="neutral" processorArchitecture="amd64" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>xbHDb6pSVBjSofqz0X4JKlgQBachM+HBBx7pTz3t0Vs=</dsig:DigestValue>
+        <dsig:DigestValue>jLCVc86LZqnc3LxET9T1NF078s8wkuApvNddl94ey/0=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
