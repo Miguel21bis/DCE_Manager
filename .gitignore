@@ -1,2 +1,4 @@
 appsettings.cs
 appsettings.txt
+bin/
+obj/
