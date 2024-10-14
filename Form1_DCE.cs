@@ -164,9 +164,9 @@ namespace DCE_Manager
             int usage_count = ParamManager.NbLancement;
             var verDceManager = ParamManager.verDceManager;
             var verScriptsMod = ParamScriptsMod.verScriptsMod;
-            var token = "84621587"; // Clé secrète pour la sécurité
 
-
+            var token = appsettings.token;
+            var url = appsettings.url;
 
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
             bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
@@ -215,9 +215,6 @@ namespace DCE_Manager
                 usage_count = usage_count,
                 token = token
             };
-
-            // URL du script PHP
-            var url = "https://dce-manager.alwaysdata.net/DCE_Stats/stats.php";
 
             using (var client = new HttpClient())
             {

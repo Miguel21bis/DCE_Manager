@@ -194,6 +194,7 @@
     <Compile Include="CampaignEdit.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="appsettings.cs" />
     <Compile Include="Proj_NET.cs" />
     <Compile Include="CustomMessageBox.cs">
       <SubType>Form</SubType>
@@ -202,7 +203,6 @@
       <DependentUpon>CustomMessageBox.cs</DependentUpon>
     </Compile>
     <Compile Include="LuaParse.cs" />
-    <Compile Include="CodeFile1.cs" />
     <Compile Include="FixedProcess.cs">
       <SubType>Component</SubType>
     </Compile>
