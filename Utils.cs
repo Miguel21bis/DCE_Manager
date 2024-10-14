@@ -11,7 +11,7 @@ using DCE_Manager.Parameters;
 using Microsoft.Win32;
 
 
-// Utils.cs
+// Utils.cs ...
 namespace DCE_Manager.Utils
 {
     public static class FormUtils
