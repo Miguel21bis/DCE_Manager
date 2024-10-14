@@ -175,21 +175,47 @@ namespace DCE_Manager
 
             if (fileExists)
             {
-                string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-                foreach (string line in namelines)
+                try
                 {
-                    if (line.Contains("LastStats="))
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        string[] words = line.Split('=');
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
 
-                        lastSent = words[1] ;
-                    }
-                    if (line.Contains("verScriptsMod="))
-                    {
-                        string[] words = line.Split('=');
+                            //string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                            //foreach (string line in namelines)
+                            //{
+                            if (line.Contains("LastStats="))
+                            {
+                                string[] words = line.Split('=');
 
-                        verScriptsMod = words[1];
+                                lastSent = words[1];
+                            }
+                            if (line.Contains("verScriptsMod="))
+                            {
+                                string[] words = line.Split('=');
+
+                                verScriptsMod = words[1];
+                            }
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
 
@@ -498,44 +524,75 @@ namespace DCE_Manager
             bool DcemanagUpToDate = true;
 
             // parse le fichier upgrade pour connaitre la version DCE
-            if (fileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
+            //if (fileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
+            if (fileExists)
             {
-                string[] linesServer = System.IO.File.ReadAllLines(pathManager + upgradelocFile);
-                foreach (string line in linesServer)
+                try
                 {
-                    string lineClean = line.Replace(" ", "");
-                    if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                  //ne prend pas en compte les lignes commençant par --
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        //DEVversionDCE.ScriptsMod = "20.44.71"
-                        if (lineClean.Contains("versionDCE.ScriptsMod="))
-                        {
-                            //recherche la version de DCE
-                            lineClean = lineClean.Replace("\"", "");
-                            lineClean = lineClean.Replace("versionDCE.ScriptsMod=", "");
-                            
-                            string[] words = lineClean.Split('.');
-                            AvailableMajor = Int32.Parse(words[0]);
-                            AvailableMinor = Int32.Parse(words[1]);
-                            AvailableBuild = Int32.Parse(words[2]);
-                        }
-                        else if (lineClean.Contains("versionManager="))
-                        {
-                            //recherche la version de DCE
-                            lineClean = lineClean.Replace(" ", "");
-                            lineClean = lineClean.Replace("versionManager=", "");
-                            lineClean = lineClean.Replace("\"", "");
 
-                            string[] words = lineClean.Split('.');
-                            FileServer_major = Int32.Parse(words[0]);
-                            FileServer_minor = Int32.Parse(words[1]);
-                            FileServer_build = Int32.Parse(words[2]);
+                        //string[] linesServer = System.IO.File.ReadAllLines(pathManager + upgradelocFile);
+                        //foreach (string line in linesServer)
+                        //{
+
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            string lineClean = line.Replace(" ", "");
+                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                  //ne prend pas en compte les lignes commençant par --
+                            {
+                                //DEVversionDCE.ScriptsMod = "20.44.71"
+                                if (lineClean.Contains("versionDCE.ScriptsMod="))
+                                {
+                                    //recherche la version de DCE
+                                    lineClean = lineClean.Replace("\"", "");
+                                    lineClean = lineClean.Replace("versionDCE.ScriptsMod=", "");
+
+                                    string[] words = lineClean.Split('.');
+                                    AvailableMajor = Int32.Parse(words[0]);
+                                    AvailableMinor = Int32.Parse(words[1]);
+                                    AvailableBuild = Int32.Parse(words[2]);
+                                }
+                                else if (lineClean.Contains("versionManager="))
+                                {
+                                    //recherche la version de DCE
+                                    lineClean = lineClean.Replace(" ", "");
+                                    lineClean = lineClean.Replace("versionManager=", "");
+                                    lineClean = lineClean.Replace("\"", "");
+
+                                    string[] words = lineClean.Split('.');
+                                    FileServer_major = Int32.Parse(words[0]);
+                                    FileServer_minor = Int32.Parse(words[1]);
+                                    FileServer_build = Int32.Parse(words[2]);
+                                }
+                            }
                         }
+                        ScriptsModAvailableVersion.Text = AvailableMajor + "." + AvailableMinor + "." + AvailableBuild;
+                        ScriptsModAvailableVersion.Update();
+                        DceManagerAvailableVersion.Text = FileServer_major + "." + FileServer_minor + "." + FileServer_build;
+                        DceManagerAvailableVersion.Update();
                     }
                 }
-                ScriptsModAvailableVersion.Text = AvailableMajor + "." + AvailableMinor + "." + AvailableBuild;
-                ScriptsModAvailableVersion.Update();
-                DceManagerAvailableVersion.Text = FileServer_major + "." + FileServer_minor + "." + FileServer_build;
-                DceManagerAvailableVersion.Update();
+                catch (Exception ex)
+                {
+
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+
+
+                }
             }
 
             string folderLoc = "";
@@ -580,214 +637,224 @@ namespace DCE_Manager
             //compare les versions de tous les fichiers
             if (fileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
             {
-                using (StreamReader reader = new StreamReader(pathManager + upgradelocFile))
+                //using (StreamReader reader = new StreamReader(pathManager + upgradelocFile))
+                //{
+                //    string line;
+                int i = 0;
+                ParamDownload.NbFileOutToDate = 0;
+                //    while ((line = reader.ReadLine()) != null)
+                //    {
+                try
                 {
-                    string line;
-                    int i = 0;
-                    ParamDownload.NbFileOutToDate = 0;
-                    while ((line = reader.ReadLine()) != null)
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-
-                        //string lineClean = line.Replace(" ", "");
-                        string lineClean = line;
-                        if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
 
-                            //Ne traite que les fichiers versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                            //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-
-                            string File_name = "";
-                            string FileRefDate = "";
-                            int[] FileRefVersion = new int[3];
-
-                            if (lineClean.Contains("versionDCE[\""))
+                            //string lineClean = line.Replace(" ", "");
+                            string lineClean = line;
+                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
                             {
-                                //versionDCE.ScriptsMod = "20.43.70"
-                                //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                                //recherche les fichiers à mettre à jour
 
-                                lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
-                                //lineClean = lineClean.Replace("/view?usp=sharing", "");
+                                //Ne traite que les fichiers versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+                                //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
 
-                                if (lineClean.IndexOf("/view?") > -1)
+                                string File_name = "";
+                                string FileRefDate = "";
+                                int[] FileRefVersion = new int[3];
+
+                                if (lineClean.Contains("versionDCE[\""))
                                 {
-                                    string[] partView = lineClean.Split('/');
-                                    lineClean = partView[0];
-                                }
+                                    //versionDCE.ScriptsMod = "20.43.70"
+                                    //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+                                    //recherche les fichiers à mettre à jour
 
-                                lineClean = lineClean.Replace("\"", "");
-                                string[] part = lineClean.Split('=');
-                                part[1] = part[1].TrimEnd();
-                                part[1] = part[1].TrimStart();
+                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
+                                    //lineClean = lineClean.Replace("/view?usp=sharing", "");
 
-                                if (part.Length >= 3)
-                                {
-                                    part[2] = part[2].TrimEnd();
-                                    part[2] = part[2].TrimStart();
-                                }
-
-
-                                string[] pre = part[0].Split('[');
-                                string[] post = pre[1].Split(']');
-                                File_name = post[0];
-                                File_name = File_name.TrimEnd();
-                                File_name = File_name.TrimStart();
-
-                                //remet l'espace du path "Mission Scripts" préalablement supprimé
-                                if (File_name.Contains("MissionScripts"))
-                                    File_name = File_name.Replace("MissionScripts", "Mission Scripts");
-
-                                if (part[1].Contains("."))
-                                {
-                                    string[]  tempRefVersion = part[1].Split('.');
-
-                                    FileRefVersion[0] = Int32.Parse(tempRefVersion[0]);
-                                    FileRefVersion[1] = Int32.Parse(tempRefVersion[1]);
-                                    FileRefVersion[2] = Int32.Parse(tempRefVersion[2]);
-                                    
-                                }
-                                else if (part[1].Contains(":") & part[1].Contains("/"))
-                                {
-                                    //31/03/2021 09:37:31
-                                    //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
-
-                                    FileRefDate = part[1];
-                                }
-
-                                
-                            }
-
-                            if (!String.IsNullOrEmpty(File_name))
-                            {
-                                bool fichierSain = true;
-                                bool fileLocExists = File.Exists(folderLoc + File_name);
-                                string ext = "";
-
-                                int FileLoc_major = 0;
-                                int FileLoc_minor = 0;
-                                int FileLoc_build = 0;
-
-                                Boolean fileLocDateNeedUpdate = false;
-                                Boolean isLuaTxtFile = false;
-
-
-                                FileInfo fInfo = new FileInfo(folderLoc + File_name);
-                                //int size = fInfo.Length;//taille en octets 
-
-                                if (fileLocExists)
-                                {
-                                    if (fInfo.Length < 1)
-                                        fichierSain = false;
-
-                                    ext = Path.GetExtension(folderLoc + File_name);
-
-                                }
-
-                                if (ext == ".lua" | ext == ".txt")
-                                {
-                                    isLuaTxtFile = true;
-
-                                    if (fileLocExists && fichierSain)
+                                    if (lineClean.IndexOf("/view?") > -1)
                                     {
-                                        string FileToRead = folderLoc + File_name;
-                                        using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                                        string[] partView = lineClean.Split('/');
+                                        lineClean = partView[0];
+                                    }
+
+                                    lineClean = lineClean.Replace("\"", "");
+                                    string[] part = lineClean.Split('=');
+                                    part[1] = part[1].TrimEnd();
+                                    part[1] = part[1].TrimStart();
+
+                                    if (part.Length >= 3)
+                                    {
+                                        part[2] = part[2].TrimEnd();
+                                        part[2] = part[2].TrimStart();
+                                    }
+
+
+                                    string[] pre = part[0].Split('[');
+                                    string[] post = pre[1].Split(']');
+                                    File_name = post[0];
+                                    File_name = File_name.TrimEnd();
+                                    File_name = File_name.TrimStart();
+
+                                    //remet l'espace du path "Mission Scripts" préalablement supprimé
+                                    if (File_name.Contains("MissionScripts"))
+                                        File_name = File_name.Replace("MissionScripts", "Mission Scripts");
+
+                                    if (part[1].Contains("."))
+                                    {
+                                        string[] tempRefVersion = part[1].Split('.');
+
+                                        FileRefVersion[0] = Int32.Parse(tempRefVersion[0]);
+                                        FileRefVersion[1] = Int32.Parse(tempRefVersion[1]);
+                                        FileRefVersion[2] = Int32.Parse(tempRefVersion[2]);
+
+                                    }
+                                    else if (part[1].Contains(":") & part[1].Contains("/"))
+                                    {
+                                        //31/03/2021 09:37:31
+                                        //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
+
+                                        FileRefDate = part[1];
+                                    }
+
+
+                                }
+
+                                if (!String.IsNullOrEmpty(File_name))
+                                {
+                                    bool fichierSain = true;
+                                    bool fileLocExists = File.Exists(folderLoc + File_name);
+                                    string ext = "";
+
+                                    int FileLoc_major = 0;
+                                    int FileLoc_minor = 0;
+                                    int FileLoc_build = 0;
+
+                                    Boolean fileLocDateNeedUpdate = false;
+                                    Boolean isLuaTxtFile = false;
+
+
+                                    FileInfo fInfo = new FileInfo(folderLoc + File_name);
+                                    //int size = fInfo.Length;//taille en octets 
+
+                                    if (fileLocExists)
+                                    {
+                                        if (fInfo.Length < 1)
+                                            fichierSain = false;
+
+                                        ext = Path.GetExtension(folderLoc + File_name);
+
+                                    }
+
+                                    if (ext == ".lua" | ext == ".txt")
+                                    {
+                                        isLuaTxtFile = true;
+
+                                        if (fileLocExists && fichierSain)
                                         {
-
-                                            string Line;
-                                            while ((Line = ReaderObject.ReadLine()) != null)
+                                            string FileToRead = folderLoc + File_name;
+                                            using (StreamReader ReaderObject = new StreamReader(FileToRead))
                                             {
-                                                Line = Line.Replace(" ", "");
-                                                //versionDCE.ATO_FlightPlan = "1.38.107"
-                                                if (Line.Contains("versionDCE["))
+
+                                                string Line;
+                                                while ((Line = ReaderObject.ReadLine()) != null)
                                                 {
-                                                    //placer ici le code pour virer le commentaire : --48CEF tout ça
-                                                    if (Line.IndexOf("--") > -1)
+                                                    Line = Line.Replace(" ", "");
+                                                    //versionDCE.ATO_FlightPlan = "1.38.107"
+                                                    if (Line.Contains("versionDCE["))
                                                     {
-                                                        Line = Line.Substring(0, Line.IndexOf("--"));
+                                                        //placer ici le code pour virer le commentaire : --48CEF tout ça
+                                                        if (Line.IndexOf("--") > -1)
+                                                        {
+                                                            Line = Line.Substring(0, Line.IndexOf("--"));
+                                                        }
+
+                                                        Line = Line.Replace("\"", "");
+                                                        string[] part = Line.Split('=');
+                                                        string[] tempVersion = part[1].Split('.');
+
+                                                        FileLoc_major = Int32.Parse(tempVersion[0]);
+                                                        FileLoc_minor = Int32.Parse(tempVersion[1]);
+                                                        FileLoc_build = Int32.Parse(tempVersion[2]);
+                                                        break;
                                                     }
-
-                                                    Line = Line.Replace("\"", "");
-                                                    string[] part = Line.Split('=');
-                                                    string[] tempVersion = part[1].Split('.');
-
-                                                    FileLoc_major = Int32.Parse(tempVersion[0]);
-                                                    FileLoc_minor = Int32.Parse(tempVersion[1]);
-                                                    FileLoc_build = Int32.Parse(tempVersion[2]);
-                                                    break;
+                                                    //else
+                                                    //{
+                                                    //    ExistVersion = false;
+                                                    //}
                                                 }
-                                                //else
-                                                //{
-                                                //    ExistVersion = false;
-                                                //}
+                                            }
+                                        }
+
+                                    }
+                                    else
+                                    //autres fichiers de type ogg png
+                                    {
+                                        DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + File_name);
+
+                                        if (FileRefDate != "")
+                                        {
+                                            //FormUtils.LogRegister("fileUpdateArray[i, 5]?  |" + fileUpdateArray[i, 5].ToString() + "| ");
+
+                                            //31/03/2021 09:37:31
+                                            DateTime dt_RefFile = DateTime.ParseExact(FileRefDate, "dd/MM/yyyy HH:mm:ss",
+                                                System.Globalization.CultureInfo.InvariantCulture);
+
+                                            if (dt_RefFile > dtFileLoc)
+                                            {
+                                                fileLocDateNeedUpdate = true;
+                                            }
+                                            else
+                                            {
+                                                fileLocDateNeedUpdate = false;
                                             }
                                         }
                                     }
 
-                                }
-                                else
-                                //autres fichiers de type ogg png
-                                {
-                                    DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + File_name);
 
-                                    if (FileRefDate != "")
+                                    if (FileRefVersion[0] > FileLoc_major || FileRefVersion[1] > FileLoc_minor || FileRefVersion[2] > FileLoc_build || (!isLuaTxtFile && fileLocDateNeedUpdate) || !fileLocExists)
                                     {
-                                        //FormUtils.LogRegister("fileUpdateArray[i, 5]?  |" + fileUpdateArray[i, 5].ToString() + "| ");
 
-                                        //31/03/2021 09:37:31
-                                        DateTime dt_RefFile = DateTime.ParseExact(FileRefDate, "dd/MM/yyyy HH:mm:ss",
-                                            System.Globalization.CultureInfo.InvariantCulture);
+                                        //FormUtils.LogRegister("LogRegister 624 this file is not up to date, or is missing  |" + File_name + "| ");
 
-                                        if (dt_RefFile > dtFileLoc)
-                                        {
-                                            fileLocDateNeedUpdate = true;
-                                        }
-                                        else
-                                        {
-                                            fileLocDateNeedUpdate = false;
-                                        }
+                                        i++;
                                     }
+
+                                    //if (fileDate)
+                                    //{
+
+                                    //}
                                 }
 
-                                
-                                if (FileRefVersion[0] > FileLoc_major || FileRefVersion[1] > FileLoc_minor || FileRefVersion[2] > FileLoc_build || (!isLuaTxtFile && fileLocDateNeedUpdate) || !fileLocExists)
+                                //**********************************
+                                //check la version de DCE_Manager
+                                //*********************************
+
+                                //versionManager = "3.7.5"
+                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
+                                //if (lineClean.Contains("versionDCE[\""))
+                                if (lineClean.Contains("versionManager") && !lineClean.Contains("versionManagerGoogleDrive"))
                                 {
-                                   
-                                    //FormUtils.LogRegister("LogRegister 624 this file is not up to date, or is missing  |" + File_name + "| ");
+                                    //recherche la version de DCE
+                                    lineClean = lineClean.Replace(" ", "");
+                                    lineClean = lineClean.Replace("versionManager=", "");
+                                    lineClean = lineClean.Replace("\"", "");
 
-                                    i++;
-                                }
+                                    string[] words = lineClean.Split('.');
+                                    FileServer_major = Int32.Parse(words[0]);
+                                    FileServer_minor = Int32.Parse(words[1]);
+                                    FileServer_build = Int32.Parse(words[2]);
 
-                                //if (fileDate)
-                                //{
-
-                                //}
-                            }
-
-                            //**********************************
-                            //check la version de DCE_Manager
-                            //*********************************
-
-                            //versionManager = "3.7.5"
-                            //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
-                            //if (lineClean.Contains("versionDCE[\""))
-                            if (lineClean.Contains("versionManager") && !lineClean.Contains("versionManagerGoogleDrive"))
-                            {
-                                //recherche la version de DCE
-                                lineClean = lineClean.Replace(" ", "");
-                                lineClean = lineClean.Replace("versionManager=", "");
-                                lineClean = lineClean.Replace("\"", "");
-
-                                string[] words = lineClean.Split('.');
-                                FileServer_major = Int32.Parse(words[0]);
-                                FileServer_minor = Int32.Parse(words[1]);
-                                FileServer_build = Int32.Parse(words[2]);
-
-                                if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
-                                {
-                                    FormUtils.LogRegister("LogRegister 671 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
+                                    if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
+                                    {
+                                        FormUtils.LogRegister("LogRegister 671 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
 
 
-                                    DcemanagUpToDate = false;
+                                        DcemanagUpToDate = false;
+                                    }
                                 }
                             }
                         }
@@ -803,6 +870,21 @@ namespace DCE_Manager
                     {
                         ParamDownload.NbFileOutToDate = ParamDownload.NbFileOutToDate + 1;
                     }
+                }
+
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
 
@@ -1274,21 +1356,43 @@ namespace DCE_Manager
             bool config_0_Present = false;
             bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
 
-            //FileInfo fInfo = new FileInfo(pathOptionInstaller + @"\options.txt");
-            //var size = fInfo.Length;//taille en octets
-
-            //if (fileExists & size > 0)
             if (fileExists)
             {
 
-                string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                //string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
 
-                foreach (string line in namelines)
+                //foreach (string line in namelines)
+                //{
+                try
                 {
-                    if (line.Contains("config_0_="))
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        config_0_Present = true;
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+
+                            if (line.Contains("config_0_="))
+                            {
+                                config_0_Present = true;
+                            }
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
             else
@@ -1304,57 +1408,88 @@ namespace DCE_Manager
                 "config_0_" + "pathSavedGames=" + textBox_SavedGames.Text + "\r\n" +
                 "config_0_" + "pathOVGME=" + textBox_OvGME.Text;
 
+            
+
             // Create the file, or overwrite if the file exists.
             if (!config_0_Present)
             {
                 try
                 {
-                    using (FileStream fs = File.Create(pathOptionInstaller + @"\options.txt"))
+                    // Crée ou écrase le fichier, tout en permettant l'accès partagé à d'autres processus
+                    using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
                     {
                         byte[] info = new UTF8Encoding(true).GetBytes(textOption + "\r\n");
-                        // Add some information to the file.
                         fs.Write(info, 0, info.Length);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.StackTrace, "Error");
-                    string toto = ex.StackTrace;
+                    // Affiche un message d'erreur plus informatif
+                    MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
+                    FormUtils.LogRegister($"Error StackTrace: {ex.StackTrace}\r\n");
                 }
             }
+
             else
             {
-                string[] linesChange = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-                //cherche si ce GestionName existe deja
-
-                foreach (string line in linesChange)
+                try
                 {
-                    if (line.Contains("config_0_"))
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        string reste = "";
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
 
-                        if (line.Contains("pathZipCampaign"))
-                            reste = OptiontextBox_Campaign;
+                            //string[] linesChange = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                            ////cherche si ce GestionName existe deja
 
-                        if (line.Contains("pathDCS"))
-                            reste = textBox_DCS.Text;
+                            //foreach (string line in linesChange)
+                            //{
+                            if (line.Contains("config_0_"))
+                            {
+                                string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                string reste = "";
 
-                        if (line.Contains("pathSavedGames"))
-                            reste = textBox_SavedGames.Text;
+                                if (line.Contains("pathZipCampaign"))
+                                    reste = OptiontextBox_Campaign;
 
-                        if (line.Contains("pathOVGME"))
-                            reste = textBox_OvGME.Text;
+                                if (line.Contains("pathDCS"))
+                                    reste = textBox_DCS.Text;
+
+                                if (line.Contains("pathSavedGames"))
+                                    reste = textBox_SavedGames.Text;
+
+                                if (line.Contains("pathOVGME"))
+                                    reste = textBox_OvGME.Text;
 
 
-                        string ligneAModifier = words[0] + "=" + reste;
+                                string ligneAModifier = words[0] + "=" + reste;
 
-                        NbLignModif = NbLignModif + FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", line, ligneAModifier);
+                                NbLignModif = NbLignModif + FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", line, ligneAModifier);
 
-                        //supprime les lignes vides
-                        FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
+                                //supprime les lignes vides
+                                FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
+                            }
+                        }
                     }
                 }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                }
+            
             }
 
             if (NbLignModif > 0)
@@ -1475,129 +1610,151 @@ namespace DCE_Manager
 
             if (fileExists)
             {
-                using (StreamReader reader = new StreamReader(pathManager + upgradelocFile))
+                //using (StreamReader reader = new StreamReader(pathManager + upgradelocFile))
+                //{
+                //    string line;
+                int i = 0;
+                //    while ((line = reader.ReadLine()) != null)
+                //    {
+                try
                 {
-                    string line;
-                    int i = 0;
-                    while ((line = reader.ReadLine()) != null)
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-
-                        //string lineClean = line.Replace(" ", "");
-                        string lineClean = line;
-
-                        if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            //DEVversionDCE.ScriptsMod = "20.44.71"
-                            //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                            //DEVversionDCEGoogleDrive["ATO_FlightPlan.lua"] = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-                            //versionCampaign["India-Pak War-71 - MiG-19\Init\targetlist_init.lua"] = "1.132.200" = https://drive.google.com/file/d/1Cc69upYFJ1n0GWbdYnoFcSePy6g4Mt-6/view?usp=sharing
 
-                            // ne traite que la version scriptsMod Client
-                            //if (LabelStatut.Text == "User" && lineClean.Contains("versionDCE.ScriptsMod=") && !lineClean.Contains("DEVversionDCE"))
-                            if (lineClean.Contains("versionDCE.ScriptsMod"))
+                            //string lineClean = line.Replace(" ", "");
+                            string lineClean = line;
+
+                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
                             {
-                                //recherche la version de DCE
-                                lineClean = lineClean.Replace("versionDCE.ScriptsMod", "");
-                                lineClean = lineClean.Replace("=", "");
-                                lineClean = lineClean.Replace("\"", "");
+                                //DEVversionDCE.ScriptsMod = "20.44.71"
+                                //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+                                //DEVversionDCEGoogleDrive["ATO_FlightPlan.lua"] = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
+                                //versionCampaign["India-Pak War-71 - MiG-19\Init\targetlist_init.lua"] = "1.132.200" = https://drive.google.com/file/d/1Cc69upYFJ1n0GWbdYnoFcSePy6g4Mt-6/view?usp=sharing
 
-                                lineClean = lineClean.TrimEnd();
-                                lineClean = lineClean.TrimStart();
-
-                                string[] words = lineClean.Split('.');
-                                major = words[0];
-                                minor = words[1];
-                                build = words[2];
-                                TypeClient = "NG";
-                            }
-
-                            //Ne traite que les fichiers 
-                            //versionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-                           
-                            else if (lineClean.Contains("versionDCE[\""))
-                            {
-                                //versionDCE.ScriptsMod = "20.43.70"
-                                //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                                //recherche les fichiers à mettre à jour
-                               
-                                lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
-                                //lineClean = lineClean.Replace("/view?usp=sharing", "");
-
-                                //ATTENTION aux lignes dessous, elles empechent le telechargement des ogg
-                                //if (lineClean.IndexOf("/view?") > -1)
-                                //{
-                                //    string[] partView = lineClean.Split('/');
-                                //    lineClean = partView[0];
-                                //}
-
-                                if (lineClean.IndexOf("/view?usp") > -1)
+                                // ne traite que la version scriptsMod Client
+                                //if (LabelStatut.Text == "User" && lineClean.Contains("versionDCE.ScriptsMod=") && !lineClean.Contains("DEVversionDCE"))
+                                if (lineClean.Contains("versionDCE.ScriptsMod"))
                                 {
-                                    lineClean = lineClean.Replace("/view?usp", "");
+                                    //recherche la version de DCE
+                                    lineClean = lineClean.Replace("versionDCE.ScriptsMod", "");
+                                    lineClean = lineClean.Replace("=", "");
+                                    lineClean = lineClean.Replace("\"", "");
+
+                                    lineClean = lineClean.TrimEnd();
+                                    lineClean = lineClean.TrimStart();
+
+                                    string[] words = lineClean.Split('.');
+                                    major = words[0];
+                                    minor = words[1];
+                                    build = words[2];
+                                    TypeClient = "NG";
                                 }
 
-                                lineClean = lineClean.Replace("\"", "");
-                                string[] part = lineClean.Split('=');
+                                //Ne traite que les fichiers 
+                                //versionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
 
-                                //part1: "1.38.107"
-                                part[1] = part[1].TrimEnd();
-                                part[1] = part[1].TrimStart();
-
-                                if (part.Length >= 3)
+                                else if (lineClean.Contains("versionDCE[\""))
                                 {
-                                    //part2  1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-                                    part[2] = part[2].TrimEnd();
-                                    part[2] = part[2].TrimStart();
+                                    //versionDCE.ScriptsMod = "20.43.70"
+                                    //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+                                    //recherche les fichiers à mettre à jour
+
+                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
+                                    //lineClean = lineClean.Replace("/view?usp=sharing", "");
+
+                                    //ATTENTION aux lignes dessous, elles empechent le telechargement des ogg
+                                    //if (lineClean.IndexOf("/view?") > -1)
+                                    //{
+                                    //    string[] partView = lineClean.Split('/');
+                                    //    lineClean = partView[0];
+                                    //}
+
+                                    if (lineClean.IndexOf("/view?usp") > -1)
+                                    {
+                                        lineClean = lineClean.Replace("/view?usp", "");
+                                    }
+
+                                    lineClean = lineClean.Replace("\"", "");
+                                    string[] part = lineClean.Split('=');
+
+                                    //part1: "1.38.107"
+                                    part[1] = part[1].TrimEnd();
+                                    part[1] = part[1].TrimStart();
+
+                                    if (part.Length >= 3)
+                                    {
+                                        //part2  1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
+                                        part[2] = part[2].TrimEnd();
+                                        part[2] = part[2].TrimStart();
+                                    }
+
+
+                                    string[] pre = part[0].Split('[');
+                                    string[] post = pre[1].Split(']');
+                                    File_name = post[0];
+                                    File_name = File_name.TrimEnd();
+                                    File_name = File_name.TrimStart();
+
+                                    //remet l'espace du path "Mission Scripts" préalablement supprimé
+                                    if (File_name.Contains("MissionScripts"))
+                                        File_name = File_name.Replace("MissionScripts", "Mission Scripts");
+
+                                    if (part[1].Contains("."))
+                                    {
+
+                                        string[] FileVersion = part[1].Split('.');
+
+                                        if (File_name.Length > 0)
+                                            fileUpdateArray[i, 0] = (File_name);
+
+                                        fileUpdateArray[i, 1] = FileVersion[0];
+                                        fileUpdateArray[i, 2] = FileVersion[1];
+                                        fileUpdateArray[i, 3] = FileVersion[2];
+                                    }
+                                    //else if (part[1].Contains(":") & part[1].Contains("/"))
+                                    else if (part[1].IndexOf(":") > -1 && part[1].IndexOf("/") > -1)
+                                    {
+
+                                        //31/03/2021 09:37:31
+                                        //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
+                                        if (File_name.Length > 0)
+                                            fileUpdateArray[i, 0] = (File_name);
+
+                                        fileUpdateArray[i, 1] = part[1];
+
+                                        fileUpdateArray[i, 5] = part[1];
+
+                                        FormUtils.LogRegister("LogRegister 1802 fileUpdateArray[i, 5] |" + File_name + " " + part[1] + "|");
+                                    }
+
+                                    //cherche le lien GoogleDrive apres le 2eme =
+                                    if (part.Count() >= 3 && part[2] != null)
+                                    {
+                                        fileUpdateArray[i, 4] = part[2];
+                                    }
+
+                                    i++;
                                 }
-
-
-                                string[] pre = part[0].Split('[');
-                                string[] post = pre[1].Split(']');
-                                File_name = post[0];
-                                File_name = File_name.TrimEnd();
-                                File_name = File_name.TrimStart();
-
-                                //remet l'espace du path "Mission Scripts" préalablement supprimé
-                                if (File_name.Contains("MissionScripts"))
-                                    File_name = File_name.Replace("MissionScripts", "Mission Scripts");
-
-                                if (part[1].Contains("."))
-                                {
-                                   
-                                    string[] FileVersion = part[1].Split('.');
-                                    
-                                    if (File_name.Length > 0)
-                                        fileUpdateArray[i, 0] = (File_name);
-
-                                    fileUpdateArray[i, 1] = FileVersion[0];
-                                    fileUpdateArray[i, 2] = FileVersion[1];
-                                    fileUpdateArray[i, 3] = FileVersion[2];
-                                }
-                                //else if (part[1].Contains(":") & part[1].Contains("/"))
-                                else if (part[1].IndexOf(":") > -1 && part[1].IndexOf("/") > -1)
-                                {
-                                    
-                                    //31/03/2021 09:37:31
-                                    //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
-                                    if (File_name.Length > 0)
-                                        fileUpdateArray[i, 0] = (File_name);
-
-                                    fileUpdateArray[i, 1] = part[1];
-
-                                    fileUpdateArray[i, 5] = part[1];
-
-                                    FormUtils.LogRegister("LogRegister 1802 fileUpdateArray[i, 5] |" + File_name + " "+ part[1] + "|");
-                                }
-
-                                //cherche le lien GoogleDrive apres le 2eme =
-                                if (part.Count() >= 3 && part[2] != null)
-                                {
-                                    fileUpdateArray[i, 4] = part[2];
-                                }
-
-                                i++;
                             }
                         }
+                    
                     }
+                }
+                catch (Exception ex)
+                {
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
             else
@@ -1864,8 +2021,7 @@ namespace DCE_Manager
                 }
             }   // if (succeed)
             
-            //suppression du fichier upgrade.txt pour eviter un fichier ghost
-            //File.Delete(pathManager + @"\upgrade.txt");
+
             if (nbFileErreur > 0)
             {
                 //MessageBox.Show("Number of error " + nbFileErreur.ToString() 
@@ -2015,54 +2171,79 @@ namespace DCE_Manager
 
             if (exists & fileExists)
             {
-                string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
 
-                foreach (string line in lines)
+                //foreach (string line in lines)
+                //{
+                try
                 {
-                    if (line.Contains("config_0_pathZipCampaign="))
-                        textBox_Campaign.Text = line.Replace("config_0_pathZipCampaign=", "");
-
-                    if (line.Contains("config_0_" + "pathDCS="))
-                        textBox_DCS.Text = line.Replace("config_0_" + "pathDCS=", "");
-
-                    if (line.Contains("config_0_" + "pathSavedGames="))
-                        textBox_SavedGames.Text = line.Replace("config_0_" + "pathSavedGames=", "");
-
-                    if (line.Contains("config_0_" + "pathOVGME="))
-                        textBox_OvGME.Text = line.Replace("config_0_" + "pathOVGME=", "");
-
-                    if (line.Contains("upgradeTxtDownload="))
-                        ParamDownload.UpgradeTime = line.Replace("upgradeTxtDownload=", "");
-
-                    if (line.Contains("LastNewsVersion="))
-                        DceNews.LastNewsVersion = line.Replace("LastNewsVersion=", "");
-
-                    if (line.Contains("ServerNickNameSelected="))
-                        ParamServ.ServerNickNameSelected = line.Replace("ServerNickNameSelected=", "");
-
-                    if (line.Contains("PathDevUpgrade="))
-                        txtBoxFolderCreateUpdate.Text = line.Replace("PathDevUpgrade=", "");
-
-                    if (line.Contains("PathDevFileUpgrade="))
-                        textBoxCreateFileUpdate.Text = line.Replace("PathDevFileUpgrade=", "");
-
-                    if (line.Contains("NbLancement="))
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                       string nbL = line.Replace("NbLancement=", "");
-                        ParamManager.NbLancement = Int32.Parse(nbL) ;
-                    }
-                    else if (line.Contains("ASTI_MissionFile="))
-                    {
-                        string nbL = line.Replace("ASTI_MissionFile=", "");
-                        SharedData.textBox_ASTI_MissionFile = nbL;
-                    }
-                    else if (line.Contains("ASTI_importTemplateFolder="))
-                    {
-                        string nbL = line.Replace("ASTI_importTemplateFolder=", "");
-                        SharedData.textBox_ASTI_importTemplateFolder = nbL;
-                        but_templateFolder.Visible = true;
-                    }
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (line.Contains("config_0_pathZipCampaign="))
+                                textBox_Campaign.Text = line.Replace("config_0_pathZipCampaign=", "");
 
+                            if (line.Contains("config_0_" + "pathDCS="))
+                                textBox_DCS.Text = line.Replace("config_0_" + "pathDCS=", "");
+
+                            if (line.Contains("config_0_" + "pathSavedGames="))
+                                textBox_SavedGames.Text = line.Replace("config_0_" + "pathSavedGames=", "");
+
+                            if (line.Contains("config_0_" + "pathOVGME="))
+                                textBox_OvGME.Text = line.Replace("config_0_" + "pathOVGME=", "");
+
+                            if (line.Contains("upgradeTxtDownload="))
+                                ParamDownload.UpgradeTime = line.Replace("upgradeTxtDownload=", "");
+
+                            if (line.Contains("LastNewsVersion="))
+                                DceNews.LastNewsVersion = line.Replace("LastNewsVersion=", "");
+
+                            if (line.Contains("ServerNickNameSelected="))
+                                ParamServ.ServerNickNameSelected = line.Replace("ServerNickNameSelected=", "");
+
+                            if (line.Contains("PathDevUpgrade="))
+                                txtBoxFolderCreateUpdate.Text = line.Replace("PathDevUpgrade=", "");
+
+                            if (line.Contains("PathDevFileUpgrade="))
+                                textBoxCreateFileUpdate.Text = line.Replace("PathDevFileUpgrade=", "");
+
+                            if (line.Contains("NbLancement="))
+                            {
+                                string nbL = line.Replace("NbLancement=", "");
+                                ParamManager.NbLancement = Int32.Parse(nbL);
+                            }
+                            else if (line.Contains("ASTI_MissionFile="))
+                            {
+                                string nbL = line.Replace("ASTI_MissionFile=", "");
+                                SharedData.textBox_ASTI_MissionFile = nbL;
+                            }
+                            else if (line.Contains("ASTI_importTemplateFolder="))
+                            {
+                                string nbL = line.Replace("ASTI_importTemplateFolder=", "");
+                                SharedData.textBox_ASTI_importTemplateFolder = nbL;
+                                but_templateFolder.Visible = true;
+                            }
+
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
 
@@ -2114,36 +2295,62 @@ namespace DCE_Manager
 
             if (exists & fileExists)
             {
-                string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                //string SelectedItem = "";
+                ////cherche la derniere version du config pour l'ajouter
+                //foreach (string line in lines)
+                //{
                 string SelectedItem = "";
-                //cherche la derniere version du config pour l'ajouter
-                foreach (string line in lines)
+                try
                 {
-                    for (int n = 0; n < 20; n++)
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        if (line.Contains("config_" + n.ToString() + "_="))
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            string[] words = line.Split('=');                           //config_0_pathsavedgames
-                            //ListConfig.Add(words[1]);
-                            comboBox_Config.Items.Add(words[1]);
-                        }
-                    }
-                    //display=MegaUno
-                    if (line.Contains("display="))
-                    {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        SelectedItem = words[1];
-                    }
+                            for (int n = 0; n < 20; n++)
+                            {
+                                if (line.Contains("config_" + n.ToString() + "_="))
+                                {
+                                    string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                    //ListConfig.Add(words[1]);
+                                    comboBox_Config.Items.Add(words[1]);
+                                }
+                            }
+                            //display=MegaUno
+                            if (line.Contains("display="))
+                            {
+                                string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                SelectedItem = words[1];
+                            }
 
-                    //display=MegaUno
-                    if (line.Contains("upgradeTxtDownload="))
-                    {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        ParamDownload.UpgradeTime = words[1];
+                            //display=MegaUno
+                            if (line.Contains("upgradeTxtDownload="))
+                            {
+                                string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                ParamDownload.UpgradeTime = words[1];
+                            }
+                        }
+
+                        comboBox_Config.SelectedItem = SelectedItem;
                     }
                 }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
 
-                comboBox_Config.SelectedItem = SelectedItem;
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                }
             }
 
             //comboBox_Config.DataSource = ListConfig;
@@ -3433,81 +3640,107 @@ namespace DCE_Manager
 
             if (fileExists)
             {
-                string[] lines = System.IO.File.ReadAllLines(pathManager + @"\upgrade.txt");
+                //string[] lines = System.IO.File.ReadAllLines(pathManager + @"\upgrade.txt");
                 char[] MyChar = { ' ' };
-                //versionCampaign.Crisis in PG-Gazelle\Init\db_loadouts.lua = "1.37.100"
+                ////versionCampaign.Crisis in PG-Gazelle\Init\db_loadouts.lua = "1.37.100"
 
                 int i = 0;
-                foreach (string line in lines)
+                //foreach (string line in lines)
+                //{
+                try
                 {
-                    string lineClean = line;
-                    if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathManager + @"\upgrade.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        if (lineClean.Contains("versionCampaign["))
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            //recherche la version du fichier update
-                            //versionCampaign["Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua"] = "1.1.3"
-                            //versionCampaign["Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua"] = "1.1.3" = 1E96iq9jWRTadVKicZdevDX0ov944isTo = firstmission
-                            //lineClean = lineClean.Replace("versionCampaign", "");
-
-                            lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
-                            lineClean = lineClean.Replace("/view?usp=sharing", "");
-
-
-                            //recherche les fichiers à mettre à jour
-                            lineClean = lineClean.Replace("\"", "");
-
-                            string[] part = lineClean.Split('=');
-
-                            string[] campTab = lineClean.Split('\\');
-                            campName = campTab[0];
-
-                            string[] pre = part[0].Split('[');                              //versionCampaign  [  Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua]
-                            string[] post = pre[1].Split(']');                              //Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua  ]
-                            File_name = post[0];                                            //Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua
-
-                            string[] words = part[0].Split('.');
-                            string[] FileVersion = part[1].Split('.');
-
-                            if (File_name.Length > 0)
-                                fileUpdateArray[i, 0] = (File_name);
-
-                            if (FileVersion.Count() == 3)
+                            string lineClean = line;
+                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
                             {
-                                fileUpdateArray[i, 1] = FileVersion[0];
-                                fileUpdateArray[i, 2] = FileVersion[1];
-                                fileUpdateArray[i, 3] = FileVersion[2];
+                                if (lineClean.Contains("versionCampaign["))
+                                {
+                                    //recherche la version du fichier update
+                                    //versionCampaign["Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua"] = "1.1.3"
+                                    //versionCampaign["Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua"] = "1.1.3" = 1E96iq9jWRTadVKicZdevDX0ov944isTo = firstmission
+                                    //lineClean = lineClean.Replace("versionCampaign", "");
+
+                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
+                                    lineClean = lineClean.Replace("/view?usp=sharing", "");
+
+
+                                    //recherche les fichiers à mettre à jour
+                                    lineClean = lineClean.Replace("\"", "");
+
+                                    string[] part = lineClean.Split('=');
+
+                                    string[] campTab = lineClean.Split('\\');
+                                    campName = campTab[0];
+
+                                    string[] pre = part[0].Split('[');                              //versionCampaign  [  Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua]
+                                    string[] post = pre[1].Split(']');                              //Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua  ]
+                                    File_name = post[0];                                            //Crisis in PG-Tomcat-CVN\Init\targetlist_init.lua
+
+                                    string[] words = part[0].Split('.');
+                                    string[] FileVersion = part[1].Split('.');
+
+                                    if (File_name.Length > 0)
+                                        fileUpdateArray[i, 0] = (File_name);
+
+                                    if (FileVersion.Count() == 3)
+                                    {
+                                        fileUpdateArray[i, 1] = FileVersion[0];
+                                        fileUpdateArray[i, 2] = FileVersion[1];
+                                        fileUpdateArray[i, 3] = FileVersion[2];
+                                    }
+                                    else
+                                    {
+                                        string dating = part[1].TrimEnd(MyChar);
+
+                                        fileUpdateArray[i, 5] = dating;                            //"31/03/2021 23:22:45"
+                                    }
+
+
+                                    // 8 : googledrive link
+                                    fileUpdateArray[i, 8] = part[2].Replace(" ", "");
+
+                                    string[] campaignFolderTab = File_name.Split('\\');              //Crisis in PG-Tomcat-CVN  \  Init  \  targetlist_init.lua
+                                    string campaignName = campaignFolderTab[0];
+
+                                    fileUpdateArray[i, 4] = campaignName;
+                                    fileUpdateArray[i, 6] = "versionCampaign";
+
+                                    string ActionMission = part[part.Count() - 1].ToLowerInvariant();
+                                    ActionMission = ActionMission.TrimEnd(MyChar);
+                                    ActionMission = ActionMission.TrimStart(MyChar);
+
+                                    if (ActionMission == "skipmission" | ActionMission == "firstmission")
+                                    {
+                                        fileUpdateArray[i, 7] = ActionMission;
+                                    }
+
+
+                                    i++;
+                                }
                             }
-                            else
-                            {
-                                string dating = part[1].TrimEnd(MyChar);
-
-                                fileUpdateArray[i, 5] = dating;                            //"31/03/2021 23:22:45"
-                            }
-
-
-                            // 8 : googledrive link
-                            fileUpdateArray[i, 8] = part[2].Replace(" ", "");
-
-                            string[] campaignFolderTab = File_name.Split('\\');              //Crisis in PG-Tomcat-CVN  \  Init  \  targetlist_init.lua
-                            string campaignName = campaignFolderTab[0];
-
-                            fileUpdateArray[i, 4] = campaignName;
-                            fileUpdateArray[i, 6] = "versionCampaign";
-
-                            string ActionMission = part[part.Count() - 1].ToLowerInvariant();
-                            ActionMission = ActionMission.TrimEnd(MyChar);
-                            ActionMission = ActionMission.TrimStart(MyChar);
-
-                            if (ActionMission == "skipmission" | ActionMission == "firstmission")
-                            {
-                                fileUpdateArray[i, 7] = ActionMission;
-                            }
-
-
-                            i++;
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
             }
 
@@ -4301,22 +4534,50 @@ namespace DCE_Manager
             Button button = sender as Button;
             if (button != null)
             {
-                // verif du fichier requiredModules
+                //// verif du fichier requiredModules
                 string ModRequiredFile = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\Init\requiredModules.lua");
+                string msg = "";
 
                 if (File.Exists(ModRequiredFile))
                 {
-                    string msg = "";
-                    string[] lines = System.IO.File.ReadAllLines(ModRequiredFile);
-                    foreach (string line in lines)
+
+                    //string[] lines = System.IO.File.ReadAllLines(ModRequiredFile);
+                    //foreach (string line in lines)
+                    //{
+                    try
                     {
-                        if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
+                        // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                        using (FileStream fs = new FileStream(ModRequiredFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (StreamReader sr = new StreamReader(fs))
                         {
-                            msg = msg + line + "\r\n";
+                            string line;
+                            while ((line = sr.ReadLine()) != null)
+                            {
+                                if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
+                                {
+                                    msg = msg + line + "\r\n";
+                                }
+                            }
+                            MessageBox.Show(msg, "Module required:");
                         }
                     }
-                    MessageBox.Show(msg, "Module required:");
+
+                    catch (Exception ex)
+                    {
+                        //// Gérer l'erreur en cas de problème de lecture du fichier
+                        //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                        // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                        var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                        var frame = stackTrace.GetFrame(0);
+
+                        // Récupérer la ligne exacte et le fichier source (si disponibles)
+                        var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                        var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                        FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                    }
                 }
+            
 
                 if (LabelStatut.Text == "DEV")
                 {
@@ -4814,7 +5075,7 @@ namespace DCE_Manager
                                         File.Delete(fileBMP);
                                     }
 
-                                    FormUtils.LogRegister("LogRegister 4839 filePNGbyePlane exist");
+                                    //FormUtils.LogRegister("LogRegister 4839 filePNGbyePlane exist");
 
                                 }
 
@@ -5089,42 +5350,92 @@ namespace DCE_Manager
 
             if (exists & fileExists)
             {
-                //cherche le numero correspondant au name campagne
-                string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                ////cherche le numero correspondant au name campagne
+                //string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
 
-                //config_1_=uno
-                foreach (string line in namelines)
+                ////config_1_=uno
+                //foreach (string line in namelines)
+                //{
+                try
                 {
-                    string[] words = line.Split('=');
-
-                    if (words.Count() > 1 && words[0].Contains("config_") & words[1] == NameConfig)
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        //string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        words[0] = words[0].Replace("config_", ""); ;                //0_pathsavedgames
-                        string[] TestNum = words[0].Split('_');
-                        tempNum = Int32.Parse(TestNum[0]);
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            string[] words = line.Split('=');
+
+                            if (words.Count() > 1 && words[0].Contains("config_") & words[1] == NameConfig)
+                            {
+                                //string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                words[0] = words[0].Replace("config_", ""); ;                //0_pathsavedgames
+                                string[] TestNum = words[0].Split('_');
+                                tempNum = Int32.Parse(TestNum[0]);
+                            }
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
 
                 string NumConfig = "config_" + tempNum.ToString() + "_";
 
-                string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-                foreach (string line in lines)
+                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                //foreach (string line in lines)
+                //{
+                try
                 {
-                    if (line.Contains(NumConfig + "pathZipCampaign="))
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        textBox_Campaign.Text = line.Replace(NumConfig + "pathZipCampaign=", "");
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (line.Contains(NumConfig + "pathZipCampaign="))
+                            {
+                                textBox_Campaign.Text = line.Replace(NumConfig + "pathZipCampaign=", "");
 
+                            }
+
+                            if (line.Contains(NumConfig + "pathDCS="))
+                                textBox_DCS.Text = line.Replace(NumConfig + "pathDCS=", "");
+
+                            if (line.Contains(NumConfig + "pathSavedGames="))
+                                textBox_SavedGames.Text = line.Replace(NumConfig + "pathSavedGames=", "");
+
+                            if (line.Contains(NumConfig + "pathOVGME="))
+                                textBox_OvGME.Text = line.Replace(NumConfig + "pathOVGME=", "");
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
 
-                    if (line.Contains(NumConfig + "pathDCS="))
-                        textBox_DCS.Text = line.Replace(NumConfig + "pathDCS=", "");
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
 
-                    if (line.Contains(NumConfig + "pathSavedGames="))
-                        textBox_SavedGames.Text = line.Replace(NumConfig + "pathSavedGames=", "");
-
-                    if (line.Contains(NumConfig + "pathOVGME="))
-                        textBox_OvGME.Text = line.Replace(NumConfig + "pathOVGME=", "");
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
 
                 //inscrit le dernier choix dans le fichier option.txt
@@ -5136,19 +5447,30 @@ namespace DCE_Manager
                     string textAdd = "display=" + NameConfig;
                     try
                     {
-                        //ajoute du texte
-                        using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append))
+                        ////ajoute du texte
+                        //using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append))
+                        //{
+                        //    Byte[] info = new UTF8Encoding(true).GetBytes(textAdd);
+                        //    fs.Write(info, 0, textAdd.Length);
+                        //    fs.Close();
+                        //}
+                        //FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
+                        // Ajoute du texte à la fin du fichier
+
+                        using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
                         {
-                            Byte[] info = new UTF8Encoding(true).GetBytes(textAdd);
-                            fs.Write(info, 0, textAdd.Length);
-                            fs.Close();
+                            Byte[] info = new UTF8Encoding(true).GetBytes(textAdd + "\r\n");
+                            fs.Write(info, 0, info.Length); // Utiliser info.Length pour écrire tous les octets encodés
                         }
+
+                        // Journalisation de l'ajout
                         FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
+
                     }
                     catch (Exception ex)
                     {
-                        string toto = ex.StackTrace;
-                        FormUtils.LogRegister(toto);
+                        MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
+                        FormUtils.LogRegister($"Error StackTrace: {ex.StackTrace}\r\n");
                     }
                 }
                 //supprime les lignes vides
@@ -5531,40 +5853,67 @@ namespace DCE_Manager
 
             if (fileExists) //exists &
             {
-                string[] lines = System.IO.File.ReadAllLines(pathManager + "upgrade.txt");
-                foreach (string line in lines)
+                //string[] lines = System.IO.File.ReadAllLines(pathManager + "upgrade.txt");
+                //foreach (string line in lines)
+                //{
+                try
                 {
-                    string lineClean = line.Replace(" ", "");
-                    if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathManager + "upgrade.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        //versionManager = "3.7.5"
-                        //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
-
-                        if (lineClean.Contains("versionManager="))
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            //recherche la version de DCE
-                            lineClean = lineClean.Replace(" ", "");
-                            lineClean = lineClean.Replace("versionManager=", "");
-                            lineClean = lineClean.Replace("\"", "");
-
-                            string[] words = lineClean.Split('.');
-                            FileServer_major = Int32.Parse(words[0]);
-                            FileServer_minor = Int32.Parse(words[1]);
-                            FileServer_build = Int32.Parse(words[2]);
-
-                            if (ParamServ.fileTypeServer == "ftp")
+                            string lineClean = line.Replace(" ", "");
+                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
                             {
-                                FileServerName = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
-                            }
+                                //versionManager = "3.7.5"
+                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
 
-                        }
-                        else if (lineClean.Contains("versionManagerGoogleDrive=") && ParamServ.fileTypeServer == "drivegoogle")
-                        {
-                            lineClean = lineClean.Replace("versionManagerGoogleDrive=", "");
-                            lineClean = lineClean.Replace(" ", "");
-                            FileServerName = lineClean;
+                                if (lineClean.Contains("versionManager="))
+                                {
+                                    //recherche la version de DCE
+                                    lineClean = lineClean.Replace(" ", "");
+                                    lineClean = lineClean.Replace("versionManager=", "");
+                                    lineClean = lineClean.Replace("\"", "");
+
+                                    string[] words = lineClean.Split('.');
+                                    FileServer_major = Int32.Parse(words[0]);
+                                    FileServer_minor = Int32.Parse(words[1]);
+                                    FileServer_build = Int32.Parse(words[2]);
+
+                                    if (ParamServ.fileTypeServer == "ftp")
+                                    {
+                                        FileServerName = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
+                                    }
+
+                                }
+                                else if (lineClean.Contains("versionManagerGoogleDrive=") && ParamServ.fileTypeServer == "drivegoogle")
+                                {
+                                    lineClean = lineClean.Replace("versionManagerGoogleDrive=", "");
+                                    lineClean = lineClean.Replace(" ", "");
+                                    FileServerName = lineClean;
+                                }
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    // Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+
                 }
             }
             else
@@ -5741,7 +6090,6 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer01;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT01;
 
-                //File.Delete(ParamManager.pathManager + @"\upgrade.txt");
                 CheckPresenceUpgadeTxtFile();
             }
             //ServerNickName02 = "GoogleDrive";
@@ -5753,7 +6101,6 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer02;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT02;
 
-                //File.Delete(ParamManager.pathManager + @"\upgrade.txt");
                 CheckPresenceUpgadeTxtFile();
             }
             else if (NameServer == ParamServ.ServerNickName03 && ParamServ.Server03Exit)
@@ -5763,7 +6110,6 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer03;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT03;
 
-                //File.Delete(ParamManager.pathManager + @"\upgrade.txt");
                 CheckPresenceUpgadeTxtFile();
             }
 
@@ -5985,7 +6331,7 @@ namespace DCE_Manager
             //***********************************************************************
             //************Creation ou mise à jour du fichier Upgrade.txt*************
             //***********************************************************************
-            string[] linesCheck = System.IO.File.ReadAllLines(textBoxCreateFileUpdate.Text + @"\upgrade.txt");
+            //string[] linesCheck = System.IO.File.ReadAllLines(textBoxCreateFileUpdate.Text + @"\upgrade.txt");
             //cherche si ce GestionName existe deja
 
             int NbLignModif = 0;
@@ -5995,50 +6341,101 @@ namespace DCE_Manager
             foreach (KeyValuePair<string, string> entry in CreateUpdateList)
             {
                 foundInUpgradeTXT = false;
-                foreach (string line in linesCheck)
+                //foreach (string line in linesCheck)
+                //{
+                try
                 {
-                    if (line.Length >= 2 && line.Substring(0, 2) != "--")
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(textBoxCreateFileUpdate.Text + @"\upgrade.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
                     {
-                        //if (entry.Key == "beaconsilent.ogg") { }
-                        //FormUtils.LogRegister("entry.Key " + entry.Key);
-
-                        if (line.Contains(entry.Key) & GooglLink.ContainsKey(entry.Key))
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
                         {
-                            int nlm = 0;
-                            string ligneAModifier = "versionDCE[" + entry.Key + "] = " + entry.Value + " = " + GooglLink[entry.Key];
 
-                            FormUtils.LogRegister("ligneAModifier " + ligneAModifier.ToString());
+                            if (line.Length >= 2 && line.Substring(0, 2) != "--")
+                            {
+                                //if (entry.Key == "beaconsilent.ogg") { }
+                                //FormUtils.LogRegister("entry.Key " + entry.Key);
 
-                            nlm = FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
+                                if (line.Contains(entry.Key) & GooglLink.ContainsKey(entry.Key))
+                                {
+                                    int nlm = 0;
+                                    string ligneAModifier = "versionDCE[" + entry.Key + "] = " + entry.Value + " = " + GooglLink[entry.Key];
 
-                            NbLignModif = NbLignModif + nlm;
+                                    FormUtils.LogRegister("ligneAModifier " + ligneAModifier.ToString());
 
-                            FormUtils.LogRegister("nlm " + nlm.ToString() + "nlmTotal" + NbLignModif.ToString());
+                                    nlm = FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
 
-                            foundInUpgradeTXT = true;
+                                    NbLignModif = NbLignModif + nlm;
+
+                                    FormUtils.LogRegister("nlm " + nlm.ToString() + "nlmTotal" + NbLignModif.ToString());
+
+                                    foundInUpgradeTXT = true;
+                                }
+                            }
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                 }
 
                 //ne recherche que la ligne:
                 //versionDCE.ScriptsMod = "20.58.205" dans upgrade.txt
                 if (!foundVerScriptsMod)
                 {
-                    foreach (string line in linesCheck)
+                    //foreach (string line in linesCheck)
+                    //{
+                    try
                     {
-                        if (line.Length >= 2 && line.Substring(0, 2) != "--")
+                        // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                        using (FileStream fs = new FileStream(textBoxCreateFileUpdate.Text + @"\upgrade.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (StreamReader sr = new StreamReader(fs))
                         {
-                            if (line.Contains("versionDCE.ScriptsMod"))
+                            string line;
+                            while ((line = sr.ReadLine()) != null)
                             {
+                                if (line.Length >= 2 && line.Substring(0, 2) != "--")
+                                {
+                                    if (line.Contains("versionDCE.ScriptsMod"))
+                                    {
 
-                                string ligneAModifier = "versionDCE.ScriptsMod" + " = " + Divers.ScriptsMod;
+                                        string ligneAModifier = "versionDCE.ScriptsMod" + " = " + Divers.ScriptsMod;
 
-                                FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
+                                        FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
 
-                                foundInUpgradeTXT = true;
-                                foundVerScriptsMod = true;
+                                        foundInUpgradeTXT = true;
+                                        foundVerScriptsMod = true;
+                                    }
+                                }
                             }
                         }
+                    }
+                    catch (Exception ex)
+                    {
+                        //// Gérer l'erreur en cas de problème de lecture du fichier
+                        //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                        // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                        var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                        var frame = stackTrace.GetFrame(0);
+
+                        // Récupérer la ligne exacte et le fichier source (si disponibles)
+                        var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                        var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                        FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                     }
                 }
                 if (foundInUpgradeTXT == false)

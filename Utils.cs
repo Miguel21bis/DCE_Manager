@@ -55,7 +55,7 @@ namespace DCE_Manager.Utils
                     if (!File.Exists(path))
                     {
                         // Create the file if it doesn't exist
-                        using (FileStream fs = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.None))
+                        using (FileStream fs = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
                         {
                             Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
                             fs.Write(info, 0, info.Length);
@@ -64,7 +64,7 @@ namespace DCE_Manager.Utils
                     else
                     {
                         // Append to the file
-                        using (FileStream fs = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.None))
+                        using (FileStream fs = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
                         {
                             fs.Seek(0, SeekOrigin.End); // Move to the end of the file
                             Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
@@ -112,7 +112,7 @@ namespace DCE_Manager.Utils
             // Tente d'ouvrir le fichier en lecture/écriture pour vérifier s'il est prêt
             try
             {
-                using (FileStream inputStream = File.Open(filename, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                using (FileStream inputStream = File.Open(filename, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
                 {
                     return inputStream.Length > 0;
                 }
@@ -125,51 +125,34 @@ namespace DCE_Manager.Utils
             }
         }
 
+        //public static bool IsFileLocked(IOException ex)
+        //{
+        //    int errorCode = System.Runtime.InteropServices.Marshal.GetHRForException(ex) & 0xFFFF;
+        //    return errorCode == 32 || errorCode == 33; // ERROR_SHARING_VIOLATION or ERROR_LOCK_VIOLATION
+        //}
+
         public static void addLigne(string StringTxt, string path, bool check) //addLigne
         {
-            //bool find = false;
-            //if (check)
-            //{
-            //    string ligneRecherche = StringTxt;
-            //    string ligneEnCoursDeLecture = null;
-            //    StreamReader sr = new StreamReader(path);
-            //    while ((sr.Peek() != -1))
-            //    {
-            //        ligneEnCoursDeLecture = sr.ReadLine();
-            //        if (ligneEnCoursDeLecture.IndexOf(ligneRecherche) > -1)
-            //        {
-            //            find = true;
-            //            return;
-            //        }
-            //    }
-            //    sr.Close();
-            //}
-
-            //if (find)
-            //    return;
-
-            //bool fileExistPath = File.Exists(path);
-            //if (!fileExistPath)
-            //{
-            //    return;
-            //}
 
             // Create the file, or overwrite if the file exists.
             try
             {
                 //ajoute du texte
-                //FormUtils.LogRegister("LogRegister util 174 ---");
-                //FormUtils.LogRegister(ParamManager.pathManager + @"options.txt");
-                using (FileStream fs = File.Open(ParamManager.pathManager + "options.txt", FileMode.Append))
+                //using (FileStream fs = File.Open(ParamManager.pathManager + "options.txt", FileMode.Append))
+                //{
+                //    Byte[] info = new UTF8Encoding(true).GetBytes(StringTxt + "\r\n");
+                //    fs.Write(info, 0, StringTxt.Length);
+                //    fs.Close();
+                //}
+                using (FileStream fs = File.Open(ParamManager.pathManager + "options.txt", FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
                 {
                     Byte[] info = new UTF8Encoding(true).GetBytes(StringTxt + "\r\n");
-                    fs.Write(info, 0, StringTxt.Length);
-                    fs.Close();
+                    fs.Write(info, 0, info.Length); // Corrige la taille de l'écriture
                 }
             }
             catch (Exception ex)
             {
-                FormUtils.LogRegister("LogRegister UTIL 185 ---");
+                FormUtils.LogRegister("LogRegister UTIL 149 ---");
                 FormUtils.LogRegister(path);
                 FormUtils.LogRegister("---");
                 FormUtils.LogRegister(StringTxt);
@@ -180,8 +163,57 @@ namespace DCE_Manager.Utils
             }
 
         }
-
         public static void ModifierLigneByNumber(string path, int numberLine, string ligneModifiee)
+        {
+            int iLine = 1;
+            int iLineModif = 0;
+            string texteFinal = "";
+
+            // Lecture du fichier avec StreamReader en utilisant un bloc using pour éviter de bloquer le fichier
+            try
+            {
+                using (StreamReader sr = new StreamReader(File.Open(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)))
+                {
+                    string ligneEnCoursDeLecture;
+                    while ((ligneEnCoursDeLecture = sr.ReadLine()) != null)
+                    {
+                        if (iLine == numberLine)
+                        {
+                            texteFinal += ligneModifiee + "\r\n";
+                            iLineModif++;
+                        }
+                        else
+                        {
+                            texteFinal += ligneEnCoursDeLecture + "\r\n";
+                        }
+                        iLine++;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister($"Erreur lors de la lecture du fichier : {ex.Message}\r\n");
+                return;  // Sortir de la méthode si une erreur de lecture survient
+            }
+
+            // Ré-écriture du fichier
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(File.Open(path, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite)))
+                {
+                    sw.Write(texteFinal);
+                }
+                FormUtils.LogRegister($"LogRegister ModifierLigneByNumber() numberLine: {numberLine}, nbLigneModified: {iLineModif}\r\n");
+                FormUtils.LogRegister($"LogRegister ModifierLigneByNumber() ligneModifiee: {ligneModifiee}\r\n");
+            }
+            catch (Exception ex)
+            {
+                string errorMsg = $"Exception File : {path}, Error : {ex.Message}";
+                FormUtils.LogRegister($"LogRegister ERROR ModifierLigneByNumber() 201 {errorMsg}\r\n");
+            }
+        }
+
+        public static void ModifierLigneByNumberOLD(string path, int numberLine, string ligneModifiee)
         {
             int iLine = 1;
             int iLineModif = 0;
@@ -221,9 +253,7 @@ namespace DCE_Manager.Utils
             catch (Exception ex)
             {
                 string errorMsg = string.Format("Exception File : {0}, Error : {1}", path, ex.Message);
-                //MessageBox.Show(errorMsg.ToString(), "Error");
-                //Console.WriteLine(errorMsg);
-                FormUtils.LogRegister("LogRegister ERROR ModifierLigneByNumber() 1243 " + errorMsg + "\r\n");
+                FormUtils.LogRegister("LogRegister ERROR ModifierLigneByNumber() 201 " + errorMsg + "\r\n");
             }
         }
 
@@ -304,6 +334,57 @@ namespace DCE_Manager.Utils
         {
             int Ufind = 0;
             string retourLine = "";
+            string texteFinal = "";
+
+            // Lecture du fichier avec un FileStream et partage en lecture
+            try
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (StreamReader sr = new StreamReader(fs))
+                {
+                    string ligneEnCoursDeLecture;
+                    while ((ligneEnCoursDeLecture = sr.ReadLine()) != null)
+                    {
+                        if (ligneEnCoursDeLecture.Length >= 2 && !ligneEnCoursDeLecture.StartsWith("--") && ligneEnCoursDeLecture.Contains(ligneRecherche))
+                        {
+                            texteFinal += ligneModifiee + "\r\n";
+                            Ufind++;
+                        }
+                        else
+                        {
+                            texteFinal += ligneEnCoursDeLecture + "\r\n";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                return Ufind;  // Retourne ce qui a été trouvé jusqu'à l'erreur
+            }
+
+            // Ré-écriture du fichier avec FileStream et partage en écriture
+            try
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Truncate, FileAccess.Write, FileShare.ReadWrite))
+                using (StreamWriter sr2 = new StreamWriter(fs))
+                {
+                    sr2.Write(texteFinal);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister($"Erreur lors de la ré-écriture du fichier: {ex.Message}\r\n");
+            }
+
+            return Ufind;
+        }
+
+
+        public static int ModifierLigneBis_OLD(string path, string ligneRecherche, string ligneModifiee)
+        {
+            int Ufind = 0;
+            string retourLine = "";
             string texteFinal = null;
             StreamReader sr = new StreamReader(path);
             string ligneEnCoursDeLecture = null;
@@ -335,6 +416,61 @@ namespace DCE_Manager.Utils
         }
 
         public static int ModifLigneOrAdd(string path, string ligneRecherche, string ligneModifiee)
+        {
+            int Ufind = 0;
+            string texteFinal = "";
+            string retourLine = "";
+
+            try
+            {
+                // Ouvrir le fichier en lecture avec FileShare.ReadWrite pour permettre à d'autres processus d'accéder au fichier
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (StreamReader sr = new StreamReader(fs))
+                {
+                    string ligneEnCoursDeLecture = null;
+                    while ((ligneEnCoursDeLecture = sr.ReadLine()) != null)
+                    {
+                        if (ligneEnCoursDeLecture.Length >= 2 &&
+                            ligneEnCoursDeLecture.Substring(0, 2) != "--" &&
+                            ligneEnCoursDeLecture.IndexOf(ligneRecherche) > -1)
+                        {
+                            texteFinal += ligneModifiee + Environment.NewLine;
+                            Ufind++;
+                        }
+                        else
+                        {
+                            if (ligneEnCoursDeLecture.Length > 0)
+                                retourLine = Environment.NewLine;
+
+                            texteFinal += ligneEnCoursDeLecture + retourLine;
+                        }
+                    }
+                }
+
+                // Ré-écriture du fichier
+                using (FileStream fsWrite = new FileStream(path, FileMode.Truncate, FileAccess.Write, FileShare.Read))
+                using (StreamWriter sr2 = new StreamWriter(fsWrite))
+                {
+                    sr2.Write(texteFinal);
+                }
+
+                // Si aucune ligne n'a été modifiée, ajouter la nouvelle ligne
+                if (Ufind == 0)
+                {
+                    addLigne(ligneModifiee, path, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Path: {path}";
+                MessageBox.Show(errorDetails, "Error");
+            }
+
+            return Ufind;
+        }
+
+
+        public static int ModifLigneOrAdd_OLD(string path, string ligneRecherche, string ligneModifiee)
         {
             int Ufind = 0;
             string retourLine = "";
@@ -388,7 +524,7 @@ namespace DCE_Manager.Utils
         {
             try
             {
-                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.None))
+                using (FileStream stream = file.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 {
                     stream.Close();
                 }
