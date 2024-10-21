@@ -4313,25 +4313,47 @@ namespace DCE_Manager
             return txt;
         }
 
-        public System.Windows.Forms.PictureBox DrawIconDel(string NameCamp, string path)
+        //public System.Windows.Forms.PictureBox DrawIconDel(string NameCamp, string path)
+        //{
+
+        //    System.Windows.Forms.PictureBox pictureBox3 = new System.Windows.Forms.PictureBox();
+        //    pictureBox3.Location = new Point(730 + DecalLargeur, ((A) * HLigne) - 20); //+20 largeur
+
+        //    pictureBox3.Size = new System.Drawing.Size(20, 20);
+        //    pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+
+        //    tabPage2.Controls.Add(pictureBox3);
+        //    tabPage2.Controls.SetChildIndex(pictureBox3, 1);
+        //    pictureBox3.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    pictureBox3.Image = DCE_Manager.Properties.Resources.iconDel;
+
+        //    pictureBox3.Click += new EventHandler((sender, e) => CampaignDeleteClickOneEvent(sender, e, path, NameCamp));
+
+        //    //toolTip1.SetToolTip(pictureBox1, str);
+
+        //    return pictureBox3;
+        //}
+        // Créer une liste pour garder une référence à toutes les CheckBox associées aux campagnes
+        private List<Tuple<CheckBox, string>> checkBoxCampaigns = new List<Tuple<CheckBox, string>>();
+
+        public System.Windows.Forms.CheckBox CheckboxDel(string NameCamp)
         {
+            // Créer une instance de CheckBox
+            System.Windows.Forms.CheckBox checkBoxDelete = new System.Windows.Forms.CheckBox();
 
-            System.Windows.Forms.PictureBox pictureBox3 = new System.Windows.Forms.PictureBox();
-            pictureBox3.Location = new Point(730 + DecalLargeur, ((A) * HLigne) - 20); //+20 largeur
+            // Positionnement de la case à cocher
+            checkBoxDelete.Location = new Point(730 + DecalLargeur, ((A) * HLigne) - 20);
+            checkBoxDelete.Size = new System.Drawing.Size(20, 20);
 
-            pictureBox3.Size = new System.Drawing.Size(20, 20);
-            pictureBox3.SizeMode = PictureBoxSizeMode.StretchImage;
+            // Ajouter la case à cocher au tabPage
+            tabPage2.Controls.Add(checkBoxDelete);
+            tabPage2.Controls.SetChildIndex(checkBoxDelete, 1);
 
-            tabPage2.Controls.Add(pictureBox3);
-            tabPage2.Controls.SetChildIndex(pictureBox3, 1);
-            pictureBox3.Cursor = System.Windows.Forms.Cursors.Hand;
-            pictureBox3.Image = DCE_Manager.Properties.Resources.iconDel;
+            // Ajouter la CheckBox et son nom de campagne dans une liste pour plus tard
+            checkBoxCampaigns.Add(new Tuple<CheckBox, string>(checkBoxDelete, NameCamp));
 
-            pictureBox3.Click += new EventHandler((sender, e) => CampaignDeleteClickOneEvent(sender, e, path, NameCamp));
-
-            //toolTip1.SetToolTip(pictureBox1, str);
-
-            return pictureBox3;
+            // Retourner la case à cocher
+            return checkBoxDelete;
         }
 
         //inutile, c'etait un test pour afficher des erreurs
@@ -4367,163 +4389,236 @@ namespace DCE_Manager
 
         }
 
-        //public void CampaignEdit(object sender, EventArgs e, string path, string OldNameCamp)
-        //{
-        //    Test.FormCampaignEdit EditCampaignForm = new Test.FormCampaignEdit(this, path, OldNameCamp);
-        //    EditCampaignForm.ShowDialog();
-
-        //}
-
-        //todo plus **
         public void CampaignEdit1(object sender, EventArgs e, string path, string NameCamp)
         {
             DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, NameCamp);
             //EditCampaignForm.ShowDialog();
 
         }
-
-        //pictureBox0.Click += new EventHandler((sender, e) => CampaignPlusClickOneEvent(sender, e, path, NameCamp))
-        public void CampaignDeleteClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
+        private void but_delete_campaign_Click(object sender, EventArgs e)
         {
-            DialogResult dialogResult = MessageBox.Show("Delete the campaign " + OldNameCamp + " \r\n  Are you sure?", "Attention", MessageBoxButtons.YesNo);
+            // Lister les campagnes à supprimer
+            List<string> campaignsToDelete = new List<string>();
+
+            // Parcourir toutes les cases à cocher et vérifier celles qui sont cochées
+            foreach (var checkBoxCampaign in checkBoxCampaigns)
+            {
+                CheckBox checkBox = checkBoxCampaign.Item1;
+                string campaignName = checkBoxCampaign.Item2;
+
+                if (checkBox.Checked)
+                {
+                    // Ajouter le nom de la campagne à la liste des campagnes à supprimer
+                    campaignsToDelete.Add(campaignName);
+                }
+            }
+
+            // Si aucune campagne n'est sélectionnée, afficher un message et sortir de la fonction
+            if (campaignsToDelete.Count == 0)
+            {
+                MessageBox.Show("No campaign selected for suppression.", "Information");
+                return;
+            }
+
+            // Construire un message avec les noms des campagnes à supprimer
+            string campaignsToDeleteMessage = string.Join("\r\n", campaignsToDelete);
+            string confirmationMessage = "The following campaigns will be deleted :\r\n\r\n" + campaignsToDeleteMessage + "\r\n\r\nAre you sure ?";
+
+            // Afficher une fenêtre de confirmation avec la liste des campagnes
+            DialogResult dialogResult = MessageBox.Show(confirmationMessage, "Delete confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            // Si l'utilisateur confirme la suppression
             if (dialogResult == DialogResult.Yes)
             {
-                string folderLoc = path + @"\" + OldNameCamp;
-
-                if (System.IO.Directory.Exists(folderLoc))
+                // Supprimer les campagnes sélectionnées
+                foreach (string campaign in campaignsToDelete)
                 {
-                    int count = 0;
-
-                    System.IO.DirectoryInfo di = new DirectoryInfo(folderLoc);
-
-                    foreach (FileInfo file in di.EnumerateFiles())
-                    {
-
-                        try
-                        {
-                            FileSystem.DeleteFile(file.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                            count++;
-                        }
-                        catch (IOException copyError)
-                        {
-                            FormUtils.LogRegister(copyError.Message);
-                        }
-                    }
-                    foreach (DirectoryInfo dir in di.EnumerateDirectories())
-                    {
-                        try
-                        {
-                            dir.Delete(true);
-                        }
-                        catch (IOException copyError)
-                        {
-                            FormUtils.LogRegister(copyError.Message);
-                        }
-                    }
-
-                    var dir0 = new DirectoryInfo(folderLoc);
-                    try
-                    {
-                        try
-                        {
-                            dir0.Delete(true);
-                        }
-                        catch (IOException copyError)
-                        {
-                            FormUtils.LogRegister(copyError.Message);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        //MessageBox.Show(ex.StackTrace.ToString());
-                        FormUtils.ShowErrorMessage(ex.Message);
-                    }
-
-                    ScriptModInstalledVersion.Text = "";
+                    // Appel à la fonction de suppression pour chaque campagne
+                    DeleteCampaign(campaign);
                 }
 
-                //Crisis in PG-Hornet-CVN.cmp
-                string SourcePath = path + @"\" + OldNameCamp + ".cmp";
-                if (File.Exists(SourcePath))
-                {
-                    try
-                    {
-                        FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException copyError)
-                    {
-                        FormUtils.LogRegister(copyError.Message);
-                    }
-                }
-
-                //Crisis in PG-Hornet-CVN_first.miz
-                SourcePath = path + @"\" + OldNameCamp + "_first.miz";
-                if (File.Exists(SourcePath))
-                {
-                    try
-                    {
-                        FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException copyError)
-                    {
-                        FormUtils.LogRegister(copyError.Message);
-                    }
-                }
-
-                //Crisis in PG - Hornet - CVN_ongoing.miz
-                SourcePath = path + @"\" + OldNameCamp + "_ongoing.miz";
-                if (File.Exists(SourcePath))
-                {
-                    try
-                    {
-                        FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException copyError)
-                    {
-                        FormUtils.LogRegister(copyError.Message);
-                    }
-                }
-
-                //Crisis in PG-Hornet-CVN.png
-                SourcePath = path + @"\" + OldNameCamp + ".png";
-                if (File.Exists(SourcePath))
-                {
-                    try
-                    {
-                        FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException copyError)
-                    {
-                        FormUtils.LogRegister(copyError.Message);
-                    }
-                }
-
-                //Crisis in PG-Hornet-CVN.bmp
-                SourcePath = path + @"\" + OldNameCamp + ".bmp";
-                if (File.Exists(SourcePath))
-                {
-                    try
-                    {
-                        FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException copyError)
-                    {
-                        FormUtils.LogRegister(copyError.Message);
-                    }
-                    //tabControl1.SelectedIndex = 1;
-
-                }
-                //tabPage2.Controls.Clear();
-                //tabControl.SelectedIndex = 0;
-
+                // Rafraîchir la page après suppression
                 tabControl.SelectedIndex = 3;
                 tabControl.SelectedIndex = 1;
-
             }
             else if (dialogResult == DialogResult.No)
             {
-                //do something else
+                // Si l'utilisateur annule la suppression, ne fais rien
+                MessageBox.Show("Deletion cancelled.", "Cancellation");
             }
+
+
+
+
+            //// Supprimer les campagnes sélectionnées (à adapter en fonction de la logique de suppression)
+            //foreach (string campaign in campaignsToDelete)
+            //{
+            //    // Appel à la fonction de suppression pour chaque campagne
+            //    DeleteCampaign(campaign);
+            //}
+
+            ////rafraichit la page
+            //tabControl.SelectedIndex = 3;
+            //tabControl.SelectedIndex = 1;
+
+
+        }
+
+        // Exemple de fonction de suppression de campagne (adapter selon votre logique)
+        //private void DeleteCampaign(string campaignName)
+        //{
+        //    // Logique de suppression (fichier, base de données, etc.)
+        //    Console.WriteLine($"Suppression de la campagne : {campaignName}");
+        //}
+
+        //// Met à jour l'interface utilisateur pour refléter les suppressions (adapter si nécessaire)
+        //private void UpdateCampaignListUI()
+        //{
+        //    // Actualise la liste des campagnes dans l'UI
+        //    Console.WriteLine("Mise à jour de la liste des campagnes...");
+        //}
+
+        //public void CampaignDeleteClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
+        public void DeleteCampaign(  string OldNameCamp)
+        {
+            //DialogResult dialogResult = MessageBox.Show("Delete the campaign " + OldNameCamp + " \r\n  Are you sure?", "Attention", MessageBoxButtons.YesNo);
+            string path =  textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns";
+            //if (dialogResult == DialogResult.Yes)
+            //{
+
+            string folderLoc = path + @"\" + OldNameCamp;
+
+            if (System.IO.Directory.Exists(folderLoc))
+            {
+                int count = 0;
+
+                System.IO.DirectoryInfo di = new DirectoryInfo(folderLoc);
+
+                foreach (FileInfo file in di.EnumerateFiles())
+                {
+
+                    try
+                    {
+                        FileSystem.DeleteFile(file.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                        count++;
+                    }
+                    catch (IOException copyError)
+                    {
+                        FormUtils.LogRegister(copyError.Message);
+                    }
+                }
+                foreach (DirectoryInfo dir in di.EnumerateDirectories())
+                {
+                    try
+                    {
+                        dir.Delete(true);
+                    }
+                    catch (IOException copyError)
+                    {
+                        FormUtils.LogRegister(copyError.Message);
+                    }
+                }
+
+                var dir0 = new DirectoryInfo(folderLoc);
+                try
+                {
+                    try
+                    {
+                        dir0.Delete(true);
+                    }
+                    catch (IOException copyError)
+                    {
+                        FormUtils.LogRegister(copyError.Message);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    //MessageBox.Show(ex.StackTrace.ToString());
+                    FormUtils.ShowErrorMessage(ex.Message);
+                }
+
+                ScriptModInstalledVersion.Text = "";
+            }
+
+            //Crisis in PG-Hornet-CVN.cmp
+            string SourcePath = path + @"\" + OldNameCamp + ".cmp";
+            if (File.Exists(SourcePath))
+            {
+                try
+                {
+                    FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException copyError)
+                {
+                    FormUtils.LogRegister(copyError.Message);
+                }
+            }
+
+            //Crisis in PG-Hornet-CVN_first.miz
+            SourcePath = path + @"\" + OldNameCamp + "_first.miz";
+            if (File.Exists(SourcePath))
+            {
+                try
+                {
+                    FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException copyError)
+                {
+                    FormUtils.LogRegister(copyError.Message);
+                }
+            }
+
+            //Crisis in PG - Hornet - CVN_ongoing.miz
+            SourcePath = path + @"\" + OldNameCamp + "_ongoing.miz";
+            if (File.Exists(SourcePath))
+            {
+                try
+                {
+                    FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException copyError)
+                {
+                    FormUtils.LogRegister(copyError.Message);
+                }
+            }
+
+            //Crisis in PG-Hornet-CVN.png
+            SourcePath = path + @"\" + OldNameCamp + ".png";
+            if (File.Exists(SourcePath))
+            {
+                try
+                {
+                    FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException copyError)
+                {
+                    FormUtils.LogRegister(copyError.Message);
+                }
+            }
+
+            //Crisis in PG-Hornet-CVN.bmp
+            SourcePath = path + @"\" + OldNameCamp + ".bmp";
+            if (File.Exists(SourcePath))
+            {
+                try
+                {
+                    FileSystem.DeleteFile(SourcePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException copyError)
+                {
+                    FormUtils.LogRegister(copyError.Message);
+                }
+                //tabControl1.SelectedIndex = 1;
+
+            }
+            //tabPage2.Controls.Clear();
+            //tabControl.SelectedIndex = 0;
+
+            //tabControl.SelectedIndex = 3;
+            //tabControl.SelectedIndex = 1;
+
+            //}
+
         }
 
 
@@ -4941,8 +5036,6 @@ namespace DCE_Manager
                             //cherche si une campagne doit etre reset a la suite d'un update
                             var campaignNameTab = new Dictionary<string, string>();
 
-                            //TODO ajouter l'horaire du fichier dans un tableau à 3 dimensions, bon courage ^^
-
                             if (File.Exists(ParamManager.pathManager + "options.txt"))
                             {
                                 string FileToRead2 = ParamManager.pathManager + "options.txt";
@@ -5131,12 +5224,29 @@ namespace DCE_Manager
                                     DrawIconeError(10, 10, erreurPathString);                            //affiche les erreurs trouvé sur le path
                                 }
 
-                                //TODO zone de travail                          
+                                //DrawIconDel(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
+                                CheckboxDel(NameCamp);
 
-                                DrawIconDel(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
                             }
-                        }
+                        }                      
                     }
+                    //ajoute ici le bouton delete
+                    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
+
+                    //pictureBox3.Location = new Point(730 + DecalLargeur, ((A) * HLigne) - 20); //+20 largeur
+
+                    tabPage2.Controls.Add(but);
+                    but.Top = B * HLigne + 20;
+                    but.Left = 690;// + DecalLargeur;
+                    but.Size = new System.Drawing.Size(80, HLigne - 10);
+                    but.Font = new Font("Georgia", 7);
+                    but.Text = "Delete";
+
+                    but.UseVisualStyleBackColor = true;
+                    but.BackColor = SystemColors.Control;
+
+                    but.Cursor = System.Windows.Forms.Cursors.Hand;
+                    but.Click += new EventHandler(this.but_delete_campaign_Click);
                 }
                 else
                 {
@@ -8133,6 +8243,7 @@ namespace DCE_Manager
             //new string[] { "500000", "450000" };
             //
         }
+
     }
    
 }

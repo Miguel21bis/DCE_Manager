@@ -270,9 +270,9 @@ function addTemplateInMission(marqueurName)
 		moduleTxt = moduleTxt .. " "..T_moduleName.."\n"
 	end		
 
-	if moduleTxt ~= "" then
-		print(moduleTxt)
-	end
+	-- if moduleTxt ~= "" then
+	-- 	print(moduleTxt)
+	-- end
 
 	for templateN, repere_IM_tmp in pairs(reperesInMissionTAB) do          
 		if repere_IM_tmp.name == marqueurName then

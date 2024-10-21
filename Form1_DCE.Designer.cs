@@ -604,7 +604,7 @@
             this.textBoxCampEdit.Multiline = true;
             this.textBoxCampEdit.Name = "textBoxCampEdit";
             this.textBoxCampEdit.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxCampEdit.Size = new System.Drawing.Size(399, 438);
+            this.textBoxCampEdit.Size = new System.Drawing.Size(399, 394);
             this.textBoxCampEdit.TabIndex = 11;
             this.textBoxCampEdit.Tag = "";
             this.textBoxCampEdit.TextChanged += new System.EventHandler(this.textBoxCampEdit_TextChanged);
