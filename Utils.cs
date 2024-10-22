@@ -423,7 +423,13 @@ namespace DCE_Manager.Utils
 
             try
             {
-                // Ouvrir le fichier en lecture avec FileShare.ReadWrite pour permettre à d'autres processus d'accéder au fichier
+                // Vérifier si le fichier existe, sinon le créer
+                if (!File.Exists(path))
+                {
+                    File.Create(path).Dispose(); // Créer et libérer la ressource immédiatement
+                }
+
+                // Ouvrir le fichier en lecture avec FileShare.ReadWrite pour permettre à d'autres processus d'y accéder
                 using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                 using (StreamReader sr = new StreamReader(fs))
                 {
@@ -462,8 +468,39 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Path: {path}";
-                MessageBox.Show(errorDetails, "Error");
+                // Obtenir la version du programme
+                string programVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+                // Obtenir la pile d'appels complète (stack trace), mais filtrer pour inclure uniquement les fonctions de ton code
+                var trace = new System.Diagnostics.StackTrace(ex, true);
+                string customStackTrace = "";
+
+                foreach (var frame in trace.GetFrames())
+                {
+                    string method = frame.GetMethod().DeclaringType?.FullName ?? "Unknown Method";
+                    if (method != null && method.StartsWith("DCE_Manager")) // Filtrer pour n'afficher que les fonctions de ton projet
+                    {
+                        int line = frame.GetFileLineNumber();
+                        customStackTrace += $"{method} à la ligne {line}\r\n";
+                    }
+                }
+
+                // Obtenir le numéro de la ligne spécifique de l'erreur actuelle
+                var lineNumber = trace.GetFrame(0)?.GetFileLineNumber() ?? 0;
+
+                // Construire le message d'erreur complet
+                string errorDetails = $"Error: {ex.Message}\r\n" +
+                                      $"StackTrace: {customStackTrace}\r\n" +
+                                      $"Line: {lineNumber}\r\n" +
+                                      //$"line to be added : {ligneModifiee}\r\n" +
+                                      $"Path: {path}\r\n" +
+                                      $"Version: {programVersion}";
+
+                // Afficher le message synthétique pour l'utilisateur
+                MessageBox.Show($"An error has occurred. More details:\r\n\r\n{errorDetails}", "Error");
+
+                // Si besoin, tu peux également enregistrer l'erreur dans un fichier de log
+                LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
             }
 
             return Ufind;

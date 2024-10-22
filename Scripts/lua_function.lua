@@ -95,18 +95,70 @@ function TableSerialization(t, i, params)
 		end
 	end
 	tab = ""
-	for n = 1, i do																		--indent for closing bracket is one less then previous text line
+	for n = 1, i do																		
 		tab = tab .. "\t"
 	end
 	if i == 0 then
-		text = text .. tab .. "}\n"		..crlf												--the last bracket should not be followed by an comma
+		text = text .. tab .. "}\n"		..crlf											
 	else
-		text = text .. tab .. "},\n"	..crlf												--all brackets with indent higher than 0 are followed by a comma
+		text = text .. tab .. "},\n"	..crlf											
 	end
 	return text
 end
 
 function tableToString(t, i)
+    if not i then i = 0 end
+    local crlf = ""
+    local tab1 = string.rep("\t", i)
+
+    local text = "\n"..crlf..tab1.."{\n"..crlf
+
+    local tab = string.rep("\t", i + 1)
+
+    for k, v in pairs(t) do
+        -- Gestion des clés (si c'est une chaîne)
+        if type(k) == "string" then
+			
+            k = k:gsub("\\", "\\\\")  -- Doubler les \
+            k = k:gsub("\"", "\\\"")   -- Échapper les "
+			k = k:gsub("\n", "\\\n" )
+            text = text .. tab .. '["' .. k .. '"] = '
+        else
+            text = text .. tab .. "[" .. k .. "] = "
+        end
+
+        -- Gestion des valeurs
+        if type(v) == "string" then
+			
+            -- Préserver les backslashes et tout ce qui suit sans changer leur forme
+            v = v:gsub("\\", "\\\\")  -- Préserver les backslashes
+            v = v:gsub("\"", "\\\"")  -- Échapper les guillemets
+			v = v:gsub("\n", "\\\n" )
+            text = text .. '"' .. v .. '",\n'..crlf
+        elseif type(v) == "number" then
+            text = text .. v .. ",\n"..crlf
+        elseif type(v) == "table" then
+            text = text .. tableToString(v, i + 1)
+        elseif type(v) == "boolean" then
+            text = text .. tostring(v) .. ",\n"..crlf
+        elseif type(v) == "function" then
+            text = text .. "function, \n"..crlf  -- Evite la tentative d'exécuter une fonction
+        elseif v == nil then
+            text = text .. "nil,\n"..crlf
+        end
+    end
+
+    tab = string.rep("\t", i)
+    if i == 0 then
+        text = text .. tab .. "}\n" .. crlf
+    else
+        text = text .. tab .. "},\n" .. crlf
+    end
+    return text
+end
+
+
+function tableToStringOLD(t, i)
 	if not i then i = 0 end
 	local crlf = ""
 	local tab1 = ""
@@ -128,7 +180,11 @@ function tableToString(t, i)
 	for k,v in pairsByKeys(t) do
 		if type(k) == "string" then
 			k = string.gsub(k, "\n", "\\\n" )
-			k = string.gsub(k, "\"", "\\\"" )
+
+			
+			k = k:gsub("\\\"", "\\\\\\\"" )
+			k = k:gsub("\"", "\\\"" )
+
 			k = string.gsub(k, "'", "\\\'" )
 			text = text .. tab .. '["' .. k .. '"] = '
 		else
@@ -136,7 +192,11 @@ function tableToString(t, i)
 		end
 		if type(v) == "string" then
 			v = string.gsub(v, "\n", "\\\n" )
-			v = string.gsub(v, "\"", "\\\"" )
+
+			
+			v = v:gsub("\\\"", "\\\\\\\"" )
+			v = v:gsub("\"", "\\\"" )
+			
 			v = string.gsub(v, "'", "\\\'" )
 			text = text .. '"' .. v .. '",\n'..crlf
 		elseif type(v) == "number" then
@@ -156,13 +216,13 @@ function tableToString(t, i)
 		end
 	end
 	tab = ""
-	for n = 1, i do																		--indent for closing bracket is one less then previous text line
+	for n = 1, i do																	
 		tab = tab .. "\t"
 	end
 	if i == 0 then
-		text = text .. tab .. "}\n"		..crlf												--the last bracket should not be followed by an comma
+		text = text .. tab .. "}\n"		..crlf											
 	else
-		text = text .. tab .. "},\n"	..crlf												--all brackets with indent higher than 0 are followed by a comma
+		text = text .. tab .. "},\n"	..crlf												
 	end
 	return text
 end
