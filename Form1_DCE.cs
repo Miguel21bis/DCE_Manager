@@ -9,12 +9,10 @@ using System.Windows.Forms;
 using System.Diagnostics;
 using System.Net;
 using System.Reflection;
-//using Microsoft.Win32;
 using System.ComponentModel;
 using Microsoft.VisualBasic.FileIO;
 using SearchOption = System.IO.SearchOption;
 using NLua;
-//using System.Globalization;
 using System.Collections;
 using System.Data;
 using System.Threading.Tasks;
@@ -58,6 +56,7 @@ namespace DCE_Manager
             SharedData.textBox_DCS = textBox_DCS.Text;
             SharedData.textBox_SavedGames = textBox_SavedGames.Text;
             SharedData.textBox_OvGME = textBox_OvGME.Text;
+
         }
 
         public bool IsUrlExist(string url, int timeOutMs = 1)
@@ -419,10 +418,10 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(pathManager);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    //MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ShowErrorGeneral(ex, "", "", true);
                 }
             
 
@@ -437,6 +436,7 @@ namespace DCE_Manager
                 //MessageBox.Show(fInfo.Length.ToString(), "Info Taille, ce n'est pas la taille qui compte...");
                 if (fInfo.Length < 5000)
                 {
+                    //TODO regarder les droits avant de tenter une suppression
                     File.Delete(pathManager + upgradelocFile);
                     fileUpdateExists = false;
                 }
@@ -1303,7 +1303,7 @@ namespace DCE_Manager
         }
    
         
-        private bool OptionRegister()
+        private bool OptionRegister_DEPRECATED()
         {
             bool errorPath = false;
 
@@ -1359,10 +1359,6 @@ namespace DCE_Manager
             if (fileExists)
             {
 
-                //string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-
-                //foreach (string line in namelines)
-                //{
                 try
                 {
                     // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
@@ -1383,7 +1379,6 @@ namespace DCE_Manager
                 catch (Exception ex)
                 {
                     //// Gérer l'erreur en cas de problème de lecture du fichier
-                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
                     // Obtenir les détails supplémentaires dans la pile (StackTrace)
                     var stackTrace = new System.Diagnostics.StackTrace(ex, true);
                     var frame = stackTrace.GetFrame(0);
@@ -1400,16 +1395,14 @@ namespace DCE_Manager
                 config_0_Present = false;
             }
 
-            //Inscrit dans le fichier option, pour ne pas retapper les paths à la prochaine installation
+            //Inscrit dans le fichier option, pour ne pas retaper les paths à la prochaine installation
             string textOption =
                 "\r\n" + "config_0_=" + "\r\n" +
                 "config_0_" + "pathZipCampaign=" + textBox_Campaign.Text + "\r\n" +
                 "config_0_" + "pathDCS=" + textBox_DCS.Text + "\r\n" +
                 "config_0_" + "pathSavedGames=" + textBox_SavedGames.Text + "\r\n" +
                 "config_0_" + "pathOVGME=" + textBox_OvGME.Text;
-
             
-
             // Create the file, or overwrite if the file exists.
             if (!config_0_Present)
             {
@@ -1425,7 +1418,8 @@ namespace DCE_Manager
                 catch (Exception ex)
                 {
                     // Affiche un message d'erreur plus informatif
-                    MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
+                    //MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
+                    FormUtils.ShowErrorGeneral(ex, "An error occurred while creating the file", pathOptionInstaller + @"\options.txt", false);
                     FormUtils.LogRegister($"Error StackTrace: {ex.StackTrace}\r\n");
                 }
             }
@@ -2168,84 +2162,244 @@ namespace DCE_Manager
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
             bool exists = System.IO.Directory.Exists(pathOptionInstaller);
             bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+            string pathFile = pathOptionInstaller + @"\options.txt";
+
+            //// Dictionnaire pour stocker les paires clé-valeur
+            //Dictionary<string, string> configDictionary = new Dictionary<string, string>();
 
             if (exists & fileExists)
             {
-                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-
-                //foreach (string line in lines)
-                //{
                 try
                 {
                     // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                     using (StreamReader sr = new StreamReader(fs))
                     {
                         string line;
                         while ((line = sr.ReadLine()) != null)
                         {
-                            if (line.Contains("config_0_pathZipCampaign="))
-                                textBox_Campaign.Text = line.Replace("config_0_pathZipCampaign=", "");
 
-                            if (line.Contains("config_0_" + "pathDCS="))
-                                textBox_DCS.Text = line.Replace("config_0_" + "pathDCS=", "");
-
-                            if (line.Contains("config_0_" + "pathSavedGames="))
-                                textBox_SavedGames.Text = line.Replace("config_0_" + "pathSavedGames=", "");
-
-                            if (line.Contains("config_0_" + "pathOVGME="))
-                                textBox_OvGME.Text = line.Replace("config_0_" + "pathOVGME=", "");
-
-                            if (line.Contains("upgradeTxtDownload="))
-                                ParamDownload.UpgradeTime = line.Replace("upgradeTxtDownload=", "");
-
-                            if (line.Contains("LastNewsVersion="))
-                                DceNews.LastNewsVersion = line.Replace("LastNewsVersion=", "");
-
-                            if (line.Contains("ServerNickNameSelected="))
-                                ParamServ.ServerNickNameSelected = line.Replace("ServerNickNameSelected=", "");
-
-                            if (line.Contains("PathDevUpgrade="))
-                                txtBoxFolderCreateUpdate.Text = line.Replace("PathDevUpgrade=", "");
-
-                            if (line.Contains("PathDevFileUpgrade="))
-                                textBoxCreateFileUpdate.Text = line.Replace("PathDevFileUpgrade=", "");
-
-                            if (line.Contains("NbLancement="))
+                            //    // Lire toutes les lignes du fichier
+                            //    foreach (var line in File.ReadLines(pathOptionInstaller))
+                            //{
+                            // Vérifier si la ligne contient une clé-valeur
+                            if (!string.IsNullOrWhiteSpace(line) && line.Contains("="))
                             {
-                                string nbL = line.Replace("NbLancement=", "");
-                                ParamManager.NbLancement = Int32.Parse(nbL);
-                            }
-                            else if (line.Contains("ASTI_MissionFile="))
-                            {
-                                string nbL = line.Replace("ASTI_MissionFile=", "");
-                                SharedData.textBox_ASTI_MissionFile = nbL;
-                            }
-                            else if (line.Contains("ASTI_importTemplateFolder="))
-                            {
-                                string nbL = line.Replace("ASTI_importTemplateFolder=", "");
-                                SharedData.textBox_ASTI_importTemplateFolder = nbL;
-                                but_templateFolder.Visible = true;
-                            }
+                                // Diviser la ligne à la première occurrence de '=' pour obtenir la clé et la valeur
+                                var parts = line.Split(new[] { '=' }, 2);
 
+                                string key = parts[0].Trim();  // Clé
+                                string value = parts.Length > 1 ? parts[1].Trim() : string.Empty;  // Valeur
+
+                                // Ajouter la clé-valeur au dictionnaire global
+                                ParamConf.configDictionary[key] = value;
+                            }
                         }
+                    }
+                    
+                    //Dictionary<string, int> configMap = new Dictionary<string, int>();
+                    
+                    foreach (var entry in ParamConf.configDictionary)
+                    {
+                        if (entry.Key == "config_0_pathZipCampaign")
+                            textBox_Campaign.Text = entry.Value;
+
+                        if (entry.Key == "config_0_" + "pathDCS")
+                            textBox_DCS.Text = entry.Value;
+
+                        if (entry.Key == "config_0_" + "pathSavedGames")
+                            textBox_SavedGames.Text = entry.Value;
+
+                        if (entry.Key == "config_0_" + "pathOVGME")
+                            textBox_OvGME.Text = entry.Value;
+
+                        if (entry.Key == "upgradeTxtDownload")
+                            ParamDownload.UpgradeTime = entry.Value;
+
+                        if (entry.Key == "LastNewsVersion")
+                            DceNews.LastNewsVersion = entry.Value;
+
+                        if (entry.Key == "ServerNickNameSelected")
+                            ParamServ.ServerNickNameSelected = entry.Value;
+
+                        if (entry.Key == "PathDevUpgrade")
+                            txtBoxFolderCreateUpdate.Text = entry.Value;
+
+                        if (entry.Key == "PathDevFileUpgrade")
+                            textBoxCreateFileUpdate.Text = entry.Value;
+
+                        if (entry.Key == "NbLancement")
+                        {
+                            string nbL = entry.Value;
+                            ParamManager.NbLancement = Int32.Parse(nbL);
+                        }
+                        else if (entry.Key == "ASTI_MissionFile")
+                        {
+                            string nbL = entry.Value;
+                            SharedData.textBox_ASTI_MissionFile = nbL;
+                        }
+                        else if (entry.Key == "ASTI_importTemplateFolder")
+                        {
+                            string nbL = entry.Value;
+                            SharedData.textBox_ASTI_importTemplateFolder = nbL;
+                            but_templateFolder.Visible = true;
+                        }
+                        
+                        if (entry.Key.StartsWith("config_") && entry.Key.EndsWith("_"))
+                        {
+                            // Extraire la partie entre "config_" et "_"
+                            string middlePart = entry.Key.Substring(7, entry.Key.Length - 8);
+
+                            comboBox_Config.Items.Add(entry.Value);  // Ajouter "Main" ou autre à la ComboBox
+
+                            // Vérifier si la partie extraite est un nombre
+                            if (int.TryParse(middlePart, out int number))
+                            {
+                                // Ajouter au dictionnaire
+                                ParamConf.configMap.Add(entry.Value, number);
+
+                                //MessageBox.Show($"Key: {entry.Key}, Value: {entry.Value}, Number: {number}");
+                            }                             
+                        } 
+                    }
+
+
+                    //****************************************
+                    string SelectedItem = "";
+
+                    var dictionaryCopy = new Dictionary<string, string>(ParamConf.configDictionary);
+
+                    //string txt = "";
+                    //foreach (var entry in ParamConf.configMap)
+                    //{
+                    //    txt = txt + entry.Key + " = " + entry.Value + "\r\n";
+                    //}
+                    //MessageBox.Show(txt, "ParamConf.configMap");
+
+
+                    foreach (var entry in dictionaryCopy)
+                    {
+
+                        //display=MegaUno
+                        if (entry.Key == "display")
+                        {
+                            
+                           SelectedItem = entry.Value;
+
+                            string configName = entry.Value;
+
+                            //MessageBox.Show(configName, "configName");
+
+                            if (ParamConf.configMap.TryGetValue(configName, out int configNumber))
+                            {
+                                ParamConf.paramNumConfig = configNumber;
+                                //MessageBox.Show(ParamConf.paramNumConfig.ToString() + " SelectedItem "+ SelectedItem, "ParamConf.paramNumConfig");
+                            }
+                        }
+
+                        //display=MegaUno
+                        if (entry.Key.Contains("upgradeTxtDownload="))
+                        {
+                            ParamDownload.UpgradeTime = entry.Value;
+                        }
+
+                        comboBox_Config.SelectedItem = SelectedItem;
+
+                        textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathZipCampaign"];
+
+                        textBox_DCS.Text = ParamConf.configDictionary["config_"+ ParamConf.paramNumConfig+"_pathDCS"];
+
+                        textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathSavedGames"];
+
+                        textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathOVGME"];
+
                     }
                 }
                 catch (Exception ex)
                 {
-                    //// Gérer l'erreur en cas de problème de lecture du fichier
-                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
-                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
-                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    var frame = stackTrace.GetFrame(0);
-
-                    // Récupérer la ligne exacte et le fichier source (si disponibles)
-                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                    FormUtils.ShowErrorGeneral(ex, "", pathOptionInstaller, true);
                 }
             }
+
+
+            //**************************************************************************
+
+            //if (exists & fileExists)
+            //{
+
+            //    try
+            //    {
+            //        // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+            //        using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+            //        using (StreamReader sr = new StreamReader(fs))
+            //        {
+            //            string line;
+            //            while ((line = sr.ReadLine()) != null)
+            //            {
+            //                if (line.Contains("config_0_pathZipCampaign="))
+            //                    textBox_Campaign.Text = line.Replace("config_0_pathZipCampaign=", "");
+
+            //                if (line.Contains("config_0_" + "pathDCS="))
+            //                    textBox_DCS.Text = line.Replace("config_0_" + "pathDCS=", "");
+
+            //                if (line.Contains("config_0_" + "pathSavedGames="))
+            //                    textBox_SavedGames.Text = line.Replace("config_0_" + "pathSavedGames=", "");
+
+            //                if (line.Contains("config_0_" + "pathOVGME="))
+            //                    textBox_OvGME.Text = line.Replace("config_0_" + "pathOVGME=", "");
+
+            //                if (line.Contains("upgradeTxtDownload="))
+            //                    ParamDownload.UpgradeTime = line.Replace("upgradeTxtDownload=", "");
+
+            //                if (line.Contains("LastNewsVersion="))
+            //                    DceNews.LastNewsVersion = line.Replace("LastNewsVersion=", "");
+
+            //                if (line.Contains("ServerNickNameSelected="))
+            //                    ParamServ.ServerNickNameSelected = line.Replace("ServerNickNameSelected=", "");
+
+            //                if (line.Contains("PathDevUpgrade="))
+            //                    txtBoxFolderCreateUpdate.Text = line.Replace("PathDevUpgrade=", "");
+
+            //                if (line.Contains("PathDevFileUpgrade="))
+            //                    textBoxCreateFileUpdate.Text = line.Replace("PathDevFileUpgrade=", "");
+
+            //                if (line.Contains("NbLancement="))
+            //                {
+            //                    string nbL = line.Replace("NbLancement=", "");
+            //                    ParamManager.NbLancement = Int32.Parse(nbL);
+            //                }
+            //                else if (line.Contains("ASTI_MissionFile="))
+            //                {
+            //                    string nbL = line.Replace("ASTI_MissionFile=", "");
+            //                    SharedData.textBox_ASTI_MissionFile = nbL;
+            //                }
+            //                else if (line.Contains("ASTI_importTemplateFolder="))
+            //                {
+            //                    string nbL = line.Replace("ASTI_importTemplateFolder=", "");
+            //                    SharedData.textBox_ASTI_importTemplateFolder = nbL;
+            //                    but_templateFolder.Visible = true;
+            //                }
+
+            //            }
+            //        }
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        //// Gérer l'erreur en cas de problème de lecture du fichier
+            //        //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+            //        // Obtenir les détails supplémentaires dans la pile (StackTrace)
+            //        var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+            //        var frame = stackTrace.GetFrame(0);
+
+            //        // Récupérer la ligne exacte et le fichier source (si disponibles)
+            //        var lineNumber = frame?.GetFileLineNumber() ?? 0;
+            //        var fileName = frame?.GetFileName() ?? "Unknown File";
+
+            //        FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+            //    }
+            //}
+
+            //****************************************************************************
 
 
             ParamManager.NbLancement++;
@@ -2288,70 +2442,89 @@ namespace DCE_Manager
 
             //creation de la table datasource pour la comboBox_Config
 
+            //var ListConfig = new List<string>();
+
+            //if (exists & fileExists)
+            //{
 
 
-
-            var ListConfig = new List<string>();
-
-            if (exists & fileExists)
-            {
-                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                ////***************************************************************
                 //string SelectedItem = "";
-                ////cherche la derniere version du config pour l'ajouter
-                //foreach (string line in lines)
+                //try
                 //{
-                string SelectedItem = "";
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            for (int n = 0; n < 20; n++)
-                            {
-                                if (line.Contains("config_" + n.ToString() + "_="))
-                                {
-                                    string[] words = line.Split('=');                           //config_0_pathsavedgames
-                                    //ListConfig.Add(words[1]);
-                                    comboBox_Config.Items.Add(words[1]);
-                                }
-                            }
-                            //display=MegaUno
-                            if (line.Contains("display="))
-                            {
-                                string[] words = line.Split('=');                           //config_0_pathsavedgames
-                                SelectedItem = words[1];
-                            }
+                //    Dictionary<string, int> configMap = new Dictionary<string, int>();
 
-                            //display=MegaUno
-                            if (line.Contains("upgradeTxtDownload="))
-                            {
-                                string[] words = line.Split('=');                           //config_0_pathsavedgames
-                                ParamDownload.UpgradeTime = words[1];
-                            }
-                        }
+                //    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                //    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                //    using (StreamReader sr = new StreamReader(fs))
+                //    {
+                //        string line;
+                //        while ((line = sr.ReadLine()) != null)
+                //        {
+                //            for (int n = 0; n < 20; n++)
+                //            {
+                //                if (line.Contains("config_" + n.ToString() + "_="))
+                //                {
 
-                        comboBox_Config.SelectedItem = SelectedItem;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    //// Gérer l'erreur en cas de problème de lecture du fichier
-                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
-                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
-                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    var frame = stackTrace.GetFrame(0);
+                //                    //configMap.Add(configName, configNumber);
+                //                    string[] words = line.Split('=');  // words[0] = "config_1_", words[1] = "Main"
+                //                    comboBox_Config.Items.Add(words[1]);  // Ajouter "Main" ou autre à la ComboBox
 
-                    // Récupérer la ligne exacte et le fichier source (si disponibles)
-                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    var fileName = frame?.GetFileName() ?? "Unknown File";
+                //                    string configName = words[1];  // "Main"
 
-                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-                }
-            }
+                //                    // Extraire la partie numérique entre les deux underscores
+                //                    string configPrefix = words[0];  // "config_1_"
+                //                    int underscore1 = configPrefix.IndexOf('_');
+                //                    int underscore2 = configPrefix.IndexOf('_', underscore1 + 1);  // Trouver le second underscore
+                //                    int configNumber = int.Parse(configPrefix.Substring(underscore1 + 1, underscore2 - underscore1 - 1));  // Extraire le chiffre
+
+                //                    // Ajouter au dictionnaire
+                //                    configMap.Add(configName, configNumber);  // Ex: "Main" -> 1
+                //                }
+                //            }
+                //            //display=MegaUno
+                //            if (line.Contains("display="))
+                //            {
+                //                string[] words = line.Split('=');                           //config_0_pathsavedgames
+                //                SelectedItem = words[1];
+
+                //                string configName = words[1];
+
+                //                if (configMap.TryGetValue(configName, out int configNumber))
+                //                {
+                //                    Divers.paramNumConfig = configNumber;
+                //                    MessageBox.Show(Divers.paramNumConfig.ToString(), "Divers.paramNumConfig");
+                //                }
+                //            }
+
+                //            //display=MegaUno
+                //            if (line.Contains("upgradeTxtDownload="))
+                //            {
+                //                string[] words = line.Split('=');                           //config_0_pathsavedgames
+                //                ParamDownload.UpgradeTime = words[1];
+                //            }
+                //        }
+
+                //        comboBox_Config.SelectedItem = SelectedItem;
+                //    }
+                //}
+                //catch (Exception ex)
+                //{
+                //    //// Gérer l'erreur en cas de problème de lecture du fichier
+                //    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                //    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                //    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                //    var frame = stackTrace.GetFrame(0);
+
+                //    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                //    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                //    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                //    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                //}
+
+                //***************************************************************
+            //}
 
             //comboBox_Config.DataSource = ListConfig;
 
@@ -2490,10 +2663,14 @@ namespace DCE_Manager
 
                             string errorDetails2 = $"Error: {ex2.Message}, StackTrace: {ex2.StackTrace}, ServerSelected: {ParamServ.ServerSelected}";
                             FormUtils.LogRegister("Failed server: " + errorDetails2);
+
+                            //FormUtils.ShowErrorGeneral(ex2, "Failed server: ", ParamServ.FileServerName03 + @"\news.lua", true);
                         }
 
                         string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, ServerSelected: {ParamServ.ServerSelected}";
                         FormUtils.LogRegister("Failed server: " + errorDetails);
+
+                        //FormUtils.ShowErrorGeneral(ex, "Failed server: ", ParamServ.FileServerName03 + @"\news.lua", true);
 
                         //MessageBox.Show("Failed to download upgrade.txt ", "Report");
                         //MessageBox.Show("Failed to download upgrade.txt " + "\r\n" +
@@ -2815,6 +2992,17 @@ namespace DCE_Manager
                     button_InstallCampaign.Visible = true;
                     textBox_DCS.Text = fdb.SelectedPath;
                     TestPath.DCS_Root = true;
+
+                    string testConfig = "config_" + ParamConf.paramNumConfig + "_pathDCS";
+                    if (ParamConf.configDictionary.ContainsKey(testConfig))
+                    {
+                        ParamConf.configDictionary[testConfig] = fdb.SelectedPath;
+                    }
+                    else
+                    {
+                        ParamConf.configDictionary.Add(testConfig, fdb.SelectedPath);
+                    }
+                    //MessageBox.Show(ParamConf.configDictionary[testConfig].ToString(), testConfig);
                 }
                 else
                 {
@@ -2838,14 +3026,22 @@ namespace DCE_Manager
                     TestPath.OVGME = true;
                     button_InstallCampaign.Visible = true;
 
+                    string testConfig = "config_" + ParamConf.paramNumConfig + "_pathSavedGames";
+                    if (ParamConf.configDictionary.ContainsKey(testConfig))
+                    {
+                        ParamConf.configDictionary[testConfig] = fdb.SelectedPath;
+                    }
+                    else
+                    {
+                        ParamConf.configDictionary.Add(testConfig, fdb.SelectedPath);
+                    }
+                    //MessageBox.Show(ParamConf.configDictionary[testConfig].ToString(), testConfig);
                 }
                 else
                 {
                     MessageBox.Show("This directory does not seem to be the DCS Saved Games folder: \r\n" + fdb.SelectedPath, "Error");
-
                 }
             }
-
         }
 
 
@@ -2858,16 +3054,25 @@ namespace DCE_Manager
                 textBox_OvGME.Text = fdb.SelectedPath;
                 TestPath.DCS_Root = true;
 
+
+                string testConfig = "config_" + ParamConf.paramNumConfig + "_pathOVGME";
+                if (ParamConf.configDictionary.ContainsKey(testConfig))
+                {
+                    ParamConf.configDictionary[testConfig] = fdb.SelectedPath;
+                }
+                else
+                {
+                    ParamConf.configDictionary.Add(testConfig, fdb.SelectedPath);
+                }
+                //MessageBox.Show(ParamConf.configDictionary[testConfig].ToString(), testConfig);
+
                 //if (TestFile.structureValide || (TestFile.presenceOobAirInit & TestFile.presenceCampInit) & (TestPath.DCS_Root & TestPath.DCS_SavedGames))
                 //{
                 //    button_InstallCampaign.Visible = true;
                 //}
             }
         }
-        //private void label1_Click(object sender, EventArgs e)
-        //{
 
-        //}
 
         private void groupBox1_Enter(object sender, EventArgs e)
         {
@@ -2991,42 +3196,6 @@ namespace DCE_Manager
                                 }
                             }
                         }
-
-                        ////cherche la version du scriptsMod dans le fichier zip
-                        //bool ScriptsModSearchResult = entry.FullName.Contains("ScriptsMod");
-                        //if (ScriptsModSearchResult & findScriptsMod == false)
-                        //{
-                        //    string[] words = entry.FullName.Split('/');
-                        //    foreach (var word in words)
-                        //    {
-                        //        if (word.Contains("ScriptsMod"))
-                        //        {
-                        //            if (entry.FullName.EndsWith("/"))
-                        //            {
-                        //                TestFile.ScriptsMod = word.Replace("ScriptsMod.", "");
-
-                        //                string[] ScriptsModVersion = TestFile.ScriptsMod.Split('.');
-
-                        //                // si un dossier ScriptsMod.NG existe déjà en local, on lui colle cette version
-                        //                if (TestFile.ScriptsMod != "NG" & TestFile.ScriptsMod.Length > 0)
-                        //                {
-                        //                    if (Int32.Parse(ScriptsModVersion[1]) >= 43)
-                        //                    {
-                        //                        string testFolder = textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG";
-                        //                        bool folderLocExists = System.IO.Directory.Exists(testFolder);
-
-                        //                        if (folderLocExists)
-                        //                        {
-                        //                            TestFile.ScriptsMod = "NG";
-                        //                        }
-                        //                    }
-                        //                }
-                        //                findScriptsMod = true;
-                        //                break;
-                        //            }
-                        //        }
-                        //    }
-                        //}
                     }
                 }
 
@@ -3110,8 +3279,8 @@ namespace DCE_Manager
 
                 System.IO.File.WriteAllText(pathFile, textPathBat);
 
-                //enregistre les path dans le fichier option
-                OptionRegister();
+                ////enregistre les path dans le fichier option
+                //OptionRegister();
 
                 //Modifie un ancien bug (selection de la partition DD) dans le fichier Mission Scripts\EventsTracker.lu
                 //Pour cela, il cherche la version du scriptsMod
@@ -3510,25 +3679,6 @@ namespace DCE_Manager
 
         }
 
-        private void button_SavePath_Click(object sender, EventArgs e)
-        {
-            bool errorPath = OptionRegister();
-
-            if (errorPath == false)
-            {
-                MessageBox.Show("Successful path update ", "Report");
-            }
-            else
-            {
-                MessageBox.Show(" you must enter the paths to these 3 folders: \n" +
-                    "-  Root DCS folder \n " +
-                    "-  SavedGame folder \n " +
-                    "-  OvGME folder  "
-                    , "Report");
-               
-            }
-               
-        }
 
         private void ScriptsModUpdate_Click(object sender, EventArgs e)
         {
@@ -5450,149 +5600,32 @@ namespace DCE_Manager
 
         private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
         {
-            //comboBox_Config.Items.Add("Tokyo");
-            int tempNum = 0;
-            string NameConfig = (string)comboBox_Config.SelectedItem;
 
-            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
-            bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
-
-            if (exists & fileExists)
+            if (ParamConf.configMap.TryGetValue((string)comboBox_Config.SelectedItem, out int configNumber))
             {
-                ////cherche le numero correspondant au name campagne
-                //string[] namelines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-
-                ////config_1_=uno
-                //foreach (string line in namelines)
-                //{
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            string[] words = line.Split('=');
-
-                            if (words.Count() > 1 && words[0].Contains("config_") & words[1] == NameConfig)
-                            {
-                                //string[] words = line.Split('=');                           //config_0_pathsavedgames
-                                words[0] = words[0].Replace("config_", ""); ;                //0_pathsavedgames
-                                string[] TestNum = words[0].Split('_');
-                                tempNum = Int32.Parse(TestNum[0]);
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    //// Gérer l'erreur en cas de problème de lecture du fichier
-                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
-                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
-                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    var frame = stackTrace.GetFrame(0);
-
-                    // Récupérer la ligne exacte et le fichier source (si disponibles)
-                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-                }
-
-                string NumConfig = "config_" + tempNum.ToString() + "_";
-
-                //string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-                //foreach (string line in lines)
-                //{
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            if (line.Contains(NumConfig + "pathZipCampaign="))
-                            {
-                                textBox_Campaign.Text = line.Replace(NumConfig + "pathZipCampaign=", "");
-
-                            }
-
-                            if (line.Contains(NumConfig + "pathDCS="))
-                                textBox_DCS.Text = line.Replace(NumConfig + "pathDCS=", "");
-
-                            if (line.Contains(NumConfig + "pathSavedGames="))
-                                textBox_SavedGames.Text = line.Replace(NumConfig + "pathSavedGames=", "");
-
-                            if (line.Contains(NumConfig + "pathOVGME="))
-                                textBox_OvGME.Text = line.Replace(NumConfig + "pathOVGME=", "");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    //// Gérer l'erreur en cas de problème de lecture du fichier
-                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
-                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
-                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    var frame = stackTrace.GetFrame(0);
-
-                    // Récupérer la ligne exacte et le fichier source (si disponibles)
-                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-                }
-
-                //inscrit le dernier choix dans le fichier option.txt
-                //display=MigOpenBeta
-                int NbLignModif = FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", "display=", "display=" + NameConfig);
-
-                if (NbLignModif == 0)
-                {
-                    string textAdd = "display=" + NameConfig;
-                    try
-                    {
-                        ////ajoute du texte
-                        //using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append))
-                        //{
-                        //    Byte[] info = new UTF8Encoding(true).GetBytes(textAdd);
-                        //    fs.Write(info, 0, textAdd.Length);
-                        //    fs.Close();
-                        //}
-                        //FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
-                        // Ajoute du texte à la fin du fichier
-
-                        using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
-                        {
-                            Byte[] info = new UTF8Encoding(true).GetBytes(textAdd + "\r\n");
-                            fs.Write(info, 0, info.Length); // Utiliser info.Length pour écrire tous les octets encodés
-                        }
-
-                        // Journalisation de l'ajout
-                        FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
-
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
-                        FormUtils.LogRegister($"Error StackTrace: {ex.StackTrace}\r\n");
-                    }
-                }
-                //supprime les lignes vides
-                FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
+                ParamConf.paramNumConfig = configNumber;
             }
 
+            ParamConf.configDictionary["display"] = (string)comboBox_Config.SelectedItem;
+
+            textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathZipCampaign"];
+
+            textBox_DCS.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathDCS"];
+
+            textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathSavedGames"];
+
+            textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.paramNumConfig + "_pathOVGME"];
+            
             CheckVersionScriptsModLocal();
+
+            //MessageBox.Show("ParamConf.paramNumConfig "+ ParamConf.paramNumConfig.ToString(), textBox_Campaign.Text);
 
         }
 
+
         private void m_Button_AddConfig_Click(object sender, EventArgs e)
         {
+
             string SelectedItem = "";
 
             if (textBox_Config.Text == "")
@@ -5607,163 +5640,102 @@ namespace DCE_Manager
                 return;
             }
 
-            bool editGestionName = false;
-            int NumConfig = 1;												//On commence la numerotation config à 1 pour les NumConfig  le 0 est réservé à l'enregistrement sans NameConfig
-            int NbLignModif = 0;
+            ParamConf.paramNumConfig = ParamConf.paramNumConfig + 1;
+
+            ParamConf.configDictionary.Add("config_" + ParamConf.paramNumConfig + "_", textBox_Config.Text);
+
+            ParamConf.configDictionary.Add("config_" + ParamConf.paramNumConfig + "_pathZipCampaign" , textBox_Campaign.Text);
+
+            ParamConf.configDictionary.Add("config_" + ParamConf.paramNumConfig + "_pathDCS", textBox_DCS.Text);
+
+            ParamConf.configDictionary.Add("config_" + ParamConf.paramNumConfig + "_pathSavedGames", textBox_SavedGames.Text);
+
+            ParamConf.configDictionary.Add("config_" + ParamConf.paramNumConfig + "_pathOVGME", textBox_OvGME.Text);
+
+
+            comboBox_Config.Items.Add(textBox_Config.Text);
+
+            SelectedItem = textBox_Config.Text;
+
+            ParamConf.configDictionary["display"] = textBox_Config.Text;
+
+
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
-            bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+            string filePath = pathOptionInstaller + @"\options.txt";
 
-            if (!exists)
-            {
-                try
-                {
-                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
-                }
-                catch (Exception e2)
-                {
-                    //Console.WriteLine("The process failed: {0}", e2.ToString());
-                    //MessageBox.Show("The process failed: {0}", e2.ToString());
-                    FormUtils.ShowErrorMessage(e2.Message);
-                }
-            }
-                
-
-            if (exists & fileExists)
-            {
-                string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-
-                //cherche la derniere version du config pour l'ajouter
-                foreach (string line in lines)
-                {
-                    if (line.Contains("config_"))
-                    {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        words[0] = words[0].Replace("config_", "");                //0_pathsavedgames
-                        string[] TestNum = words[0].Split('_');
-
-                        int tempNum = Int32.Parse(TestNum[0]);
-                        if (tempNum >= NumConfig)
-                        {
-                            NumConfig = tempNum + 1;
-                        }
-                    }
-                }
-
-                string[] linesRequest = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-
-                //cherche si ce GestionName existe deja
-                foreach (string line in linesRequest)
-                {
-                    if (line.Contains("_="))
-                    {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        if (words[1].Contains(textBox_Config.Text))
-                        {
-                            string[] TestNum = words[0].Split('_');
-                            NumConfig = Int32.Parse(TestNum[1]);
-                            editGestionName = true;
-                        }
-                    }
-                }
-            }
-
-            string OptiontextBox_Campaign = textBox_Campaign.Text;
-            string[] wordsBarre = textBox_Campaign.Text.Split('\\');
-            string[] wordsPoint = textBox_Campaign.Text.Split('.');
-
-            if (wordsPoint.Count() > 1 & wordsBarre.Count() > 1)
-            {
-                OptiontextBox_Campaign = OptiontextBox_Campaign.Replace(wordsBarre[wordsBarre.Count() - 1], "");
-            }
-
-            //ajoute un ConfPathName
-            if (!editGestionName)
-            {
-                string AddConfig = "config_" + NumConfig.ToString();
-
-                //Inscrit dans le fichier option, pour ne pas retapper les paths à la prochaine installation
-                string textOption =
-                    "\r\n" + "config_" + NumConfig.ToString() + "_" + "=" + textBox_Config.Text + "\r\n" +
-                    AddConfig + "_" + "pathZipCampaign=" + OptiontextBox_Campaign + "\r\n" +
-                    AddConfig + "_" + "pathDCS=" + textBox_DCS.Text + "\r\n" +
-                    AddConfig + "_" + "pathSavedGames=" + textBox_SavedGames.Text + "\r\n" +
-                    AddConfig + "_" + "pathOVGME=" + textBox_OvGME.Text;
-
-                comboBox_Config.Items.Add(textBox_Config.Text);
-                //int totalItems = comboBox_Config.Items.Count;
-                //comboBox_Config.SelectedIndex = totalItems - 1;
-                //comboBox_Config.SelectedItem = textBox_Config.Text;
-
-                SelectedItem = textBox_Config.Text;
-
-                try
-                {
-                    //ajoute du texte
-                    using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append))
-                    {
-                        Byte[] info = new UTF8Encoding(true).GetBytes(textOption);
-                        fs.Write(info, 0, textOption.Length);
-                        fs.Close();
-                    }
-                    FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
-                }
-                catch (Exception ex)
-                {
-                    string toto = ex.StackTrace;
-                    FormUtils.LogRegister(toto);
-                }
-            }
-            //edit un ConfPathName deja existant
-            else
-            {
-                string[] linesChange = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
-                SelectedItem = textBox_Config.Text;
-                foreach (string line in linesChange)
-                {
-                    if (line.Contains("config_" + NumConfig.ToString() + "_"))
-                    {
-                        string[] words = line.Split('=');                           //config_0_pathsavedgames
-                        string reste = textBox_Config.Text;
-
-                        if (line.Contains("pathZipCampaign"))
-                            reste = OptiontextBox_Campaign;
-
-                        if (line.Contains("pathDCS"))
-                            reste = textBox_DCS.Text;
-
-                        if (line.Contains("pathSavedGames"))
-                            reste = textBox_SavedGames.Text;
-
-                        if (line.Contains("pathOVGME"))
-                            reste = textBox_OvGME.Text;
+            // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
+            FormUtils.UpdateConfigFileFromDictionary(filePath, ParamConf.configDictionary);
 
 
-                        string ligneAModifier = words[0] + "=" + reste;
-
-                        NbLignModif = NbLignModif + FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", line, ligneAModifier);
-
-                        //supprime les lignes vides
-                        FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
-                    }
-                }
-            }
-
-
-            if (NbLignModif > 0)
-                FormUtils.LogRegister("Modified " + NbLignModif + " lines of the ConfName: " + textBox_Config.Text);
-
-            //comboBox1_SelectedIndexChanged(object sender, EventArgs e);
-
-            //m_Button_AddConfig.Click += new EventHandler(comboBox1_SelectedIndexChanged);
-
-            comboBox_Config.SelectedItem = SelectedItem;
-
-            textBox_Config.Text = "";
 
         }
 
+
+        private void but_EditConfig_Click(object sender, EventArgs e)
+        {
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+            string filePath = pathOptionInstaller + @"\options.txt";
+            // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
+            FormUtils.UpdateConfigFileFromDictionary(filePath, ParamConf.configDictionary);
+        }
+
         private void m_Button_Config_Del_Click(object sender, EventArgs e)
+        {
+
+            if (comboBox_Config.Text == "")
+            {
+                MessageBox.Show("No configuration name selected", "Error");
+                //return;
+            }
+            else
+            {
+                ParamConf.configDictionary.Remove("config_" + ParamConf.paramNumConfig + "_");
+
+                ParamConf.configDictionary.Remove("config_" + ParamConf.paramNumConfig + "_pathZipCampaign");
+
+                ParamConf.configDictionary.Remove("config_" + ParamConf.paramNumConfig + "_pathDCS");
+
+                ParamConf.configDictionary.Remove("config_" + ParamConf.paramNumConfig + "_pathSavedGames");
+
+                ParamConf.configDictionary.Remove("config_" + ParamConf.paramNumConfig + "_pathOVGME");
+
+                ParamConf.paramNumConfig = 0;
+
+                ParamConf.configMap.Remove(comboBox_Config.Text);
+
+                comboBox_Config.Items.Remove(comboBox_Config.Text);
+
+                comboBox_Config.DisplayMember = "";
+
+                ParamConf.configDictionary["display"] = comboBox_Config.Text;
+
+                textBox_Campaign.Text = "";
+                textBox_DCS.Text = "";
+                textBox_SavedGames.Text = "";
+                textBox_OvGME.Text = "";
+                textBox_Config.Text = "";
+
+                //string txt = "";
+                //foreach (var entry in ParamConf.configDictionary)
+                //{
+                //    txt = txt + entry.Key + " = " + entry.Value + "\r\n";
+                //}
+                //MessageBox.Show(txt, "ParamConf.configDictionary");
+
+
+                string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+                string filePath = pathOptionInstaller + @"\options.txt";
+
+                // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
+                FormUtils.UpdateConfigFileFromDictionary(filePath, ParamConf.configDictionary);
+
+
+            }
+
+        }
+
+
+        private void m_Button_Config_Del_Click_OLD(object sender, EventArgs e)
         {
             //string testDell = "qint";
             //string testDell = comboBox_Config.SelectedValue.ToString();
@@ -5782,8 +5754,6 @@ namespace DCE_Manager
                 }
                 catch (Exception e2)
                 {
-                    //Console.WriteLine("The process failed: {0}", e2.ToString());
-                    //MessageBox.Show("The process failed: {0}", e2.ToString());
                     FormUtils.ShowErrorMessage(e2.Message);
                 }
             }
@@ -5841,6 +5811,296 @@ namespace DCE_Manager
 
         }
 
+
+        private void comboBox_Config_SelectedIndexChanged_OLD(object sender, EventArgs e)
+        {
+            //comboBox_Config.Items.Add("Tokyo");
+            //int tempNum = 0;
+            string NameConfig = (string)comboBox_Config.SelectedItem;
+
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
+            bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+
+            if (exists & fileExists)
+            {
+                ////cherche le numero correspondant au name campagne
+                try
+                {
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            string[] words = line.Split('=');
+
+                            if (words.Count() > 1 && words[0].Contains("config_") & words[1] == NameConfig)
+                            {
+                                //string[] words = line.Split('=');                           //config_0_pathsavedgames
+                                words[0] = words[0].Replace("config_", ""); ;                //0_pathsavedgames
+                                string[] TestNum = words[0].Split('_');
+                                //tempNum = Int32.Parse(TestNum[0]);
+                                ParamConf.paramNumConfig = Int32.Parse(TestNum[0]);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                }
+
+                string NumAndConfig = "config_" + ParamConf.paramNumConfig.ToString() + "_";
+
+                try
+                {
+                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                    using (FileStream fs = new FileStream(pathOptionInstaller + @"\options.txt", FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (line.Contains(NumAndConfig + "pathZipCampaign="))
+                            {
+                                textBox_Campaign.Text = line.Replace(NumAndConfig + "pathZipCampaign=", "");
+                            }
+
+                            if (line.Contains(NumAndConfig + "pathDCS="))
+                                textBox_DCS.Text = line.Replace(NumAndConfig + "pathDCS=", "");
+
+                            if (line.Contains(NumAndConfig + "pathSavedGames="))
+                                textBox_SavedGames.Text = line.Replace(NumAndConfig + "pathSavedGames=", "");
+
+                            if (line.Contains(NumAndConfig + "pathOVGME="))
+                                textBox_OvGME.Text = line.Replace(NumAndConfig + "pathOVGME=", "");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    //// Gérer l'erreur en cas de problème de lecture du fichier
+                    //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    var frame = stackTrace.GetFrame(0);
+
+                    // Récupérer la ligne exacte et le fichier source (si disponibles)
+                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    var fileName = frame?.GetFileName() ?? "Unknown File";
+
+                    FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
+                }
+
+                //inscrit le dernier choix dans le fichier option.txt
+                //display=MigOpenBeta
+                int NbLignModif = FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", "display=", "display=" + NameConfig);
+
+                if (NbLignModif == 0)
+                {
+                    string textAdd = "display=" + NameConfig;
+                    try
+                    {
+                        // Ajoute du texte à la fin du fichier
+                        using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                        {
+                            Byte[] info = new UTF8Encoding(true).GetBytes(textAdd + "\r\n");
+                            fs.Write(info, 0, info.Length); // Utiliser info.Length pour écrire tous les octets encodés
+                        }
+
+                        // Journalisation de l'ajout
+                        FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
+
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"An error occurred while creating the file: {ex.Message}", "Error");
+                        FormUtils.LogRegister($"Error StackTrace: {ex.StackTrace}\r\n");
+                    }
+                }
+                //supprime les lignes vides
+                //FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
+            }
+
+            CheckVersionScriptsModLocal();
+
+        }
+
+        private void m_Button_AddConfig_Click_OLD(object sender, EventArgs e)
+        {
+            string SelectedItem = "";
+
+            if (textBox_Config.Text == "")
+            {
+                MessageBox.Show("Please enter a name for this new configuration", "Error");
+                return;
+            }
+
+            if (textBox_Campaign.Text == "" | textBox_DCS.Text == "" | textBox_SavedGames.Text == "" | textBox_OvGME.Text == "")
+            {
+                MessageBox.Show("Please fill in the paths in the 4 boxes", "Error");
+                return;
+            }
+
+            bool editGestionName = false;
+            int NumConfig = 1;												//On commence la numerotation config à 1 pour les NumConfig  le 0 est réservé à l'enregistrement sans NameConfig
+            int NbLignModif = 0;
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
+            bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+
+            if (!exists)
+            {
+                try
+                {
+                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
+                }
+                catch (Exception e2)
+                {
+                    //Console.WriteLine("The process failed: {0}", e2.ToString());
+                    //MessageBox.Show("The process failed: {0}", e2.ToString());
+                    FormUtils.ShowErrorMessage(e2.Message);
+                }
+            }
+
+
+            if (exists & fileExists)
+            {
+                string[] lines = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+
+                //cherche la derniere version du config pour l'ajouter
+                foreach (string line in lines)
+                {
+                    if (line.Contains("config_"))
+                    {
+                        string[] words = line.Split('=');                           //config_0_pathsavedgames
+                        words[0] = words[0].Replace("config_", "");                //0_pathsavedgames
+                        string[] TestNum = words[0].Split('_');
+
+                        int tempNum = Int32.Parse(TestNum[0]);
+                        if (tempNum >= NumConfig)
+                        {
+                            NumConfig = tempNum + 1;
+                        }
+                    }
+                }
+
+                string[] linesRequest = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+
+                //cherche si ce GestionName existe deja
+                foreach (string line in linesRequest)
+                {
+                    if (line.Contains("_="))
+                    {
+                        string[] words = line.Split('=');                           //config_0_pathsavedgames
+                        if (words[1].Contains(textBox_Config.Text))
+                        {
+                            string[] TestNum = words[0].Split('_');
+                            ParamConf.paramNumConfig = Int32.Parse(TestNum[1]);
+                            editGestionName = true;
+                        }
+                    }
+                }
+            }
+
+            string OptiontextBox_Campaign = textBox_Campaign.Text;
+            string[] wordsBarre = textBox_Campaign.Text.Split('\\');
+            string[] wordsPoint = textBox_Campaign.Text.Split('.');
+
+            if (wordsPoint.Count() > 1 & wordsBarre.Count() > 1)
+            {
+                OptiontextBox_Campaign = OptiontextBox_Campaign.Replace(wordsBarre[wordsBarre.Count() - 1], "");
+            }
+
+            //ajoute un ConfPathName
+            if (!editGestionName)
+            {
+                string AddConfig = "config_" + ParamConf.paramNumConfig.ToString();
+
+                //Inscrit dans le fichier option, pour ne pas retaper les paths à la prochaine installation
+                string textOption =
+                    "\r\n" + "config_" + ParamConf.paramNumConfig.ToString() + "_" + "=" + textBox_Config.Text + "\r\n" +
+                    AddConfig + "_" + "pathZipCampaign=" + OptiontextBox_Campaign + "\r\n" +
+                    AddConfig + "_" + "pathDCS=" + textBox_DCS.Text + "\r\n" +
+                    AddConfig + "_" + "pathSavedGames=" + textBox_SavedGames.Text + "\r\n" +
+                    AddConfig + "_" + "pathOVGME=" + textBox_OvGME.Text;
+
+                comboBox_Config.Items.Add(textBox_Config.Text);
+
+                SelectedItem = textBox_Config.Text;
+
+                try
+                {
+                    //ajoute du texte
+                    using (FileStream fs = File.Open(pathOptionInstaller + @"\options.txt", FileMode.Append))
+                    {
+                        Byte[] info = new UTF8Encoding(true).GetBytes(textOption);
+                        fs.Write(info, 0, textOption.Length);
+                        fs.Close();
+                    }
+                    FormUtils.LogRegister("Added ConfPathName: " + textBox_Config.Text);
+                }
+                catch (Exception ex)
+                {
+                    string toto = ex.StackTrace;
+                    FormUtils.LogRegister(toto);
+                }
+            }
+            //edit un ConfPathName deja existant
+            else
+            {
+                string[] linesChange = System.IO.File.ReadAllLines(pathOptionInstaller + @"\options.txt");
+                SelectedItem = textBox_Config.Text;
+                foreach (string line in linesChange)
+                {
+                    if (line.Contains("config_" + ParamConf.paramNumConfig.ToString() + "_"))
+                    {
+                        string[] words = line.Split('=');                           //config_0_pathsavedgames
+                        string reste = textBox_Config.Text;
+
+                        if (line.Contains("pathZipCampaign"))
+                            reste = OptiontextBox_Campaign;
+
+                        if (line.Contains("pathDCS"))
+                            reste = textBox_DCS.Text;
+
+                        if (line.Contains("pathSavedGames"))
+                            reste = textBox_SavedGames.Text;
+
+                        if (line.Contains("pathOVGME"))
+                            reste = textBox_OvGME.Text;
+
+
+                        string ligneAModifier = words[0] + "=" + reste;
+
+                        NbLignModif = NbLignModif + FormUtils.ModifierLigneBis(pathOptionInstaller + @"\options.txt", line, ligneAModifier);
+
+                        //supprime les lignes vides
+                        FormUtils.supprimerLigne(pathOptionInstaller + @"\options.txt", "");
+                    }
+                }
+            }
+
+
+            if (NbLignModif > 0)
+                FormUtils.LogRegister("Modified " + NbLignModif + " lines of the ConfName: " + textBox_Config.Text);
+
+            comboBox_Config.SelectedItem = SelectedItem;
+
+            textBox_Config.Text = "";
+
+        }
 
         private void VersionDceManager_Click(object sender, EventArgs e)
         {
@@ -7844,6 +8104,7 @@ namespace DCE_Manager
                     catch (Exception ex)
                     {
                         //MessageBox.Show("Une erreur est survenue : " + ex.Message, "error 7293");
+                        //FormUtils.ShowErrorGeneral(ex, "An error has occurred", "", true);
                         FormUtils.ShowErrorMessage(ex.Message);
                     }
                 }
@@ -7998,19 +8259,40 @@ namespace DCE_Manager
 
             if (textBox_ASTI_MissionFile.Text != null && textBox_ASTI_MissionFile.Text != "")
             {
-                string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-                bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
 
-                if (!fileExists)
+                string testKey = "ASTI_MissionFile";
+                if (ParamConf.configDictionary.ContainsKey(testKey))
                 {
-                    bool errorPath = OptionRegister();
-                    fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+                    ParamConf.configDictionary[testKey] = textBox_ASTI_MissionFile.Text;
                 }
-                if (fileExists)
+                else
                 {
-                    int nb1 = FormUtils.ModifLigneOrAdd(pathOptionInstaller + @"\options.txt", "ASTI_MissionFile=", "ASTI_MissionFile=" + textBox_ASTI_MissionFile.Text.ToString());
-                    int nb2 = FormUtils.ModifLigneOrAdd(pathOptionInstaller + @"\options.txt", "ASTI_importTemplateFolder=", "ASTI_importTemplateFolder=" + textBox_ASTI_importTemplateFolder.Text.ToString());
+                    ParamConf.configDictionary.Add(testKey, textBox_ASTI_MissionFile.Text);
                 }
+
+                testKey = "ASTI_importTemplateFolder";
+                if (ParamConf.configDictionary.ContainsKey(testKey))
+                {
+                    ParamConf.configDictionary[testKey] = textBox_ASTI_MissionFile.Text;
+                }
+                else
+                {
+                    ParamConf.configDictionary.Add(testKey, textBox_ASTI_MissionFile.Text);
+                }
+
+                //string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+                //bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+
+                //if (!fileExists)
+                //{
+                //    bool errorPath = OptionRegister();
+                //    fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
+                //}
+                //if (fileExists)
+                //{
+                //    int nb1 = FormUtils.ModifLigneOrAdd(pathOptionInstaller + @"\options.txt", "ASTI_MissionFile=", "ASTI_MissionFile=" + textBox_ASTI_MissionFile.Text.ToString());
+                //    int nb2 = FormUtils.ModifLigneOrAdd(pathOptionInstaller + @"\options.txt", "ASTI_importTemplateFolder=", "ASTI_importTemplateFolder=" + textBox_ASTI_importTemplateFolder.Text.ToString());
+                //}
 
                 try
                 {
@@ -8188,8 +8470,8 @@ namespace DCE_Manager
                 }
                 catch (Exception ex)
                 {
-                    //CustomMessageBox.ShowMessage("An error has occurred : " + ex.Message);
                     //MessageBox.Show("Une erreur est survenue : " + ex.Message, "error 7613");
+                    //FormUtils.ShowErrorGeneral(ex, "An error has occurred", "", true);
 
                     FormUtils.ShowErrorMessage(ex.Message);
 
@@ -8244,6 +8526,15 @@ namespace DCE_Manager
             //
         }
 
+        private void but_Expert_Click(object sender, EventArgs e)
+        {
+            groupBox4.Visible = true;
+        }
+
+        private void butClient_Click(object sender, EventArgs e)
+        {
+            groupBox4.Visible = false;
+        }
     }
    
 }

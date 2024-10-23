@@ -71,7 +71,20 @@ namespace DCE_Manager.Parameters
     public static class Divers
     {
         public static string ScriptsMod = "inc";
+
     }
+
+    public static class ParamConf
+    {
+        // Dictionnaire statique pour stocker la configuration
+        public static Dictionary<string, string> configDictionary { get; set; } = new Dictionary<string, string>();
+
+        public static Dictionary<string, int> configMap = new Dictionary<string, int>();
+
+        public static int paramNumConfig = 0;
+    }
+
+
     public static class ParamServ
     {
         public static int tmpResponse = 1000;
@@ -226,10 +239,12 @@ namespace DCE_Manager.Parameters
         public static string textBox_DCS { get; set; }
         public static string textBox_SavedGames { get; set; }
         public static string textBox_OvGME { get; set; }
+
         public static string textBox_ASTI_MissionFile { get; set; }
         public static string textBox_ASTI_importTemplateFolder { get; set; }
 
-        
+
+
 
     }
 

@@ -26,6 +26,53 @@ namespace DCE_Manager.Utils
             MessageBox.Show("Fonction commune appelée !");
         }
 
+        public static void ShowErrorGeneral(Exception ex, string txt, string arg, Boolean writeInLog)
+        {
+            // Obtenir la version du programme
+            string programVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+            // Obtenir la pile d'appels complète (stack trace), mais filtrer pour inclure uniquement les fonctions de ton code
+            var trace = new System.Diagnostics.StackTrace(ex, true);
+            string customStackTrace = "";
+
+            foreach (var frame in trace.GetFrames())
+            {
+                string method = frame.GetMethod().DeclaringType?.FullName ?? "Unknown Method";
+                if (method != null && method.StartsWith("DCE_Manager")) // Filtrer pour n'afficher que les fonctions de ton projet
+                {
+                    int line = frame.GetFileLineNumber();
+                    customStackTrace += $"{method} à la ligne {line}\r\n";
+                }
+            }
+
+            // Obtenir le numéro de la ligne spécifique de l'erreur actuelle
+            var lineNumber = trace.GetFrame(0)?.GetFileLineNumber() ?? 0;
+
+            var moreInfo = "";
+            if (arg != null)
+                moreInfo = arg;
+
+            // Construire le message d'erreur complet
+            string errorDetails = $"message: {txt}\r\n" +
+                                  $"Error: {ex.Message}\r\n" +
+                                  $"StackTrace: {customStackTrace}\r\n" +
+                                  $"Line: {lineNumber}\r\n" +
+                                  //$"line to be added : {ligneModifiee}\r\n" +
+                                  $"Additional information: {moreInfo}\r\n" +
+                                  $"Version: {programVersion}";
+
+            // Afficher le message synthétique pour l'utilisateur
+            MessageBox.Show($"An error has occurred. More details:\r\n\r\n{errorDetails}", "Error");
+
+
+            // Si besoin, tu peux également enregistrer l'erreur dans un fichier de log
+            if (writeInLog == true);
+            {
+                LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
+            }
+
+        }
+
         private static readonly object lockObj = new object();
 
         public static void LogRegister(string log)
@@ -41,7 +88,8 @@ namespace DCE_Manager.Utils
                 }
                 catch (Exception e)
                 {
-                    MessageBox.Show($"Failed to create directory: {e.Message}", "Directory Error");
+                    //MessageBox.Show($"Failed to create directory: {e.Message}", "Directory Error");
+                    ShowErrorGeneral(e, "", "", false);
                     return;
                 }
             }
@@ -74,26 +122,45 @@ namespace DCE_Manager.Utils
                 }
                 catch (Exception ex)
                 {
-                    // Obtenir les détails supplémentaires dans la pile (StackTrace)
-                    var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    var frame = stackTrace.GetFrame(0);
+                    //// Obtenir les détails supplémentaires dans la pile (StackTrace)
+                    //var stackTrace = new System.Diagnostics.StackTrace(ex, true);
+                    //var frame = stackTrace.GetFrame(0);
 
-                    // Récupérer la ligne exacte et le fichier source (si disponibles)
-                    var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    var fileName = frame?.GetFileName() ?? "Unknown File";
+                    //// Récupérer la ligne exacte et le fichier source (si disponibles)
+                    //var lineNumber = frame?.GetFileLineNumber() ?? 0;
+                    //var fileName = frame?.GetFileName() ?? "Unknown File";
 
-                    // Construire le message d'erreur
-                    string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}, Path: {path}";
+                    //// Construire le message d'erreur
+                    //string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}, Path: {path}";
 
-                    // Afficher un message d'erreur plus synthétique
-                    MessageBox.Show($"The file is locked or access is denied: {path}\n\nMore details: {errorDetails}", "Access error");
+                    //// Afficher un message d'erreur plus synthétique
+                    //MessageBox.Show($"The file is locked or access is denied: {path}\n\nMore details: {errorDetails}", "Access error");
+                    ShowErrorGeneral(ex, "The file is locked or access is denied", path, false );
 
                 }
             }
         }
 
+        public static void OptionRegister()
+        {
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
 
-        public static void DeleteAllFilesInDirectory(string sourcePath, bool FolderDelete)
+            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
+
+            if (!exists)
+            {
+                try
+                {
+                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
+                }
+                catch (Exception e)
+                {
+                    FormUtils.ShowErrorMessage(e.Message);
+                }
+            }
+        }
+
+            public static void DeleteAllFilesInDirectory(string sourcePath, bool FolderDelete)
         {
             System.IO.DirectoryInfo di = new DirectoryInfo(sourcePath);
 
@@ -152,14 +219,8 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                FormUtils.LogRegister("LogRegister UTIL 149 ---");
-                FormUtils.LogRegister(path);
-                FormUtils.LogRegister("---");
-                FormUtils.LogRegister(StringTxt);
-                FormUtils.LogRegister("---");
-                FormUtils.LogRegister(ex.StackTrace);
-                FormUtils.LogRegister("---");
-                MessageBox.Show("Check Log", "Error");
+                ShowErrorGeneral(ex, "", path, true);
+
             }
 
         }
@@ -415,6 +476,59 @@ namespace DCE_Manager.Utils
             return Ufind;
         }
 
+        public static void UpdateConfigFileFromDictionary(string filePath, Dictionary<string, string> configDictionary)
+        {
+            try
+            {
+                // Créer un dictionnaire temporaire pour stocker les lignes du fichier actuel
+                Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
+
+                // Si le fichier existe, on le lit
+                if (File.Exists(filePath))
+                {
+                    // Lire le fichier ligne par ligne et ajouter les paires clé/valeur dans fileDictionary
+                    string[] lines = File.ReadAllLines(filePath);
+                    foreach (string line in lines)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("--") && line.Contains('='))
+                        {
+                            string[] parts = line.Split('=');
+                            if (parts.Length == 2)
+                            {
+                                string key = parts[0].Trim();
+                                string value = parts[1].Trim();
+                                fileDictionary[key] = value; // Ajouter ou mettre à jour la clé/valeur dans le dictionnaire temporaire
+                            }
+                        }
+                    }
+
+                    // Fusionner les valeurs du configDictionary dans fileDictionary (mise à jour des valeurs existantes)
+                    foreach (var entry in configDictionary)
+                    {
+                        fileDictionary[entry.Key] = entry.Value; // Ajouter ou mettre à jour les clés/valeurs du dictionnaire passé en paramètre
+                    }
+
+                    // Réécrire le fichier en supprimant les éléments qui ne sont plus présents dans configDictionary
+                    using (StreamWriter writer = new StreamWriter(filePath))
+                    {
+                        foreach (var entry in fileDictionary)
+                        {
+                            if (configDictionary.ContainsKey(entry.Key))
+                            {
+                                writer.WriteLine($"{entry.Key}={entry.Value}"); // Écrire uniquement les lignes qui sont dans configDictionary
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowErrorGeneral(ex, "Error updating the config file", filePath, true);
+            }
+        }
+
+
+
         public static int ModifLigneOrAdd(string path, string ligneRecherche, string ligneModifiee)
         {
             int Ufind = 0;
@@ -468,39 +582,9 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                // Obtenir la version du programme
-                string programVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-
-                // Obtenir la pile d'appels complète (stack trace), mais filtrer pour inclure uniquement les fonctions de ton code
-                var trace = new System.Diagnostics.StackTrace(ex, true);
-                string customStackTrace = "";
-
-                foreach (var frame in trace.GetFrames())
-                {
-                    string method = frame.GetMethod().DeclaringType?.FullName ?? "Unknown Method";
-                    if (method != null && method.StartsWith("DCE_Manager")) // Filtrer pour n'afficher que les fonctions de ton projet
-                    {
-                        int line = frame.GetFileLineNumber();
-                        customStackTrace += $"{method} à la ligne {line}\r\n";
-                    }
-                }
-
-                // Obtenir le numéro de la ligne spécifique de l'erreur actuelle
-                var lineNumber = trace.GetFrame(0)?.GetFileLineNumber() ?? 0;
-
-                // Construire le message d'erreur complet
-                string errorDetails = $"Error: {ex.Message}\r\n" +
-                                      $"StackTrace: {customStackTrace}\r\n" +
-                                      $"Line: {lineNumber}\r\n" +
-                                      //$"line to be added : {ligneModifiee}\r\n" +
-                                      $"Path: {path}\r\n" +
-                                      $"Version: {programVersion}";
-
-                // Afficher le message synthétique pour l'utilisateur
-                MessageBox.Show($"An error has occurred. More details:\r\n\r\n{errorDetails}", "Error");
-
-                // Si besoin, tu peux également enregistrer l'erreur dans un fichier de log
-                LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
+                ShowErrorGeneral(ex, "", path, true);
+                
+                //LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
             }
 
             return Ufind;
@@ -593,21 +677,18 @@ namespace DCE_Manager.Utils
             }
             catch (UnauthorizedAccessException e)
             {
-                Console.WriteLine("Erreur : Accès non autorisé.");
-                //Console.WriteLine(e.Message);
-                MessageBox.Show(e.Message, "Error");
+                //MessageBox.Show(e.Message, "Error");
+                ShowErrorGeneral(e, "Error: Unauthorised access.", "", true);
             }
             catch (IOException e)
             {
-                Console.WriteLine("Erreur : Problème d'entrée/sortie.");
-                //Console.WriteLine(e.Message);
-                MessageBox.Show(e.Message, "Error");
+                //MessageBox.Show(e.Message, "Error");
+                ShowErrorGeneral(e, "Error: Input/output problem.", "", true);
             }
             catch (Exception e)
             {
-                Console.WriteLine("Erreur : Une erreur est survenue.");
-                //Console.WriteLine(e.Message);
-                MessageBox.Show(e.Message, "Error");
+                //MessageBox.Show(e.Message, "Error");
+                ShowErrorGeneral(e, "Error: An error has occurred", "", true);
             }
         }
 

@@ -50,7 +50,6 @@
             this.Label_SavedGames = new System.Windows.Forms.Label();
             this.Label_DCS = new System.Windows.Forms.Label();
             this.textBox_SavedGames = new System.Windows.Forms.TextBox();
-            this.button_SavePath = new System.Windows.Forms.Button();
             this.button1 = new System.Windows.Forms.Button();
             this.label4 = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
@@ -62,10 +61,8 @@
             this.tabControl = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
-            this.label7 = new System.Windows.Forms.Label();
-            this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
-            this.pictureBox4 = new System.Windows.Forms.PictureBox();
+            this.button6 = new System.Windows.Forms.Button();
             this.m_Button_Config_Del = new System.Windows.Forms.Button();
             this.comboBox_Config = new System.Windows.Forms.ComboBox();
             this.m_Button_AddConfig = new System.Windows.Forms.Button();
@@ -144,6 +141,8 @@
             this.button3 = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
+            this.butClient = new System.Windows.Forms.Button();
+            this.but_Expert = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -151,9 +150,7 @@
             this.tabControl.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.groupBox7.SuspendLayout();
-            this.groupBox5.SuspendLayout();
             this.groupBox4.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
             this.tabPage2.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.groupBox6.SuspendLayout();
@@ -377,16 +374,6 @@
             this.textBox_SavedGames.TabIndex = 5;
             this.textBox_SavedGames.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
             // 
-            // button_SavePath
-            // 
-            this.button_SavePath.Location = new System.Drawing.Point(29, 19);
-            this.button_SavePath.Name = "button_SavePath";
-            this.button_SavePath.Size = new System.Drawing.Size(110, 23);
-            this.button_SavePath.TabIndex = 16;
-            this.button_SavePath.Text = "Save Path";
-            this.button_SavePath.UseVisualStyleBackColor = true;
-            this.button_SavePath.Click += new System.EventHandler(this.button_SavePath_Click);
-            // 
             // button1
             // 
             this.button1.Location = new System.Drawing.Point(192, 340);
@@ -476,8 +463,6 @@
             // 
             this.tabPage1.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage1.Controls.Add(this.groupBox7);
-            this.tabPage1.Controls.Add(this.label7);
-            this.tabPage1.Controls.Add(this.groupBox5);
             this.tabPage1.Controls.Add(this.groupBox4);
             this.tabPage1.Controls.Add(this.groupBox1);
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
@@ -507,52 +492,36 @@
             this.groupBox7.TabStop = false;
             this.groupBox7.Text = "Path required";
             // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(391, 389);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(58, 13);
-            this.label7.TabIndex = 24;
-            this.label7.Text = "<<   or   >>";
-            // 
-            // groupBox5
-            // 
-            this.groupBox5.Controls.Add(this.button_SavePath);
-            this.groupBox5.Location = new System.Drawing.Point(500, 360);
-            this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(165, 71);
-            this.groupBox5.TabIndex = 23;
-            this.groupBox5.TabStop = false;
-            this.groupBox5.Text = "Save Path";
-            // 
             // groupBox4
             // 
-            this.groupBox4.Controls.Add(this.pictureBox4);
+            this.groupBox4.Controls.Add(this.button6);
             this.groupBox4.Controls.Add(this.m_Button_Config_Del);
             this.groupBox4.Controls.Add(this.comboBox_Config);
             this.groupBox4.Controls.Add(this.m_Button_AddConfig);
             this.groupBox4.Controls.Add(this.textBox_Config);
-            this.groupBox4.Location = new System.Drawing.Point(90, 360);
+            this.groupBox4.Location = new System.Drawing.Point(248, 355);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(264, 71);
+            this.groupBox4.Size = new System.Drawing.Size(269, 71);
             this.groupBox4.TabIndex = 22;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Config Name (optional)";
+            this.groupBox4.Visible = false;
             // 
-            // pictureBox4
+            // button6
             // 
-            this.pictureBox4.Location = new System.Drawing.Point(244, 45);
-            this.pictureBox4.Name = "pictureBox4";
-            this.pictureBox4.Size = new System.Drawing.Size(14, 20);
-            this.pictureBox4.TabIndex = 22;
-            this.pictureBox4.TabStop = false;
+            this.button6.Location = new System.Drawing.Point(133, 44);
+            this.button6.Name = "button6";
+            this.button6.Size = new System.Drawing.Size(63, 20);
+            this.button6.TabIndex = 22;
+            this.button6.Text = "Edit/Save";
+            this.button6.UseVisualStyleBackColor = true;
+            this.button6.Click += new System.EventHandler(this.but_EditConfig_Click);
             // 
             // m_Button_Config_Del
             // 
-            this.m_Button_Config_Del.Location = new System.Drawing.Point(23, 19);
+            this.m_Button_Config_Del.Location = new System.Drawing.Point(200, 44);
             this.m_Button_Config_Del.Name = "m_Button_Config_Del";
-            this.m_Button_Config_Del.Size = new System.Drawing.Size(47, 20);
+            this.m_Button_Config_Del.Size = new System.Drawing.Size(63, 20);
             this.m_Button_Config_Del.TabIndex = 21;
             this.m_Button_Config_Del.Text = "Delete";
             this.m_Button_Config_Del.UseVisualStyleBackColor = true;
@@ -561,7 +530,7 @@
             // comboBox_Config
             // 
             this.comboBox_Config.FormattingEnabled = true;
-            this.comboBox_Config.Location = new System.Drawing.Point(76, 45);
+            this.comboBox_Config.Location = new System.Drawing.Point(6, 45);
             this.comboBox_Config.Name = "comboBox_Config";
             this.comboBox_Config.Size = new System.Drawing.Size(121, 21);
             this.comboBox_Config.TabIndex = 18;
@@ -569,9 +538,9 @@
             // 
             // m_Button_AddConfig
             // 
-            this.m_Button_AddConfig.Location = new System.Drawing.Point(203, 19);
+            this.m_Button_AddConfig.Location = new System.Drawing.Point(133, 19);
             this.m_Button_AddConfig.Name = "m_Button_AddConfig";
-            this.m_Button_AddConfig.Size = new System.Drawing.Size(40, 20);
+            this.m_Button_AddConfig.Size = new System.Drawing.Size(63, 20);
             this.m_Button_AddConfig.TabIndex = 20;
             this.m_Button_AddConfig.Text = "New";
             this.m_Button_AddConfig.UseVisualStyleBackColor = true;
@@ -579,7 +548,7 @@
             // 
             // textBox_Config
             // 
-            this.textBox_Config.Location = new System.Drawing.Point(76, 19);
+            this.textBox_Config.Location = new System.Drawing.Point(6, 19);
             this.textBox_Config.Name = "textBox_Config";
             this.textBox_Config.Size = new System.Drawing.Size(121, 20);
             this.textBox_Config.TabIndex = 19;
@@ -1076,7 +1045,7 @@
             // LabelStatut
             // 
             this.LabelStatut.AutoSize = true;
-            this.LabelStatut.Location = new System.Drawing.Point(348, 14);
+            this.LabelStatut.Location = new System.Drawing.Point(391, 69);
             this.LabelStatut.Name = "LabelStatut";
             this.LabelStatut.Size = new System.Drawing.Size(29, 13);
             this.LabelStatut.TabIndex = 20;
@@ -1109,6 +1078,8 @@
             // 
             // groupBoxDroiteAccueil
             // 
+            this.groupBoxDroiteAccueil.Controls.Add(this.but_Expert);
+            this.groupBoxDroiteAccueil.Controls.Add(this.butClient);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBoxOvGME);
             this.groupBoxDroiteAccueil.Controls.Add(this.LabelStatut);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox1);
@@ -1378,20 +1349,42 @@
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(322, 20);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
+            // butClient
+            // 
+            this.butClient.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.butClient.Location = new System.Drawing.Point(345, 17);
+            this.butClient.Name = "butClient";
+            this.butClient.Size = new System.Drawing.Size(75, 23);
+            this.butClient.TabIndex = 23;
+            this.butClient.Text = "User";
+            this.butClient.UseVisualStyleBackColor = true;
+            this.butClient.Click += new System.EventHandler(this.butClient_Click);
+            // 
+            // but_Expert
+            // 
+            this.but_Expert.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.but_Expert.Location = new System.Drawing.Point(10, 17);
+            this.but_Expert.Name = "but_Expert";
+            this.but_Expert.Size = new System.Drawing.Size(75, 23);
+            this.but_Expert.TabIndex = 24;
+            this.but_Expert.Text = "Expert";
+            this.but_Expert.UseVisualStyleBackColor = true;
+            this.but_Expert.Click += new System.EventHandler(this.but_Expert_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(1275, 486);
+            this.Controls.Add(this.groupBoxDroiteAccueil);
             this.Controls.Add(this.groupBox_staticTemplate);
             this.Controls.Add(this.tabControl);
-            this.Controls.Add(this.groupBoxDroiteAccueil);
             this.Controls.Add(this.groupBoxCampEdit);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
             this.Name = "Form1";
-            this.Text = "Dynamique Campagne Engine (Manager)";
+            this.Text = "DCE_Manager";
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
             this.groupBox1.ResumeLayout(false);
@@ -1401,13 +1394,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.tabControl.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
-            this.tabPage1.PerformLayout();
             this.groupBox7.ResumeLayout(false);
             this.groupBox7.PerformLayout();
-            this.groupBox5.ResumeLayout(false);
             this.groupBox4.ResumeLayout(false);
             this.groupBox4.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
             this.tabPage3.ResumeLayout(false);
@@ -1477,7 +1467,6 @@
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Button CampUpdateButton;
         private System.Windows.Forms.GroupBox groupBox2;
-        private System.Windows.Forms.Button button_SavePath;
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Panel panel1;
@@ -1487,9 +1476,6 @@
         private System.Windows.Forms.Button m_Button_Config_Del;
         private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.Label VersionDceManager;
-        private System.Windows.Forms.GroupBox groupBox5;
-        private System.Windows.Forms.Label label7;
-        private System.Windows.Forms.PictureBox pictureBox4;
         public System.Windows.Forms.Label LabelStatut;
         private System.Windows.Forms.TextBox textBox_changelog;
         private System.Windows.Forms.GroupBox groupBox6;
@@ -1556,6 +1542,9 @@
         private System.Windows.Forms.Button but_templateFolder;
         private System.Windows.Forms.TextBox textBox_ASTI;
         private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.Button button6;
+        private System.Windows.Forms.Button butClient;
+        private System.Windows.Forms.Button but_Expert;
     }
 }
 
