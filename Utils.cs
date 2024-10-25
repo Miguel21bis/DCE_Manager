@@ -13,8 +13,26 @@ using Microsoft.Win32;
 //testF
 namespace DCE_Manager.Utils
 {
+
+    // Extension method to update or add a key-value pair
+    public static class DictionaryExtensions
+    {
+        public static void AddOrUpdate<TKey, TValue>(this Dictionary<TKey, TValue> dictionary, TKey key, TValue value)
+        {
+            if (dictionary.ContainsKey(key))
+            {
+                dictionary[key] = value;
+            }
+            else
+            {
+                dictionary.Add(key, value);
+            }
+        }
+    }
+
     public static class FormUtils
     {
+
         public static void ShowErrorMessage(string message, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
             MessageBox.Show($"Line error {lineNumber}: {message}", "Erreur");
@@ -26,7 +44,7 @@ namespace DCE_Manager.Utils
             MessageBox.Show("Fonction commune appelée !");
         }
 
-        public static void ShowErrorGeneral(Exception ex, string txt, string arg, Boolean writeInLog)
+        public static void ErrorGeneral_BoxOrLog(Exception ex, string txt, string arg, Boolean messageBox, Boolean writeInLog)
         {
             // Obtenir la version du programme
             string programVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
@@ -62,13 +80,15 @@ namespace DCE_Manager.Utils
                                   $"Version: {programVersion}";
 
             // Afficher le message synthétique pour l'utilisateur
-            MessageBox.Show($"An error has occurred. More details:\r\n\r\n{errorDetails}", "Error");
-
+            if(messageBox == true)
+            { 
+                MessageBox.Show($"An error has occurred. More details:\r\n\r\n{errorDetails}", "Error");
+            }
 
             // Si besoin, tu peux également enregistrer l'erreur dans un fichier de log
             if (writeInLog == true);
             {
-                LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
+                LogRegister("An error has occurred. More details " + errorDetails);
             }
 
         }
@@ -89,7 +109,7 @@ namespace DCE_Manager.Utils
                 catch (Exception e)
                 {
                     //MessageBox.Show($"Failed to create directory: {e.Message}", "Directory Error");
-                    ShowErrorGeneral(e, "", "", false);
+                    ErrorGeneral_BoxOrLog(e, "", "", true, false);
                     return;
                 }
             }
@@ -135,13 +155,13 @@ namespace DCE_Manager.Utils
 
                     //// Afficher un message d'erreur plus synthétique
                     //MessageBox.Show($"The file is locked or access is denied: {path}\n\nMore details: {errorDetails}", "Access error");
-                    ShowErrorGeneral(ex, "The file is locked or access is denied", path, false );
+                    ErrorGeneral_BoxOrLog(ex, "The file is locked or access is denied", path, true, false );
 
                 }
             }
         }
 
-        public static void OptionRegister()
+        public static void OptionRegister_DEPRECATED()
         {
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
 
@@ -219,7 +239,7 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                ShowErrorGeneral(ex, "", path, true);
+                ErrorGeneral_BoxOrLog(ex, "", path, true, true);
 
             }
 
@@ -476,8 +496,144 @@ namespace DCE_Manager.Utils
             return Ufind;
         }
 
-        public static void UpdateConfigFileFromDictionary(string filePath, Dictionary<string, string> configDictionary)
+        public static bool UpdateConfigFileFromDictionary()
         {
+            bool result = false;
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+            string filePath = pathOptionInstaller + @"\options.txt";
+
+            // Vérifier et créer le fichier s'il n'existe pas
+            if (!System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
+                    using (System.IO.FileStream fs = System.IO.File.Create(filePath)) { }
+                }
+                catch (Exception e)
+                {
+                    ErrorGeneral_BoxOrLog(e, "Erreur lors de la création du fichier options.txt", filePath, true, true);
+                    return false; // Retourner immédiatement false si la création échoue
+                }
+            }
+
+            // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+            Form1.Instance.UpdateSharedData();
+
+            // Mettre à jour les valeurs dans configDictionary
+            ParamConf.configDictionary.AddOrUpdate("ASTI_MissionFile", SharedData.textBox_ASTI_MissionFile);
+            ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
+            ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
+            ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
+            ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
+            ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
+            ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = SharedData.textBox_Campaign;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = SharedData.textBox_DCS;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = SharedData.textBox_SavedGames;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = SharedData.textBox_OvGME;
+
+            // Copier les valeurs actuelles de configDictionary
+            var configDictionary = new Dictionary<string, string>(ParamConf.configDictionary);
+
+            try
+            {
+                // Lire et stocker le contenu actuel du fichier dans fileDictionary
+                Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
+
+                if (File.Exists(filePath))
+                {
+                    string[] lines = File.ReadAllLines(filePath);
+                    foreach (string line in lines)
+                    {
+                        if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("--") && line.Contains('='))
+                        {
+                            string[] parts = line.Split('=');
+                            if (parts.Length == 2)
+                            {
+                                fileDictionary[parts[0].Trim()] = parts[1].Trim();
+                            }
+                        }
+                    }
+
+                    // Mettre à jour les valeurs du fichier avec les valeurs du dictionnaire configDictionary
+                    foreach (var entry in configDictionary)
+                    {
+                        fileDictionary[entry.Key] = entry.Value;
+                    }
+
+                    // Écriture des données mises à jour dans le fichier
+                    using (StreamWriter writer = new StreamWriter(filePath))
+                    {
+                        foreach (var entry in fileDictionary)
+                        {
+                            if (configDictionary.ContainsKey(entry.Key))
+                            {
+                                writer.WriteLine($"{entry.Key}={entry.Value}");
+                            }
+                        }
+                    }
+                    result = true; // Mise à jour réussie
+                }
+            }
+            catch (Exception ex)
+            {
+                ErrorGeneral_BoxOrLog(ex, "Error updating the configuration file", filePath, true, true);
+                result = false;
+            }
+            return result;
+        }
+
+
+        public static bool UpdateConfigFileFromDictionary_OLD()
+        {
+            Boolean result = false;
+            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+            string filePath = pathOptionInstaller + @"\options.txt";
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                try
+                {
+                    // Assurez-vous que le répertoire existe avant de créer le fichier
+                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
+
+                    // Créez le fichier si nécessaire et libérez le flux
+                    using (System.IO.FileStream fs = System.IO.File.Create(filePath))
+                    {
+                        // Vous pouvez ajouter ici des données initiales si nécessaire
+                    }
+                }
+                catch (Exception e)
+                {
+                    ErrorGeneral_BoxOrLog(e, "Erreur lors de la création du fichier options.txt", filePath, true, true);
+                }
+            }
+
+            // Assurez-vous d'appeler UpdateSharedData avant d'utiliser SharedData
+            Form1.Instance.UpdateSharedData();
+
+            // Utilisation de la méthode générique pour mettre à jour ou ajouter les valeurs
+            ParamConf.configDictionary.AddOrUpdate("ASTI_MissionFile", SharedData.textBox_ASTI_MissionFile);
+            ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
+            ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
+            ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
+            ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
+            ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
+            ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
+
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = SharedData.textBox_Campaign;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = SharedData.textBox_DCS;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = SharedData.textBox_SavedGames;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = SharedData.textBox_OvGME;
+
+    
+            // Copie superficielle du dictionnaire
+            var configDictionary = new Dictionary<string, string>(ParamConf.configDictionary);
+
+
             try
             {
                 // Créer un dictionnaire temporaire pour stocker les lignes du fichier actuel
@@ -519,12 +675,15 @@ namespace DCE_Manager.Utils
                             }
                         }
                     }
+                    result = true;
                 }
             }
             catch (Exception ex)
             {
-                ShowErrorGeneral(ex, "Error updating the config file", filePath, true);
+                ErrorGeneral_BoxOrLog(ex, "Error updating the config file", filePath, true, true);
+                 result = false; 
             }
+            return result;
         }
 
 
@@ -582,7 +741,7 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                ShowErrorGeneral(ex, "", path, true);
+                ErrorGeneral_BoxOrLog(ex, "", path, true, true);
                 
                 //LogRegister("Error in ModifLigneOrAdd: " + errorDetails);
             }
@@ -678,17 +837,17 @@ namespace DCE_Manager.Utils
             catch (UnauthorizedAccessException e)
             {
                 //MessageBox.Show(e.Message, "Error");
-                ShowErrorGeneral(e, "Error: Unauthorised access.", "", true);
+                ErrorGeneral_BoxOrLog(e, "Error: Unauthorised access.", "", true, true);
             }
             catch (IOException e)
             {
                 //MessageBox.Show(e.Message, "Error");
-                ShowErrorGeneral(e, "Error: Input/output problem.", "", true);
+                ErrorGeneral_BoxOrLog(e, "Error: Input/output problem.", "", true, true);
             }
             catch (Exception e)
             {
                 //MessageBox.Show(e.Message, "Error");
-                ShowErrorGeneral(e, "Error: An error has occurred", "", true);
+                ErrorGeneral_BoxOrLog(e, "Error: An error has occurred", "", true, true);
             }
         }
 

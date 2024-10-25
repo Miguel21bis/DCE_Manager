@@ -35,7 +35,6 @@
             this.textBox_DCS = new System.Windows.Forms.TextBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.checkBoxSanitize = new System.Windows.Forms.CheckBox();
-            this.checkBox_DSfOlder = new System.Windows.Forms.CheckBox();
             this.checkBox_OvwNGfolder = new System.Windows.Forms.CheckBox();
             this.linkLabelCampaign = new System.Windows.Forms.LinkLabel();
             this.checkBoxActiveFolder = new System.Windows.Forms.CheckBox();
@@ -62,11 +61,13 @@
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
-            this.button6 = new System.Windows.Forms.Button();
-            this.m_Button_Config_Del = new System.Windows.Forms.Button();
+            this.groupBox8 = new System.Windows.Forms.GroupBox();
             this.comboBox_Config = new System.Windows.Forms.ComboBox();
-            this.m_Button_AddConfig = new System.Windows.Forms.Button();
+            this.m_Button_Config_Del = new System.Windows.Forms.Button();
+            this.button6 = new System.Windows.Forms.Button();
+            this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.textBox_Config = new System.Windows.Forms.TextBox();
+            this.m_Button_AddConfig = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.textBoxCampEdit = new System.Windows.Forms.TextBox();
             this.tabPage3 = new System.Windows.Forms.TabPage();
@@ -117,6 +118,9 @@
             this.pictureBox5 = new System.Windows.Forms.PictureBox();
             this.pictureBoxOvGME = new System.Windows.Forms.PictureBox();
             this.groupBoxDroiteAccueil = new System.Windows.Forms.GroupBox();
+            this.butCampMaker = new System.Windows.Forms.Button();
+            this.but_Expert = new System.Windows.Forms.Button();
+            this.butClient = new System.Windows.Forms.Button();
             this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
             this.buttonResetBackup = new System.Windows.Forms.Button();
             this.buttonSaveActive = new System.Windows.Forms.Button();
@@ -141,8 +145,6 @@
             this.button3 = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
-            this.butClient = new System.Windows.Forms.Button();
-            this.but_Expert = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -151,6 +153,8 @@
             this.tabPage1.SuspendLayout();
             this.groupBox7.SuspendLayout();
             this.groupBox4.SuspendLayout();
+            this.groupBox8.SuspendLayout();
+            this.groupBox5.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.tabPage3.SuspendLayout();
             this.groupBox6.SuspendLayout();
@@ -196,13 +200,12 @@
             this.textBox_DCS.Name = "textBox_DCS";
             this.textBox_DCS.Size = new System.Drawing.Size(306, 20);
             this.textBox_DCS.TabIndex = 4;
-            this.textBox_DCS.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
+            //this.textBox_DCS.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
             // 
             // groupBox1
             // 
             this.groupBox1.BackColor = System.Drawing.SystemColors.Control;
             this.groupBox1.Controls.Add(this.checkBoxSanitize);
-            this.groupBox1.Controls.Add(this.checkBox_DSfOlder);
             this.groupBox1.Controls.Add(this.checkBox_OvwNGfolder);
             this.groupBox1.Controls.Add(this.linkLabelCampaign);
             this.groupBox1.Controls.Add(this.checkBoxActiveFolder);
@@ -210,46 +213,37 @@
             this.groupBox1.Controls.Add(this.Label_Campaign);
             this.groupBox1.Controls.Add(this.textBox_Campaign);
             this.groupBox1.Controls.Add(this.Button_choiceCampaign);
-            this.groupBox1.Location = new System.Drawing.Point(86, 185);
+            this.groupBox1.Location = new System.Drawing.Point(86, 178);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(611, 159);
+            this.groupBox1.Size = new System.Drawing.Size(611, 118);
             this.groupBox1.TabIndex = 6;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Add a DCE campaign";
-            this.groupBox1.Enter += new System.EventHandler(this.groupBox1_Enter);
+            //this.groupBox1.Enter += new System.EventHandler(this.groupBox1_Enter);
             // 
             // checkBoxSanitize
             // 
             this.checkBoxSanitize.AutoSize = true;
-            this.checkBoxSanitize.Location = new System.Drawing.Point(14, 137);
+            this.checkBoxSanitize.Location = new System.Drawing.Point(14, 92);
             this.checkBoxSanitize.Name = "checkBoxSanitize";
             this.checkBoxSanitize.Size = new System.Drawing.Size(344, 17);
             this.checkBoxSanitize.TabIndex = 20;
             this.checkBoxSanitize.TabStop = false;
             this.checkBoxSanitize.Text = "MissionScripting Mod (incompatible Integrity Check)(don\'t work in C)";
             this.checkBoxSanitize.UseVisualStyleBackColor = true;
+            this.checkBoxSanitize.Visible = false;
             this.checkBoxSanitize.CheckedChanged += new System.EventHandler(this.checkBoxSanitize_CheckedChanged);
-            // 
-            // checkBox_DSfOlder
-            // 
-            this.checkBox_DSfOlder.AutoSize = true;
-            this.checkBox_DSfOlder.Location = new System.Drawing.Point(14, 114);
-            this.checkBox_DSfOlder.Name = "checkBox_DSfOlder";
-            this.checkBox_DSfOlder.Size = new System.Drawing.Size(309, 17);
-            this.checkBox_DSfOlder.TabIndex = 19;
-            this.checkBox_DSfOlder.Text = "Dedicated server installation (add Root Skin)(non-functional)";
-            this.checkBox_DSfOlder.UseVisualStyleBackColor = true;
-            this.checkBox_DSfOlder.Visible = false;
             // 
             // checkBox_OvwNGfolder
             // 
             this.checkBox_OvwNGfolder.AutoSize = true;
-            this.checkBox_OvwNGfolder.Location = new System.Drawing.Point(14, 91);
+            this.checkBox_OvwNGfolder.Location = new System.Drawing.Point(14, 69);
             this.checkBox_OvwNGfolder.Name = "checkBox_OvwNGfolder";
             this.checkBox_OvwNGfolder.Size = new System.Drawing.Size(226, 17);
             this.checkBox_OvwNGfolder.TabIndex = 18;
             this.checkBox_OvwNGfolder.Text = "Overwrite the NG folder (if already present)";
             this.checkBox_OvwNGfolder.UseVisualStyleBackColor = true;
+            this.checkBox_OvwNGfolder.Visible = false;
             // 
             // linkLabelCampaign
             // 
@@ -265,22 +259,22 @@
             // checkBoxActiveFolder
             // 
             this.checkBoxActiveFolder.AutoSize = true;
-            this.checkBoxActiveFolder.Location = new System.Drawing.Point(14, 68);
+            this.checkBoxActiveFolder.Location = new System.Drawing.Point(14, 46);
             this.checkBoxActiveFolder.Name = "checkBoxActiveFolder";
             this.checkBoxActiveFolder.Size = new System.Drawing.Size(316, 17);
             this.checkBoxActiveFolder.TabIndex = 17;
             this.checkBoxActiveFolder.Text = "Do not erase the progress of the campaign (if already present)";
             this.checkBoxActiveFolder.UseVisualStyleBackColor = true;
+            this.checkBoxActiveFolder.Visible = false;
             // 
             // button_InstallCampaign
             // 
-            this.button_InstallCampaign.Location = new System.Drawing.Point(475, 91);
+            this.button_InstallCampaign.Location = new System.Drawing.Point(475, 86);
             this.button_InstallCampaign.Name = "button_InstallCampaign";
             this.button_InstallCampaign.Size = new System.Drawing.Size(110, 23);
             this.button_InstallCampaign.TabIndex = 7;
             this.button_InstallCampaign.Text = "Install Campaign";
             this.button_InstallCampaign.UseVisualStyleBackColor = true;
-            this.button_InstallCampaign.Visible = false;
             this.button_InstallCampaign.Click += new System.EventHandler(this.button_InstallCampaign_Click);
             // 
             // Label_Campaign
@@ -372,11 +366,11 @@
             this.textBox_SavedGames.Name = "textBox_SavedGames";
             this.textBox_SavedGames.Size = new System.Drawing.Size(306, 20);
             this.textBox_SavedGames.TabIndex = 5;
-            this.textBox_SavedGames.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
+            //this.textBox_SavedGames.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(192, 340);
+            this.button1.Location = new System.Drawing.Point(345, 348);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
             this.button1.TabIndex = 8;
@@ -399,7 +393,7 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(184, 166);
+            this.label1.Location = new System.Drawing.Point(134, 193);
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(61, 13);
             this.label1.TabIndex = 13;
@@ -408,27 +402,27 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(173, 195);
+            this.label3.Location = new System.Drawing.Point(123, 222);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(94, 13);
             this.label3.TabIndex = 14;
             this.label3.Text = "CEF and Miguel21";
-            this.label3.Click += new System.EventHandler(this.label3_Click_1);
+            //this.label3.Click += new System.EventHandler(this.label3_Click_1);
             // 
             // pictureBox3
             // 
             this.pictureBox3.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox3.Image")));
-            this.pictureBox3.Location = new System.Drawing.Point(66, 166);
+            this.pictureBox3.Location = new System.Drawing.Point(16, 193);
             this.pictureBox3.Name = "pictureBox3";
             this.pictureBox3.Size = new System.Drawing.Size(54, 51);
             this.pictureBox3.TabIndex = 12;
             this.pictureBox3.TabStop = false;
-            this.pictureBox3.Click += new System.EventHandler(this.pictureBox3_Click);
+            //this.pictureBox3.Click += new System.EventHandler(this.pictureBox3_Click);
             // 
             // pictureBox2
             // 
             this.pictureBox2.Image = global::DCE_Manager.Properties.Resources.SPA3_tissue50b;
-            this.pictureBox2.Location = new System.Drawing.Point(305, 157);
+            this.pictureBox2.Location = new System.Drawing.Point(255, 184);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(50, 51);
             this.pictureBox2.TabIndex = 11;
@@ -439,7 +433,7 @@
             // 
             this.pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.pictureBox1.Image = global::DCE_Manager.Properties.Resources.DCE_logo;
-            this.pictureBox1.Location = new System.Drawing.Point(94, 9);
+            this.pictureBox1.Location = new System.Drawing.Point(44, 36);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(232, 145);
             this.pictureBox1.TabIndex = 9;
@@ -471,7 +465,7 @@
             this.tabPage1.Size = new System.Drawing.Size(808, 437);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Install";
-            this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click_1);
+            //this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click_1);
             // 
             // groupBox7
             // 
@@ -494,32 +488,39 @@
             // 
             // groupBox4
             // 
-            this.groupBox4.Controls.Add(this.button6);
-            this.groupBox4.Controls.Add(this.m_Button_Config_Del);
-            this.groupBox4.Controls.Add(this.comboBox_Config);
-            this.groupBox4.Controls.Add(this.m_Button_AddConfig);
-            this.groupBox4.Controls.Add(this.textBox_Config);
-            this.groupBox4.Location = new System.Drawing.Point(248, 355);
+            this.groupBox4.Controls.Add(this.groupBox8);
+            this.groupBox4.Controls.Add(this.groupBox5);
+            this.groupBox4.Location = new System.Drawing.Point(242, 318);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(269, 71);
+            this.groupBox4.Size = new System.Drawing.Size(323, 104);
             this.groupBox4.TabIndex = 22;
             this.groupBox4.TabStop = false;
             this.groupBox4.Text = "Config Name (optional)";
             this.groupBox4.Visible = false;
             // 
-            // button6
+            // groupBox8
             // 
-            this.button6.Location = new System.Drawing.Point(133, 44);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(63, 20);
-            this.button6.TabIndex = 22;
-            this.button6.Text = "Edit/Save";
-            this.button6.UseVisualStyleBackColor = true;
-            this.button6.Click += new System.EventHandler(this.but_EditConfig_Click);
+            this.groupBox8.Controls.Add(this.comboBox_Config);
+            this.groupBox8.Controls.Add(this.m_Button_Config_Del);
+            this.groupBox8.Controls.Add(this.button6);
+            this.groupBox8.Location = new System.Drawing.Point(6, 57);
+            this.groupBox8.Name = "groupBox8";
+            this.groupBox8.Size = new System.Drawing.Size(276, 40);
+            this.groupBox8.TabIndex = 27;
+            this.groupBox8.TabStop = false;
+            // 
+            // comboBox_Config
+            // 
+            this.comboBox_Config.FormattingEnabled = true;
+            this.comboBox_Config.Location = new System.Drawing.Point(6, 12);
+            this.comboBox_Config.Name = "comboBox_Config";
+            this.comboBox_Config.Size = new System.Drawing.Size(121, 21);
+            this.comboBox_Config.TabIndex = 18;
+            this.comboBox_Config.SelectedIndexChanged += new System.EventHandler(this.comboBox_Config_SelectedIndexChanged);
             // 
             // m_Button_Config_Del
             // 
-            this.m_Button_Config_Del.Location = new System.Drawing.Point(200, 44);
+            this.m_Button_Config_Del.Location = new System.Drawing.Point(200, 11);
             this.m_Button_Config_Del.Name = "m_Button_Config_Del";
             this.m_Button_Config_Del.Size = new System.Drawing.Size(63, 20);
             this.m_Button_Config_Del.TabIndex = 21;
@@ -527,31 +528,42 @@
             this.m_Button_Config_Del.UseVisualStyleBackColor = true;
             this.m_Button_Config_Del.Click += new System.EventHandler(this.m_Button_Config_Del_Click);
             // 
-            // comboBox_Config
+            // button6
             // 
-            this.comboBox_Config.FormattingEnabled = true;
-            this.comboBox_Config.Location = new System.Drawing.Point(6, 45);
-            this.comboBox_Config.Name = "comboBox_Config";
-            this.comboBox_Config.Size = new System.Drawing.Size(121, 21);
-            this.comboBox_Config.TabIndex = 18;
-            this.comboBox_Config.SelectedIndexChanged += new System.EventHandler(this.comboBox_Config_SelectedIndexChanged);
+            this.button6.Location = new System.Drawing.Point(133, 11);
+            this.button6.Name = "button6";
+            this.button6.Size = new System.Drawing.Size(63, 20);
+            this.button6.TabIndex = 22;
+            this.button6.Text = "Edit/Save";
+            this.button6.UseVisualStyleBackColor = true;
+            this.button6.Click += new System.EventHandler(this.but_EditConfig_Click);
+            // 
+            // groupBox5
+            // 
+            this.groupBox5.Controls.Add(this.textBox_Config);
+            this.groupBox5.Controls.Add(this.m_Button_AddConfig);
+            this.groupBox5.Location = new System.Drawing.Point(6, 19);
+            this.groupBox5.Name = "groupBox5";
+            this.groupBox5.Size = new System.Drawing.Size(200, 40);
+            this.groupBox5.TabIndex = 26;
+            this.groupBox5.TabStop = false;
+            // 
+            // textBox_Config
+            // 
+            this.textBox_Config.Location = new System.Drawing.Point(6, 12);
+            this.textBox_Config.Name = "textBox_Config";
+            this.textBox_Config.Size = new System.Drawing.Size(121, 20);
+            this.textBox_Config.TabIndex = 19;
             // 
             // m_Button_AddConfig
             // 
-            this.m_Button_AddConfig.Location = new System.Drawing.Point(133, 19);
+            this.m_Button_AddConfig.Location = new System.Drawing.Point(133, 12);
             this.m_Button_AddConfig.Name = "m_Button_AddConfig";
             this.m_Button_AddConfig.Size = new System.Drawing.Size(63, 20);
             this.m_Button_AddConfig.TabIndex = 20;
             this.m_Button_AddConfig.Text = "New";
             this.m_Button_AddConfig.UseVisualStyleBackColor = true;
             this.m_Button_AddConfig.Click += new System.EventHandler(this.m_Button_AddConfig_Click);
-            // 
-            // textBox_Config
-            // 
-            this.textBox_Config.Location = new System.Drawing.Point(6, 19);
-            this.textBox_Config.Name = "textBox_Config";
-            this.textBox_Config.Size = new System.Drawing.Size(121, 20);
-            this.textBox_Config.TabIndex = 19;
             // 
             // tabPage2
             // 
@@ -1035,7 +1047,7 @@
             // VersionDceManager
             // 
             this.VersionDceManager.AutoSize = true;
-            this.VersionDceManager.Location = new System.Drawing.Point(196, 274);
+            this.VersionDceManager.Location = new System.Drawing.Point(146, 301);
             this.VersionDceManager.Name = "VersionDceManager";
             this.VersionDceManager.Size = new System.Drawing.Size(42, 13);
             this.VersionDceManager.TabIndex = 19;
@@ -1045,18 +1057,17 @@
             // LabelStatut
             // 
             this.LabelStatut.AutoSize = true;
-            this.LabelStatut.Location = new System.Drawing.Point(391, 69);
+            this.LabelStatut.Location = new System.Drawing.Point(342, 14);
             this.LabelStatut.Name = "LabelStatut";
             this.LabelStatut.Size = new System.Drawing.Size(29, 13);
             this.LabelStatut.TabIndex = 20;
             this.LabelStatut.Text = "User";
-            this.LabelStatut.Click += new System.EventHandler(this.LabelStatut_Click);
             // 
             // pictureBox5
             // 
             this.pictureBox5.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pictureBox5.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox5.Image")));
-            this.pictureBox5.Location = new System.Drawing.Point(70, 237);
+            this.pictureBox5.Location = new System.Drawing.Point(20, 264);
             this.pictureBox5.Name = "pictureBox5";
             this.pictureBox5.Size = new System.Drawing.Size(50, 50);
             this.pictureBox5.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1068,7 +1079,7 @@
             // 
             this.pictureBoxOvGME.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pictureBoxOvGME.Image = ((System.Drawing.Image)(resources.GetObject("pictureBoxOvGME.Image")));
-            this.pictureBoxOvGME.Location = new System.Drawing.Point(305, 242);
+            this.pictureBoxOvGME.Location = new System.Drawing.Point(255, 269);
             this.pictureBoxOvGME.Name = "pictureBoxOvGME";
             this.pictureBoxOvGME.Size = new System.Drawing.Size(50, 50);
             this.pictureBoxOvGME.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1078,6 +1089,7 @@
             // 
             // groupBoxDroiteAccueil
             // 
+            this.groupBoxDroiteAccueil.Controls.Add(this.butCampMaker);
             this.groupBoxDroiteAccueil.Controls.Add(this.but_Expert);
             this.groupBoxDroiteAccueil.Controls.Add(this.butClient);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBoxOvGME);
@@ -1095,6 +1107,39 @@
             this.groupBoxDroiteAccueil.Size = new System.Drawing.Size(431, 400);
             this.groupBoxDroiteAccueil.TabIndex = 23;
             this.groupBoxDroiteAccueil.TabStop = false;
+            // 
+            // butCampMaker
+            // 
+            this.butCampMaker.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.butCampMaker.Location = new System.Drawing.Point(345, 92);
+            this.butCampMaker.Name = "butCampMaker";
+            this.butCampMaker.Size = new System.Drawing.Size(75, 23);
+            this.butCampMaker.TabIndex = 25;
+            this.butCampMaker.Text = "CampaignMaker";
+            this.butCampMaker.UseVisualStyleBackColor = true;
+            this.butCampMaker.Click += new System.EventHandler(this.butCampMaker_Click);
+            // 
+            // but_Expert
+            // 
+            this.but_Expert.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.but_Expert.Location = new System.Drawing.Point(345, 63);
+            this.but_Expert.Name = "but_Expert";
+            this.but_Expert.Size = new System.Drawing.Size(75, 23);
+            this.but_Expert.TabIndex = 24;
+            this.but_Expert.Text = "Expert";
+            this.but_Expert.UseVisualStyleBackColor = true;
+            this.but_Expert.Click += new System.EventHandler(this.but_Expert_Click);
+            // 
+            // butClient
+            // 
+            this.butClient.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.butClient.Location = new System.Drawing.Point(345, 36);
+            this.butClient.Name = "butClient";
+            this.butClient.Size = new System.Drawing.Size(75, 23);
+            this.butClient.TabIndex = 23;
+            this.butClient.Text = "User";
+            this.butClient.UseVisualStyleBackColor = true;
+            this.butClient.Click += new System.EventHandler(this.butClient_Click);
             // 
             // groupBoxCampEdit
             // 
@@ -1349,38 +1394,16 @@
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(322, 20);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
-            // butClient
-            // 
-            this.butClient.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.butClient.Location = new System.Drawing.Point(345, 17);
-            this.butClient.Name = "butClient";
-            this.butClient.Size = new System.Drawing.Size(75, 23);
-            this.butClient.TabIndex = 23;
-            this.butClient.Text = "User";
-            this.butClient.UseVisualStyleBackColor = true;
-            this.butClient.Click += new System.EventHandler(this.butClient_Click);
-            // 
-            // but_Expert
-            // 
-            this.but_Expert.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.but_Expert.Location = new System.Drawing.Point(10, 17);
-            this.but_Expert.Name = "but_Expert";
-            this.but_Expert.Size = new System.Drawing.Size(75, 23);
-            this.but_Expert.TabIndex = 24;
-            this.but_Expert.Text = "Expert";
-            this.but_Expert.UseVisualStyleBackColor = true;
-            this.but_Expert.Click += new System.EventHandler(this.but_Expert_Click);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(1275, 486);
-            this.Controls.Add(this.groupBoxDroiteAccueil);
             this.Controls.Add(this.groupBox_staticTemplate);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.groupBoxCampEdit);
+            this.Controls.Add(this.groupBoxDroiteAccueil);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
             this.Name = "Form1";
@@ -1397,7 +1420,9 @@
             this.groupBox7.ResumeLayout(false);
             this.groupBox7.PerformLayout();
             this.groupBox4.ResumeLayout(false);
-            this.groupBox4.PerformLayout();
+            this.groupBox8.ResumeLayout(false);
+            this.groupBox5.ResumeLayout(false);
+            this.groupBox5.PerformLayout();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
             this.tabPage3.ResumeLayout(false);
@@ -1470,7 +1495,7 @@
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Panel panel1;
-        private System.Windows.Forms.ComboBox comboBox_Config;
+        public System.Windows.Forms.ComboBox comboBox_Config;
         private System.Windows.Forms.Button m_Button_AddConfig;
         private System.Windows.Forms.TextBox textBox_Config;
         private System.Windows.Forms.Button m_Button_Config_Del;
@@ -1491,7 +1516,6 @@
         private System.Windows.Forms.PictureBox pictureBoxOvGME;
         private System.Windows.Forms.TabPage tabPage5;
         private System.Windows.Forms.TextBox textBox_News;
-        private System.Windows.Forms.CheckBox checkBox_DSfOlder;
         private System.Windows.Forms.CheckBox checkBox_OvwNGfolder;
         private System.Windows.Forms.Label ScriptModInstalledVersion;
         public System.Windows.Forms.Label DceManagerInstalledVersion;
@@ -1545,6 +1569,9 @@
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Button butClient;
         private System.Windows.Forms.Button but_Expert;
+        private System.Windows.Forms.GroupBox groupBox8;
+        private System.Windows.Forms.GroupBox groupBox5;
+        private System.Windows.Forms.Button butCampMaker;
     }
 }
 

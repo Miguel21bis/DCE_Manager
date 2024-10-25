@@ -1,3 +1,6 @@
+V6.12.38
+mod: configuration management revisited
+
 V6.12.37
 fix: error message if option.txt does not exist
 fix: escape character correctly added to mission file

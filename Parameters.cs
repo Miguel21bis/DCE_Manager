@@ -81,7 +81,9 @@ namespace DCE_Manager.Parameters
 
         public static Dictionary<string, int> configMap = new Dictionary<string, int>();
 
-        public static int paramNumConfig = 0;
+        public static int NumSelectConfig = 0;
+
+        public static int NumMaxConfig = 0;
     }
 
 
@@ -136,6 +138,11 @@ namespace DCE_Manager.Parameters
         public static string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
         public static int NbLancement { get; set; } = 0;
         public static string verDceManager = "0.0.0";
+        public static int userLevel { get; set; } = 1;
+        //user = 1
+        //expert = 2
+        //campaignMaker = 3
+        //DEV = 5
 
     }
     public static class ParamDivers
@@ -235,6 +242,8 @@ namespace DCE_Manager.Parameters
 
     public static class SharedData
     {
+        
+        public static string comboBox_Config { get; set; }
         public static string textBox_Campaign { get; set; }
         public static string textBox_DCS { get; set; }
         public static string textBox_SavedGames { get; set; }
@@ -242,9 +251,6 @@ namespace DCE_Manager.Parameters
 
         public static string textBox_ASTI_MissionFile { get; set; }
         public static string textBox_ASTI_importTemplateFolder { get; set; }
-
-
-
 
     }
 

@@ -206,7 +206,7 @@ namespace DCE_Manager
                 label1.MouseWheel += usersCombobox_MouseWheel;
 
                 //interdire ou pas la modification des valeurs
-                if(args["col"] == 2 && form1.LabelStatut.Text == "User")
+                if(args["col"] == 2 && ParamManager.userLevel == 1)
                 { 
                     if (argsString["canBeModified"].IndexOf("all") > -1)
                     {
@@ -258,7 +258,7 @@ namespace DCE_Manager
                 label1.AutoSize = false;
 
                 //interdire ou pas la modification des valeurs
-                if (args["col"] == 2 && form1.LabelStatut.Text == "User")
+                if (args["col"] == 2 && ParamManager.userLevel == 1)
                 {
                     if (argsString["canBeModified"].IndexOf("all") > -1)
                     {
@@ -347,7 +347,7 @@ namespace DCE_Manager
             control.MouseWheel += usersCombobox_MouseWheel;
 
             //interdire ou pas la modification des valeurs
-            if (args["col"] == 2 && Form1.LabelStatut.Text == "User")
+            if (args["col"] == 2 && ParamManager.userLevel == 1)
             {
                 if (argsString["canBeModified"].IndexOf("all") > -1)
                 {
@@ -583,7 +583,7 @@ namespace DCE_Manager
                 box.Checked = args["value"] != 0 ;
             }
 
-            if (args["col"] == 2 && Form1.LabelStatut.Text == "User")
+            if (args["col"] == 2 && ParamManager.userLevel == 1)
             {
                 if (argsString["canBeModified"].IndexOf("all") > -1)
                 {
