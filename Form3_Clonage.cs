@@ -289,7 +289,7 @@ namespace DCE_Manager
                         int tableN = 0;
 
                         int sideInt = 0;
-                        //int idSquad = -1;
+                     
                         foreach (KeyValuePair<string, LuaObject> entry in C_oobAir.Val)
                         {
                             //int nbLigne = 0;
@@ -309,7 +309,7 @@ namespace DCE_Manager
 
                             foreach (KeyValuePair<string, LuaObject> entry2 in entry.Value)
                             {
-                                Boolean beShown = true;
+                                //Boolean beShown = true;
                                 int[] firstPos = new int[50];
 
                                 int idElement = 0;
@@ -713,11 +713,11 @@ namespace DCE_Manager
 
                         bool commentaireLigne = false;
 
-                        if (line.IndexOf("EC 1/12") > -1)
-                        {
-                            //bla 
-                            commentaireLigne = commentaireLigne;
-                        }
+                        //if (line.IndexOf("EC 1/12") > -1)
+                        //{
+                        //    //bla 
+                        //    commentaireLigne = commentaireLigne;
+                        //}
 
 
                         

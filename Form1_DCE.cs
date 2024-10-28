@@ -278,7 +278,9 @@ namespace DCE_Manager
 
             ParamManager.NbLancement++;
 
-            EnvoiStats();
+            //EnvoiStats();
+
+            _ = EnvoiStatsAsync();
 
 
             if (ParamServ.ServerNickNameSelected == ParamServ.ServerNickName01 && ParamServ.Server01Exit)
@@ -663,6 +665,18 @@ namespace DCE_Manager
         }
 
 
+        private async Task EnvoiStatsAsync()
+        {
+            try
+            {
+                await EnvoiStats();
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du step one", "", true, true);
+            }
+        }
+
         // Méthode exécutée après la fermeture du formulaire
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -775,40 +789,31 @@ namespace DCE_Manager
         }
 
         //static async Task Main(string[] args)
+
         static async Task EnvoiStats()
         {
-            // Fichier pour stocker la dernière date d'envoi
-            //string lastSentFile = "last_sent.txt";
-
-            // Variables à envoyer
-
-            string id_client = CreateIdClient();
-            //int usage_count = ParamManager.NbLancement;
-            //var verDceManager = ParamManager.verDceManager;
-            //var verScriptsMod = /*ParamScriptsMod.verScriptsMod*/;
-
-            //var token = appsettings.token;
-            var url = appsettings.url;
-
-            
-            // Vérifiez si une requête a déjà été envoyée aujourd'hui
-            if (ParamConf.configDictionary["LastStats"] != null | ParamConf.configDictionary["LastStats"] != "")
+            // Vérifier si la clé "LastStats" existe, sinon la définir avec une valeur par défaut
+            if (!ParamConf.configDictionary.TryGetValue("LastStats", out string lastStatsValue) || string.IsNullOrEmpty(lastStatsValue))
             {
-                DateTime lastSentDate = DateTime.Parse(ParamConf.configDictionary["LastStats"]);
-
-                // Si la dernière requête a été envoyée aujourd'hui, ne rien faire
-                if (lastSentDate.Date == DateTime.Today)
-                {
-                    //MessageBox.Show(" Les données ont déjà été envoyées aujourd'hui", "Information");
-                    return;
-                }
+                lastStatsValue = DateTime.MinValue.ToString(); // Valeur par défaut si la clé est absente
+                ParamConf.configDictionary["LastStats"] = lastStatsValue;
             }
 
 
+            // Vérifiez si une requête a déjà été envoyée aujourd'hui
+            DateTime lastSentDate;
+            if (DateTime.TryParse(lastStatsValue, out lastSentDate))
+            {
+                if (lastSentDate.Date == DateTime.Today)
+                {
+                    return; // Déjà envoyé aujourd'hui
+                }
+            }
+
+            // Continuer avec l'envoi des statistiques
             var data = new
             {
-                //ip = ip,
-                id_client = id_client,
+                id_client = CreateIdClient(),
                 usage_count = ParamManager.NbLancement,
                 token = appsettings.token
             };
@@ -817,38 +822,35 @@ namespace DCE_Manager
             {
                 try
                 {
-                    // Envoi des données au serveur
                     var content = new FormUrlEncodedContent(new[]
                     {
-
-                        new KeyValuePair<string, string>("id_client", id_client),
-                        new KeyValuePair<string, string>("usage_count", ParamManager.NbLancement.ToString()),
+                        new KeyValuePair<string, string>("id_client", data.id_client),
+                        new KeyValuePair<string, string>("usage_count", data.usage_count.ToString()),
                         new KeyValuePair<string, string>("verDceManager", ParamManager.verDceManager),
                         new KeyValuePair<string, string>("verScriptsMod", ParamScriptsMod.verScriptsMod),
-                        new KeyValuePair<string, string>("token", appsettings.token)
+                        new KeyValuePair<string, string>("token", data.token)
                     });
 
-                    HttpResponseMessage response = await client.PostAsync(url, content);
+                    HttpResponseMessage response = await client.PostAsync(appsettings.url, content);
 
                     if (response.IsSuccessStatusCode)
                     {
                         ParamConf.configDictionary["LastStats"] = DateTime.Now.ToString();
-                      
                         ParamManager.NbLancement = 0;
-
                     }
                     else
                     {
-                        MessageBox.Show($"Erreur: {response.StatusCode}", "Erreur 173");
-                        //FormUtils.ErrorGeneral_BoxOrLog(ex, "async Task EnvoiStats()", "", true);
+                        //MessageBox.Show($"Erreur: {response.StatusCode}", "Erreur step one");
                     }
                 }
                 catch (Exception ex)
                 {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "async Task EnvoiStats()", "", true, true);
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du step one", "", false, true);
                 }
             }
         }
+
+       
 
         //check sanitizeModule ?
         public void checkBoxMod()
@@ -917,10 +919,9 @@ namespace DCE_Manager
                 {
                     Directory.CreateDirectory(dirPath.Replace(sourcePath, targetPath));
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                    MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CopyFilesRecursively", sourcePath, true, true);
                 }
             }
 
@@ -1015,11 +1016,11 @@ namespace DCE_Manager
                                                                                             //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(60))
                 if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddDays(1))
                 {
-                    FormUtils.LogRegister("LogRegister 313 Check RequisOK size: "
-                            + size.ToString() + " Now? >= "
-                            + DateTime.Now.ToString()
-                            + fInfo.LastWriteTime.ToString() + " AddDays(1)? "
-                            + fInfo.LastWriteTime.AddDays(1));
+                    //FormUtils.LogRegister("LogRegister 313 Check RequisOK size: "
+                    //        + size.ToString() + " Now? >= "
+                    //        + DateTime.Now.ToString()
+                    //        + fInfo.LastWriteTime.ToString() + " AddDays(1)? "
+                    //        + fInfo.LastWriteTime.AddDays(1));
                     RequisOK = true;
                 }
             }
@@ -1101,10 +1102,6 @@ namespace DCE_Manager
                     using (StreamReader sr = new StreamReader(fs))
                     {
 
-                        //string[] linesServer = System.IO.File.ReadAllLines(pathManager + upgradelocFile);
-                        //foreach (string line in linesServer)
-                        //{
-
                         string line;
                         while ((line = sr.ReadLine()) != null)
                         {
@@ -1145,18 +1142,7 @@ namespace DCE_Manager
                 }
                 catch (Exception ex)
                 {
-                    
-                    //var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    //var frame = stackTrace.GetFrame(0);
-
-                    //// Récupérer la ligne exacte et le fichier source (si disponibles)
-                    //var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    //var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    //FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
-
                 }
             }
 
@@ -1177,10 +1163,9 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(folderLoc);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
                 }
             }
             
@@ -1192,10 +1177,9 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
                 }
             }
 
@@ -1424,7 +1408,7 @@ namespace DCE_Manager
 
                     if (i > 0)
                     {
-                        FormUtils.LogRegister("LogRegister 639 Number of out-of-date files:   |" + i + "| ");
+                        //FormUtils.LogRegister("LogRegister 639 Number of out-of-date files:   |" + i + "| ");
                         upToDate = false;
                         ParamDownload.NbFileOutToDate = i;
                     }
@@ -1436,15 +1420,6 @@ namespace DCE_Manager
 
                 catch (Exception ex)
                 {
-                   
-                    //var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    //var frame = stackTrace.GetFrame(0);
-
-                    //// Récupérer la ligne exacte et le fichier source (si disponibles)
-                    //var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    //var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    //FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
                 }
             }
@@ -1529,9 +1504,10 @@ namespace DCE_Manager
 
         }//CheckVersionScriptsModLocal
 
+
         public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
         {
-            MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? "+ checkBox_OvwNGfolder.Checked.ToString());
+            //MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? "+ checkBox_OvwNGfolder.Checked.ToString());
 
             using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
             {
@@ -1591,6 +1567,18 @@ namespace DCE_Manager
                                 }
                             }
                         }
+                        else
+                        {
+                            foreach (string word in words)
+                            {
+                                if (Regex.IsMatch(word, "Active", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debug", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debriefing", RegexOptions.IgnoreCase))
+                                {
+                                    extractAutorise = false;
+                                    break;
+                                }
+                            }
+                        }
+
                     }
                     else if (words[0].Contains("Liveries") || words[0].Contains("Mods") || words[0].Contains("aircraft"))
                     {
@@ -1613,9 +1601,83 @@ namespace DCE_Manager
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
                         }
-                        catch (Exception e)
+                        catch (Exception ex)
                         {
-                            MessageBox.Show(e.ToString(), "The process failed");
+                            FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", completeFileName, true, true);
+                        }
+                        continue;
+                    }
+
+                    // Si l'extraction est autorisée pour le fichier, l'extraire
+                    if (extractAutorise)
+                    {
+                        try
+                        {
+                            file.ExtractToFile(completeFileName, overwrite);
+                        }
+                        catch (Exception ex)
+                        {
+                            FormUtils.ErrorGeneral_BoxOrLog(ex, "Error extracting file", file.FullName, true, true);
+                        }
+                    }
+                }
+            }
+        }
+
+        public void ExtractZipFileToDirectoryLight(string sourceZipFilePath, bool overwrite)
+        {
+            //MessageBox.Show("ExtractZipFileToDirectory LIGHT");
+
+            using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
+            {
+                string destinationRoot = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
+                Directory.CreateDirectory(destinationRoot); // S'assurer que le dossier racine existe
+
+                foreach (ZipArchiveEntry file in archive.Entries)
+                {
+                    string DestFullName = file.FullName; // Chemin dans le fichier zip (y compris les sous-dossiers)
+                    string[] words = DestFullName.Split('/');
+                    string lowerWordZero = words[0].ToLowerInvariant();
+
+                    bool extractAutorise = true;
+
+                    // Filtrer les fichiers inutiles (PDF, EXE, TXT à la racine du zip)
+                    if (words.Length <= 2 && (Path.GetExtension(words[0]) == ".pdf" || Path.GetExtension(words[0]) == ".exe" || Path.GetExtension(words[0]) == ".txt"))
+                    {
+                        continue;
+                    }
+
+                    foreach (string word in words)
+                    {
+                        if (Regex.IsMatch(word, "Active", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debug", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debriefing", RegexOptions.IgnoreCase))
+                        {
+                            extractAutorise = false;
+                            break;
+                        }
+                    }
+
+
+                    // Créer le répertoire cible si nécessaire
+                    DirectoryInfo di = Directory.CreateDirectory(destinationRoot);
+                    string destinationDirectoryFullPath = di.FullName;
+                    string completeFileName = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, DestFullName));
+
+                    // Vérification anti-Zip-Slip pour sécuriser le chemin de destination
+                    if (!Path.GetFullPath(destinationDirectoryFullPath).StartsWith(destinationRoot, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new IOException("Tentative d'extraction en dehors du répertoire de destination.");
+                    }
+
+                    // Si l'entrée du zip est un dossier, le créer sans extraire de fichiers
+                    if (file.Name == "")
+                    {
+                        try
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
+                        }
+                        catch (Exception ex)
+                        {
+                            FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", completeFileName, true, true);
                         }
                         continue;
                     }
@@ -1637,161 +1699,7 @@ namespace DCE_Manager
         }
 
 
-
-        public void ExtractZipFileToDirectory_OLD(string sourceZipFilePath, bool overwrite)
-        {
-            MessageBox.Show("ExtractZipFileToDirectory");
-
-            using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
-            {
-                string destinationDirectoryName = "";
-                string DestFullName = "";
-
-                foreach (ZipArchiveEntry file in archive.Entries)
-                {
-                    DestFullName = file.FullName;
-
-                    string[] words = DestFullName.Split('/');
-                    string LowerWordZero = words[0].ToLowerInvariant();
-
-                    bool extractAutorise = true;
-
-
-
-                    string testZipFilePath = sourceZipFilePath.Replace("_", " ");
-                    // s'il existe un repertoir supplémentaire comprenant le nom exacte de la campagne 
-                    if (System.Text.RegularExpressions.Regex.IsMatch(testZipFilePath, words[0]))
-                    {
-                        MessageBox.Show("Incompatible ZIP file structure.", "Error ExtractZipFileToDirectory");
-                        //Close();
-                        return;
-                    }
-
-                    //MessageBox.Show(words.Length + " " + DestFullName + " ||words[0]|| " + words[0], file.Name);
-                    if (words.Length <= 2 && (Path.GetExtension(words[0]) == ".pdf" || Path.GetExtension(words[0]) == ".exe" || Path.GetExtension(words[0]) == ".txt"))
-                    {
-                        //MessageBox.Show("Passe" + DestFullName, file.Name);
-                        continue;
-                    }
-                    if (
-                        !LowerWordZero.Contains("mod") & !words[0].Contains("tech")
-                        & !(System.Text.RegularExpressions.Regex.IsMatch(LowerWordZero, "savedgame")) & !(System.Text.RegularExpressions.Regex.IsMatch(LowerWordZero, "ovgme"))
-                        )
-                    {
-                        destinationDirectoryName = textBox_SavedGames.Text + @"\Liveries";
-                    }
-                    if (words[0].Contains("tech"))
-                    {
-                        destinationDirectoryName = textBox_SavedGames.Text + @"\Mods";
-                    }
-                    //if (words[0].Contains("DCE_Missionscript_mod") || words[0].Contains("MOD"))
-                    if (words[0].Contains("Missionscript_mod") || words[0].Contains("MOD"))
-                    {
-                        destinationDirectoryName = textBox_OvGME.Text;
-                    }
-
-                    if (System.Text.RegularExpressions.Regex.IsMatch(LowerWordZero, "ovgme"))
-                    {
-                        DestFullName = DestFullName.Replace(words[0] + "/", "");
-                        destinationDirectoryName = textBox_OvGME.Text;
-                    }
-                    //if (LowerWordZero.Contains("dcs_savedgames_path"))
-                    if (System.Text.RegularExpressions.Regex.IsMatch(LowerWordZero, "savedgame"))
-                    {
-
-
-                        DestFullName = DestFullName.Replace(words[0] + "/", "");
-                        destinationDirectoryName = textBox_SavedGames.Text;
-
-                        //regarde s'il est interdit d'écraser le dossier Active
-                        if (checkBoxActiveFolder.Checked == true)
-                        {
-                            foreach (var word in words)
-                            {
-                                if (System.Text.RegularExpressions.Regex.IsMatch(word, "Active"))
-                                {
-                                    //bool fileExistsActive = File.Exists(destinationDirectoryName + @"\" + DestFullName);
-                                    //if (fileExistsActive & checkBoxActiveFolder.Checked)
-                                    //{
-                                    //    extractAutorise = false;
-                                    //}
-                                    extractAutorise = false;
-                                }
-                                if (System.Text.RegularExpressions.Regex.IsMatch(word, "Debug"))
-                                {
-                                    extractAutorise = false;
-                                }
-                            }
-                        }
-
-                        foreach (var word in words)
-                        {
-                            if (System.Text.RegularExpressions.Regex.IsMatch(word, "ScriptsMod.NG"))
-                            {
-                                if (checkBox_OvwNGfolder.Checked)
-                                {
-                                    extractAutorise = true;
-                                }
-                                else
-                                {
-                                    extractAutorise = false;
-                                }
-                            }
-                        }
-
-
-                    }
-
-                    if (words[0].Contains("Liveries"))
-                    {
-                        destinationDirectoryName = textBox_SavedGames.Text;
-                    }
-                    if (words[0].Contains("Mods"))
-                    {
-                        destinationDirectoryName = textBox_SavedGames.Text;
-                    }
-                    if (words[0].Contains("aircraft"))
-                    {
-                        destinationDirectoryName = textBox_SavedGames.Text;
-                    }
-
-
-                    DirectoryInfo di = Directory.CreateDirectory(destinationDirectoryName);
-                    string destinationDirectoryFullPath = di.FullName;
-
-                    string completeFileName = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, DestFullName));
-
-                    if (!completeFileName.StartsWith(destinationDirectoryFullPath, StringComparison.OrdinalIgnoreCase))
-                    {
-                        throw new IOException("Trying to extract file outside of destination directory. See this link for more info: https://snyk.io/research/zip-slip-vulnerability");
-                    }
-
-                    if (file.Name == "")
-                    {// Assuming Empty for Directory
-                        //Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
-                        try
-                        {
-                            Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
-                        }
-                        catch (Exception e)
-                        {
-                            Console.WriteLine("The process failed: {0}", e.ToString());
-                             MessageBox.Show(e.ToString(), "The process failed");
-                        }
-                        continue;
-                    }
-
-                    if (extractAutorise)
-                    {
-                        //TODO ajouter ici une exemption s'il ne peut pas ouvrir le fichier
-                        file.ExtractToFile(completeFileName, true);
-                    }
-
-                }
-            }
-        }
-
-        public void ExtractZipFileToDirectoryLight(string sourceZipFilePath, bool overwrite)
+        public void ExtractZipFileToDirectoryLight_OLD(string sourceZipFilePath, bool overwrite)
         {
             MessageBox.Show("ExtractZipFileTodirectory LIGHT)");
             using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
@@ -1823,21 +1731,8 @@ namespace DCE_Manager
                     {
                         foreach (var word in words)
                         {
-                            //if (System.Text.RegularExpressions.Regex.IsMatch(word, "Active"))
-                            //{
-                            //    bool fileExistsActive = File.Exists(destinationDirectoryName + @"\" + DestFullName);
-                            //    if (fileExistsActive & checkBoxActiveFolder.Checked)
-                            //    {
-                            //        extractAutorise = false;
-                            //    }
-                            //}
                             if (System.Text.RegularExpressions.Regex.IsMatch(word, "Active"))
                             {
-                                //bool fileExistsActive = File.Exists(destinationDirectoryName + @"\" + DestFullName);
-                                //if (fileExistsActive & checkBoxActiveFolder.Checked)
-                                //{
-                                //    extractAutorise = false;
-                                //}
                                 extractAutorise = false;
                             }
                             if (System.Text.RegularExpressions.Regex.IsMatch(word, "Debug"))
@@ -1865,10 +1760,9 @@ namespace DCE_Manager
                         {
                             Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
                         }
-                        catch (Exception e)
+                        catch (Exception ex)
                         {
-                            Console.WriteLine("The process failed: {0}", e.ToString());
-                            MessageBox.Show(e.ToString(), "The process failed");
+                            FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", completeFileName, true, true);
                         }
                         continue;
                     }
@@ -1882,25 +1776,6 @@ namespace DCE_Manager
             }
         }
 
-        public void CreateDCE_Folder()
-        {
-            // Chemin de base
-            string baseFolderPath = textBox_SavedGames.Text;
-
-            // Structure des sous-dossiers à créer
-            //Mods\tech\DCE\Missions\Campaigns
-            string[] subFolders = { "Mods", "Mods\\tech", "Mods\\tech\\DCE", "Mods\\tech\\DCE\\Missions", "Mods\\tech\\DCE\\Missions\\Campaigns" };
-
-            // Créer les dossiers et sous-dossiers
-            foreach (string subFolder in subFolders)
-            {
-                string fullPath = Path.Combine(baseFolderPath, subFolder);
-
-                FormUtils.CreatFolder(fullPath);
-            }
-        }
-        
-        
         public static void UpdateProperty(object obj, string propertyName, string key, object value)
         {
             if (obj == null) throw new ArgumentNullException(nameof(obj));
@@ -2046,10 +1921,9 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(pathManager);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager, true, true);
                 }
             }
                 
@@ -2218,7 +2092,7 @@ namespace DCE_Manager
 
                                         fileUpdateArray[i, 5] = part[1];
 
-                                        FormUtils.LogRegister("LogRegister 1802 fileUpdateArray[i, 5] |" + File_name + " " + part[1] + "|");
+                                        //FormUtils.LogRegister("LogRegister 1802 fileUpdateArray[i, 5] |" + File_name + " " + part[1] + "|");
                                     }
 
                                     //cherche le lien GoogleDrive apres le 2eme =
@@ -2236,14 +2110,6 @@ namespace DCE_Manager
                 }
                 catch (Exception ex)
                 {
-                    //var stackTrace = new System.Diagnostics.StackTrace(ex, true);
-                    //var frame = stackTrace.GetFrame(0);
-
-                    //// Récupérer la ligne exacte et le fichier source (si disponibles)
-                    //var lineNumber = frame?.GetFileLineNumber() ?? 0;
-                    //var fileName = frame?.GetFileName() ?? "Unknown File";
-
-                    //FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod", pathManager + upgradelocFile, false, true);
                 }
             }
@@ -2267,10 +2133,9 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(folderLoc);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", folderLoc, true, true);
                 }
             }
 
@@ -2283,10 +2148,9 @@ namespace DCE_Manager
                 {
                     System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    Console.WriteLine("The process failed: {0}", e.ToString());
-                     MessageBox.Show(e.ToString(), "The process failed");
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", folderLoc + @"\Mission Scripts", true, true);
                 }
             }
 
@@ -2330,12 +2194,12 @@ namespace DCE_Manager
                                 fichierSain = false;
 
                             ext = Path.GetExtension(folderLoc + fileUpdate);
-                            FormUtils.LogRegister("LogRegister 1899 fileUpdateExists |" + folderLoc + fileUpdate + "|");
+                            //FormUtils.LogRegister("LogRegister 1899 fileUpdateExists |" + folderLoc + fileUpdate + "|");
                         }
                         else
                         {
                             downloadAutorise = true; // si le fichier n'existe pas en local, on ne peut pas verifier sa version/date, donc on télécharge
-                            FormUtils.LogRegister("LogRegister 1904 NePasExister |" + folderLoc + fileUpdate + "|");
+                            //FormUtils.LogRegister("LogRegister 1904 NePasExister |" + folderLoc + fileUpdate + "|");
                         }
 
                         if (fileUpdateExists)
@@ -2417,7 +2281,7 @@ namespace DCE_Manager
 
                                 if (fileUpdateArray[i, 5] != null)
                                 {
-                                    FormUtils.LogRegister("LogRegister + 1983 fileUpdateArray[i, 5]?  |" + fileUpdateArray[i, 5].ToString() + "| ");
+                                    //FormUtils.LogRegister("LogRegister + 1983 fileUpdateArray[i, 5]?  |" + fileUpdateArray[i, 5].ToString() + "| ");
 
                                     //31/03/2021 09:37:31
                                     DateTime dt_WebFile = DateTime.ParseExact(fileUpdateArray[i, 5], "dd/MM/yyyy HH:mm:ss",
@@ -2426,12 +2290,12 @@ namespace DCE_Manager
                                     if (dt_WebFile > dtFileLoc)
                                     {
                                         downloadAutorise = true;
-                                        FormUtils.LogRegister("LogRegister 1996 TRUE |" + folderLoc + fileUpdate + "|" + downloadAutorise.ToString());
+                                        //FormUtils.LogRegister("LogRegister 1996 TRUE |" + folderLoc + fileUpdate + "|" + downloadAutorise.ToString());
                                     }
                                     else
                                     {
                                         downloadAutorise = false;
-                                        FormUtils.LogRegister("LogRegister 1996 FALSE |" + folderLoc + fileUpdate + "|"+ downloadAutorise.ToString());
+                                        //FormUtils.LogRegister("LogRegister 1996 FALSE |" + folderLoc + fileUpdate + "|"+ downloadAutorise.ToString());
                                     }
                                 }
 
@@ -2506,7 +2370,7 @@ namespace DCE_Manager
                 {
                     ScriptsModAvailableVersion.Text = major + "." + minor + "." + build;
                     ScriptsModAvailableVersion.Update();
-                    FormUtils.LogRegister("LogRegister 1966 TypeClient " + TypeClient);
+                    //FormUtils.LogRegister("LogRegister 1966 TypeClient " + TypeClient);
 
                 }
                 else if (nbFileUpdated == 0 & nbFileErreur == 0)
@@ -2628,7 +2492,7 @@ namespace DCE_Manager
 
             textBox_ChangelogScriptsMod.Text = "";
 
-            FormUtils.LogRegister("LogRegister 2077 " + tempLog);
+            //FormUtils.LogRegister("LogRegister 2077 " + tempLog);
         }
 
 
@@ -2944,27 +2808,27 @@ namespace DCE_Manager
                 {
                     foreach (ZipArchiveEntry entry in archive.Entries)
                     {
-                        bool containsSearchResult = entry.FullName.Contains("Campaigns");
+                        //bool containsSearchResult = entry.FullName.Contains("Campaigns");
 
-                        if (containsSearchResult & findNameCampaign == false)
-                        {
+                        //if (containsSearchResult & findNameCampaign == false)
+                        //{
 
-                            string[] words = entry.FullName.Split('/');
-                            string stringNum = Convert.ToString(words.Length);
+                        //    string[] words = entry.FullName.Split('/');
+                        //    string stringNum = Convert.ToString(words.Length);
 
-                            for (int i = 0; i < words.Length; i++)
-                            {
-                                string stringMot = Convert.ToString(words[i].Length);
-                                if (entry.Name == "" && words[i].Contains("Campaigns") & ((i + 1) < words.Length) && (words[i + 1].Length > 0) & findNameCampaign == false)
-                                {
-                                    NameCampaign = words[i + 1];
-                                    ParamCampaign.NameCampaign = words[i + 1];
-                                    findNameCampaign = true;
-                                    break;
+                        //    for (int i = 0; i < words.Length; i++)
+                        //    {
+                        //        string stringMot = Convert.ToString(words[i].Length);
+                        //        if (entry.Name == "" && words[i].Contains("Campaigns") & ((i + 1) < words.Length) && (words[i + 1].Length > 0) & findNameCampaign == false)
+                        //        {
+                        //            NameCampaign = words[i + 1];
+                        //            ParamCampaign.NameCampaign = words[i + 1];
+                        //            findNameCampaign = true;
+                        //            break;
 
-                                }
-                            }
-                        }
+                        //        }
+                        //    }
+                        //}
 
                         if (entry.FullName.Contains("camp_init"))
                         {
@@ -2990,6 +2854,7 @@ namespace DCE_Manager
 
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimStart();
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimEnd();
+                                            NameCampaign = ParamCampaign.NameCampaign;
                                             findNameCampaign = true;
                                             break;
                                         }
@@ -3017,7 +2882,7 @@ namespace DCE_Manager
                     // Vérifier le résultat de la boîte de message
                     if (result == DialogResult.Yes)
                     {
-                        CreateDCE_Folder();
+                        FormUtils.CreateDCE_Folder();
 
                         //string combPathDCE_2 = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
                         if (Directory.Exists(combPathDCE))
@@ -3037,6 +2902,8 @@ namespace DCE_Manager
 
                 ParamCampaign.PathCampaign = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign;
                 string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign + @"\Init\path.bat";
+
+                //MessageBox.Show(ParamCampaign.PathCampaign, "info");
 
                 if (Directory.Exists(ParamCampaign.PathCampaign))
                 {
@@ -3106,99 +2973,118 @@ namespace DCE_Manager
                 //******************new system
 
                 string pathStatus = textBox_SavedGames.Text.Replace(@"\", "/") + "/";
-                string pathFirstMission = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns", NameCampaign + "_first.miz");
+                string fileNameA = ParamCampaign.NameCampaign + "_first.miz";
+                string pathFirstMission = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns", fileNameA);
                 string tempFilePath = Path.Combine(Path.GetTempPath(), "camp_status.lua"); // Chemin temporaire pour extraire et modifier le fichier
 
 
-
-                // Ouverture du fichier zip en mode Update pour modifier son contenu
-                using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
+                if (File.Exists(pathFirstMission))
                 {
-                    //string txt = "";
-                    //foreach (ZipArchiveEntry entryB in archive.Entries)
-                    //{
-                    //    txt = txt + entryB.Name + "\r\n";
-                    //}
-                    //MessageBox.Show(txt, "info");
 
-                    // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
-                    ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                    if (entry != null)
+                    // Ouverture du fichier zip en mode Update pour modifier son contenu
+                    using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
                     {
-                        // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
-                        entry.ExtractToFile(tempFilePath, true);
+                        //string txt = "";
+                        //foreach (ZipArchiveEntry entryB in archive.Entries)
+                        //{
+                        //    txt = txt + entryB.Name + "\r\n";
+                        //}
+                        //MessageBox.Show(txt, "info");
 
-                        // 2. Modification du fichier temporaire
-                        int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                        if (nbLigneMod < 1)
+                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
+                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
+
+                        if (entry != null)
                         {
-                            nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
+                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
+                            entry.ExtractToFile(tempFilePath, true);
+
+                            // 2. Modification du fichier temporaire
+                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
+                            if (nbLigneMod < 1)
+                            {
+                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
+                            }
+
+                            // 3. Suppression de l'ancienne entrée dans le fichier zip
+                            entry.Delete();
+
+                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
+                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
                         }
-
-                        // 3. Suppression de l'ancienne entrée dans le fichier zip
-                        entry.Delete();
-
-                        // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
-                        archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
-                    }
-                    else
-                    {
-                        MessageBox.Show("Le fichier 'camp_status.lua' est introuvable dans le dossier 'l10n' de l'archive.");
-                    }
-                }
-
-                // Nettoyage : Suppression du fichier temporaire après modification
-                if (File.Exists(tempFilePath))
-                {
-                    File.Delete(tempFilePath);
-                }
-
-
-
-                string pathOngoingMission = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCampaign + "_ongoing.miz";
-
-                // Ouverture du fichier zip en mode Update pour modifier son contenu
-                using (ZipArchive archive = ZipFile.Open(pathOngoingMission, ZipArchiveMode.Update))
-                {
-                    // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
-                    ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                    if (entry != null)
-                    {
-                        // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
-                        entry.ExtractToFile(tempFilePath, true);
-
-                        // 2. Modification du fichier temporaire
-                        int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                        if (nbLigneMod < 1)
+                        else
                         {
-                            nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
+                            MessageBox.Show("The ‘camp_status.lua’ file cannot be found in the ‘l10n’ folder in the archive.");
                         }
-
-                        // 3. Suppression de l'ancienne entrée dans le fichier zip
-                        entry.Delete();
-
-                        // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
-                        archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
                     }
-                    else
+
+                    // Nettoyage : Suppression du fichier temporaire après modification
+                    if (File.Exists(tempFilePath))
                     {
-                        MessageBox.Show("Le fichier 'camp_status.lua' est introuvable dans le dossier 'l10n' de l'archive.");
+                        File.Delete(tempFilePath);
                     }
                 }
-
-                // Nettoyage : Suppression du fichier temporaire après modification
-                if (File.Exists(tempFilePath))
+                else
                 {
-                    File.Delete(tempFilePath);
+                    MessageBox.Show($"The file {fileNameA} cannot be found in this directory: " + textBox_SavedGames.Text + @"Mods\tech\DCE\Missions\Campaigns");
+                }
+                
+
+                //************************************ONGOIN.MIZ
+
+
+                string fileNameB = ParamCampaign.NameCampaign + "_ongoing.miz";
+                string pathOngoingMission = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + fileNameB;
+
+                if (File.Exists(pathFirstMission))
+                {
+
+                    // Ouverture du fichier zip en mode Update pour modifier son contenu
+                    using (ZipArchive archive = ZipFile.Open(pathOngoingMission, ZipArchiveMode.Update))
+                    {
+                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
+                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
+
+                        if (entry != null)
+                        {
+                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
+                            entry.ExtractToFile(tempFilePath, true);
+
+                            // 2. Modification du fichier temporaire
+                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
+                            if (nbLigneMod < 1)
+                            {
+                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
+                            }
+
+                            // 3. Suppression de l'ancienne entrée dans le fichier zip
+                            entry.Delete();
+
+                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
+                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
+                        }
+                        else
+                        {
+                            MessageBox.Show("Le fichier 'camp_status.lua' est introuvable dans le dossier 'l10n' de l'archive.");
+                        }
+                    }
+
+                    // Nettoyage : Suppression du fichier temporaire après modification
+                    if (File.Exists(tempFilePath))
+                    {
+                        File.Delete(tempFilePath);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show($"The file {fileNameB} cannot be found in this directory: " + textBox_SavedGames.Text + @"Mods\tech\DCE\Missions\Campaigns");
                 }
 
-                MessageBox.Show(NameCampaign + " successfully installed.\r\n" +
-                    "   Activate MissionScript Mod  before launching DCS", "Information");
+                MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
+                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ", "Information");
 
-                FormUtils.LogRegister(NameCampaign + " successfully installed.\r\n" +
-                    "   Activate MissionScript Mod  before launching DCS");
+                FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
+                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ");
 
                 //******************FIN du new system
                 
@@ -3804,7 +3690,7 @@ namespace DCE_Manager
                                         //Crisis in PG - Gazelle\Init\db_loadouts.lua                                       
                                         string[] nameCampaignTemp = fileUpdateArray[i, 0].Split('\\');
                                         string nameCampaign = nameCampaignTemp[0];
-                                        FormUtils.addLigne("resetMission=" + nameCampaign + "=firstmission=" + dtFileLoc, ParamManager.pathManager + "options.txt", true);
+                                        //FormUtils.addLigne("resetMission=" + nameCampaign + "=firstmission=" + dtFileLoc, ParamManager.pathManager + "options.txt", true);
                                     }
                                     else if (fileUpdateArray[i, 7] == "skipmission")
                                     {
@@ -3814,7 +3700,7 @@ namespace DCE_Manager
                                         //Crisis in PG - Gazelle\Init\db_loadouts.lua                                       
                                         string[] nameCampaignTemp = fileUpdateArray[i, 0].Split('\\');
                                         string nameCampaign = nameCampaignTemp[0];
-                                        FormUtils.addLigne("resetMission=" + nameCampaign + "=skipmission=" + dtFileLoc, ParamManager.pathManager + "options.txt", true);
+                                        //FormUtils.addLigne("resetMission=" + nameCampaign + "=skipmission=" + dtFileLoc, ParamManager.pathManager + "options.txt", true);
 
                                     }
 
@@ -3838,7 +3724,7 @@ namespace DCE_Manager
                                 //MessageBox.Show("Update failed, check log", "Report");
                                 FormUtils.ShowErrorMessage(ex.Message + " \n Update failed, check log");
 
-                                FormUtils.ErrorGeneral_BoxOrLog(ex, " CampUpdate_Click ", pathManager + @"\upgrade.txt", false, true);
+                                FormUtils.ErrorGeneral_BoxOrLog(ex, " Update failed, check log ", pathManager + @"\upgrade.txt", false, true);
 
                             }
                         }
@@ -3874,10 +3760,10 @@ namespace DCE_Manager
             FormUtils.LogRegister(tempLog);
         }
 
-        private void labelUpdateCampaign_Click(object sender, EventArgs e)
-        {
+        //private void labelUpdateCampaign_Click(object sender, EventArgs e)
+        //{
 
-        }
+        //}
 
         private void textBox1_TextChanged_2(object sender, EventArgs e)
         {
@@ -3915,7 +3801,7 @@ namespace DCE_Manager
         }
 
         //dessine l'image de la campagne
-        public System.Windows.Forms.PictureBox DrawIconeCampaign(string NameCamp, string path)
+        public System.Windows.Forms.PictureBox DrawIconeCampaign_OLD(string NameCamp, string path)
         {
             System.Windows.Forms.PictureBox pictureBox2 = new System.Windows.Forms.PictureBox();
             pictureBox2.Size = new System.Drawing.Size(60, 30);     //Hauteur, largeur
@@ -3937,15 +3823,53 @@ namespace DCE_Manager
                 pictureBox2.Image = new Bitmap(image);
             }
 
-            //pictureBox2.Image = Image.FromFile(path + ".bmp");
-
             pictureBox2.Cursor = System.Windows.Forms.Cursors.Hand;
-            //pictureBox2.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, path + ".bmp"));
 
             pictureBox2.Click += new EventHandler((sender, e) => CampaignEdit1(sender, e, path, NameCamp));
 
             return pictureBox2;
         }
+        // Affiche une icône de campagne dans un PictureBox
+        public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string imagePath)
+        {
+            var pictureBox2 = new System.Windows.Forms.PictureBox
+            {
+                Size = new System.Drawing.Size(60, 30),
+                Location = new Point(42, ((A) * HLigne) + 20),
+                SizeMode = PictureBoxSizeMode.StretchImage,
+                Cursor = System.Windows.Forms.Cursors.Hand
+            };
+
+            tabPage2.Controls.Add(pictureBox2);
+
+            // Vérifie si l'image existe en format .bmp, sinon la crée
+            string bitmapPath = imagePath + ".bmp";
+            if (!File.Exists(bitmapPath))
+            {
+                ConvertToBitmap(imagePath);
+            }
+
+            // Charger l'image sans verrouiller le fichier
+            try
+            {
+                using (FileStream fs = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    pictureBox2.Image?.Dispose(); // Libère l'ancienne image si elle existe
+                    pictureBox2.Image = new Bitmap(fs); // Charge l'image dans le PictureBox
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Error loading image", bitmapPath, true, true);
+            }
+
+            // Assignation de l'événement clic
+            pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, imagePath, nameCamp);
+
+            return pictureBox2;
+        }
+
+
 
         //dessine une icone en cas de pb de path
         public System.Windows.Forms.PictureBox DrawIconeError(int Width, int Height, string str)
@@ -4300,45 +4224,95 @@ namespace DCE_Manager
                 // Si l'utilisateur annule la suppression, ne fais rien
                 MessageBox.Show("Deletion cancelled.", "Cancellation");
             }
-
-
-
-
-            //// Supprimer les campagnes sélectionnées (à adapter en fonction de la logique de suppression)
-            //foreach (string campaign in campaignsToDelete)
-            //{
-            //    // Appel à la fonction de suppression pour chaque campagne
-            //    DeleteCampaign(campaign);
-            //}
-
-            ////rafraichit la page
-            //tabControl.SelectedIndex = 3;
-            //tabControl.SelectedIndex = 1;
-
-
         }
 
-        // Exemple de fonction de suppression de campagne (adapter selon votre logique)
-        //private void DeleteCampaign(string campaignName)
-        //{
-        //    // Logique de suppression (fichier, base de données, etc.)
-        //    Console.WriteLine($"Suppression de la campagne : {campaignName}");
-        //}
+        public void DeleteCampaign(string OldNameCamp)
+        {
+            // Afficher le curseur en cercle tournant
+            Cursor.Current = Cursors.WaitCursor;
 
-        //// Met à jour l'interface utilisateur pour refléter les suppressions (adapter si nécessaire)
-        //private void UpdateCampaignListUI()
-        //{
-        //    // Actualise la liste des campagnes dans l'UI
-        //    Console.WriteLine("Mise à jour de la liste des campagnes...");
-        //}
+            string path = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
+            string folderLoc = Path.Combine(path, OldNameCamp);
+
+            // Vérifier si le dossier de la campagne existe
+            if (Directory.Exists(folderLoc))
+            {
+                DirectoryInfo di = new DirectoryInfo(folderLoc);
+
+                // Supprimer les fichiers du dossier
+                foreach (FileInfo file in di.EnumerateFiles())
+                {
+                    try
+                    {
+                        // Vérifier et fermer le fichier s'il est ouvert, puis le supprimer
+                        file.IsReadOnly = false; // S'assurer que le fichier est en écriture
+                        FileSystem.DeleteFile(file.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                    }
+                    catch (IOException ioEx)
+                    {
+                        FormUtils.LogRegister($"Erreur lors de la suppression du fichier {file.FullName}: {ioEx.Message}");
+                    }
+                }
+
+                // Supprimer les sous-dossiers
+                foreach (DirectoryInfo dir in di.EnumerateDirectories())
+                {
+                    try
+                    {
+                        dir.Delete(true);
+                    }
+                    catch (IOException ioEx)
+                    {
+                        FormUtils.LogRegister($"Erreur lors de la suppression du sous-dossier {dir.FullName}: {ioEx.Message}");
+                    }
+                }
+
+                // Supprimer le dossier de la campagne
+                try
+                {
+                    di.Delete(true);
+                }
+                catch (IOException ioEx)
+                {
+                    FormUtils.LogRegister($"Erreur lors de la suppression du dossier {di.FullName}: {ioEx.Message}");
+                }
+            }
+
+            // Supprimer les fichiers .cmp et .png associés à la campagne
+            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".cmp"));
+            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_first.miz"));
+            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_ongoing.miz"));
+            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".png"));
+            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".bmp"));
+
+            ScriptModInstalledVersion.Text = "";
+
+            // Remettre le curseur par défaut à la fin de la tâche
+            Cursor.Current = Cursors.Default;
+        }
+
+        private void DeleteFileToRecycleBin(string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    File.SetAttributes(filePath, FileAttributes.Normal); // Retirer le verrouillage en lecture seule
+                    FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+                }
+                catch (IOException ioEx)
+                {
+                    FormUtils.LogRegister($"Erreur lors de la suppression du fichier {filePath}: {ioEx.Message}");
+                }
+            }
+        }
+
 
         //public void CampaignDeleteClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
-        public void DeleteCampaign(  string OldNameCamp)
+        public void DeleteCampaign_OLD(  string OldNameCamp)
         {
             //DialogResult dialogResult = MessageBox.Show("Delete the campaign " + OldNameCamp + " \r\n  Are you sure?", "Attention", MessageBoxButtons.YesNo);
             string path =  textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns";
-            //if (dialogResult == DialogResult.Yes)
-            //{
 
             string folderLoc = path + @"\" + OldNameCamp;
 

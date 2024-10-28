@@ -93,6 +93,57 @@ namespace DCE_Manager.Utils
 
         }
 
+        public static void CreateDCE_Folder()
+        {
+            // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+            Form1.Instance.UpdateSharedData();
+
+            // Chemin de base
+            string baseFolderPath = SharedData.textBox_SavedGames;
+
+            // Structure des sous-dossiers à créer
+            //Mods\tech\DCE\Missions\Campaigns
+            string[] subFolders = { "Mods", "Mods\\tech", "Mods\\tech\\DCE", "Mods\\tech\\DCE\\Missions", "Mods\\tech\\DCE\\Missions\\Campaigns" };
+
+            // Créer les dossiers et sous-dossiers
+            foreach (string subFolder in subFolders)
+            {
+                string fullPath = Path.Combine(baseFolderPath, subFolder);
+
+                FormUtils.CreatFolder(fullPath);
+            }
+        }
+
+
+
+        public static void CreatFolder(string subFolderPath)
+        {
+            // Chemin des sous-dossiers à créer
+            //string subFolderPath = @"C:\ExampleFolder\SubFolder1\SubFolder2";
+
+            try
+            {
+                // Créer les sous-dossiers
+                Directory.CreateDirectory(subFolderPath);
+
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                //MessageBox.Show(e.Message, "Error");
+                ErrorGeneral_BoxOrLog(ex, "Error: Unauthorised access.", "", true, true);
+            }
+            catch (IOException ex)
+            {
+                //MessageBox.Show(e.Message, "Error");
+                ErrorGeneral_BoxOrLog(ex, "Error: Input/output problem.", "", true, true);
+            }
+            catch (Exception ex)
+            {
+                //MessageBox.Show(e.Message, "Error");
+                ErrorGeneral_BoxOrLog(ex, "Error: An error has occurred", "", true, true);
+            }
+        }
+
         private static readonly object lockObj = new object();
 
         public static void LogRegister(string log)
@@ -106,10 +157,10 @@ namespace DCE_Manager.Utils
                 {
                     System.IO.Directory.CreateDirectory(pathOptionInstaller);
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
                     //MessageBox.Show($"Failed to create directory: {e.Message}", "Directory Error");
-                    ErrorGeneral_BoxOrLog(e, "", "", true, false);
+                    ErrorGeneral_BoxOrLog(ex, "LogRegister", "", true, false);
                     return;
                 }
             }
@@ -161,26 +212,8 @@ namespace DCE_Manager.Utils
             }
         }
 
-        public static void OptionRegister_DEPRECATED()
-        {
-            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
 
-            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
-
-            if (!exists)
-            {
-                try
-                {
-                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
-                }
-                catch (Exception e)
-                {
-                    FormUtils.ShowErrorMessage(e.Message);
-                }
-            }
-        }
-
-            public static void DeleteAllFilesInDirectory(string sourcePath, bool FolderDelete)
+        public static void DeleteAllFilesInDirectory(string sourcePath, bool FolderDelete)
         {
             System.IO.DirectoryInfo di = new DirectoryInfo(sourcePath);
 
@@ -414,7 +447,6 @@ namespace DCE_Manager.Utils
         public static int ModifierLigneBis(string path, string ligneRecherche, string ligneModifiee)
         {
             int Ufind = 0;
-            string retourLine = "";
             string texteFinal = "";
 
             // Lecture du fichier avec un FileStream et partage en lecture
@@ -605,9 +637,9 @@ namespace DCE_Manager.Utils
                         // Vous pouvez ajouter ici des données initiales si nécessaire
                     }
                 }
-                catch (Exception e)
+                catch (Exception ex)
                 {
-                    ErrorGeneral_BoxOrLog(e, "Erreur lors de la création du fichier options.txt", filePath, true, true);
+                    ErrorGeneral_BoxOrLog(ex, "Erreur lors de la création du fichier options.txt", filePath, true, true);
                 }
             }
 
@@ -750,54 +782,7 @@ namespace DCE_Manager.Utils
         }
 
 
-        public static int ModifLigneOrAdd_OLD(string path, string ligneRecherche, string ligneModifiee)
-        {
-            int Ufind = 0;
-            string retourLine = "";
-            string texteFinal = null;
-
-            try
-            {
-                StreamReader sr = new StreamReader(path);
-                string ligneEnCoursDeLecture = null;
-                while ((sr.Peek() != -1))
-                {
-                    ligneEnCoursDeLecture = sr.ReadLine();
-                    if (ligneEnCoursDeLecture.Length >= 2 && ligneEnCoursDeLecture.Substring(0, 2) != "--" && ligneEnCoursDeLecture.IndexOf(ligneRecherche) > -1)     // && ligneEnCoursDeLecture.IndexOf(ligneModifiee) <= -1
-                    {
-                        texteFinal = (texteFinal
-                                    + (ligneModifiee + "\r\n"));
-                        Ufind++;
-                    }
-                    else
-                    {
-                        if (ligneEnCoursDeLecture.Length > 0)
-                            retourLine = "\r\n";
-
-                        texteFinal = (texteFinal
-                                    + (ligneEnCoursDeLecture + retourLine));
-                    }
-                }
-                sr.Close();
-                // Ré-écriture du fichier
-                StreamWriter sr2 = new StreamWriter(path);
-                sr2.WriteLine(texteFinal);
-                sr2.Close();
-
-                if (Ufind == 0)
-                {
-                    addLigne(ligneModifiee, path, true);
-                    //addLigne(path, ligneModifiee, true);
-                }
-            }
-            catch (Exception ex)
-            {
-            }
-
-
-            return Ufind;
-
-        }
+        
 
 
         public static bool IsFileLocked(FileInfo file)
@@ -822,34 +807,6 @@ namespace DCE_Manager.Utils
             return false;
         }
 
-
-        public static void CreatFolder(string subFolderPath)
-        {
-            // Chemin des sous-dossiers à créer
-            //string subFolderPath = @"C:\ExampleFolder\SubFolder1\SubFolder2";
-
-            try
-            {
-                // Créer les sous-dossiers
-                Directory.CreateDirectory(subFolderPath);
-
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                //MessageBox.Show(e.Message, "Error");
-                ErrorGeneral_BoxOrLog(e, "Error: Unauthorised access.", "", true, true);
-            }
-            catch (IOException e)
-            {
-                //MessageBox.Show(e.Message, "Error");
-                ErrorGeneral_BoxOrLog(e, "Error: Input/output problem.", "", true, true);
-            }
-            catch (Exception e)
-            {
-                //MessageBox.Show(e.Message, "Error");
-                ErrorGeneral_BoxOrLog(e, "Error: An error has occurred", "", true, true);
-            }
-        }
 
         public static void LinkLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {

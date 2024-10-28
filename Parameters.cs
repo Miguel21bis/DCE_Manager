@@ -242,7 +242,10 @@ namespace DCE_Manager.Parameters
 
     public static class SharedData
     {
-        
+        //il faut, pour faire ceci pour les mettre à jour avant de les utiliser
+        //// Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+        //Form1.Instance.UpdateSharedData();
+
         public static string comboBox_Config { get; set; }
         public static string textBox_Campaign { get; set; }
         public static string textBox_DCS { get; set; }
