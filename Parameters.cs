@@ -6,15 +6,6 @@ using System.Threading.Tasks;
 
 namespace DCE_Manager.Parameters
 {
-    /// <summary>
-    /// Stores campaign-related parameters.
-    /// </summary>
-    //public static DataTable dataTable;
-
-    //public static string SavedGamesPath
-    //{
-    //    get { return textBox_SavedGames.Text; }
-    //}
 
     public static class Side
     {

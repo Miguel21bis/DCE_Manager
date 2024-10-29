@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -327,50 +328,6 @@ namespace DCE_Manager.Utils
             }
         }
 
-        public static void ModifierLigneByNumberOLD(string path, int numberLine, string ligneModifiee)
-        {
-            int iLine = 1;
-            int iLineModif = 0;
-            string retourLine = "";
-            string texteFinal = null;
-            StreamReader sr = new StreamReader(path);
-            string ligneEnCoursDeLecture = null;
-            while ((sr.Peek() != -1))
-            {
-                ligneEnCoursDeLecture = sr.ReadLine();
-                if (iLine == numberLine)
-                {
-                    texteFinal = (texteFinal
-                                + (ligneModifiee + "\r\n"));
-                    iLineModif++;
-                }
-                else
-                {
-                    if (ligneEnCoursDeLecture.Length > 0)
-                        retourLine = "\r\n";
-
-                    texteFinal = (texteFinal
-                                + (ligneEnCoursDeLecture + retourLine));
-                }
-                iLine++;
-            }
-            sr.Close();
-            // Ré-écriture du fichier
-            try
-            {
-                StreamWriter sr2 = new StreamWriter(path);
-                sr2.WriteLine(texteFinal);
-                sr2.Close();
-                FormUtils.LogRegister("LogRegister ModifierLigneByNumber() numberLine: " + numberLine + "  nbLigneModified: " + iLineModif.ToString() + "\r\n");
-                FormUtils.LogRegister("LogRegister ModifierLigneByNumber() ligneModifiee: " + ligneModifiee + "\r\n");
-            }
-            catch (Exception ex)
-            {
-                string errorMsg = string.Format("Exception File : {0}, Error : {1}", path, ex.Message);
-                FormUtils.LogRegister("LogRegister ERROR ModifierLigneByNumber() 201 " + errorMsg + "\r\n");
-            }
-        }
-
         public static void supprimerLigne(string path, string ligne)
         {
             // Path correspond au répertoire de ton fichier!
@@ -489,41 +446,6 @@ namespace DCE_Manager.Utils
             {
                 FormUtils.LogRegister($"Erreur lors de la ré-écriture du fichier: {ex.Message}\r\n");
             }
-
-            return Ufind;
-        }
-
-
-        public static int ModifierLigneBis_OLD(string path, string ligneRecherche, string ligneModifiee)
-        {
-            int Ufind = 0;
-            string retourLine = "";
-            string texteFinal = null;
-            StreamReader sr = new StreamReader(path);
-            string ligneEnCoursDeLecture = null;
-            while ((sr.Peek() != -1))
-            {
-                ligneEnCoursDeLecture = sr.ReadLine();
-                if (ligneEnCoursDeLecture.Length >= 2 && ligneEnCoursDeLecture.Substring(0, 2) != "--" && ligneEnCoursDeLecture.IndexOf(ligneRecherche) > -1)     // && ligneEnCoursDeLecture.IndexOf(ligneModifiee) <= -1
-                {
-                    texteFinal = (texteFinal
-                                + (ligneModifiee + "\r\n"));
-                    Ufind++;
-                }
-                else
-                {
-                    if (ligneEnCoursDeLecture.Length > 0)
-                        retourLine = "\r\n";
-
-                    texteFinal = (texteFinal
-                                + (ligneEnCoursDeLecture + retourLine));
-                }
-            }
-            sr.Close();
-            // Ré-écriture du fichier
-            StreamWriter sr2 = new StreamWriter(path);
-            sr2.WriteLine(texteFinal);
-            sr2.Close();
 
             return Ufind;
         }
@@ -1384,8 +1306,31 @@ namespace DCE_Manager.Utils
             return text.ToString();
         }
 
+        public static void ConvertToBitmap(string campaignPath)
+        {
+            string bitmapPath = campaignPath + ".bmp";
+            string pngPath = campaignPath + ".png";
+            try
+            {
+                using (FileStream pngStream = new FileStream(pngPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    using (Image image = Image.FromStream(pngStream))
+                    {
+                        // Sauvegarder l'image en format BMP
+                        image.Save(bitmapPath, System.Drawing.Imaging.ImageFormat.Bmp);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors de la conversion de l'image en bitmap", pngPath, true, true);
+            }
+        }
+
+
+
+
+
     }
-
-
 }
 

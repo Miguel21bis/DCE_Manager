@@ -26,7 +26,7 @@
         /// Méthode requise pour la prise en charge du concepteur - ne modifiez pas
         /// le contenu de cette méthode avec l'éditeur de code.
         /// </summary>
-        public void InitializeComponent()
+        private void InitializeComponent()
         {
             this.components = new System.ComponentModel.Container();
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form1));
@@ -111,7 +111,7 @@
             this.textBox_ASTI = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.button_staticTemplate = new System.Windows.Forms.Button();
+            this.but_ASTI = new System.Windows.Forms.Button();
             this.button_theWay = new System.Windows.Forms.Button();
             this.VersionDceManager = new System.Windows.Forms.Label();
             this.LabelStatut = new System.Windows.Forms.Label();
@@ -138,11 +138,11 @@
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
             this.groupBox_staticTemplate = new System.Windows.Forms.GroupBox();
-            this.button4 = new System.Windows.Forms.Button();
-            this.but_templateFolder = new System.Windows.Forms.Button();
-            this.button5 = new System.Windows.Forms.Button();
-            this.ASTI_missionFile = new System.Windows.Forms.Button();
-            this.button3 = new System.Windows.Forms.Button();
+            this.but_GPS_LL = new System.Windows.Forms.Button();
+            this.but_ASTI_Open_templateFolder = new System.Windows.Forms.Button();
+            this.but_ASTI_Process = new System.Windows.Forms.Button();
+            this.but_ASTI_Browse_MissionFile = new System.Windows.Forms.Button();
+            this.but_ASTI_Browse_Template = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
             this.groupBox1.SuspendLayout();
@@ -200,7 +200,6 @@
             this.textBox_DCS.Name = "textBox_DCS";
             this.textBox_DCS.Size = new System.Drawing.Size(306, 20);
             this.textBox_DCS.TabIndex = 4;
-            //this.textBox_DCS.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
             // 
             // groupBox1
             // 
@@ -219,7 +218,6 @@
             this.groupBox1.TabIndex = 6;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Add a DCE campaign";
-            //this.groupBox1.Enter += new System.EventHandler(this.groupBox1_Enter);
             // 
             // checkBoxSanitize
             // 
@@ -366,7 +364,6 @@
             this.textBox_SavedGames.Name = "textBox_SavedGames";
             this.textBox_SavedGames.Size = new System.Drawing.Size(306, 20);
             this.textBox_SavedGames.TabIndex = 5;
-            //this.textBox_SavedGames.TextChanged += new System.EventHandler(this.textBox3_TextChanged);
             // 
             // button1
             // 
@@ -407,7 +404,6 @@
             this.label3.Size = new System.Drawing.Size(94, 13);
             this.label3.TabIndex = 14;
             this.label3.Text = "CEF and Miguel21";
-            //this.label3.Click += new System.EventHandler(this.label3_Click_1);
             // 
             // pictureBox3
             // 
@@ -417,7 +413,6 @@
             this.pictureBox3.Size = new System.Drawing.Size(54, 51);
             this.pictureBox3.TabIndex = 12;
             this.pictureBox3.TabStop = false;
-            //this.pictureBox3.Click += new System.EventHandler(this.pictureBox3_Click);
             // 
             // pictureBox2
             // 
@@ -465,7 +460,6 @@
             this.tabPage1.Size = new System.Drawing.Size(808, 437);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Install";
-            //this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click_1);
             // 
             // groupBox7
             // 
@@ -826,6 +820,7 @@
             this.buttonResetSM.TabIndex = 5;
             this.buttonResetSM.Text = "Reset";
             this.buttonResetSM.UseVisualStyleBackColor = true;
+            this.buttonResetSM.Visible = false;
             this.buttonResetSM.Click += new System.EventHandler(this.buttonResetSM_Click);
             // 
             // label12
@@ -988,7 +983,7 @@
             this.tabPage13.Controls.Add(this.textBox_ASTI);
             this.tabPage13.Controls.Add(this.label6);
             this.tabPage13.Controls.Add(this.label2);
-            this.tabPage13.Controls.Add(this.button_staticTemplate);
+            this.tabPage13.Controls.Add(this.but_ASTI);
             this.tabPage13.Controls.Add(this.button_theWay);
             this.tabPage13.Location = new System.Drawing.Point(4, 22);
             this.tabPage13.Name = "tabPage13";
@@ -1025,15 +1020,15 @@
             this.label2.TabIndex = 2;
             this.label2.Text = "All Static Template Importer";
             // 
-            // button_staticTemplate
+            // but_ASTI
             // 
-            this.button_staticTemplate.Location = new System.Drawing.Point(29, 152);
-            this.button_staticTemplate.Name = "button_staticTemplate";
-            this.button_staticTemplate.Size = new System.Drawing.Size(158, 23);
-            this.button_staticTemplate.TabIndex = 1;
-            this.button_staticTemplate.Text = "ASTI";
-            this.button_staticTemplate.UseVisualStyleBackColor = true;
-            this.button_staticTemplate.Click += new System.EventHandler(this.button_ASTI_Click);
+            this.but_ASTI.Location = new System.Drawing.Point(29, 152);
+            this.but_ASTI.Name = "but_ASTI";
+            this.but_ASTI.Size = new System.Drawing.Size(158, 23);
+            this.but_ASTI.TabIndex = 1;
+            this.but_ASTI.Text = "ASTI";
+            this.but_ASTI.UseVisualStyleBackColor = true;
+            //this.but_ASTI.Click += new System.EventHandler(this.but_ASTI_Click);
             // 
             // button_theWay
             // 
@@ -1313,11 +1308,11 @@
             // 
             // groupBox_staticTemplate
             // 
-            this.groupBox_staticTemplate.Controls.Add(this.button4);
-            this.groupBox_staticTemplate.Controls.Add(this.but_templateFolder);
-            this.groupBox_staticTemplate.Controls.Add(this.button5);
-            this.groupBox_staticTemplate.Controls.Add(this.ASTI_missionFile);
-            this.groupBox_staticTemplate.Controls.Add(this.button3);
+            this.groupBox_staticTemplate.Controls.Add(this.but_GPS_LL);
+            this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Open_templateFolder);
+            this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Process);
+            this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Browse_MissionFile);
+            this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Browse_Template);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_MissionFile);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_importTemplateFolder);
             this.groupBox_staticTemplate.Location = new System.Drawing.Point(836, 62);
@@ -1328,57 +1323,57 @@
             this.groupBox_staticTemplate.Text = "ASTI";
             this.groupBox_staticTemplate.Visible = false;
             // 
-            // button4
+            // but_GPS_LL
             // 
-            this.button4.Location = new System.Drawing.Point(44, 242);
-            this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(97, 25);
-            this.button4.TabIndex = 8;
-            this.button4.Text = "Test_LL";
-            this.button4.UseVisualStyleBackColor = true;
-            this.button4.Visible = false;
-            this.button4.Click += new System.EventHandler(this.button4_Click);
+            this.but_GPS_LL.Location = new System.Drawing.Point(44, 242);
+            this.but_GPS_LL.Name = "but_GPS_LL";
+            this.but_GPS_LL.Size = new System.Drawing.Size(97, 25);
+            this.but_GPS_LL.TabIndex = 8;
+            this.but_GPS_LL.Text = "Test_LL";
+            this.but_GPS_LL.UseVisualStyleBackColor = true;
+            this.but_GPS_LL.Visible = false;
+            //this.but_GPS_LL.Click += new System.EventHandler(this.GPS_LL_Click);
             // 
-            // but_templateFolder
+            // but_ASTI_Open_templateFolder
             // 
-            this.but_templateFolder.Location = new System.Drawing.Point(252, 34);
-            this.but_templateFolder.Name = "but_templateFolder";
-            this.but_templateFolder.Size = new System.Drawing.Size(114, 25);
-            this.but_templateFolder.TabIndex = 7;
-            this.but_templateFolder.Text = "Open folder";
-            this.but_templateFolder.UseVisualStyleBackColor = true;
-            this.but_templateFolder.Visible = false;
-            this.but_templateFolder.Click += new System.EventHandler(this.but_templateFolder_Click);
+            this.but_ASTI_Open_templateFolder.Location = new System.Drawing.Point(252, 34);
+            this.but_ASTI_Open_templateFolder.Name = "but_ASTI_Open_templateFolder";
+            this.but_ASTI_Open_templateFolder.Size = new System.Drawing.Size(114, 25);
+            this.but_ASTI_Open_templateFolder.TabIndex = 7;
+            this.but_ASTI_Open_templateFolder.Text = "Open folder";
+            this.but_ASTI_Open_templateFolder.UseVisualStyleBackColor = true;
+            this.but_ASTI_Open_templateFolder.Visible = false;
+            //this.but_ASTI_Open_templateFolder.Click += new System.EventHandler(this.but_ASTI_Open_templateFolder_Click);
             // 
-            // button5
+            // but_ASTI_Process
             // 
-            this.button5.Location = new System.Drawing.Point(185, 326);
-            this.button5.Name = "button5";
-            this.button5.Size = new System.Drawing.Size(181, 25);
-            this.button5.TabIndex = 4;
-            this.button5.Text = "Process";
-            this.button5.UseVisualStyleBackColor = true;
-            this.button5.Click += new System.EventHandler(this.button_ProcessTemplate_Click);
+            this.but_ASTI_Process.Location = new System.Drawing.Point(185, 326);
+            this.but_ASTI_Process.Name = "but_ASTI_Process";
+            this.but_ASTI_Process.Size = new System.Drawing.Size(181, 25);
+            this.but_ASTI_Process.TabIndex = 4;
+            this.but_ASTI_Process.Text = "Process";
+            this.but_ASTI_Process.UseVisualStyleBackColor = true;
+            //this.but_ASTI_Process.Click += new System.EventHandler(this.but_ASTI_Process_Click);
             // 
-            // ASTI_missionFile
+            // but_ASTI_Browse_MissionFile
             // 
-            this.ASTI_missionFile.Location = new System.Drawing.Point(44, 140);
-            this.ASTI_missionFile.Name = "ASTI_missionFile";
-            this.ASTI_missionFile.Size = new System.Drawing.Size(181, 25);
-            this.ASTI_missionFile.TabIndex = 3;
-            this.ASTI_missionFile.Text = "Select Mission file (.miz)";
-            this.ASTI_missionFile.UseVisualStyleBackColor = true;
-            this.ASTI_missionFile.Click += new System.EventHandler(this.button_ASTI_Browse_Mission_Click);
+            this.but_ASTI_Browse_MissionFile.Location = new System.Drawing.Point(44, 140);
+            this.but_ASTI_Browse_MissionFile.Name = "but_ASTI_Browse_MissionFile";
+            this.but_ASTI_Browse_MissionFile.Size = new System.Drawing.Size(181, 25);
+            this.but_ASTI_Browse_MissionFile.TabIndex = 3;
+            this.but_ASTI_Browse_MissionFile.Text = "Select Mission file (.miz)";
+            this.but_ASTI_Browse_MissionFile.UseVisualStyleBackColor = true;
+            //this.but_ASTI_Browse_MissionFile.Click += new System.EventHandler(this.but_ASTI_Browse_Mission_Click);
             // 
-            // button3
+            // but_ASTI_Browse_Template
             // 
-            this.button3.Location = new System.Drawing.Point(46, 34);
-            this.button3.Name = "button3";
-            this.button3.Size = new System.Drawing.Size(181, 25);
-            this.button3.TabIndex = 2;
-            this.button3.Text = "Select Templates folder";
-            this.button3.UseVisualStyleBackColor = true;
-            this.button3.Click += new System.EventHandler(this.button_ASTI_Browse_Template_Click);
+            this.but_ASTI_Browse_Template.Location = new System.Drawing.Point(46, 34);
+            this.but_ASTI_Browse_Template.Name = "but_ASTI_Browse_Template";
+            this.but_ASTI_Browse_Template.Size = new System.Drawing.Size(181, 25);
+            this.but_ASTI_Browse_Template.TabIndex = 2;
+            this.but_ASTI_Browse_Template.Text = "Select Templates folder";
+            this.but_ASTI_Browse_Template.UseVisualStyleBackColor = true;
+            //this.but_ASTI_Browse_Template.Click += new System.EventHandler(this.button_ASTI_Browse_Template_Click);
             // 
             // textBox_ASTI_MissionFile
             // 
@@ -1553,25 +1548,33 @@
         private System.Windows.Forms.Panel panel_News;
         private System.Windows.Forms.GroupBox groupBox7;
         private System.Windows.Forms.TabPage tabPage13;
-        private System.Windows.Forms.Button button_staticTemplate;
+
         private System.Windows.Forms.Button button_theWay;
-        private System.Windows.Forms.GroupBox groupBox_staticTemplate;
-        private System.Windows.Forms.Button button5;
-        private System.Windows.Forms.Button ASTI_missionFile;
-        private System.Windows.Forms.Button button3;
-        private System.Windows.Forms.TextBox textBox_ASTI_MissionFile;
-        private System.Windows.Forms.TextBox textBox_ASTI_importTemplateFolder;
+        public System.Windows.Forms.GroupBox groupBox_staticTemplate;
+        
+
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Button but_templateFolder;
-        private System.Windows.Forms.TextBox textBox_ASTI;
-        private System.Windows.Forms.Button button4;
+
+        
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Button butClient;
         private System.Windows.Forms.Button but_Expert;
         private System.Windows.Forms.GroupBox groupBox8;
         private System.Windows.Forms.GroupBox groupBox5;
         private System.Windows.Forms.Button butCampMaker;
+
+        public System.Windows.Forms.Button but_ASTI;
+        public System.Windows.Forms.Button but_ASTI_Browse_Template;
+        public System.Windows.Forms.Button but_ASTI_Open_templateFolder;
+        public System.Windows.Forms.Button but_ASTI_Browse_MissionFile;
+        private System.Windows.Forms.Button but_ASTI_Process;
+
+        private System.Windows.Forms.Button but_GPS_LL;
+
+        public System.Windows.Forms.TextBox textBox_ASTI_MissionFile;
+        public System.Windows.Forms.TextBox textBox_ASTI_importTemplateFolder;
+        private System.Windows.Forms.TextBox textBox_ASTI;
     }
 }
 

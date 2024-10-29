@@ -21,6 +21,7 @@ using System.Security.Cryptography;
 using System.Management;
 using DCE_Manager.Utils;
 using DCE_Manager.Parameters;
+//using DCE_Manager.ASTI;
 using Ookii.Dialogs.WinForms;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
@@ -59,6 +60,19 @@ namespace DCE_Manager
             InitializeComponent();
 
             Instance = this;  // Initialiser l'instance statique dans le constructeur
+            
+            // Abonnement aux événements de boutons avec les méthodes de la classe ASTI
+            but_ASTI.Click += (sender, e) => ASTI.but_ASTI_Click(this);
+
+            but_ASTI_Browse_Template.Click += (sender, e) => ASTI.but_ASTI_Browse_Template_Click(this);
+            but_ASTI_Open_templateFolder.Click += (sender, e) => ASTI.but_ASTI_Open_templateFolder_Click(this);
+
+            but_ASTI_Browse_MissionFile.Click += (sender, e) => ASTI.but_ASTI_Browse_Mission_Click(this);
+            
+            but_ASTI_Process.Click += (sender, e) => ASTI.but_ASTI_Process_Click(this);
+
+            but_GPS_LL.Click += (sender, e) => ASTI.GPS_LL_Click(this);
+
 
 
             tabControl.Selected += new TabControlEventHandler(tabControl1_Selected);
@@ -167,7 +181,7 @@ namespace DCE_Manager
                         {
                             string nbL = entry.Value;
                             SharedData.textBox_ASTI_importTemplateFolder = nbL;
-                            but_templateFolder.Visible = true;
+                            but_ASTI_Open_templateFolder.Visible = true;
                         }
 
                         
@@ -1507,7 +1521,7 @@ namespace DCE_Manager
 
         public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
         {
-            //MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? "+ checkBox_OvwNGfolder.Checked.ToString());
+            MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? " + checkBox_OvwNGfolder.Checked.ToString());
 
             using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
             {
@@ -1554,19 +1568,44 @@ namespace DCE_Manager
                         // Vérification pour "ScriptsMod.NG"
                         if (words.Contains("ScriptsMod.NG"))
                         {
-                            string scriptsModPath = Path.Combine(destinationDirectoryName, "ScriptsMod.NG");
+                            // Construire le chemin complet vers le dossier ScriptsMod.NG en utilisant le répertoire de base (destinationRoot)
+                            string scriptsModPath = Path.Combine(destinationDirectoryName, "Mods", "tech", "DCE", "ScriptsMod.NG");
 
                             // Vérifier si le dossier ScriptsMod.NG existe déjà et s'il contient UTIL_Changelog.lua
                             if (Directory.Exists(scriptsModPath) && File.Exists(Path.Combine(scriptsModPath, "UTIL_Changelog.lua")))
                             {
-                                extractAutorise = false;// Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
+                                extractAutorise = false; // Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
 
-                                if (checkBox_OvwNGfolder.Checked) 
+                                // Permettre l'extraction uniquement si la case checkBox_OvwNGfolder est cochée
+                                if (checkBox_OvwNGfolder.Checked)
                                 {
-                                    extractAutorise = true; 
+                                    extractAutorise = true;
                                 }
                             }
                         }
+
+
+                        //// Vérification pour "ScriptsMod.NG"
+                        //if (words.Contains("ScriptsMod.NG"))
+                        //{
+                        //    string scriptsModPath = Path.Combine(destinationDirectoryName, @"\Mods\tech\DCE\ScriptsMod.NG");
+
+                        //    FormUtils.LogRegister("Passe A if (words.Contains(ScriptsMod.NG)) " + scriptsModPath + " | extractAutorise ? " + extractAutorise.ToString());
+
+                        //    // Vérifier si le dossier ScriptsMod.NG existe déjà et s'il contient UTIL_Changelog.lua
+                        //    if (Directory.Exists(scriptsModPath) && File.Exists(Path.Combine(scriptsModPath, "UTIL_Changelog.lua")))
+                        //    {
+                        //        extractAutorise = false;// Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
+
+                        //        FormUtils.LogRegister("Passe B if UTIL_Changelog.lua exist | extractAutorise? " + extractAutorise.ToString());
+
+                        //        if (checkBox_OvwNGfolder.Checked) 
+                        //        {
+                        //            extractAutorise = true;
+                        //            FormUtils.LogRegister("Passe B if checkBox_OvwNGfolder.Checked | extractAutorise? " + extractAutorise.ToString());
+                        //        }
+                        //    }
+                        //}
                         else
                         {
                             foreach (string word in words)
@@ -2794,7 +2833,7 @@ namespace DCE_Manager
 
             Cursor.Current = Cursors.WaitCursor;
 
-            bool findNameCampaign = false;
+            //bool findNameCampaign = false;
             //bool findScriptsMod = false;
 
             string NameCampaign = "";
@@ -2855,7 +2894,7 @@ namespace DCE_Manager
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimStart();
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimEnd();
                                             NameCampaign = ParamCampaign.NameCampaign;
-                                            findNameCampaign = true;
+                                            //findNameCampaign = true;
                                             break;
                                         }
                                     }
@@ -3770,12 +3809,12 @@ namespace DCE_Manager
 
         }
 
-        public void ConvertToBitmap(string fileName)
-        {
-            var bmp1 = Image.FromFile(fileName + ".png");
-            bmp1.Save(fileName + ".bmp", System.Drawing.Imaging.ImageFormat.Bmp);
+        //public void ConvertToBitmap(string fileName)
+        //{
+        //    var bmp1 = Image.FromFile(fileName + ".png");
+        //    bmp1.Save(fileName + ".bmp", System.Drawing.Imaging.ImageFormat.Bmp);
 
-        }
+        //}
 
         int HLigne = 44; //hauteur des lignes du tableau        //24 initialement
         //int HLigne = 30; //hauteur des lignes du tableau
@@ -3812,7 +3851,7 @@ namespace DCE_Manager
             tabPage2.Controls.Add(pictureBox2);
             if (!File.Exists(path + ".bmp"))
             {
-                ConvertToBitmap(path);
+                FormUtils.ConvertToBitmap(path);
             }
 
             //coupe le lien, permet de supprimer l'image sans erreur
@@ -3829,8 +3868,9 @@ namespace DCE_Manager
 
             return pictureBox2;
         }
+
         // Affiche une icône de campagne dans un PictureBox
-        public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string imagePath)
+        public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string campaignPath)
         {
             var pictureBox2 = new System.Windows.Forms.PictureBox
             {
@@ -3843,31 +3883,33 @@ namespace DCE_Manager
             tabPage2.Controls.Add(pictureBox2);
 
             // Vérifie si l'image existe en format .bmp, sinon la crée
-            string bitmapPath = imagePath + ".bmp";
+            string bitmapPath = campaignPath + ".bmp";
             if (!File.Exists(bitmapPath))
             {
-                ConvertToBitmap(imagePath);
+                FormUtils.ConvertToBitmap(campaignPath);
             }
 
-            // Charger l'image sans verrouiller le fichier
+            // Charger l'image BMP sans verrouiller le fichier
             try
             {
-                using (FileStream fs = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     pictureBox2.Image?.Dispose(); // Libère l'ancienne image si elle existe
-                    pictureBox2.Image = new Bitmap(fs); // Charge l'image dans le PictureBox
+                    pictureBox2.Image = new Bitmap(bmpStream); // Charge l'image dans le PictureBox
                 }
             }
             catch (Exception ex)
             {
-                FormUtils.ErrorGeneral_BoxOrLog(ex, "Error loading image", bitmapPath, true, true);
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du chargement de l'image BMP", bitmapPath, true, true);
             }
 
             // Assignation de l'événement clic
-            pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, imagePath, nameCamp);
+            pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, campaignPath, nameCamp);
 
             return pictureBox2;
         }
+
+
 
 
 
@@ -4645,6 +4687,9 @@ namespace DCE_Manager
 
             else if (e.TabPage == tabPage2)
             {
+                // Afficher le curseur en cercle tournant
+                Cursor.Current = Cursors.WaitCursor;
+
                 groupBoxDroiteAccueil.Visible = false;
                 groupBoxCampEdit.Visible = true;
                 groupBox_staticTemplate.Visible = false;
@@ -4653,6 +4698,7 @@ namespace DCE_Manager
                 tabPage9.Controls.Clear();
                 tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
+                int nbCampaign = 0;
 
                 bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
                 if (folderCampExists)
@@ -4677,6 +4723,7 @@ namespace DCE_Manager
 
                         if (fileExistPathBat)
                         {
+                            nbCampaign++;
                             string FileToRead = PathBatFile;
                             using (StreamReader ReaderObject = new StreamReader(FileToRead))
                             {
@@ -4780,10 +4827,7 @@ namespace DCE_Manager
                                     erreurPath = false;
                             }
 
-                            //}
-
-
-
+                            
                             //Cherche la version de la campagne
                             bool CampaignOriginal = false;
                             string VerCamp = "";
@@ -4820,11 +4864,9 @@ namespace DCE_Manager
                                 }
                             }
 
-                            //if (CampaignOriginal)
-                            //{
-                                DrawIconPlus(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-                            //}
-
+                           
+                            DrawIconPlus(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
+                       
 
                             //Cherche le nombre de mission joué
                             //['mission'] = 1,
@@ -4851,28 +4893,8 @@ namespace DCE_Manager
                                 }
                             }
 
-                            //ParamManager.pathManager
-
                             //cherche si une campagne doit etre reset a la suite d'un update
                             var campaignNameTab = new Dictionary<string, string>();
-
-                            //TODO refaire avec le nouveau dictionary
-                            //if (File.Exists(ParamManager.pathManager + "options.txt"))
-                            //{
-                            //    string FileToRead2 = ParamManager.pathManager + "options.txt";
-                            //    using (StreamReader ReaderObject = new StreamReader(FileToRead2))
-                            //    {
-                            //        string Line = "";
-                            //        while ((Line = ReaderObject.ReadLine()) != null)
-                            //        {
-                            //            if (Line.IndexOf("resetMission=") > -1)
-                            //            {
-                            //                string[] temp = Line.Split('=');
-                            //                campaignNameTab[temp[1]] = temp[2];
-                            //            }
-                            //        }
-                            //    }
-                            //}
 
                             string colorFM = "";
                             string colorSM = "";
@@ -5049,30 +5071,40 @@ namespace DCE_Manager
                                 CheckboxDel(NameCamp);
 
                             }
-                        }                      
+                        }
+                        
                     }
-                    //ajoute ici le bouton delete
+
+
+                    //ajoute ici le bouton Delete
                     System.Windows.Forms.Button but = new System.Windows.Forms.Button();
 
                     //pictureBox3.Location = new Point(730 + DecalLargeur, ((A) * HLigne) - 20); //+20 largeur
 
-                    tabPage2.Controls.Add(but);
-                    but.Top = B * HLigne + 20;
-                    but.Left = 690;// + DecalLargeur;
-                    but.Size = new System.Drawing.Size(80, HLigne - 10);
-                    but.Font = new Font("Georgia", 7);
-                    but.Text = "Delete";
+                    if(nbCampaign > 0)
+                    {
+                        tabPage2.Controls.Add(but);
+                        but.Top = B * HLigne + 20;
+                        but.Left = 690;// + DecalLargeur;
+                        but.Size = new System.Drawing.Size(80, HLigne - 10);
+                        but.Font = new Font("Georgia", 7);
+                        but.Text = "Delete";
 
-                    but.UseVisualStyleBackColor = true;
-                    but.BackColor = SystemColors.Control;
+                        but.UseVisualStyleBackColor = true;
+                        but.BackColor = SystemColors.Control;
 
-                    but.Cursor = System.Windows.Forms.Cursors.Hand;
-                    but.Click += new EventHandler(this.but_delete_campaign_Click);
+                        but.Cursor = System.Windows.Forms.Cursors.Hand;
+                        but.Click += new EventHandler(this.but_delete_campaign_Click);
+                    }
+
                 }
                 else
                 {
-                    MessageBox.Show("\"DCS Saved Game Folder\" path must be filled in the Instal tab ", "Report");
+                    //MessageBox.Show("\"DCS Saved Game Folder\" path must be filled in the Instal tab ", "Report");
                 }
+
+                // Remettre le curseur par défaut à la fin de la tâche
+                Cursor.Current = Cursors.Default;
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -7108,571 +7140,7 @@ namespace DCE_Manager
             }
         }
 
-        //**************************ASTI***************************************************************
-        //**************************ASTI***************************************************************
-        //**************************ASTI***************************************************************
-        //**************************ASTI***************************************************************
-        //**************************ASTI***************************************************************
-
-
-
-        private void button_ASTI_Click(object sender, EventArgs e)
-        {
-            textBox_ASTI_MissionFile.Text = SharedData.textBox_ASTI_MissionFile;
-            textBox_ASTI_importTemplateFolder.Text = SharedData.textBox_ASTI_importTemplateFolder;
-
-            groupBoxDroiteAccueil.Visible = false;
-            groupBox_staticTemplate.Visible = true;
-
-        }
-
-        private void button_ASTI_Browse_Template_Click(object sender, EventArgs e)
-        {
-            // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-            using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-            {
-                // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-                if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-                {
-                    MessageBox.Show("This feature is not supported on your version of Windows.");
-                    return;
-                }
-
-                // Définir les propriétés du dialogue de dossier
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-                folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
-
-                // Pré-sélectionner le répertoire "Saved Games"
-                string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-                if (Directory.Exists(savedGamesPath))
-                {
-                    folderBrowserDialog.SelectedPath = savedGamesPath;
-                }
-
-                // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-                if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                {
-                    // Récupérer le chemin du dossier sélectionné
-                    string folderPath = folderBrowserDialog.SelectedPath;
-
-                    // Afficher le chemin dans la TextBox
-                    textBox_ASTI_importTemplateFolder.Text = folderPath;
-                    SharedData.textBox_ASTI_importTemplateFolder = folderPath;
-                    but_templateFolder.Visible = true;
-                }
-                else
-                {
-                    FormUtils.ShowErrorMessage("No folder selected");
-                }
-            }
-        }
-
-
-        private void button_ASTI_Browse_Mission_Click(object sender, EventArgs e)
-        {
-
-            // Créer une instance de OpenFileDialog
-            OpenFileDialog openFileDialog = new OpenFileDialog();
-
-            // Définir les propriétés du dialogue de fichier
-            openFileDialog.Title = "Select a .miz file";
-
-            // Définir le dossier initial à "Saved Games" du répertoire utilisateur
-            openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-
-            // Définir le filtre pour n'afficher que les fichiers .miz
-            openFileDialog.Filter = "Files .miz (*.miz)|*.miz";
-            openFileDialog.FilterIndex = 1; // Sélectionne le premier filtre
-            openFileDialog.Multiselect = false; // Permet de sélectionner un seul fichier
-
-            // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un fichier
-            if (openFileDialog.ShowDialog() == DialogResult.OK)
-            {
-                // Récupérer le chemin du fichier sélectionné
-                string filePath = openFileDialog.FileName;
-                //Console.WriteLine("Fichier sélectionné : " + filePath);
-
-                textBox_ASTI_MissionFile.Text = filePath;
-                SharedData.textBox_ASTI_MissionFile = filePath;
-            }
-            else
-            {
-                //Console.WriteLine("Aucun fichier sélectionné.");
-            }
-        }
-
-
-        // Fonction pour charger le template en fonction du nom
-        static Lua LoadTemplateByName(string templateFilePath, string marqueurName, Lua lua)
-        {
-            Boolean findFile = false;
-            string testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".stm";
-
-            // Remplacer les doubles barres obliques inverses par une seule
-            testFile = testFile.Replace(@"\\", @"\");
-
-            if (File.Exists(testFile))
-            {
-                lua.DoFile(testFile);
-               AddTemplateInMission(marqueurName, lua);
-                findFile = true;
-            }
-
-            if (findFile == false )
-            {
-                testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".miz";
-                // Remplacer les doubles barres obliques inverses par une seule
-                testFile = testFile.Replace(@"\\", @"\");
-
-                if (File.Exists(testFile))
-                {
-                    //lua.DoFile(templateFilePath);
-                    //AddTemplateInMission(marqueurName, lua);
-                    findFile = true;
-
-                    try
-                    {
- 
-                        string fileMissionAsTemplateStr = null;
-
-                        // Ouvrir le fichier ZIP en lecture seule
-                        using (FileStream zipFileStream = new FileStream(testFile, FileMode.Open, FileAccess.Read))
-                        {
-                            using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Read))
-                            {
-                                // Rechercher le fichier "mission" dans le fichier ZIP
-                                ZipArchiveEntry fileMission = archive.GetEntry("mission");
-
-                                if (fileMission != null)
-                                {
-                                    // Lire le contenu du fichier "mission"
-                                    using (StreamReader reader = new StreamReader(fileMission.Open()))
-                                    {
-                                        fileMissionAsTemplateStr = reader.ReadToEnd();
-                                    }
-
-                                    // Remplacer le nom de la table de "mission =" à "staticTemplate ="
-                                    fileMissionAsTemplateStr = fileMissionAsTemplateStr.Replace("mission =", "staticTemplate =");
-
-                                    //*****************************dictionary***********************************
-                                    // Rechercher le fichier "dictionary" dans le sous-répertoire "l10n/DEFAULT"
-                                    ZipArchiveEntry dictionary = archive.GetEntry("l10n/DEFAULT/dictionary");
-
-                                    if (dictionary != null)
-                                    {
-                                        //MessageBox.Show("passe A dictionary non nul");
-                                        // Lire le contenu du fichier "fileMapResource"
-                                        using (Stream entryStream = dictionary.Open())
-                                        {
-                                            using (StreamReader reader = new StreamReader(entryStream))
-                                            {
-                                                string dictionaryStr = reader.ReadToEnd();
-                                                lua.DoString(dictionaryStr); // Charger le fichier Lua
-                                            }
-                                        }
-                                    }
-
-                                     lua.DoString(fileMissionAsTemplateStr); 
-                                    AddTemplateInMission(marqueurName, lua);
-                                }
-                                else
-                                {
-                                    //MessageBox.Show($"Le fichier '{testFile}' n'a pas été trouvé dans l'archive ZIP.", "Erreur");
-                                    FormUtils.ShowErrorMessage($"The file ‘{ testFile}’ was not found in the ZIP archive. ");
-                                }
-                            }
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        FormUtils.ErrorGeneral_BoxOrLog(ex, "LoadTemplateByName", testFile, true, true);
-                    }
-                }
-            }
-
-            if(findFile == false)
-            {
-                //MessageBox.Show($"Le fichier template '{templateFilePath}' n'existe pas.", "ERROR LoadTemplateByName");
-                FormUtils.ShowErrorMessage($"The template file ‘{ templateFilePath}’ does not exist.");
-                //Console.WriteLine($"Le fichier template '{templateFilePath}' n'existe pas.");
-            }
-            return lua;
-        }
-
-        // Méthode de débogage C#
-        public static void LuaPrint(string message)
-        {
-            MessageBox.Show(message, "Debug Lua");
-        }
-
-        // Fonction C# pour afficher un message avec OK/Cancel
-        public static bool ShowConfirmationDialog(string message)
-        {
-            DialogResult result = MessageBox.Show(message, "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
-            return result == DialogResult.OK;
-        }
         
-        static Tuple<string, string, string, string, Boolean> ReadMission(string fileMissionStr, Lua lua)
-        {
-
-            // Enregistrer la fonction de débogage C#
-            lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
-
-            // Enregistrer la fonction de confirmation C#
-            lua.RegisterFunction("ShowConfirmationDialog", typeof(Form1).GetMethod("ShowConfirmationDialog"));
-
-
-            if (fileMissionStr != null)
-            {
-
-                lua.DoString(fileMissionStr); // Charger le fichier Lua Mission
-
-                string luaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_function.lua");
-                lua.DoFile(luaFilePath);
-
-                string luaTemplateFunctionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_template.lua");
-                lua.DoFile(luaTemplateFunctionFilePath);
-
-                // Appeler la fonction Lua getReperesInMission
-                LuaFunction getReperesInMission = lua.GetFunction("getReperesInMission");
-                var result = getReperesInMission.Call();  // Appeler la fonction
-                
-                // Récupérer le premier résultat retourné (repereToCallTemplate)
-                var reperesInMission = result[0] as LuaTable;
-                
-                // Vérifier si la table est récupérée avec succès
-                if (reperesInMission != null)
-                {
-                    // Parcourir les entrées de la table Lua
-                    foreach (var key in reperesInMission.Keys)
-                    {
-                        var entry = reperesInMission[key] as LuaTable;
-                        if (entry != null)
-                        {
-                            // Récupérer les valeurs de chaque entrée
-                            double x = (double)entry["x"];
-                            double y = (double)entry["y"];
-                            string templateName = entry["templateName"].ToString();
-                            string sideName = entry["sideName"].ToString();
-                            string marqueurName = entry["name"].ToString();
-                            //int countryId = (int)entry["countryId"];
-
-                            // Convertir en entier en toute sécurité
-                            int countryId = Convert.ToInt32(entry["countryId"]);
-
-
-                            //// Charger le template en fonction du nom du fichier
-                            LoadTemplateByName(templateName, marqueurName, lua);
-                        }
-                    }
-                }
-                else
-                {
-                    FormUtils.ShowErrorMessage("repereToCallTemplate Vide ");
-                }
-            }
-
-            // accéder aux données et fonctions Lua dans le script C#...
-            var missionTable = lua["mission"] as LuaTable;
-            var staticTemplateTable = lua["staticTemplate"] as LuaTable;
-            var ASTI_refTable = lua["ASTI_ref"] as LuaTable;
-            var templateGroupId_refId_Table = lua["templateGroupId_refId"] as LuaTable;
-            var mapResourceTable = lua["mapResource"] as LuaTable;
-            Boolean cancelVar = Convert.ToBoolean(lua["cancelVar"]);
-
-            //var cancelVarTest = lua["cancelVar"] as LuaTable;
-            //MessageBox.Show("cancelVar " + cancelVarTest.ToString(), "Info");
-            //Boolean cancelVar = Convert.ToBoolean(cancelVarTest);
-
-            string missionString = lua.GetFunction("tableToString").Call(missionTable)[0] as string;
-            missionString = "mission = \r" + missionString;
-
-            string ASTI_refString = lua.GetFunction("tableToString").Call(ASTI_refTable)[0] as string;
-            ASTI_refString = "ASTI_ref = \r" + ASTI_refString;
-
-            string templateGroupId_refId_String = lua.GetFunction("tableToString").Call(templateGroupId_refId_Table)[0] as string;
-            templateGroupId_refId_String = "templateGroupId_refId = \r" + templateGroupId_refId_String;
-
-            string mapResourceString = lua.GetFunction("tableToString").Call(mapResourceTable)[0] as string;
-            mapResourceString = "mapResource = \r" + mapResourceString;
-
-            // Retourner un Tuple contenant les deux chaînes
-            return Tuple.Create(missionString, ASTI_refString, templateGroupId_refId_String, mapResourceString, cancelVar);
-
-        }
-
-        // Fonction AddTemplateInMission
-        static Lua AddTemplateInMission(string marqueurName, Lua lua)
-        {
-
-            // Enregistrer la fonction de débogage C#
-            lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
-
-            // Appeler la fonction Lua getReperesInMission
-            LuaFunction addTemplateInMission = lua.GetFunction("addTemplateInMission");
-            addTemplateInMission.Call(marqueurName);  // Appeler la fonction
-
-            return lua;
-            
-        }
-
-        private void button_ProcessTemplate_Click(object sender, EventArgs e)
-        {
-            string zipFilePath = textBox_ASTI_MissionFile.Text;
-            string fileNameToRead = "mission";
-            string fileASTIRefPath = "l10n/DEFAULT/ASTI_ref"; // Chemin relatif dans le ZIP
-            string fileMapResourcePath = "l10n/DEFAULT/mapResource";
-            ZipArchiveEntry fileMission = null;
-            ZipArchiveEntry fileASTIRef = null;
-            ZipArchiveEntry fileMapResource = null;
-            string fileMissionStr = null;
-            string newMission = null;
-            string fileASTIRefStr = null;
-            string fileMapResourceStr = null;
-
-            Lua lua = new Lua();
-
-            //M*****************************************************************
-            //load .miz et fichier mission
-            //M*****************************************************************
-
-
-            if (textBox_ASTI_MissionFile.Text != null && textBox_ASTI_importTemplateFolder.Text != "")
-            {
-                
-                SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
-
-                SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
-                
-                try
-                {
-                    // Ouvrir le fichier ZIP en mode mise à jour
-                    using (FileStream zipFileStream = new FileStream(zipFilePath, FileMode.Open, FileAccess.ReadWrite))
-                    {
-                        using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Update))
-                        {
-                            // Rechercher le fichier "mission" dans le fichier ZIP
-                            foreach (var en in archive.Entries)
-                            {
-                                if (en.FullName.EndsWith(fileNameToRead, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    fileMission = en;
-                                    break;
-                                }
-                            }
-
-
-                            //****************************ASTI_ref**************************************
-                            // Rechercher le fichier "ASTI_ref" dans le sous-répertoire "l10n/DEFAULT"
-                            fileASTIRef = archive.GetEntry(fileASTIRefPath);
-
-                            if (fileASTIRef != null)
-                            {
-                                // Lire le contenu du fichier "ASTI_ref"
-                                using (Stream entryStream = fileASTIRef.Open())
-                                {
-                                    using (StreamReader reader = new StreamReader(entryStream))
-                                    {
-                                        fileASTIRefStr = reader.ReadToEnd();
-                                        lua.DoString(fileASTIRefStr); // Charger le fichier Lua
-                                        //FormUtils.LogRegister("A fileASTIRefStr " + fileASTIRefStr);
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                // Si le fichier n'existe pas, on le crée
-                                fileASTIRefStr = ""; // Créer un contenu vide ou autre contenu par défaut
-
-                                //FormUtils.ShowErrorMessage("A ASTI_ref non trouvé ");
-                            }
-
-                            //*****************************mapResource***********************************
-                            // Rechercher le fichier "mapResource" dans le sous-répertoire "l10n/DEFAULT"
-                            fileMapResource = archive.GetEntry(fileMapResourcePath);
-
-                            if (fileMapResource != null)
-                            {
-                                // Lire le contenu du fichier "fileMapResource"
-                                using (Stream entryStream = fileMapResource.Open())
-                                {
-                                    using (StreamReader reader = new StreamReader(entryStream))
-                                    {
-                                        fileMapResourceStr = reader.ReadToEnd();
-                                        //MessageBox.Show("fileMapResourceStr " + fileMapResourceStr, "debug");
-
-                                        lua.DoString(fileMapResourceStr); // Charger le fichier Lua
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                foreach (var en in archive.Entries)
-                                {
-                                    // Afficher tous les noms des fichiers dans l'archive
-                                    FormUtils.LogRegister("ZIP Entry: " + en.FullName);
-                                }
-
-
-                                FormUtils.LogRegister(fileMapResourcePath);
-                                // Si le fichier n'existe pas
-                                FormUtils.ShowErrorMessage("the MapResource file cannot be found in the .miz file "
-                                    + "/r"
-                                    + fileMapResourcePath.ToString());
-                                //MessageBox.Show("the MapResource file cannot be found in the .miz file "
-                                //    + "/r"
-                                //    + fileMapResourcePath.ToString(), "Error");
-                            }
-
-                            if (fileMission != null)
-                            {
-                                // Lire le contenu du fichier "mission" dans le ZIP
-                                using (Stream entryStream = fileMission.Open())
-                                {
-                                    using (StreamReader reader = new StreamReader(entryStream))
-                                    {
-                                        fileMissionStr = reader.ReadToEnd();
-                                    }
-                                }
-
-                                // Appel de la méthode ReadMission
-                                var result = ReadMission(fileMissionStr, lua);
-
-                                if (result == null)
-                                {
-                                    MessageBox.Show("result est null", "Error");
-                                    return;  // Sortir de la méthode si result est null
-                                }
-
-                                // Récupérer les valeurs
-                                newMission = result.Item1;
-                                string newASTI_ref = result.Item2;
-                                string templateGroupId_refId = result.Item3;
-                                string newMapResource = result.Item4;
-                                Boolean cancelVar = result.Item5;
-
-                                //FormUtils.LogRegister("C newASTI_ref " + newASTI_ref);
-
-                                //MessageBox.Show("cancelVar "+cancelVar, "Info");
-                                if (cancelVar == true)
-                                {
-                                    return;
-                                }
-                                    
-
-                                // Supprimer l'entrée existante pour la mission
-                                fileMission.Delete();
-
-                                // Ajouter la nouvelle entrée "mission" avec les modifications
-                                ZipArchiveEntry newEntry = archive.CreateEntry(fileNameToRead);
-                                using (StreamWriter writer = new StreamWriter(newEntry.Open()))
-                                {
-                                    writer.Write(newMission);
-                                }
-
-
-                                // Supprimer l'entrée existante de "ASTI_ref"
-                                if (fileASTIRef != null)
-                                {
-                                    fileASTIRef.Delete();  // Supprimer l'entrée ASTI_ref existante
-                                }
-                                
-
-                                // Créer et ajouter la nouvelle entrée "ASTI_ref"
-                                ZipArchiveEntry newEntryASTI = archive.CreateEntry(fileASTIRefPath);
-                                using (StreamWriter writer = new StreamWriter(newEntryASTI.Open()))
-                                {
-                                    //writer.Write(newASTI_ref);
-
-                                    // Concaténer les deux tables
-                                    string combinedString = newASTI_ref + templateGroupId_refId;
-
-                                    // Écrire les deux tables concaténées dans le fichier
-                                    writer.Write(combinedString);
-                                }
-
-
-                                // Supprimer l'entrée existante de "fileMapResource"
-                                if (fileMapResource != null)
-                                {
-                                    fileMapResource.Delete();  // Supprimer l'entrée fileMapResource existante
-                                }
-                                
-
-                                // Créer et ajouter la nouvelle entrée "MapResource"
-                                ZipArchiveEntry newEntryMapResource = archive.CreateEntry(fileMapResourcePath);
-                                using (StreamWriter writer = new StreamWriter(newEntryMapResource.Open()))
-                                {
-                                    //FormUtils.LogRegister("D newASTI_ref " + newASTI_ref);
-                                    writer.Write(newMapResource);
-                                }
-
-                                
-
-                            }
-                            else
-                            {
-                                //MessageBox.Show($"Le fichier '{fileNameToRead}' n'a pas été trouvé dans l'archive ZIP.", "error 7606");
-                                FormUtils.ShowErrorMessage($"The file ‘{fileNameToRead}’ was not found in the ZIP archive.");
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "button_ProcessTemplate_Click", zipFilePath, true, true);
-                }
-
-                if (newMission != null)
-                {
-                    MessageBox.Show("Process OK : ", "Info");
-                }
-
-            }
-
-        }
-
-        private void but_templateFolder_Click(object sender, EventArgs e)
-        {
-           
-            // Remplacez "C:\Votre\Chemin\Vers\Le\Dossier" par le chemin réel de votre dossier
-            string dossierAouvrir = SharedData.textBox_ASTI_importTemplateFolder;
-
-            // Vérifiez si le dossier existe avant de l'ouvrir
-            if (Directory.Exists(dossierAouvrir))
-            {
-                Process.Start(dossierAouvrir);
-            }
-            else
-            {
-                // Afficher un message d'erreur si le dossier n'existe pas
-                MessageBox.Show("The specified folder does not exist.", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-
-        }
-
-        public void button4_Click(object sender, EventArgs e)
-        {
-            //Proj_NET.TestPositionLL(new string[] { "500000", "450000" });
-
-
-            //MessageBox.Show("Zlib version2: " + version2, "");
-
-            Proj_NET.TestProg(0, 0);
-            Proj_NET.TestProg(-560000, 380000);
-
-            Proj_NET.TestProg(1129937, 379982);
-
-            Proj_NET.TestProg(1125256, -595066);
-
-            Proj_NET.TestProg(-559999, -559999);
-
-
-            //new string[] { "500000", "450000" };
-            //
-        }
 
         private void butClient_Click(object sender, EventArgs e)
         {
@@ -7735,7 +7203,7 @@ namespace DCE_Manager
             CampUpdateButton.Visible = true;
             C_DataMap.Visible = true;
             C_DataMapCity.Visible = true;
-            button4.Visible = true;
+            but_GPS_LL.Visible = true;
             //checkBoxSanitize.Visible = true;
             LabelStatut.Text = "DEV";
             ScriptsModUpdateButton.Text = "Update DEV";
@@ -7743,5 +7211,567 @@ namespace DCE_Manager
         }
 
     }
+
+    //        public static void button_ASTI_Click(object sender, EventArgs e)
+    //        {
+    //            // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+    //            Form1.Instance.UpdateSharedData();
+
+    //            Form1.textBox_ASTI_MissionFile.Text = SharedData.textBox_ASTI_MissionFile;
+    //            textBox_ASTI_importTemplateFolder.Text = SharedData.textBox_ASTI_importTemplateFolder;
+
+    //            groupBoxDroiteAccueil.Visible = false;
+    //            groupBox_staticTemplate.Visible = true;
+
+
+    //        }
+    //    private void but_ASTI_Browse_Template_Click(object sender, EventArgs e)
+    //    {
+    //        // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
+    //        using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
+    //        {
+    //            // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
+    //            if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
+    //            {
+    //                MessageBox.Show("This feature is not supported on your version of Windows.");
+    //                return;
+    //            }
+
+    //            // Définir les propriétés du dialogue de dossier
+    //            folderBrowserDialog.Description = "Select a folder";
+    //            folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
+    //            folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
+
+    //            // Pré-sélectionner le répertoire "Saved Games"
+    //            string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
+    //            if (Directory.Exists(savedGamesPath))
+    //            {
+    //                folderBrowserDialog.SelectedPath = savedGamesPath;
+    //            }
+
+    //            // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
+    //            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+    //            {
+    //                // Récupérer le chemin du dossier sélectionné
+    //                string folderPath = folderBrowserDialog.SelectedPath;
+
+    //                // Afficher le chemin dans la TextBox
+    //                textBox_ASTI_importTemplateFolder.Text = folderPath;
+    //                SharedData.textBox_ASTI_importTemplateFolder = folderPath;
+    //                but_ASTI_Open_templateFolder.Visible = true;
+    //            }
+    //            else
+    //            {
+    //                //FormUtils.ShowErrorMessage("No folder selected");
+    //            }
+    //        }
+    //    }
+
+
+    //    private void but_ASTI_Browse_Mission_Click(object sender, EventArgs e)
+    //    {
+
+    //        // Créer une instance de OpenFileDialog
+    //        OpenFileDialog openFileDialog = new OpenFileDialog();
+
+    //        // Définir les propriétés du dialogue de fichier
+    //        openFileDialog.Title = "Select a .miz file";
+
+    //        // Définir le dossier initial à "Saved Games" du répertoire utilisateur
+    //        openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
+
+    //        // Définir le filtre pour n'afficher que les fichiers .miz
+    //        openFileDialog.Filter = "Files .miz (*.miz)|*.miz";
+    //        openFileDialog.FilterIndex = 1; // Sélectionne le premier filtre
+    //        openFileDialog.Multiselect = false; // Permet de sélectionner un seul fichier
+
+    //        // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un fichier
+    //        if (openFileDialog.ShowDialog() == DialogResult.OK)
+    //        {
+    //            // Récupérer le chemin du fichier sélectionné
+    //            string filePath = openFileDialog.FileName;
+    //            //Console.WriteLine("Fichier sélectionné : " + filePath);
+
+    //            textBox_ASTI_MissionFile.Text = filePath;
+    //            SharedData.textBox_ASTI_MissionFile = filePath;
+    //        }
+    //        else
+    //        {
+    //            //Console.WriteLine("Aucun fichier sélectionné.");
+    //        }
+    //    }
+
+
+    //    // Fonction pour charger le template en fonction du nom
+    //    static Lua LoadTemplateByName(string templateFilePath, string marqueurName, Lua lua)
+    //    {
+    //        Boolean findFile = false;
+    //        string testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".stm";
+
+    //        // Remplacer les doubles barres obliques inverses par une seule
+    //        testFile = testFile.Replace(@"\\", @"\");
+
+    //        if (File.Exists(testFile))
+    //        {
+    //            lua.DoFile(testFile);
+    //            AddTemplateInMission(marqueurName, lua);
+    //            findFile = true;
+    //        }
+
+    //        if (findFile == false)
+    //        {
+    //            testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".miz";
+    //            // Remplacer les doubles barres obliques inverses par une seule
+    //            testFile = testFile.Replace(@"\\", @"\");
+
+    //            if (File.Exists(testFile))
+    //            {
+    //                //lua.DoFile(templateFilePath);
+    //                //AddTemplateInMission(marqueurName, lua);
+    //                findFile = true;
+
+    //                try
+    //                {
+
+    //                    string fileMissionAsTemplateStr = null;
+
+    //                    // Ouvrir le fichier ZIP en lecture seule
+    //                    using (FileStream zipFileStream = new FileStream(testFile, FileMode.Open, FileAccess.Read))
+    //                    {
+    //                        using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Read))
+    //                        {
+    //                            // Rechercher le fichier "mission" dans le fichier ZIP
+    //                            ZipArchiveEntry fileMission = archive.GetEntry("mission");
+
+    //                            if (fileMission != null)
+    //                            {
+    //                                // Lire le contenu du fichier "mission"
+    //                                using (StreamReader reader = new StreamReader(fileMission.Open()))
+    //                                {
+    //                                    fileMissionAsTemplateStr = reader.ReadToEnd();
+    //                                }
+
+    //                                // Remplacer le nom de la table de "mission =" à "staticTemplate ="
+    //                                fileMissionAsTemplateStr = fileMissionAsTemplateStr.Replace("mission =", "staticTemplate =");
+
+    //                                //*****************************dictionary***********************************
+    //                                // Rechercher le fichier "dictionary" dans le sous-répertoire "l10n/DEFAULT"
+    //                                ZipArchiveEntry dictionary = archive.GetEntry("l10n/DEFAULT/dictionary");
+
+    //                                if (dictionary != null)
+    //                                {
+    //                                    //MessageBox.Show("passe A dictionary non nul");
+    //                                    // Lire le contenu du fichier "fileMapResource"
+    //                                    using (Stream entryStream = dictionary.Open())
+    //                                    {
+    //                                        using (StreamReader reader = new StreamReader(entryStream))
+    //                                        {
+    //                                            string dictionaryStr = reader.ReadToEnd();
+    //                                            lua.DoString(dictionaryStr); // Charger le fichier Lua
+    //                                        }
+    //                                    }
+    //                                }
+
+    //                                lua.DoString(fileMissionAsTemplateStr);
+    //                                AddTemplateInMission(marqueurName, lua);
+    //                            }
+    //                            else
+    //                            {
+    //                                //MessageBox.Show($"Le fichier '{testFile}' n'a pas été trouvé dans l'archive ZIP.", "Erreur");
+    //                                FormUtils.ShowErrorMessage($"The file ‘{ testFile}’ was not found in the ZIP archive. ");
+    //                            }
+    //                        }
+    //                    }
+
+    //                }
+    //                catch (Exception ex)
+    //                {
+    //                    FormUtils.ErrorGeneral_BoxOrLog(ex, "LoadTemplateByName", testFile, true, true);
+    //                }
+    //            }
+    //        }
+
+    //        if (findFile == false)
+    //        {
+    //            //MessageBox.Show($"Le fichier template '{templateFilePath}' n'existe pas.", "ERROR LoadTemplateByName");
+    //            FormUtils.ShowErrorMessage($"The template file ‘{ templateFilePath}’ does not exist.");
+    //            //Console.WriteLine($"Le fichier template '{templateFilePath}' n'existe pas.");
+    //        }
+    //        return lua;
+    //    }
+
+    //    // Méthode de débogage C#
+    //    public static void LuaPrint(string message)
+    //    {
+    //        MessageBox.Show(message, "Debug Lua");
+    //    }
+
+    //    // Fonction C# pour afficher un message avec OK/Cancel
+    //    public static bool ShowConfirmationDialog(string message)
+    //    {
+    //        DialogResult result = MessageBox.Show(message, "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+    //        return result == DialogResult.OK;
+    //    }
+
+    //    static Tuple<string, string, string, string, Boolean> ReadMission(string fileMissionStr, Lua lua)
+    //    {
+
+    //        // Enregistrer la fonction de débogage C#
+    //        lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
+
+    //        // Enregistrer la fonction de confirmation C#
+    //        lua.RegisterFunction("ShowConfirmationDialog", typeof(Form1).GetMethod("ShowConfirmationDialog"));
+
+
+    //        if (fileMissionStr != null)
+    //        {
+
+    //            lua.DoString(fileMissionStr); // Charger le fichier Lua Mission
+
+    //            string luaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_function.lua");
+    //            lua.DoFile(luaFilePath);
+
+    //            string luaTemplateFunctionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_template.lua");
+    //            lua.DoFile(luaTemplateFunctionFilePath);
+
+    //            // Appeler la fonction Lua getReperesInMission
+    //            LuaFunction getReperesInMission = lua.GetFunction("getReperesInMission");
+    //            var result = getReperesInMission.Call();  // Appeler la fonction
+
+    //            // Récupérer le premier résultat retourné (repereToCallTemplate)
+    //            var reperesInMission = result[0] as LuaTable;
+
+    //            // Vérifier si la table est récupérée avec succès
+    //            if (reperesInMission != null)
+    //            {
+    //                // Parcourir les entrées de la table Lua
+    //                foreach (var key in reperesInMission.Keys)
+    //                {
+    //                    var entry = reperesInMission[key] as LuaTable;
+    //                    if (entry != null)
+    //                    {
+    //                        // Récupérer les valeurs de chaque entrée
+    //                        double x = (double)entry["x"];
+    //                        double y = (double)entry["y"];
+    //                        string templateName = entry["templateName"].ToString();
+    //                        string sideName = entry["sideName"].ToString();
+    //                        string marqueurName = entry["name"].ToString();
+    //                        //int countryId = (int)entry["countryId"];
+
+    //                        // Convertir en entier en toute sécurité
+    //                        int countryId = Convert.ToInt32(entry["countryId"]);
+
+
+    //                        //// Charger le template en fonction du nom du fichier
+    //                        LoadTemplateByName(templateName, marqueurName, lua);
+    //                    }
+    //                }
+    //            }
+    //            else
+    //            {
+    //                FormUtils.ShowErrorMessage("repereToCallTemplate Vide ");
+    //            }
+    //        }
+
+    //        // accéder aux données et fonctions Lua dans le script C#...
+    //        var missionTable = lua["mission"] as LuaTable;
+    //        var staticTemplateTable = lua["staticTemplate"] as LuaTable;
+    //        var ASTI_refTable = lua["ASTI_ref"] as LuaTable;
+    //        var templateGroupId_refId_Table = lua["templateGroupId_refId"] as LuaTable;
+    //        var mapResourceTable = lua["mapResource"] as LuaTable;
+    //        Boolean cancelVar = Convert.ToBoolean(lua["cancelVar"]);
+
+    //        //var cancelVarTest = lua["cancelVar"] as LuaTable;
+    //        //MessageBox.Show("cancelVar " + cancelVarTest.ToString(), "Info");
+    //        //Boolean cancelVar = Convert.ToBoolean(cancelVarTest);
+
+    //        string missionString = lua.GetFunction("tableToString").Call(missionTable)[0] as string;
+    //        missionString = "mission = \r" + missionString;
+
+    //        string ASTI_refString = lua.GetFunction("tableToString").Call(ASTI_refTable)[0] as string;
+    //        ASTI_refString = "ASTI_ref = \r" + ASTI_refString;
+
+    //        string templateGroupId_refId_String = lua.GetFunction("tableToString").Call(templateGroupId_refId_Table)[0] as string;
+    //        templateGroupId_refId_String = "templateGroupId_refId = \r" + templateGroupId_refId_String;
+
+    //        string mapResourceString = lua.GetFunction("tableToString").Call(mapResourceTable)[0] as string;
+    //        mapResourceString = "mapResource = \r" + mapResourceString;
+
+    //        // Retourner un Tuple contenant les deux chaînes
+    //        return Tuple.Create(missionString, ASTI_refString, templateGroupId_refId_String, mapResourceString, cancelVar);
+
+    //    }
+
+    //    // Fonction AddTemplateInMission
+    //    static Lua AddTemplateInMission(string marqueurName, Lua lua)
+    //    {
+
+    //        // Enregistrer la fonction de débogage C#
+    //        lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
+
+    //        // Appeler la fonction Lua getReperesInMission
+    //        LuaFunction addTemplateInMission = lua.GetFunction("addTemplateInMission");
+    //        addTemplateInMission.Call(marqueurName);  // Appeler la fonction
+
+    //        return lua;
+
+    //    }
+
+    //    private void but_ASTI_Process_Click(object sender, EventArgs e)
+    //    {
+    //        string zipFilePath = textBox_ASTI_MissionFile.Text;
+    //        string fileNameToRead = "mission";
+    //        string fileASTIRefPath = "l10n/DEFAULT/ASTI_ref"; // Chemin relatif dans le ZIP
+    //        string fileMapResourcePath = "l10n/DEFAULT/mapResource";
+    //        ZipArchiveEntry fileMission = null;
+    //        ZipArchiveEntry fileASTIRef = null;
+    //        ZipArchiveEntry fileMapResource = null;
+    //        string fileMissionStr = null;
+    //        string newMission = null;
+    //        string fileASTIRefStr = null;
+    //        string fileMapResourceStr = null;
+
+    //        Lua lua = new Lua();
+
+    //        //M*****************************************************************
+    //        //load .miz et fichier mission
+    //        //M*****************************************************************
+
+
+    //        if (textBox_ASTI_MissionFile.Text != null && textBox_ASTI_importTemplateFolder.Text != "")
+    //        {
+
+    //            SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
+
+    //            SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
+
+    //            try
+    //            {
+    //                // Ouvrir le fichier ZIP en mode mise à jour
+    //                using (FileStream zipFileStream = new FileStream(zipFilePath, FileMode.Open, FileAccess.ReadWrite))
+    //                {
+    //                    using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Update))
+    //                    {
+    //                        // Rechercher le fichier "mission" dans le fichier ZIP
+    //                        foreach (var en in archive.Entries)
+    //                        {
+    //                            if (en.FullName.EndsWith(fileNameToRead, StringComparison.OrdinalIgnoreCase))
+    //                            {
+    //                                fileMission = en;
+    //                                break;
+    //                            }
+    //                        }
+
+
+    //                        //****************************ASTI_ref**************************************
+    //                        // Rechercher le fichier "ASTI_ref" dans le sous-répertoire "l10n/DEFAULT"
+    //                        fileASTIRef = archive.GetEntry(fileASTIRefPath);
+
+    //                        if (fileASTIRef != null)
+    //                        {
+    //                            // Lire le contenu du fichier "ASTI_ref"
+    //                            using (Stream entryStream = fileASTIRef.Open())
+    //                            {
+    //                                using (StreamReader reader = new StreamReader(entryStream))
+    //                                {
+    //                                    fileASTIRefStr = reader.ReadToEnd();
+    //                                    lua.DoString(fileASTIRefStr); // Charger le fichier Lua
+    //                                                                  //FormUtils.LogRegister("A fileASTIRefStr " + fileASTIRefStr);
+    //                                }
+    //                            }
+    //                        }
+    //                        else
+    //                        {
+    //                            // Si le fichier n'existe pas, on le crée
+    //                            fileASTIRefStr = ""; // Créer un contenu vide ou autre contenu par défaut
+
+    //                            //FormUtils.ShowErrorMessage("A ASTI_ref non trouvé ");
+    //                        }
+
+    //                        //*****************************mapResource***********************************
+    //                        // Rechercher le fichier "mapResource" dans le sous-répertoire "l10n/DEFAULT"
+    //                        fileMapResource = archive.GetEntry(fileMapResourcePath);
+
+    //                        if (fileMapResource != null)
+    //                        {
+    //                            // Lire le contenu du fichier "fileMapResource"
+    //                            using (Stream entryStream = fileMapResource.Open())
+    //                            {
+    //                                using (StreamReader reader = new StreamReader(entryStream))
+    //                                {
+    //                                    fileMapResourceStr = reader.ReadToEnd();
+    //                                    //MessageBox.Show("fileMapResourceStr " + fileMapResourceStr, "debug");
+
+    //                                    lua.DoString(fileMapResourceStr); // Charger le fichier Lua
+    //                                }
+    //                            }
+    //                        }
+    //                        else
+    //                        {
+    //                            foreach (var en in archive.Entries)
+    //                            {
+    //                                // Afficher tous les noms des fichiers dans l'archive
+    //                                FormUtils.LogRegister("ZIP Entry: " + en.FullName);
+    //                            }
+
+
+    //                            FormUtils.LogRegister(fileMapResourcePath);
+    //                            // Si le fichier n'existe pas
+    //                            FormUtils.ShowErrorMessage("the MapResource file cannot be found in the .miz file "
+    //                                + "/r"
+    //                                + fileMapResourcePath.ToString());
+    //                            //MessageBox.Show("the MapResource file cannot be found in the .miz file "
+    //                            //    + "/r"
+    //                            //    + fileMapResourcePath.ToString(), "Error");
+    //                        }
+
+    //                        if (fileMission != null)
+    //                        {
+    //                            // Lire le contenu du fichier "mission" dans le ZIP
+    //                            using (Stream entryStream = fileMission.Open())
+    //                            {
+    //                                using (StreamReader reader = new StreamReader(entryStream))
+    //                                {
+    //                                    fileMissionStr = reader.ReadToEnd();
+    //                                }
+    //                            }
+
+    //                            // Appel de la méthode ReadMission
+    //                            var result = ReadMission(fileMissionStr, lua);
+
+    //                            if (result == null)
+    //                            {
+    //                                MessageBox.Show("result est null", "Error");
+    //                                return;  // Sortir de la méthode si result est null
+    //                            }
+
+    //                            // Récupérer les valeurs
+    //                            newMission = result.Item1;
+    //                            string newASTI_ref = result.Item2;
+    //                            string templateGroupId_refId = result.Item3;
+    //                            string newMapResource = result.Item4;
+    //                            Boolean cancelVar = result.Item5;
+
+    //                            //FormUtils.LogRegister("C newASTI_ref " + newASTI_ref);
+
+    //                            //MessageBox.Show("cancelVar "+cancelVar, "Info");
+    //                            if (cancelVar == true)
+    //                            {
+    //                                return;
+    //                            }
+
+
+    //                            // Supprimer l'entrée existante pour la mission
+    //                            fileMission.Delete();
+
+    //                            // Ajouter la nouvelle entrée "mission" avec les modifications
+    //                            ZipArchiveEntry newEntry = archive.CreateEntry(fileNameToRead);
+    //                            using (StreamWriter writer = new StreamWriter(newEntry.Open()))
+    //                            {
+    //                                writer.Write(newMission);
+    //                            }
+
+
+    //                            // Supprimer l'entrée existante de "ASTI_ref"
+    //                            if (fileASTIRef != null)
+    //                            {
+    //                                fileASTIRef.Delete();  // Supprimer l'entrée ASTI_ref existante
+    //                            }
+
+
+    //                            // Créer et ajouter la nouvelle entrée "ASTI_ref"
+    //                            ZipArchiveEntry newEntryASTI = archive.CreateEntry(fileASTIRefPath);
+    //                            using (StreamWriter writer = new StreamWriter(newEntryASTI.Open()))
+    //                            {
+    //                                //writer.Write(newASTI_ref);
+
+    //                                // Concaténer les deux tables
+    //                                string combinedString = newASTI_ref + templateGroupId_refId;
+
+    //                                // Écrire les deux tables concaténées dans le fichier
+    //                                writer.Write(combinedString);
+    //                            }
+
+
+    //                            // Supprimer l'entrée existante de "fileMapResource"
+    //                            if (fileMapResource != null)
+    //                            {
+    //                                fileMapResource.Delete();  // Supprimer l'entrée fileMapResource existante
+    //                            }
+
+
+    //                            // Créer et ajouter la nouvelle entrée "MapResource"
+    //                            ZipArchiveEntry newEntryMapResource = archive.CreateEntry(fileMapResourcePath);
+    //                            using (StreamWriter writer = new StreamWriter(newEntryMapResource.Open()))
+    //                            {
+    //                                //FormUtils.LogRegister("D newASTI_ref " + newASTI_ref);
+    //                                writer.Write(newMapResource);
+    //                            }
+
+
+
+    //                        }
+    //                        else
+    //                        {
+    //                            //MessageBox.Show($"Le fichier '{fileNameToRead}' n'a pas été trouvé dans l'archive ZIP.", "error 7606");
+    //                            FormUtils.ShowErrorMessage($"The file ‘{fileNameToRead}’ was not found in the ZIP archive.");
+    //                        }
+    //                    }
+    //                }
+    //            }
+    //            catch (Exception ex)
+    //            {
+    //                FormUtils.ErrorGeneral_BoxOrLog(ex, "but_ASTI_Process_Click", zipFilePath, true, true);
+    //            }
+
+    //            if (newMission != null)
+    //            {
+    //                MessageBox.Show("Process OK : ", "Info");
+    //            }
+
+    //        }
+
+    //    }
+
+    //    private void but_ASTI_Open_templateFolder_Click(object sender, EventArgs e)
+    //    {
+
+    //        // Remplacez "C:\Votre\Chemin\Vers\Le\Dossier" par le chemin réel de votre dossier
+    //        string dossierAouvrir = SharedData.textBox_ASTI_importTemplateFolder;
+
+    //        // Vérifiez si le dossier existe avant de l'ouvrir
+    //        if (Directory.Exists(dossierAouvrir))
+    //        {
+    //            Process.Start(dossierAouvrir);
+    //        }
+    //        else
+    //        {
+    //            // Afficher un message d'erreur si le dossier n'existe pas
+    //            MessageBox.Show("The specified folder does not exist.", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+    //        }
+
+    //    }
+
+    //    public void GPS_LL_Click(object sender, EventArgs e)
+    //    {
+    //        //Proj_NET.TestPositionLL(new string[] { "500000", "450000" });
+
+
+    //        //MessageBox.Show("Zlib version2: " + version2, "");
+
+    //        Proj_NET.TestProg(0, 0);
+    //        Proj_NET.TestProg(-560000, 380000);
+
+    //        Proj_NET.TestProg(1129937, 379982);
+
+    //        Proj_NET.TestProg(1125256, -595066);
+
+    //        Proj_NET.TestProg(-559999, -559999);
+
+
+    //        //new string[] { "500000", "450000" };
+    //        //
+    //    }
+    //}
 
 }

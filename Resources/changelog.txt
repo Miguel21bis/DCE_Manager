@@ -1,5 +1,7 @@
 V6.12.38
 mod: configuration management revisited
+mod: different display of bug windows
+mod: robustification of campaign installations, either full (all files available) or light (only the campaign folder and .miz and .cmp files)
 
 V6.12.37
 fix: error message if option.txt does not exist

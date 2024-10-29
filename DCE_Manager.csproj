@@ -195,6 +195,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="appsettings.cs" />
+    <Compile Include="Class_ASTI.cs" />
     <Compile Include="Proj_NET.cs" />
     <Compile Include="CustomMessageBox.cs">
       <SubType>Form</SubType>
