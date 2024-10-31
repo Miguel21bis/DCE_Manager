@@ -4,14 +4,17 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using DCE_Manager;
 using DCE_Manager.Parameters;
 using Microsoft.Win32;
 
-//testF
+
 namespace DCE_Manager.Utils
 {
 
@@ -33,6 +36,47 @@ namespace DCE_Manager.Utils
 
     public static class FormUtils
     {
+
+        public static async Task<bool> TéléchargerFichierAvecHttpClient(string url, string destinationPath)
+        {
+            int nbErreurs = 0;
+            using (HttpClient client = new HttpClient())
+            {
+                try
+                {
+                    // Configurer un User-Agent pour simuler un navigateur
+                    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+                    FormUtils.LogRegister($"Tentative de téléchargement depuis {url} vers {destinationPath}");
+
+                    // Effectuer le téléchargement du fichier
+                    using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+                    {
+                        response.EnsureSuccessStatusCode();
+
+                        // Enregistrer le fichier
+                        using (var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            await response.Content.CopyToAsync(fileStream);
+                        }
+                        FormUtils.LogRegister($"Téléchargement réussi : {destinationPath}");
+                    }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    FormUtils.ErrorGeneral_BoxOrLog(httpEx, "Erreur Http pendant le téléchargement", url, true, true);
+                    MessageBox.Show($"Erreur de requête HTTP : {httpEx.Message}", "Erreur de téléchargement");
+                    nbErreurs++;
+                }
+                catch (Exception ex)
+                {
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur générale pendant le téléchargement", url, true, true);
+                    MessageBox.Show($"Erreur de téléchargement : {ex.Message}", "Erreur de téléchargement");
+                    nbErreurs++;
+                }
+            }
+            return nbErreurs == 0;
+        }
 
         public static void ShowErrorMessage(string message, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
@@ -401,7 +445,61 @@ namespace DCE_Manager.Utils
             return Ufind;
         }
 
-        public static int ModifierLigneBis(string path, string ligneRecherche, string ligneModifiee)
+        public static (int NbLignesModifiees, int NbErreurs) ModifierLigneBis(string path, string ligneRecherche, string ligneModifiee)
+        {
+            int nbLignesModifiees = 0;
+            int nbErreurs = 0;
+            string texteFinal = "";
+
+            // Lecture du fichier avec un FileStream et partage en lecture
+            try
+            {
+                using (FileStream fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (StreamReader sr = new StreamReader(fs))
+                {
+                    string ligneEnCoursDeLecture;
+                    while ((ligneEnCoursDeLecture = sr.ReadLine()) != null)
+                    {
+                        if (ligneEnCoursDeLecture.Length >= 2 && !ligneEnCoursDeLecture.StartsWith("--") && ligneEnCoursDeLecture.Contains(ligneRecherche))
+                        {
+                            texteFinal += ligneModifiee + "\r\n";
+                            nbLignesModifiees++;
+                        }
+                        else
+                        {
+                            texteFinal += ligneEnCoursDeLecture + "\r\n";
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors de la lecture du fichier", path, false, true);
+                nbErreurs++; // Incrémente le compteur d'erreurs en cas d'échec de lecture
+            }
+
+            // Ré-écriture du fichier avec FileStream et partage en écriture
+            try
+            {
+                using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
+                using (StreamWriter sr2 = new StreamWriter(fs))
+                {
+                    fs.SetLength(0);  // Efface le contenu précédent sans verrouiller le fichier
+                    sr2.Write(texteFinal);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors de la réécriture du fichier", path, false, true);
+                nbErreurs++; // Incrémente le compteur d'erreurs en cas d'échec d'écriture
+            }
+
+            return (nbLignesModifiees, nbErreurs); // Retourne le nombre de lignes modifiées et d'erreurs
+        }
+
+
+
+        public static int ModifierLigneBis_OLD(string path, string ligneRecherche, string ligneModifiee)
         {
             int Ufind = 0;
             string texteFinal = "";
@@ -429,7 +527,8 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                //FormUtils.LogRegister($"Erreur lors de la lecture du fichier: {ex.Message}\r\n");
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "ModifierLigneBis Erreur lors de la lecture du fichier", path, true, true);
                 return Ufind;  // Retourne ce qui a été trouvé jusqu'à l'erreur
             }
 
@@ -444,7 +543,8 @@ namespace DCE_Manager.Utils
             }
             catch (Exception ex)
             {
-                FormUtils.LogRegister($"Erreur lors de la ré-écriture du fichier: {ex.Message}\r\n");
+                //FormUtils.LogRegister($"Erreur lors de la ré-écriture du fichier: {ex.Message}\r\n");
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "ModifierLigneBis Erreur lors de la ré-écriture du fichier", path, true, true);
             }
 
             return Ufind;

@@ -1,6 +1,6 @@
 ﻿namespace DCE_Manager
 {
-    partial class Form5_MissionGenerator
+    partial class FormMissionGenerator
     {
         /// <summary>
         /// Required designer variable.

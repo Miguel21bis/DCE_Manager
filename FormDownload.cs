@@ -10,9 +10,9 @@ using System.Windows.Forms;
 
 namespace DCE_Manager
 {
-    public partial class Form2_FenetreDownload : Form
+    public partial class FormDownload : Form
     {
-        public Form2_FenetreDownload()
+        public FormDownload()
         {
             InitializeComponent();
         }

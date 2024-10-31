@@ -765,7 +765,7 @@
             this.button_UpdateManager.Text = "Update available";
             this.button_UpdateManager.UseVisualStyleBackColor = true;
             this.button_UpdateManager.Visible = false;
-            this.button_UpdateManager.Click += new System.EventHandler(this.button_UpdateManager_Click);
+            this.button_UpdateManager.Click += new System.EventHandler(this.button_UpdateManager_ClickAsync);
             // 
             // groupBox3
             // 

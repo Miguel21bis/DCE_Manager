@@ -1,6 +1,6 @@
 ﻿namespace DCE_Manager
 {
-    partial class Form2_FenetreDownload
+    partial class FormDownload
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         public void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form2_FenetreDownload));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormDownload));
             this.progressBarB = new System.Windows.Forms.ProgressBar();
             this.button1_OK = new System.Windows.Forms.Button();
             this.label1Form2 = new System.Windows.Forms.Label();

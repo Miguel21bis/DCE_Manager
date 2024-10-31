@@ -11,7 +11,7 @@ using System.Globalization;
 
 namespace DCE_Manager
 {
-    public partial class Form3_Clonage : Form
+    public partial class FormClonage : Form
     {
         Form1 _form1;
 
@@ -24,7 +24,7 @@ namespace DCE_Manager
         //    public static string SquadName = "";
         //}
 
-        public Form3_Clonage(Form1 form1, string path, string OldNameCamp)
+        public FormClonage(Form1 form1, string path, string OldNameCamp)
         {
 
             OldNameCamp = OldNameCamp.TrimStart();

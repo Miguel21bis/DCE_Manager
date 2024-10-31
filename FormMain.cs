@@ -952,9 +952,10 @@ namespace DCE_Manager
                 {
                     i++;
                 }
-                catch (Exception e2)
+                catch (Exception ex)
                 {
                     i++;
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CopyFilesRecursively", sourcePath, false, true);
                 }
             }
 
@@ -2007,7 +2008,7 @@ namespace DCE_Manager
             string[,] fileUpdateArray = new string[150, 6];
 
             //Display frmAbout as a modal dialog
-            DCE_Manager.Form2_FenetreDownload tf = new DCE_Manager.Form2_FenetreDownload();
+            DCE_Manager.FormDownload tf = new DCE_Manager.FormDownload();
             tf.Show();
 
             if (fileExists)
@@ -2531,7 +2532,7 @@ namespace DCE_Manager
 
             textBox_ChangelogScriptsMod.Text = "";
 
-            //FormUtils.LogRegister("LogRegister 2077 " + tempLog);
+            FormUtils.LogRegister("LogRegister 2535 " + tempLog);
         }
 
 
@@ -4201,7 +4202,7 @@ namespace DCE_Manager
             UpdateSharedData();
 
             //Test.Form3_Clonage CloneForm = new Test.Form3_Clonage(this, path, OldNameCamp);
-            DCE_Manager.Form3_Clonage CloneForm = new DCE_Manager.Form3_Clonage(this, path, OldNameCamp);
+            DCE_Manager.FormClonage CloneForm = new DCE_Manager.FormClonage(this, path, OldNameCamp);
             CloneForm.ShowDialog();
 
             tabControl.SelectedIndex = 3;
@@ -4292,7 +4293,7 @@ namespace DCE_Manager
                     }
                     catch (IOException ioEx)
                     {
-                        FormUtils.LogRegister($"Erreur lors de la suppression du fichier {file.FullName}: {ioEx.Message}");
+                        FormUtils.LogRegister($"Error deleting file {file.FullName}: {ioEx.Message}");
                     }
                 }
 
@@ -4305,7 +4306,7 @@ namespace DCE_Manager
                     }
                     catch (IOException ioEx)
                     {
-                        FormUtils.LogRegister($"Erreur lors de la suppression du sous-dossier {dir.FullName}: {ioEx.Message}");
+                        FormUtils.LogRegister($"Error deleting subfolder {dir.FullName}: {ioEx.Message}");
                     }
                 }
 
@@ -4316,7 +4317,7 @@ namespace DCE_Manager
                 }
                 catch (IOException ioEx)
                 {
-                    FormUtils.LogRegister($"Erreur lors de la suppression du dossier {di.FullName}: {ioEx.Message}");
+                    FormUtils.LogRegister($"Error deleting folder {di.FullName}: {ioEx.Message}");
                 }
             }
 
@@ -4545,7 +4546,7 @@ namespace DCE_Manager
                     string missionName = "Test Mission";
 
                     // Passez des arguments au formulaire
-                    Form5_MissionGenerator MissGene = new Form5_MissionGenerator(missionName, this);
+                    FormMissionGenerator MissGene = new FormMissionGenerator(missionName, this);
 
                     // Utilisez ShowDialog pour afficher le formulaire de manière modale
                     MissGene.ShowDialog();
@@ -4782,8 +4783,8 @@ namespace DCE_Manager
                             if (PSD_bug)
                             {
 
-                                int nbLigne = FormUtils.ModifierLigneBis(PathBatFile, "set \"pathSavedGames=", "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"");
-                                if (nbLigne > 0)
+                                (int nbLigne, int nb_Error) = FormUtils.ModifierLigneBis(PathBatFile, "set \"pathSavedGames=", "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"");
+                                if (nbLigne > 0 & nb_Error == 0)
                                     erreurPath = false;
                             }
 
@@ -4822,8 +4823,8 @@ namespace DCE_Manager
                             if (PDCS_bug)
                             {
 
-                                int nbLigne = FormUtils.ModifierLigneBis(PathBatFile, "set \"pathDCS=", "set \"pathDCS=" + textBox_DCS.Text + "\\\"");
-                                if (nbLigne > 0)
+                                (int nbLigne, int nb_Error) = FormUtils.ModifierLigneBis(PathBatFile, "set \"pathDCS=", "set \"pathDCS=" + textBox_DCS.Text + "\\\"");
+                                if (nbLigne > 0 & nb_Error == 0)
                                     erreurPath = false;
                             }
 
@@ -5442,7 +5443,7 @@ namespace DCE_Manager
         }
 
         //button_UpdateManager_Click
-        private void button_UpdateManager_Click(object sender, EventArgs e)
+        private async void button_UpdateManager_ClickAsync(object sender, EventArgs e)
         {
 
             int FileServer_major = 0;
@@ -5471,9 +5472,62 @@ namespace DCE_Manager
                     FormUtils.ShowErrorMessage(e2.Message);
                 }
             }
-                
 
-            string DownloadFolder = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
+
+            //string DownloadFolder = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
+
+            // Récupérer le chemin du dossier Téléchargements
+            string downloadFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
+
+            // Vérifier si le dossier existe et le créer si nécessaire
+            if (!Directory.Exists(downloadFolder))
+            {
+                ////Directory.CreateDirectory(downloadFolder);
+
+                //// Créer une boîte de dialogue pour sélectionner un dossier
+                //FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
+                //folderBrowserDialog.Description = "Select the folder where you want to save the file";
+
+                //// Afficher la boîte de dialogue et récupérer le chemin sélectionné
+                //if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+                //{
+                //    downloadFolder = folderBrowserDialog.SelectedPath;
+                //    // Utiliser le chemin downloadFolder pour enregistrer le fichier
+                //}
+
+                //**************************************
+                // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
+                using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
+                {
+                    // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
+                    if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
+                    {
+                        MessageBox.Show("This feature is not supported on your version of Windows.");
+                        return;
+                    }
+
+                    // Définir les propriétés du dialogue de dossier
+                    folderBrowserDialog.Description = "Select a folder";
+                    folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
+                    folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
+
+                    //// Pré-sélectionner le répertoire "Saved Games"
+                    //string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
+                    //if (Directory.Exists(savedGamesPath))
+                    //{
+                    //    folderBrowserDialog.SelectedPath = savedGamesPath;
+                    //}
+
+                    // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
+                    if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+                    {
+                        // Récupérer le chemin du dossier sélectionné
+                        downloadFolder = folderBrowserDialog.SelectedPath;
+                    }
+                }
+                //*********************************************
+            }
+
 
             string NameServer = "";
             
@@ -5542,63 +5596,76 @@ namespace DCE_Manager
                 //FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", pathFile, false, true);
             }
 
-            //telecharge les fichiers à mettre à jour
+            //telecharge le fichier à mettre à jour
             if (succeed)
             {
-                using (WebClient client = new WebClient())
+
+                Version version = Assembly.GetExecutingAssembly().GetName().Version;
+                String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
+
+                if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
                 {
-                    //string str = "1.1.1";
-                    //Version version = new Version(str);
+                    string downloadUrl = "";
+                    string destinationPath = "";
 
-                    Version version = Assembly.GetExecutingAssembly().GetName().Version;
-                    String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
-
-                    //fileUpdate = "DCE_Manager_V_3.7.5.zip";
-                    //fileUpdate = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
-
-                    //string Downloads = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
-
-
-                    FormUtils.LogRegister("FileServer " + FileServer_major + "." + FileServer_minor + "." + FileServer_build);
-                    FormUtils.LogRegister("FileLocal " + version.Major + "." + version.Minor + "." + version.Build);
-
-                    if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
+                    try
                     {
-                        try
+                        if (ParamServ.fileTypeServer == "drivegoogle")
                         {
-                            //client.DownloadFile(NameServer + FileServerName, DownloadFolder + FileLocName);
-                            //client.DownloadFile(tempServer, DownloadFolder + FileLocName);
+                            //client.DownloadFile(FileServerName, DownloadFolder + "DCE_Manager.zip");
+                            downloadUrl = FileServerName;
+                            destinationPath = downloadFolder + @"\DCE_Manager.zip";
 
-                            if (ParamServ.fileTypeServer == "drivegoogle")
-                            {
-                                client.DownloadFile(FileServerName, DownloadFolder + "DCE_Manager.zip");
-                            }
-                            else
-                            {
-                                client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, DownloadFolder + FileServerName);
-                            }
-
-                            nbFileUpdated++;
-                            tempLog = tempLog + " Updated: " + DownloadFolder + " " + FileLocName + "\r\n";
-                            tempLog = tempLog + " Updated: " + NameServer + FileServerName + "\r\n";
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            string toto = ex.StackTrace;
+                            //client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, DownloadFolder + FileServerName);
+                            downloadUrl = ParamServ.ServerSelected + "_DCE_Manager/" + FileServerName;
+                            destinationPath = Path.Combine(downloadFolder, FileServerName);
+                        }
 
-                            tempLog = tempLog + FileLocName + " Failed server: " + NameServer + FileServerName + "\r\n";
-                            tempLog = tempLog + "Or local: " + DownloadFolder + FileLocName + "\r\n";
-                            tempLog = tempLog + toto + "\r\n";
+                        //downloadUrl = ParamServ.fileTypeServer == "drivegoogle"
+                        //    ? FileServerName
+                        //    : $"{ParamServ.ServerSelected}_DCE_Manager/{FileServerName}";
+
+                        //string downloadPath = Path.Combine(downloadFolder, FileServerName);
+
+                        // Log avant téléchargement
+                        FormUtils.LogRegister($"Tentative de téléchargement depuis {downloadUrl} vers {destinationPath}");
+
+                        // Téléchargement du fichier
+                        bool success = await FormUtils.TéléchargerFichierAvecHttpClient(downloadUrl, destinationPath);
+                        if (!success)
                             failedUpdate = true;
-                            MessageBox.Show("Update failed, check log", "Report");
-                        }
+
+
+                        nbFileUpdated++;
+                        tempLog += $" Updated: {destinationPath}\r\n";
                     }
+                    catch (WebException webEx)
+                    {
+                        // Détails de l'erreur WebException
+                        FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, true, true);
+                        failedUpdate = true;
+
+                        // Affiche le message d'erreur détaillé dans un messagebox
+                        MessageBox.Show($"Une erreur de téléchargement est survenue:\n{webEx.Message}\n" +
+                                        $"Statut : {webEx.Status}\n" +
+                                        $"URL : {downloadUrl}", "Erreur de téléchargement");
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log général pour toutes les autres exceptions
+                        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", $"Erreur serveur : {downloadUrl}", true, true);
+                        failedUpdate = true;
+                    }
+
                     if (nbFileUpdated > 0 & failedUpdate == false)
                     {
                         DceManagerAvailableVersion.Text = "DCE_Manager downloaded " + FileLocName;
                         tempLog = tempLog + "DCE_Manager downloaded " + FileLocName + " " + FileServerName + "\r\n";
 
-                        FormUtils.LogRegister(DownloadFolder + FileLocName);
+                        FormUtils.LogRegister(downloadFolder + FileLocName);
 
                         MessageBox.Show("The program will close and open the downloaded Zip file." + "\r\n" +
                             "It is up to you to extract it and place it wherever you want.", "Report");
@@ -5606,22 +5673,144 @@ namespace DCE_Manager
                         Process process = new Process();
                         // Configure the process using the StartInfo properties.
 
-                        process.StartInfo.FileName = DownloadFolder + FileLocName;
+                        process.StartInfo.FileName = downloadFolder + FileLocName;
                         process.StartInfo.Arguments = " ";
                         process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                        process.StartInfo.WorkingDirectory = DownloadFolder;
+                        process.StartInfo.WorkingDirectory = downloadFolder;
 
                         process.Start();
 
                         Application.Exit();
 
+
                     }
-                    else
-                    {
-                        DceManagerAvailableVersion.Text = "No update of DCE_Manager required ";
-                        tempLog = tempLog + "No update of DCE_Manager required " + "\r\n";
-                    }
+
                 }
+
+                //using (WebClient client = new WebClient())
+                //{
+                //    //string str = "1.1.1";
+                //    //Version version = new Version(str);
+
+                //    Version version = Assembly.GetExecutingAssembly().GetName().Version;
+                //    String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
+
+                //    //fileUpdate = "DCE_Manager_V_3.7.5.zip";
+                //    //fileUpdate = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
+
+                //    //string Downloads = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
+
+
+                //    FormUtils.LogRegister("FileServer " + FileServer_major + "." + FileServer_minor + "." + FileServer_build);
+                //    FormUtils.LogRegister("FileLocal " + version.Major + "." + version.Minor + "." + version.Build);
+
+                //    if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
+                //    {
+                //        string downloadUrl = "";
+
+                //        try
+                //        {
+                //            downloadUrl = ParamServ.fileTypeServer == "drivegoogle"
+                //                ? FileServerName
+                //                : $"{ParamServ.ServerSelected}_DCE_Manager/{FileServerName}";
+
+                //            string downloadPath = Path.Combine(DownloadFolder, FileServerName);
+
+                //            // Log avant téléchargement
+                //            FormUtils.LogRegister($"Tentative de téléchargement depuis {downloadUrl} vers {downloadPath}");
+
+                //            // Téléchargement du fichier
+                //            client.DownloadFile(downloadUrl, downloadPath);
+
+                //            nbFileUpdated++;
+                //            tempLog += $" Updated: {downloadPath}\r\n";
+                //        }
+                //        catch (WebException webEx)
+                //        {
+                //            // Détails de l'erreur WebException
+                //            FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, true, true);
+                //            failedUpdate = true;
+
+                //            // Affiche le message d'erreur détaillé dans un messagebox
+                //            MessageBox.Show($"Une erreur de téléchargement est survenue:\n{webEx.Message}\n" +
+                //                            $"Statut : {webEx.Status}\n" +
+                //                            $"URL : {downloadUrl}", "Erreur de téléchargement");
+                //        }
+                //        catch (Exception ex)
+                //        {
+                //            // Log général pour toutes les autres exceptions
+                //            FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", $"Erreur serveur : {downloadUrl}", true, true);
+                //            failedUpdate = true;
+                //        }
+
+                //        //try
+                //        //{
+                //        //    //client.DownloadFile(NameServer + FileServerName, DownloadFolder + FileLocName);
+                //        //    //client.DownloadFile(tempServer, DownloadFolder + FileLocName);
+
+                //        //    if (ParamServ.fileTypeServer == "drivegoogle")
+                //        //    {
+                //        //        client.DownloadFile(FileServerName, DownloadFolder + "DCE_Manager.zip");
+                //        //    }
+                //        //    else
+                //        //    {
+                //        //        client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, DownloadFolder + FileServerName);
+                //        //    }
+
+                //        //    nbFileUpdated++;
+                //        //    tempLog = tempLog + " Updated: " + DownloadFolder + " " + FileLocName + "\r\n";
+                //        //    tempLog = tempLog + " Updated: " + NameServer + FileServerName + "\r\n";
+                //        //}
+                //        //catch (Exception ex)
+                //        //{
+                //        //    //string toto = ex.StackTrace;
+
+                //        //    //tempLog = tempLog + FileLocName + " Failed server: " + NameServer + FileServerName + "\r\n";
+                //        //    //tempLog = tempLog + "Or local: " + DownloadFolder + FileLocName + "\r\n";
+                //        //    //tempLog = tempLog + toto + "\r\n";
+                //        //    failedUpdate = true;
+                //        //    //MessageBox.Show("Update failed, check log", "Report");
+
+                //        //    if (ParamServ.fileTypeServer == "drivegoogle")
+                //        //    {
+                //        //        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", " Failed server: " + NameServer + FileServerName, true, true);
+                //        //    }
+                //        //    else
+                //        //    {
+                //        //        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", " Failed server: " + ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, true, true);
+                //        //    }
+                //        //}
+                //    }
+                //    if (nbFileUpdated > 0 & failedUpdate == false)
+                //    {
+                //        DceManagerAvailableVersion.Text = "DCE_Manager downloaded " + FileLocName;
+                //        tempLog = tempLog + "DCE_Manager downloaded " + FileLocName + " " + FileServerName + "\r\n";
+
+                //        FormUtils.LogRegister(DownloadFolder + FileLocName);
+
+                //        MessageBox.Show("The program will close and open the downloaded Zip file." + "\r\n" +
+                //            "It is up to you to extract it and place it wherever you want.", "Report");
+
+                //        Process process = new Process();
+                //        // Configure the process using the StartInfo properties.
+
+                //        process.StartInfo.FileName = DownloadFolder + FileLocName;
+                //        process.StartInfo.Arguments = " ";
+                //        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+                //        process.StartInfo.WorkingDirectory = DownloadFolder;
+
+                //        process.Start();
+
+                //        Application.Exit();
+
+                //    }
+                //    else
+                //    {
+                //        //ça c'est une connerie
+                //        //DceManagerAvailableVersion.Text = "No update of DCE_Manager required ";
+                //        //tempLog = tempLog + "No update of DCE_Manager required " + "\r\n";
+                //    }
+                //}
             }
 
             //MessageBox.Show(tempLog, "Report");
@@ -5943,81 +6132,58 @@ namespace DCE_Manager
             //string[] linesCheck = System.IO.File.ReadAllLines(textBoxCreateFileUpdate.Text + @"\upgrade.txt");
             //cherche si ce GestionName existe deja
 
-            int NbLignModif = 0;
-            string noFoundList = "";
-            string pathFile = textBoxCreateFileUpdate.Text + @"\upgrade.txt";
+            //int NbLignModif = 0;
+            //string noFoundList = "";
+            //string pathFile = textBoxCreateFileUpdate.Text + @"\upgrade.txt";
             Boolean foundInUpgradeTXT;
             Boolean foundVerScriptsMod = false;
-            foreach (KeyValuePair<string, string> entry in CreateUpdateList)
+
+            int NbLignModif = 0;
+            int Nb_erreur = 0;
+            string noFoundList = "";
+            string pathFile = textBoxCreateFileUpdate.Text + @"\upgrade.txt";
+            string tempPathFile = Path.Combine(Path.GetTempPath(), "upgrade_temp.txt");
+
+            try
             {
-                foundInUpgradeTXT = false;
-                //foreach (string line in linesCheck)
-                //{
-                try
+                // Copier upgrade.txt vers un fichier temporaire pour éviter le verrouillage du fichier original
+                File.Copy(pathFile, tempPathFile, overwrite: true);
+
+
+                foreach (KeyValuePair<string, string> entry in CreateUpdateList)
                 {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-
-                            if (line.Length >= 2 && line.Substring(0, 2) != "--")
-                            {
-                                //if (entry.Key == "beaconsilent.ogg") { }
-                                //FormUtils.LogRegister("entry.Key " + entry.Key);
-
-                                if (line.Contains(entry.Key) & GooglLink.ContainsKey(entry.Key))
-                                {
-                                    int nlm = 0;
-                                    string ligneAModifier = "versionDCE[" + entry.Key + "] = " + entry.Value + " = " + GooglLink[entry.Key];
-
-                                    FormUtils.LogRegister("ligneAModifier " + ligneAModifier.ToString());
-
-                                    nlm = FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
-
-                                    NbLignModif = NbLignModif + nlm;
-
-                                    FormUtils.LogRegister("nlm " + nlm.ToString() + "nlmTotal" + NbLignModif.ToString());
-
-                                    foundInUpgradeTXT = true;
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                     FormUtils.ErrorGeneral_BoxOrLog(ex, "butCreaUpdate_Click", pathFile, false, true);
-                }
-
-                //ne recherche que la ligne:
-                //versionDCE.ScriptsMod = "20.58.205" dans upgrade.txt
-                if (!foundVerScriptsMod)
-                {
-                    //foreach (string line in linesCheck)
-                    //{
+                    foundInUpgradeTXT = false;
                     try
                     {
                         // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                        using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                        using (FileStream fs = new FileStream(tempPathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                         using (StreamReader sr = new StreamReader(fs))
                         {
                             string line;
                             while ((line = sr.ReadLine()) != null)
                             {
+
                                 if (line.Length >= 2 && line.Substring(0, 2) != "--")
                                 {
-                                    if (line.Contains("versionDCE.ScriptsMod"))
+                                    //if (entry.Key == "beaconsilent.ogg") { }
+                                    //FormUtils.LogRegister("entry.Key " + entry.Key);
+
+                                    if (line.Contains(entry.Key) & GooglLink.ContainsKey(entry.Key))
                                     {
+                                        int nlm = 0;
+                                        int nb_e = 0;
+                                        string ligneAModifier = "versionDCE[" + entry.Key + "] = " + entry.Value + " = " + GooglLink[entry.Key];
 
-                                        string ligneAModifier = "versionDCE.ScriptsMod" + " = " + Divers.ScriptsMod;
+                                        FormUtils.LogRegister("ligneAModifier " + ligneAModifier.ToString());
 
-                                        FormUtils.ModifierLigneBis(pathFile, line, ligneAModifier);
+                                        (nlm, nb_e) = FormUtils.ModifierLigneBis(textBoxCreateFileUpdate.Text + @"\upgrade.txt", line, ligneAModifier);
+
+                                        NbLignModif = NbLignModif + nlm;
+                                        Nb_erreur = Nb_erreur + nb_e;
+
+                                        FormUtils.LogRegister("nlm " + nlm.ToString() + "nlmTotal" + NbLignModif.ToString());
 
                                         foundInUpgradeTXT = true;
-                                        foundVerScriptsMod = true;
                                     }
                                 }
                             }
@@ -6027,30 +6193,113 @@ namespace DCE_Manager
                     {
                         FormUtils.ErrorGeneral_BoxOrLog(ex, "butCreaUpdate_Click", pathFile, false, true);
                     }
+
+                    //ne recherche que la ligne:
+                    //versionDCE.ScriptsMod = "20.58.205" dans upgrade.txt
+                    if (!foundVerScriptsMod)
+                    {
+                        try
+                        {
+                            // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+                            using (FileStream fs = new FileStream(tempPathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                            using (StreamReader sr = new StreamReader(fs))
+                            {
+                                string line;
+                                while ((line = sr.ReadLine()) != null)
+                                {
+                                    if (line.Length >= 2 && line.Substring(0, 2) != "--")
+                                    {
+                                        int nb_B = 0;
+                                        int nb_e = 0;
+                                        if (line.Contains("versionDCE.ScriptsMod"))
+                                        {
+
+                                            string ligneAModifier = "versionDCE.ScriptsMod" + " = " + Divers.ScriptsMod;
+
+                                            (nb_B, nb_e) = FormUtils.ModifierLigneBis(pathFile, line, ligneAModifier);
+
+                                            NbLignModif = NbLignModif + nb_B;
+                                            Nb_erreur = Nb_erreur + nb_e;
+
+                                            foundInUpgradeTXT = true;
+                                            foundVerScriptsMod = true;
+
+                                            if (nb_B == 0)
+                                            {
+                                                MessageBox.Show("in versionDCE.ScriptsMod no Change ligne: " + "\r\n"
+                                                    + "|pathFile|" + pathFile + "\r\n"
+                                                    + "|line|" + line + "\r\n"
+                                                    + "|ligneAModifier|" + ligneAModifier + "\r\n"
+                                                    , "foundInUpgradeTXT FALSE");
+                                            }
+                                            //else
+                                            //{
+                                            //    MessageBox.Show("in versionDCE.ScriptsMod  Change ligne OK: " + "\r\n"
+                                            //        + "Nb de ligne modifiée: "+ nb_B.ToString() + "\r\n"
+                                            //    + "|pathFile|" + pathFile + "\r\n"
+                                            //    + "|line|" + line + "\r\n"
+                                            //    + "|ligneAModifier|" + ligneAModifier + "\r\n"
+                                            //    , "foundInUpgradeTXT TRUE");
+                                            //}
+                                        }
+
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            FormUtils.ErrorGeneral_BoxOrLog(ex, "butCreaUpdate_Click", pathFile, false, true);
+                        }
+                    }
+                    if (foundInUpgradeTXT == false)
+                    {
+                        noFoundList = noFoundList + entry.Key + "\r\n";
+
+                        MessageBox.Show("noFoundList: " + "|" + noFoundList.ToString() + "|", "foundInUpgradeTXT FALSE");
+
+                    }
+                    if (foundVerScriptsMod == false)
+                    {
+                        noFoundList = noFoundList + entry.Key + "\r\n";
+
+                        MessageBox.Show("noFoundList: " + "|versionDCE.ScriptsMod|", "foundInUpgradeTXT FALSE");
+
+                    }
                 }
-                if (foundInUpgradeTXT == false)
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors de la copie du fichier upgrade.txt vers un fichier temporaire", pathFile, false, true);
+            }
+            finally
+            {
+                // Suppression du fichier temporaire après lecture et modification
+                if (File.Exists(tempPathFile))
                 {
-                    noFoundList = noFoundList + entry.Key + "\r\n";
-
-                    MessageBox.Show("noFoundList: " + "|" + noFoundList.ToString() + "|", "foundInUpgradeTXT FALSE");
-
-                }
-                if (foundVerScriptsMod == false)
-                {
-                    noFoundList = noFoundList + entry.Key + "\r\n";
-
-                    MessageBox.Show("noFoundList: " + "|versionDCE.ScriptsMod|", "foundInUpgradeTXT FALSE");
-
+                    try
+                    {
+                        File.Delete(tempPathFile);
+                    }
+                    catch (Exception ex)
+                    {
+                        FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors de la suppression du fichier temporaire", tempPathFile, false, true);
+                    }
                 }
             }
 
-            if (noFoundList == "")
+            if (noFoundList == "" & Nb_erreur == 0)
             {
-                MessageBox.Show("OK Mise à jour de update.txt effectué avec succes \r\n" + "Nb de lignes modifiées: " + NbLignModif.ToString(), "Succes");
+                MessageBox.Show("OK Mise à jour de update.txt effectué avec succes \r\n" + "Nb de lignes modifiées: " + NbLignModif.ToString() + "\r\n" 
+                    + textBoxCreateFileUpdate.Text + @"\upgrade.txt", "Succes");
             }
             else
             {
-                MessageBox.Show(noFoundList.ToString(), "Fichier non trouvé dans upgrade.txt ou upgradeLink.txt ");
+                MessageBox.Show("Pb lors de la mise à jour" + "\r\n"
+                    + noFoundList.ToString() + "\r\n"
+                    + "Nb d'error?: " + Nb_erreur.ToString() + "\r\n"
+                    + "Conclusion: regarde le log pour plus d'info ^^ "+ "\r\n"
+                    , "Bug(s)?");
             }
             if (NbLignModif != i)
             {
@@ -6149,7 +6398,7 @@ namespace DCE_Manager
                         Color pixel = img.GetPixel(i, j);
                         if (pixel.B != 198 && pixel.G >= 150)
                         {
-                            bool badLand = false;
+                            //bool badLand = false;
                             bool breakInCircle = false;
                             int centerX = 0;
                             int centerY = 0;
@@ -6213,7 +6462,7 @@ namespace DCE_Manager
                                             //if (pixelB.B == 198 || pixelB.G <= 160)
                                             if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
                                             {
-                                                badLand = true;
+                                                //badLand = true;
                                                 breakBoolean = true;
 
                                                 break;
@@ -6237,7 +6486,7 @@ namespace DCE_Manager
                                             //if (pixelB.B == 198 || pixelB.G <= 160)
                                             if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
                                             {
-                                                badLand = true;
+                                                //badLand = true;
                                                 breakBoolean = true;
 
                                                 break;
@@ -6261,7 +6510,7 @@ namespace DCE_Manager
                                             //if (pixelB.B == 198 || pixelB.G <= 160)
                                             if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
                                             {
-                                                badLand = true;
+                                                //badLand = true;
                                                 breakBoolean = true;
                                                 break;
                                             }
@@ -6476,7 +6725,7 @@ namespace DCE_Manager
 
 
             string texteFinal = null;
-            bool premierPixelIdentique = false;
+            //bool premierPixelIdentique = false;
 
             //Bitmap img = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus.png");
             Bitmap img = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus2.png");
@@ -7211,567 +7460,5 @@ namespace DCE_Manager
         }
 
     }
-
-    //        public static void button_ASTI_Click(object sender, EventArgs e)
-    //        {
-    //            // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
-    //            Form1.Instance.UpdateSharedData();
-
-    //            Form1.textBox_ASTI_MissionFile.Text = SharedData.textBox_ASTI_MissionFile;
-    //            textBox_ASTI_importTemplateFolder.Text = SharedData.textBox_ASTI_importTemplateFolder;
-
-    //            groupBoxDroiteAccueil.Visible = false;
-    //            groupBox_staticTemplate.Visible = true;
-
-
-    //        }
-    //    private void but_ASTI_Browse_Template_Click(object sender, EventArgs e)
-    //    {
-    //        // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-    //        using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-    //        {
-    //            // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-    //            if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-    //            {
-    //                MessageBox.Show("This feature is not supported on your version of Windows.");
-    //                return;
-    //            }
-
-    //            // Définir les propriétés du dialogue de dossier
-    //            folderBrowserDialog.Description = "Select a folder";
-    //            folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-    //            folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
-
-    //            // Pré-sélectionner le répertoire "Saved Games"
-    //            string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-    //            if (Directory.Exists(savedGamesPath))
-    //            {
-    //                folderBrowserDialog.SelectedPath = savedGamesPath;
-    //            }
-
-    //            // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-    //            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-    //            {
-    //                // Récupérer le chemin du dossier sélectionné
-    //                string folderPath = folderBrowserDialog.SelectedPath;
-
-    //                // Afficher le chemin dans la TextBox
-    //                textBox_ASTI_importTemplateFolder.Text = folderPath;
-    //                SharedData.textBox_ASTI_importTemplateFolder = folderPath;
-    //                but_ASTI_Open_templateFolder.Visible = true;
-    //            }
-    //            else
-    //            {
-    //                //FormUtils.ShowErrorMessage("No folder selected");
-    //            }
-    //        }
-    //    }
-
-
-    //    private void but_ASTI_Browse_Mission_Click(object sender, EventArgs e)
-    //    {
-
-    //        // Créer une instance de OpenFileDialog
-    //        OpenFileDialog openFileDialog = new OpenFileDialog();
-
-    //        // Définir les propriétés du dialogue de fichier
-    //        openFileDialog.Title = "Select a .miz file";
-
-    //        // Définir le dossier initial à "Saved Games" du répertoire utilisateur
-    //        openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-
-    //        // Définir le filtre pour n'afficher que les fichiers .miz
-    //        openFileDialog.Filter = "Files .miz (*.miz)|*.miz";
-    //        openFileDialog.FilterIndex = 1; // Sélectionne le premier filtre
-    //        openFileDialog.Multiselect = false; // Permet de sélectionner un seul fichier
-
-    //        // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un fichier
-    //        if (openFileDialog.ShowDialog() == DialogResult.OK)
-    //        {
-    //            // Récupérer le chemin du fichier sélectionné
-    //            string filePath = openFileDialog.FileName;
-    //            //Console.WriteLine("Fichier sélectionné : " + filePath);
-
-    //            textBox_ASTI_MissionFile.Text = filePath;
-    //            SharedData.textBox_ASTI_MissionFile = filePath;
-    //        }
-    //        else
-    //        {
-    //            //Console.WriteLine("Aucun fichier sélectionné.");
-    //        }
-    //    }
-
-
-    //    // Fonction pour charger le template en fonction du nom
-    //    static Lua LoadTemplateByName(string templateFilePath, string marqueurName, Lua lua)
-    //    {
-    //        Boolean findFile = false;
-    //        string testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".stm";
-
-    //        // Remplacer les doubles barres obliques inverses par une seule
-    //        testFile = testFile.Replace(@"\\", @"\");
-
-    //        if (File.Exists(testFile))
-    //        {
-    //            lua.DoFile(testFile);
-    //            AddTemplateInMission(marqueurName, lua);
-    //            findFile = true;
-    //        }
-
-    //        if (findFile == false)
-    //        {
-    //            testFile = SharedData.textBox_ASTI_importTemplateFolder + @"\" + templateFilePath + ".miz";
-    //            // Remplacer les doubles barres obliques inverses par une seule
-    //            testFile = testFile.Replace(@"\\", @"\");
-
-    //            if (File.Exists(testFile))
-    //            {
-    //                //lua.DoFile(templateFilePath);
-    //                //AddTemplateInMission(marqueurName, lua);
-    //                findFile = true;
-
-    //                try
-    //                {
-
-    //                    string fileMissionAsTemplateStr = null;
-
-    //                    // Ouvrir le fichier ZIP en lecture seule
-    //                    using (FileStream zipFileStream = new FileStream(testFile, FileMode.Open, FileAccess.Read))
-    //                    {
-    //                        using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Read))
-    //                        {
-    //                            // Rechercher le fichier "mission" dans le fichier ZIP
-    //                            ZipArchiveEntry fileMission = archive.GetEntry("mission");
-
-    //                            if (fileMission != null)
-    //                            {
-    //                                // Lire le contenu du fichier "mission"
-    //                                using (StreamReader reader = new StreamReader(fileMission.Open()))
-    //                                {
-    //                                    fileMissionAsTemplateStr = reader.ReadToEnd();
-    //                                }
-
-    //                                // Remplacer le nom de la table de "mission =" à "staticTemplate ="
-    //                                fileMissionAsTemplateStr = fileMissionAsTemplateStr.Replace("mission =", "staticTemplate =");
-
-    //                                //*****************************dictionary***********************************
-    //                                // Rechercher le fichier "dictionary" dans le sous-répertoire "l10n/DEFAULT"
-    //                                ZipArchiveEntry dictionary = archive.GetEntry("l10n/DEFAULT/dictionary");
-
-    //                                if (dictionary != null)
-    //                                {
-    //                                    //MessageBox.Show("passe A dictionary non nul");
-    //                                    // Lire le contenu du fichier "fileMapResource"
-    //                                    using (Stream entryStream = dictionary.Open())
-    //                                    {
-    //                                        using (StreamReader reader = new StreamReader(entryStream))
-    //                                        {
-    //                                            string dictionaryStr = reader.ReadToEnd();
-    //                                            lua.DoString(dictionaryStr); // Charger le fichier Lua
-    //                                        }
-    //                                    }
-    //                                }
-
-    //                                lua.DoString(fileMissionAsTemplateStr);
-    //                                AddTemplateInMission(marqueurName, lua);
-    //                            }
-    //                            else
-    //                            {
-    //                                //MessageBox.Show($"Le fichier '{testFile}' n'a pas été trouvé dans l'archive ZIP.", "Erreur");
-    //                                FormUtils.ShowErrorMessage($"The file ‘{ testFile}’ was not found in the ZIP archive. ");
-    //                            }
-    //                        }
-    //                    }
-
-    //                }
-    //                catch (Exception ex)
-    //                {
-    //                    FormUtils.ErrorGeneral_BoxOrLog(ex, "LoadTemplateByName", testFile, true, true);
-    //                }
-    //            }
-    //        }
-
-    //        if (findFile == false)
-    //        {
-    //            //MessageBox.Show($"Le fichier template '{templateFilePath}' n'existe pas.", "ERROR LoadTemplateByName");
-    //            FormUtils.ShowErrorMessage($"The template file ‘{ templateFilePath}’ does not exist.");
-    //            //Console.WriteLine($"Le fichier template '{templateFilePath}' n'existe pas.");
-    //        }
-    //        return lua;
-    //    }
-
-    //    // Méthode de débogage C#
-    //    public static void LuaPrint(string message)
-    //    {
-    //        MessageBox.Show(message, "Debug Lua");
-    //    }
-
-    //    // Fonction C# pour afficher un message avec OK/Cancel
-    //    public static bool ShowConfirmationDialog(string message)
-    //    {
-    //        DialogResult result = MessageBox.Show(message, "Confirmation", MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
-    //        return result == DialogResult.OK;
-    //    }
-
-    //    static Tuple<string, string, string, string, Boolean> ReadMission(string fileMissionStr, Lua lua)
-    //    {
-
-    //        // Enregistrer la fonction de débogage C#
-    //        lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
-
-    //        // Enregistrer la fonction de confirmation C#
-    //        lua.RegisterFunction("ShowConfirmationDialog", typeof(Form1).GetMethod("ShowConfirmationDialog"));
-
-
-    //        if (fileMissionStr != null)
-    //        {
-
-    //            lua.DoString(fileMissionStr); // Charger le fichier Lua Mission
-
-    //            string luaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_function.lua");
-    //            lua.DoFile(luaFilePath);
-
-    //            string luaTemplateFunctionFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Scripts", "lua_template.lua");
-    //            lua.DoFile(luaTemplateFunctionFilePath);
-
-    //            // Appeler la fonction Lua getReperesInMission
-    //            LuaFunction getReperesInMission = lua.GetFunction("getReperesInMission");
-    //            var result = getReperesInMission.Call();  // Appeler la fonction
-
-    //            // Récupérer le premier résultat retourné (repereToCallTemplate)
-    //            var reperesInMission = result[0] as LuaTable;
-
-    //            // Vérifier si la table est récupérée avec succès
-    //            if (reperesInMission != null)
-    //            {
-    //                // Parcourir les entrées de la table Lua
-    //                foreach (var key in reperesInMission.Keys)
-    //                {
-    //                    var entry = reperesInMission[key] as LuaTable;
-    //                    if (entry != null)
-    //                    {
-    //                        // Récupérer les valeurs de chaque entrée
-    //                        double x = (double)entry["x"];
-    //                        double y = (double)entry["y"];
-    //                        string templateName = entry["templateName"].ToString();
-    //                        string sideName = entry["sideName"].ToString();
-    //                        string marqueurName = entry["name"].ToString();
-    //                        //int countryId = (int)entry["countryId"];
-
-    //                        // Convertir en entier en toute sécurité
-    //                        int countryId = Convert.ToInt32(entry["countryId"]);
-
-
-    //                        //// Charger le template en fonction du nom du fichier
-    //                        LoadTemplateByName(templateName, marqueurName, lua);
-    //                    }
-    //                }
-    //            }
-    //            else
-    //            {
-    //                FormUtils.ShowErrorMessage("repereToCallTemplate Vide ");
-    //            }
-    //        }
-
-    //        // accéder aux données et fonctions Lua dans le script C#...
-    //        var missionTable = lua["mission"] as LuaTable;
-    //        var staticTemplateTable = lua["staticTemplate"] as LuaTable;
-    //        var ASTI_refTable = lua["ASTI_ref"] as LuaTable;
-    //        var templateGroupId_refId_Table = lua["templateGroupId_refId"] as LuaTable;
-    //        var mapResourceTable = lua["mapResource"] as LuaTable;
-    //        Boolean cancelVar = Convert.ToBoolean(lua["cancelVar"]);
-
-    //        //var cancelVarTest = lua["cancelVar"] as LuaTable;
-    //        //MessageBox.Show("cancelVar " + cancelVarTest.ToString(), "Info");
-    //        //Boolean cancelVar = Convert.ToBoolean(cancelVarTest);
-
-    //        string missionString = lua.GetFunction("tableToString").Call(missionTable)[0] as string;
-    //        missionString = "mission = \r" + missionString;
-
-    //        string ASTI_refString = lua.GetFunction("tableToString").Call(ASTI_refTable)[0] as string;
-    //        ASTI_refString = "ASTI_ref = \r" + ASTI_refString;
-
-    //        string templateGroupId_refId_String = lua.GetFunction("tableToString").Call(templateGroupId_refId_Table)[0] as string;
-    //        templateGroupId_refId_String = "templateGroupId_refId = \r" + templateGroupId_refId_String;
-
-    //        string mapResourceString = lua.GetFunction("tableToString").Call(mapResourceTable)[0] as string;
-    //        mapResourceString = "mapResource = \r" + mapResourceString;
-
-    //        // Retourner un Tuple contenant les deux chaînes
-    //        return Tuple.Create(missionString, ASTI_refString, templateGroupId_refId_String, mapResourceString, cancelVar);
-
-    //    }
-
-    //    // Fonction AddTemplateInMission
-    //    static Lua AddTemplateInMission(string marqueurName, Lua lua)
-    //    {
-
-    //        // Enregistrer la fonction de débogage C#
-    //        lua.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
-
-    //        // Appeler la fonction Lua getReperesInMission
-    //        LuaFunction addTemplateInMission = lua.GetFunction("addTemplateInMission");
-    //        addTemplateInMission.Call(marqueurName);  // Appeler la fonction
-
-    //        return lua;
-
-    //    }
-
-    //    private void but_ASTI_Process_Click(object sender, EventArgs e)
-    //    {
-    //        string zipFilePath = textBox_ASTI_MissionFile.Text;
-    //        string fileNameToRead = "mission";
-    //        string fileASTIRefPath = "l10n/DEFAULT/ASTI_ref"; // Chemin relatif dans le ZIP
-    //        string fileMapResourcePath = "l10n/DEFAULT/mapResource";
-    //        ZipArchiveEntry fileMission = null;
-    //        ZipArchiveEntry fileASTIRef = null;
-    //        ZipArchiveEntry fileMapResource = null;
-    //        string fileMissionStr = null;
-    //        string newMission = null;
-    //        string fileASTIRefStr = null;
-    //        string fileMapResourceStr = null;
-
-    //        Lua lua = new Lua();
-
-    //        //M*****************************************************************
-    //        //load .miz et fichier mission
-    //        //M*****************************************************************
-
-
-    //        if (textBox_ASTI_MissionFile.Text != null && textBox_ASTI_importTemplateFolder.Text != "")
-    //        {
-
-    //            SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
-
-    //            SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
-
-    //            try
-    //            {
-    //                // Ouvrir le fichier ZIP en mode mise à jour
-    //                using (FileStream zipFileStream = new FileStream(zipFilePath, FileMode.Open, FileAccess.ReadWrite))
-    //                {
-    //                    using (ZipArchive archive = new ZipArchive(zipFileStream, ZipArchiveMode.Update))
-    //                    {
-    //                        // Rechercher le fichier "mission" dans le fichier ZIP
-    //                        foreach (var en in archive.Entries)
-    //                        {
-    //                            if (en.FullName.EndsWith(fileNameToRead, StringComparison.OrdinalIgnoreCase))
-    //                            {
-    //                                fileMission = en;
-    //                                break;
-    //                            }
-    //                        }
-
-
-    //                        //****************************ASTI_ref**************************************
-    //                        // Rechercher le fichier "ASTI_ref" dans le sous-répertoire "l10n/DEFAULT"
-    //                        fileASTIRef = archive.GetEntry(fileASTIRefPath);
-
-    //                        if (fileASTIRef != null)
-    //                        {
-    //                            // Lire le contenu du fichier "ASTI_ref"
-    //                            using (Stream entryStream = fileASTIRef.Open())
-    //                            {
-    //                                using (StreamReader reader = new StreamReader(entryStream))
-    //                                {
-    //                                    fileASTIRefStr = reader.ReadToEnd();
-    //                                    lua.DoString(fileASTIRefStr); // Charger le fichier Lua
-    //                                                                  //FormUtils.LogRegister("A fileASTIRefStr " + fileASTIRefStr);
-    //                                }
-    //                            }
-    //                        }
-    //                        else
-    //                        {
-    //                            // Si le fichier n'existe pas, on le crée
-    //                            fileASTIRefStr = ""; // Créer un contenu vide ou autre contenu par défaut
-
-    //                            //FormUtils.ShowErrorMessage("A ASTI_ref non trouvé ");
-    //                        }
-
-    //                        //*****************************mapResource***********************************
-    //                        // Rechercher le fichier "mapResource" dans le sous-répertoire "l10n/DEFAULT"
-    //                        fileMapResource = archive.GetEntry(fileMapResourcePath);
-
-    //                        if (fileMapResource != null)
-    //                        {
-    //                            // Lire le contenu du fichier "fileMapResource"
-    //                            using (Stream entryStream = fileMapResource.Open())
-    //                            {
-    //                                using (StreamReader reader = new StreamReader(entryStream))
-    //                                {
-    //                                    fileMapResourceStr = reader.ReadToEnd();
-    //                                    //MessageBox.Show("fileMapResourceStr " + fileMapResourceStr, "debug");
-
-    //                                    lua.DoString(fileMapResourceStr); // Charger le fichier Lua
-    //                                }
-    //                            }
-    //                        }
-    //                        else
-    //                        {
-    //                            foreach (var en in archive.Entries)
-    //                            {
-    //                                // Afficher tous les noms des fichiers dans l'archive
-    //                                FormUtils.LogRegister("ZIP Entry: " + en.FullName);
-    //                            }
-
-
-    //                            FormUtils.LogRegister(fileMapResourcePath);
-    //                            // Si le fichier n'existe pas
-    //                            FormUtils.ShowErrorMessage("the MapResource file cannot be found in the .miz file "
-    //                                + "/r"
-    //                                + fileMapResourcePath.ToString());
-    //                            //MessageBox.Show("the MapResource file cannot be found in the .miz file "
-    //                            //    + "/r"
-    //                            //    + fileMapResourcePath.ToString(), "Error");
-    //                        }
-
-    //                        if (fileMission != null)
-    //                        {
-    //                            // Lire le contenu du fichier "mission" dans le ZIP
-    //                            using (Stream entryStream = fileMission.Open())
-    //                            {
-    //                                using (StreamReader reader = new StreamReader(entryStream))
-    //                                {
-    //                                    fileMissionStr = reader.ReadToEnd();
-    //                                }
-    //                            }
-
-    //                            // Appel de la méthode ReadMission
-    //                            var result = ReadMission(fileMissionStr, lua);
-
-    //                            if (result == null)
-    //                            {
-    //                                MessageBox.Show("result est null", "Error");
-    //                                return;  // Sortir de la méthode si result est null
-    //                            }
-
-    //                            // Récupérer les valeurs
-    //                            newMission = result.Item1;
-    //                            string newASTI_ref = result.Item2;
-    //                            string templateGroupId_refId = result.Item3;
-    //                            string newMapResource = result.Item4;
-    //                            Boolean cancelVar = result.Item5;
-
-    //                            //FormUtils.LogRegister("C newASTI_ref " + newASTI_ref);
-
-    //                            //MessageBox.Show("cancelVar "+cancelVar, "Info");
-    //                            if (cancelVar == true)
-    //                            {
-    //                                return;
-    //                            }
-
-
-    //                            // Supprimer l'entrée existante pour la mission
-    //                            fileMission.Delete();
-
-    //                            // Ajouter la nouvelle entrée "mission" avec les modifications
-    //                            ZipArchiveEntry newEntry = archive.CreateEntry(fileNameToRead);
-    //                            using (StreamWriter writer = new StreamWriter(newEntry.Open()))
-    //                            {
-    //                                writer.Write(newMission);
-    //                            }
-
-
-    //                            // Supprimer l'entrée existante de "ASTI_ref"
-    //                            if (fileASTIRef != null)
-    //                            {
-    //                                fileASTIRef.Delete();  // Supprimer l'entrée ASTI_ref existante
-    //                            }
-
-
-    //                            // Créer et ajouter la nouvelle entrée "ASTI_ref"
-    //                            ZipArchiveEntry newEntryASTI = archive.CreateEntry(fileASTIRefPath);
-    //                            using (StreamWriter writer = new StreamWriter(newEntryASTI.Open()))
-    //                            {
-    //                                //writer.Write(newASTI_ref);
-
-    //                                // Concaténer les deux tables
-    //                                string combinedString = newASTI_ref + templateGroupId_refId;
-
-    //                                // Écrire les deux tables concaténées dans le fichier
-    //                                writer.Write(combinedString);
-    //                            }
-
-
-    //                            // Supprimer l'entrée existante de "fileMapResource"
-    //                            if (fileMapResource != null)
-    //                            {
-    //                                fileMapResource.Delete();  // Supprimer l'entrée fileMapResource existante
-    //                            }
-
-
-    //                            // Créer et ajouter la nouvelle entrée "MapResource"
-    //                            ZipArchiveEntry newEntryMapResource = archive.CreateEntry(fileMapResourcePath);
-    //                            using (StreamWriter writer = new StreamWriter(newEntryMapResource.Open()))
-    //                            {
-    //                                //FormUtils.LogRegister("D newASTI_ref " + newASTI_ref);
-    //                                writer.Write(newMapResource);
-    //                            }
-
-
-
-    //                        }
-    //                        else
-    //                        {
-    //                            //MessageBox.Show($"Le fichier '{fileNameToRead}' n'a pas été trouvé dans l'archive ZIP.", "error 7606");
-    //                            FormUtils.ShowErrorMessage($"The file ‘{fileNameToRead}’ was not found in the ZIP archive.");
-    //                        }
-    //                    }
-    //                }
-    //            }
-    //            catch (Exception ex)
-    //            {
-    //                FormUtils.ErrorGeneral_BoxOrLog(ex, "but_ASTI_Process_Click", zipFilePath, true, true);
-    //            }
-
-    //            if (newMission != null)
-    //            {
-    //                MessageBox.Show("Process OK : ", "Info");
-    //            }
-
-    //        }
-
-    //    }
-
-    //    private void but_ASTI_Open_templateFolder_Click(object sender, EventArgs e)
-    //    {
-
-    //        // Remplacez "C:\Votre\Chemin\Vers\Le\Dossier" par le chemin réel de votre dossier
-    //        string dossierAouvrir = SharedData.textBox_ASTI_importTemplateFolder;
-
-    //        // Vérifiez si le dossier existe avant de l'ouvrir
-    //        if (Directory.Exists(dossierAouvrir))
-    //        {
-    //            Process.Start(dossierAouvrir);
-    //        }
-    //        else
-    //        {
-    //            // Afficher un message d'erreur si le dossier n'existe pas
-    //            MessageBox.Show("The specified folder does not exist.", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
-    //        }
-
-    //    }
-
-    //    public void GPS_LL_Click(object sender, EventArgs e)
-    //    {
-    //        //Proj_NET.TestPositionLL(new string[] { "500000", "450000" });
-
-
-    //        //MessageBox.Show("Zlib version2: " + version2, "");
-
-    //        Proj_NET.TestProg(0, 0);
-    //        Proj_NET.TestProg(-560000, 380000);
-
-    //        Proj_NET.TestProg(1129937, 379982);
-
-    //        Proj_NET.TestProg(1125256, -595066);
-
-    //        Proj_NET.TestProg(-559999, -559999);
-
-
-    //        //new string[] { "500000", "450000" };
-    //        //
-    //    }
-    //}
 
 }

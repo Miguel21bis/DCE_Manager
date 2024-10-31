@@ -100,7 +100,7 @@ namespace DCE_Manager.Parameters
         public static string FileServerName02 = "https://drive.google.com/uc?export=download&id=";
         //public static string FileServDgUpgradeTXT02 = "1kfO_8LCU7Zvu2tNAZ2WKlUEL2x6t0wFK";
         public static string FileServDgUpgradeTXT02 = "https://bit.ly/3dDSSq1";
-        public static string FileServDceManager02 = "https://bit.ly/3au28Lq";
+        //public static string FileServDceManager02 = "https://bit.ly/3au28Lq";
         public static string ServerNickName02 = "Server 2";//"GoogleDrive";
         public static string fileTypeServer02 = "drivegoogle";
         public static Boolean Server02Exit = true;

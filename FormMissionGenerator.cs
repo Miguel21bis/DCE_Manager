@@ -15,7 +15,7 @@ namespace DCE_Manager
 {
  
 
-    public partial class Form5_MissionGenerator : Form
+    public partial class FormMissionGenerator : Form
     {
         //Form1 _form1;
 
@@ -23,7 +23,7 @@ namespace DCE_Manager
         private Form1 mainForm;
 
         // Constructeur personnalisé pour accepter des paramètres
-        public Form5_MissionGenerator(string missionName, Form1 callingForm)
+        public FormMissionGenerator(string missionName, Form1 callingForm)
         {
             InitializeComponent();
 

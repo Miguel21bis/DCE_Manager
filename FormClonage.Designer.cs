@@ -1,6 +1,6 @@
 ﻿namespace DCE_Manager
 {
-    partial class Form3_Clonage
+    partial class FormClonage
     {
         /// <summary>
         /// Required designer variable.
@@ -28,7 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
-            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Form3_Clonage));
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormClonage));
             this.button_clone = new System.Windows.Forms.Button();
             this.CampaignName = new System.Windows.Forms.TextBox();
             this.comboPlaneChoice = new System.Windows.Forms.ComboBox();
