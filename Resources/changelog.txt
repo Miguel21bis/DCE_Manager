@@ -1,3 +1,6 @@
+V6.12.39
+fix: downloading an update to DCE_Manager creates an empty ZIP with a certain type of server
+
 V6.12.38
 mod: configuration management revisited
 mod: different display of bug windows

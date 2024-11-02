@@ -2532,7 +2532,7 @@ namespace DCE_Manager
 
             textBox_ChangelogScriptsMod.Text = "";
 
-            FormUtils.LogRegister("LogRegister 2535 " + tempLog);
+            //FormUtils.LogRegister("LogRegister 2535 " + tempLog);
         }
 
 
@@ -5624,14 +5624,8 @@ namespace DCE_Manager
                             destinationPath = Path.Combine(downloadFolder, FileServerName);
                         }
 
-                        //downloadUrl = ParamServ.fileTypeServer == "drivegoogle"
-                        //    ? FileServerName
-                        //    : $"{ParamServ.ServerSelected}_DCE_Manager/{FileServerName}";
-
-                        //string downloadPath = Path.Combine(downloadFolder, FileServerName);
-
                         // Log avant téléchargement
-                        FormUtils.LogRegister($"Tentative de téléchargement depuis {downloadUrl} vers {destinationPath}");
+                        FormUtils.LogRegister($"Attempt to download directly from {downloadUrl} to {destinationPath}");
 
                         // Téléchargement du fichier
                         bool success = await FormUtils.TéléchargerFichierAvecHttpClient(downloadUrl, destinationPath);
@@ -5645,13 +5639,17 @@ namespace DCE_Manager
                     catch (WebException webEx)
                     {
                         // Détails de l'erreur WebException
-                        FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, true, true);
+                        //FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, false, true);
                         failedUpdate = true;
 
                         // Affiche le message d'erreur détaillé dans un messagebox
-                        MessageBox.Show($"Une erreur de téléchargement est survenue:\n{webEx.Message}\n" +
+                        MessageBox.Show($"A download error has occurred:\n{webEx.Message}\n" +
                                         $"Statut : {webEx.Status}\n" +
-                                        $"URL : {downloadUrl}", "Erreur de téléchargement");
+                                        $"URL : {downloadUrl}", "Download error");
+
+                        FormUtils.LogRegister($"A download error has occurred:\n{webEx.Message}\n" +
+                                        $"Statut : {webEx.Status}\n" +
+                                        $"URL : {downloadUrl}");
                     }
                     catch (Exception ex)
                     {
@@ -5684,133 +5682,7 @@ namespace DCE_Manager
 
 
                     }
-
                 }
-
-                //using (WebClient client = new WebClient())
-                //{
-                //    //string str = "1.1.1";
-                //    //Version version = new Version(str);
-
-                //    Version version = Assembly.GetExecutingAssembly().GetName().Version;
-                //    String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
-
-                //    //fileUpdate = "DCE_Manager_V_3.7.5.zip";
-                //    //fileUpdate = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
-
-                //    //string Downloads = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
-
-
-                //    FormUtils.LogRegister("FileServer " + FileServer_major + "." + FileServer_minor + "." + FileServer_build);
-                //    FormUtils.LogRegister("FileLocal " + version.Major + "." + version.Minor + "." + version.Build);
-
-                //    if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
-                //    {
-                //        string downloadUrl = "";
-
-                //        try
-                //        {
-                //            downloadUrl = ParamServ.fileTypeServer == "drivegoogle"
-                //                ? FileServerName
-                //                : $"{ParamServ.ServerSelected}_DCE_Manager/{FileServerName}";
-
-                //            string downloadPath = Path.Combine(DownloadFolder, FileServerName);
-
-                //            // Log avant téléchargement
-                //            FormUtils.LogRegister($"Tentative de téléchargement depuis {downloadUrl} vers {downloadPath}");
-
-                //            // Téléchargement du fichier
-                //            client.DownloadFile(downloadUrl, downloadPath);
-
-                //            nbFileUpdated++;
-                //            tempLog += $" Updated: {downloadPath}\r\n";
-                //        }
-                //        catch (WebException webEx)
-                //        {
-                //            // Détails de l'erreur WebException
-                //            FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, true, true);
-                //            failedUpdate = true;
-
-                //            // Affiche le message d'erreur détaillé dans un messagebox
-                //            MessageBox.Show($"Une erreur de téléchargement est survenue:\n{webEx.Message}\n" +
-                //                            $"Statut : {webEx.Status}\n" +
-                //                            $"URL : {downloadUrl}", "Erreur de téléchargement");
-                //        }
-                //        catch (Exception ex)
-                //        {
-                //            // Log général pour toutes les autres exceptions
-                //            FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", $"Erreur serveur : {downloadUrl}", true, true);
-                //            failedUpdate = true;
-                //        }
-
-                //        //try
-                //        //{
-                //        //    //client.DownloadFile(NameServer + FileServerName, DownloadFolder + FileLocName);
-                //        //    //client.DownloadFile(tempServer, DownloadFolder + FileLocName);
-
-                //        //    if (ParamServ.fileTypeServer == "drivegoogle")
-                //        //    {
-                //        //        client.DownloadFile(FileServerName, DownloadFolder + "DCE_Manager.zip");
-                //        //    }
-                //        //    else
-                //        //    {
-                //        //        client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, DownloadFolder + FileServerName);
-                //        //    }
-
-                //        //    nbFileUpdated++;
-                //        //    tempLog = tempLog + " Updated: " + DownloadFolder + " " + FileLocName + "\r\n";
-                //        //    tempLog = tempLog + " Updated: " + NameServer + FileServerName + "\r\n";
-                //        //}
-                //        //catch (Exception ex)
-                //        //{
-                //        //    //string toto = ex.StackTrace;
-
-                //        //    //tempLog = tempLog + FileLocName + " Failed server: " + NameServer + FileServerName + "\r\n";
-                //        //    //tempLog = tempLog + "Or local: " + DownloadFolder + FileLocName + "\r\n";
-                //        //    //tempLog = tempLog + toto + "\r\n";
-                //        //    failedUpdate = true;
-                //        //    //MessageBox.Show("Update failed, check log", "Report");
-
-                //        //    if (ParamServ.fileTypeServer == "drivegoogle")
-                //        //    {
-                //        //        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", " Failed server: " + NameServer + FileServerName, true, true);
-                //        //    }
-                //        //    else
-                //        //    {
-                //        //        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", " Failed server: " + ParamServ.ServerSelected + @"_DCE_Manager\" + FileServerName, true, true);
-                //        //    }
-                //        //}
-                //    }
-                //    if (nbFileUpdated > 0 & failedUpdate == false)
-                //    {
-                //        DceManagerAvailableVersion.Text = "DCE_Manager downloaded " + FileLocName;
-                //        tempLog = tempLog + "DCE_Manager downloaded " + FileLocName + " " + FileServerName + "\r\n";
-
-                //        FormUtils.LogRegister(DownloadFolder + FileLocName);
-
-                //        MessageBox.Show("The program will close and open the downloaded Zip file." + "\r\n" +
-                //            "It is up to you to extract it and place it wherever you want.", "Report");
-
-                //        Process process = new Process();
-                //        // Configure the process using the StartInfo properties.
-
-                //        process.StartInfo.FileName = DownloadFolder + FileLocName;
-                //        process.StartInfo.Arguments = " ";
-                //        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                //        process.StartInfo.WorkingDirectory = DownloadFolder;
-
-                //        process.Start();
-
-                //        Application.Exit();
-
-                //    }
-                //    else
-                //    {
-                //        //ça c'est une connerie
-                //        //DceManagerAvailableVersion.Text = "No update of DCE_Manager required ";
-                //        //tempLog = tempLog + "No update of DCE_Manager required " + "\r\n";
-                //    }
-                //}
             }
 
             //MessageBox.Show(tempLog, "Report");

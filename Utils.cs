@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -38,6 +40,78 @@ namespace DCE_Manager.Utils
     {
 
         public static async Task<bool> TéléchargerFichierAvecHttpClient(string url, string destinationPath)
+        {
+            // Vérifier si le lien est un lien Google Drive
+            bool isGoogleDrive = url.Contains("drive.google.com");
+
+            if (isGoogleDrive)
+            {
+                try
+                {
+                    // Lancer l'ouverture de la page Google Drive dans le navigateur pour le téléchargement manuel
+                    FormUtils.LogRegister($"Opening the browser for manual download : {url}");
+                    Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+
+                    // Afficher un message à l'utilisateur
+                    MessageBox.Show("The file requires a download confirmation from Google Drive. " +
+                                    "A tab has opened in your browser. Click on 'Download anyway' " +
+                                    " to download the file.", "Download confirmation required", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    return true; // Considérer comme succès après avoir informé l'utilisateur
+                }
+                catch (Exception ex)
+                {
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Error opening confirmation link in browser", url, true, true);
+                    MessageBox.Show($"Error : Unable to open the download page.\n{ex.Message}", "Erreur", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return false;
+                }
+            }
+            else
+            {
+                // Pour les autres serveurs, procéder au téléchargement direct
+                using (HttpClient client = new HttpClient())
+                {
+                    try
+                    {
+                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+
+                        FormUtils.LogRegister($"Attempt to download directly from {url} to {destinationPath}");
+
+                        // Effectuer le téléchargement du fichier
+                        using (HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead))
+                        {
+                            response.EnsureSuccessStatusCode();
+
+                            // Enregistrer le fichier
+                            using (var fileStream = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                            {
+                                await response.Content.CopyToAsync(fileStream);
+                            }
+                            FormUtils.LogRegister($"Successful download : {destinationPath}");
+                        }
+                        return true;
+                    }
+                    catch (HttpRequestException httpEx)
+                    {
+                        FormUtils.ErrorGeneral_BoxOrLog(httpEx, "HTTP error during direct download", url, true, true);
+                        //MessageBox.Show($"Erreur de requête HTTP : {httpEx.Message}", "Erreur de téléchargement");
+                        return false;
+                    }
+                    catch (Exception ex)
+                    {
+                        FormUtils.ErrorGeneral_BoxOrLog(ex, "General error during direct download", url, true, true);
+                        //MessageBox.Show($"Erreur de téléchargement : {ex.Message}", "Erreur de téléchargement");
+                        return false;
+                    }
+                }
+            }
+        }
+
+
+
+
+
+        public static async Task<bool> TéléchargerFichierAvecHttpClient_OLD(string url, string destinationPath)
         {
             int nbErreurs = 0;
             using (HttpClient client = new HttpClient())
