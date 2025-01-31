@@ -59,9 +59,7 @@ namespace DCE_Manager
         // Gestionnaire d'événements pour gérer la sélection unique dans le groupe Active
         private void RadioButtonActive_CheckedChanged(object sender, EventArgs e)
         {
-            RadioButton selectedRadioButton = sender as RadioButton;
-
-            if (selectedRadioButton != null && selectedRadioButton.Checked)
+            if (sender is RadioButton selectedRadioButton && selectedRadioButton.Checked)
             {
                 foreach (var radioButton in radioButtonGroupActive)
                 {
@@ -736,7 +734,7 @@ namespace DCE_Manager
             }
 
             // Charger le tableau playable_m
-            LuaTable playable_mLua = (LuaTable)luaTable["playable_m"];
+            LuaTable playable_mLua = (LuaTable)luaTable["Playable_m"];
             List<string> playableList = new List<string>();
 
             // Parcourir la table Lua
@@ -1266,14 +1264,36 @@ namespace DCE_Manager
                                 //    { "CSAR", 23 },
 
                                 //};
-                                
+
 
                                 //if (entry3.Key == "tasks")
 
-                                var tasksForPlane = taskByPlane[squad.Type];
+                                //var tasksForPlane = taskByPlane[squad.Type];
+
+                                //if (Name != null && !PublicTable.errorTable.ContainsKey(Name))
+                                //{
+                                //    PublicTable.errorTable.Add(Name, infoError);
+                                //}
+
+                                if (taskByPlane.TryGetValue(squad.Type, out var tasksForPlane))
+                                {
+                                    // La clé existe, et la valeur est stockée dans tasksForPlane
+                                }
+                                else
+                                {
+                                    string name = "tasksForPlane_"+ squad.Type;
+                                    string infoError = "problem with this type of aircraft and task: " + squad.Type;
+                                    // Si la clé n'existe pas, ajouter l'erreur au dictionnaire
+                                    if (Name != null && !PublicTable.errorTable.ContainsKey(Name))
+                                    {
+                                        PublicTable.errorTable.Add(Name, infoError);
+                                    }
+                                }
+
+
 
                                 args["value"] = 0;
-                                if (squad.Tasks != null)
+                                if (squad.Tasks != null && tasksForPlane != null)
                                 {
                                   
                                     //foreach (var task in dicoTasks)

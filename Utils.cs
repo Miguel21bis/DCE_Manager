@@ -270,6 +270,12 @@ namespace DCE_Manager.Utils
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
             bool exists = System.IO.Directory.Exists(pathOptionInstaller);
 
+            // Obtenir la date et l'heure actuelles sous forme de chaîne
+            string timestamp = DateTime.Now.ToString("[yyyy-MM-dd HH:mm:ss] ");
+
+            // Ajouter le timestamp au début du log
+            string logEntry = timestamp + log + "\r\n";
+
             if (!exists)
             {
                 try
@@ -292,12 +298,13 @@ namespace DCE_Manager.Utils
                 {
                     if (!File.Exists(path))
                     {
-                        // Create the file if it doesn't exist
+                        // Créer le fichier s'il n'existe pas et écrire le log avec horodatage
                         using (FileStream fs = File.Open(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
                         {
-                            Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
+                            Byte[] info = new UTF8Encoding(true).GetBytes(logEntry);
                             fs.Write(info, 0, info.Length);
                         }
+
                     }
                     else
                     {
@@ -305,7 +312,7 @@ namespace DCE_Manager.Utils
                         using (FileStream fs = File.Open(path, FileMode.OpenOrCreate, FileAccess.Write, FileShare.ReadWrite))
                         {
                             fs.Seek(0, SeekOrigin.End); // Move to the end of the file
-                            Byte[] info = new UTF8Encoding(true).GetBytes(log + "\r\n");
+                            Byte[] info = new UTF8Encoding(true).GetBytes(logEntry + "\r\n");
                             fs.Write(info, 0, info.Length);
                         }
                     }

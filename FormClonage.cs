@@ -174,17 +174,17 @@ namespace DCE_Manager
                 taskByPlane[planeName] = taskDictionary;
             }
 
-            // Charger le tableau playable_m
-            LuaTable playable_mLua = (LuaTable)luaTable["playable_m"];
-            List<string> playableList = new List<string>();
+            //// Charger le tableau playable_m
+            //LuaTable playable_mLua = (LuaTable)luaTable["playable_m"];
+            //List<string> playableList = new List<string>();
 
-            // Parcourir la table Lua
-            foreach (var plane in playable_mLua.Keys)
-            {
-                playableList.Add(plane.ToString());
-            }
+            //// Parcourir la table Lua
+            //foreach (var plane in playable_mLua.Keys)
+            //{
+            //    playableList.Add(plane.ToString());
+            //}
 
-            
+
             //*************************************************************************
             //CREATION DES TABLES BASE ********************************************************
             //PARSE les fichiers BASE ********************************************************
@@ -286,26 +286,26 @@ namespace DCE_Manager
 
                         //List<Squad> List_oob_air = new List<Squad>();
 
-                        int tableN = 0;
+                        //int tableN = 0;
 
-                        int sideInt = 0;
-                     
+                        //int sideInt = 0;
+
                         foreach (KeyValuePair<string, LuaObject> entry in C_oobAir.Val)
                         {
                             //int nbLigne = 0;
                             string side = entry.Key;
 
 
-                            if (side == "blue")
-                            {
-                                sideInt = 1;
-                            }
-                            else if (side == "red")
-                            {
-                                sideInt = 2;
-                            }
+                            //if (side == "blue")
+                            //{
+                            //    sideInt = 1;
+                            //}
+                            //else if (side == "red")
+                            //{
+                            //    sideInt = 2;
+                            //}
 
-                            tableN = 1;
+                            //tableN = 1;
 
                             foreach (KeyValuePair<string, LuaObject> entry2 in entry.Value)
                             {
@@ -313,7 +313,7 @@ namespace DCE_Manager
                                 int[] firstPos = new int[50];
 
                                 int idElement = 0;
-                                tableN = 2;
+                                //tableN = 2;
                                 idSquad++;
 
                                 var squad = new Squad
@@ -329,7 +329,7 @@ namespace DCE_Manager
                                 {
 
                                     idElement++;
-                                    tableN = 3;
+                                    //tableN = 3;
 
                                     for (int r = 0; r < firstPos.Length; r++)
                                     {
@@ -373,7 +373,7 @@ namespace DCE_Manager
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
                                             idElement++;
-                                            tableN = 4;
+                                            //tableN = 4;
                                             string baseName = entry4.Value.luaobj.ToString().Trim('\"');
                                             squad.BaseAlternative.Add(baseName);
 
@@ -404,7 +404,7 @@ namespace DCE_Manager
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
                                             idElement++;
-                                            tableN = 4;
+                                            //tableN = 4;
 
                                             squad.Tasks.Add(entry4.Key, Convert.ToBoolean(entry4.Value.luaobj));
 
@@ -417,7 +417,7 @@ namespace DCE_Manager
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
                                             idElement++;
-                                            tableN = 4;
+                                            //tableN = 4;
 
                                             //squad.TasksCoef.Add(entry4.Key, Convert.ToDouble(entry4.Value.luaobj));
 
@@ -446,7 +446,7 @@ namespace DCE_Manager
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
                                             idElement++;
-                                            tableN = 4;
+                                            //tableN = 4;
                                             squad.Roster.Add(entry4.Key, Convert.ToInt32(entry4.Value.luaobj));
                                         }
                                     }
@@ -458,7 +458,7 @@ namespace DCE_Manager
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
                                             idElement++;
-                                            tableN = 4;
+                                            //tableN = 4;
                                             squad.Score.Add(entry4.Key, Convert.ToInt32(entry4.Value.luaobj));
                                         }
                                     }
