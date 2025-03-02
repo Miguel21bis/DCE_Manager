@@ -8,6 +8,7 @@ using DCE_Manager.Utils;
 using DCE_Manager.Parameters;
 using System.Threading;
 using System.Globalization;
+using System.Linq;
 
 namespace DCE_Manager
 {
@@ -34,6 +35,11 @@ namespace DCE_Manager
 
             _form1 = form1;
 
+            if (form1 == null)
+            {
+                MessageBox.Show("Le Form1 passé au constructeur est NULL !");
+            }
+
             Lua lua = new Lua();
 
             lua["versionPackageICM"] = "NG";
@@ -46,8 +52,35 @@ namespace DCE_Manager
 
             var result = lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
 
-            LuaTable luaTable = (LuaTable)result[0];
-            LuaTable tabSquad = (LuaTable)luaTable["tabSquad"];
+            //LuaTable luaTable = (LuaTable)result[0];
+            //LuaTable tabSquad = (LuaTable)luaTable["tabSquad"];
+
+            if (result == null || result.Length == 0 || result[0] == null)
+            {
+                MessageBox.Show("Le script Lua n'a pas retourné de résultat valide.");
+                return;
+            }
+
+            LuaTable luaTable = result[0] as LuaTable;
+            if (luaTable == null)
+            {
+                MessageBox.Show("luaTable est NULL !");
+                return;
+            }
+
+            if (!luaTable.Keys.Cast<object>().Contains("tabSquad"))
+            {
+                MessageBox.Show("tabSquad n'existe pas dans luaTable !");
+                return;
+            }
+
+            LuaTable tabSquad = luaTable["tabSquad"] as LuaTable;
+            if (tabSquad == null)
+            {
+                MessageBox.Show("tabSquad est NULL !");
+                return;
+            }
+
 
 
 

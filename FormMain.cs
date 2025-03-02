@@ -1084,6 +1084,28 @@ namespace DCE_Manager
         {
             string upgradelocFile = "upgrade.txt";
             string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
+
+
+            if (string.IsNullOrWhiteSpace(pathManager))
+            {
+                #if DEBUG
+                    throw new ArgumentException("Le chemin pathManager est NULL ou vide !");
+                #else
+                  FormUtils.LogRegister("Le chemin pathManager est NULL ou vide " + pathManager);
+                #endif
+            }
+
+            if (string.IsNullOrWhiteSpace(upgradelocFile))
+            {
+                #if DEBUG
+                    throw new ArgumentException("Le nom du fichier upgradelocFile est NULL ou vide !");
+                #else
+                     FormUtils.LogRegister("Le nom du fichier upgradelocFile est NULL ou vide " + upgradelocFile);
+                #endif
+            }
+
+
+
             bool pathManagerExists = System.IO.Directory.Exists(pathManager);
 
             //string str = "1.1.1";
@@ -1100,9 +1122,22 @@ namespace DCE_Manager
             int FileServer_minor = 0;
             int FileServer_build = 0;
 
-            bool upgradeFileExists = File.Exists(pathManager + upgradelocFile);
+            string pathManagerPlusFile = pathManager + upgradelocFile;
 
-            FileInfo upgradeFileInfo = new FileInfo(pathManager + upgradelocFile);
+
+            if (pathManagerPlusFile.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+            {
+#if DEBUG
+                     throw new ArgumentException($"Le chemin pathManager contient des caractères interdits : {pathManagerPlusFile}");
+#else
+                   FormUtils.LogRegister($"Le chemin pathManagerPlusFile contient des caractères interdits : {pathManagerPlusFile}");
+#endif
+            }
+
+
+            bool upgradeFileExists = File.Exists(pathManagerPlusFile);
+
+            FileInfo upgradeFileInfo = new FileInfo(pathManagerPlusFile);
 
             bool upToDate = true;
             bool DcemanagUpToDate = true;
@@ -1114,7 +1149,7 @@ namespace DCE_Manager
                 try
                 {
                     // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (FileStream fs = new FileStream(pathManagerPlusFile, FileMode.Open, FileAccess.Read, FileShare.Read))
                     using (StreamReader sr = new StreamReader(fs))
                     {
 
@@ -1167,9 +1202,16 @@ namespace DCE_Manager
 
             folderLoc = textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod." + TypeClient + @"\";
 
-            //FormUtils.LogRegister("LogRegister 431 folderLoc: " + folderLoc);
+            if (string.IsNullOrWhiteSpace(folderLoc))
+            {
+#if DEBUG
+                    throw new ArgumentException("Le chemin folderLoc est NULL ou vide !");
+#else
+                  FormUtils.LogRegister("Le chemin folderLoc est NULL ou vide " + folderLoc);
+#endif
+            }
 
-            bool folderLocExists = System.IO.Directory.Exists(folderLoc);
+             bool folderLocExists = System.IO.Directory.Exists(folderLoc);
 
 
             if (!folderLocExists)
