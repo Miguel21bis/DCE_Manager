@@ -110,54 +110,6 @@ namespace DCE_Manager
             CloneCampaign.OldNameCamp = OldNameCamp;
         }
 
-        public void Form3_ClonageOLD(Form1 form1, string path, string OldNameCamp)
-        {
-            OldNameCamp = OldNameCamp.TrimStart();
-            OldNameCamp = OldNameCamp.TrimEnd();
-
-            InitializeComponent();
-            _form1 = form1;
-            Lua lua = new Lua();
-
-            lua["versionPackageICM"] = "NG";                                                                          //Create lua variables
-            lua["pathScriptsMod"] = _form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG";                    //Create lua variables
-            lua["pathCampaign"] = _form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + OldNameCamp;                    //Create lua variables
-            lua["generator"] = "DCE_Manager";                                                                         //Create lua variables
-            lua["pathSavedGames"] = _form1.textBox_SavedGames.Text;                                                                            //Create lua variables
-
-            lua.DoFile(_form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_ChangePlane_DceM.lua");
-
-            lua.NewTable("TabSquad");
-            var result0 = lua.DoFile(_form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + OldNameCamp + @"\Debug\TabSquad.lua");
-            LuaTable TabSquadC = lua.GetTable("TabSquad");
-
-            var enumerator = TabSquadC.GetEnumerator();
-            int i = 1;
-            while (enumerator.MoveNext())
-            {
-                comboPlaneChoice.Items.Add(enumerator.Value.ToString());
-                comboPlaneChoice.SelectedItem = enumerator.Value.ToString();
-                i++;
-            }
-
-            string tempTXT =  (string)comboPlaneChoice.SelectedItem;
-            string[] words = tempTXT.Split('|');
-            planeFIX.Text = words[0].Replace(" ", "");
-            SquadName.Text = words[1];
-
-            SquadName.Text = SquadName.Text.TrimStart();
-            SquadName.Text = SquadName.Text.TrimEnd();
-
-            CloneCampaign.SquadName = SquadName.Text;
-            BaseName.Text = words[2];
-            CampaignName.Text = OldNameCamp + "-" + planeFIX.Text;
-            string NewdNameCamp = CampaignName.Text;
-
-            CloneCampaign.path = path;
-            CloneCampaign.OldNameCamp = OldNameCamp;            
-        }
-
-
 
         public void CreateDicoClassSquad(Form1 form1, string path, string nameCamp)
         {
@@ -220,7 +172,7 @@ namespace DCE_Manager
 
             //*************************************************************************
             //CREATION DES TABLES BASE ********************************************************
-            //PARSE les fichiers BASE ********************************************************
+            //PARSE les fichiers BASE  (db_airbases.lua) ********************************************************
             //*************************************************************************
 
             //string nameCamp = "YourCampaignName";  // Remplacez par le nom de votre campagne
