@@ -704,7 +704,13 @@ namespace DCE_Manager
             lua["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG";
             lua["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp;
             lua["generator"] = "DCE_Manager"; 
-            lua["pathSavedGames"] = SharedData.textBox_SavedGames; 
+            lua["pathSavedGames"] = SharedData.textBox_SavedGames;
+            // Crée la table Debug avec la clé "debug" à false
+            var debugTable = new Dictionary<string, object>
+            {
+                { "debug", false }
+            };
+            lua["Debug"] = debugTable;
 
             lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
 

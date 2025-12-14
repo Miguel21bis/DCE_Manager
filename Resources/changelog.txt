@@ -1,3 +1,6 @@
+V8.14.43
+fix: compatible with certain DCE Lua files
+
 V8.14.42
 add: Compatible with campaign cloning, possessing the Mods folder
 
