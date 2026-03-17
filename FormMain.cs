@@ -1226,12 +1226,24 @@ namespace DCE_Manager
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
                 }
             }
-            
+
+            ////test la presence du dossier "db_loadouts"
+            //if (!System.IO.Directory.Exists(folderLoc + @"\db_loadouts")) 
+            //{
+            //    try
+            //    {
+            //        System.IO.Directory.CreateDirectory(folderLoc + @"\db_loadouts");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
+            //    }
+            //}
+
             //test la presence du dossier "Mission Scripts"
-            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts")) 
+            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts"))
             {
-                //System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
-                try
+               try
                 {
                     System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
                 }
@@ -1240,6 +1252,7 @@ namespace DCE_Manager
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
                 }
             }
+
 
             //compare les versions de tous les fichiers
             if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
@@ -1303,18 +1316,27 @@ namespace DCE_Manager
                                     fileName = fileName.TrimEnd();
                                     fileName = fileName.TrimStart();
 
+                                    //remet le caractere \ a la place du | pour tous
+                                    fileName = fileName.Replace("|", "\\");
+
                                     //remet l'espace du path "Mission Scripts" préalablement supprimé
                                     if (fileName.Contains("MissionScripts"))
                                     {
                                         fileName = fileName.Replace("MissionScripts", "Mission Scripts");
                                         //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-                                        fileName = fileName.Replace("|", "\\");
+                                        //fileName = fileName.Replace("|", "\\");
                                     }
-                                    else if (fileName.Contains("Mission Scripts"))
-                                    {
-                                        //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-                                        fileName = fileName.Replace("|", "\\");
-                                    }
+                                    ////remet l'espace du path "Mission Scripts" préalablement supprimé
+                                    //if (fileName.Contains("db_loadouts"))
+                                    //{
+                                    //    //remet le caractere \ a la place du | pour les  "db_loadouts" 
+                                    //    fileName = fileName.Replace("|", "\\");
+                                    //}
+                                    //else if (fileName.Contains("Mission Scripts"))
+                                    //{
+                                    //    //remet le caractere \ a la place du | pour les  "Mission Scripts" 
+                                    //    fileName = fileName.Replace("|", "\\");
+                                    //}
 
                                     if (part[1].Contains("."))
                                     {
@@ -1348,6 +1370,13 @@ namespace DCE_Manager
                                     Boolean fileLocDateNeedUpdate = false;
                                     Boolean isLuaTxtFile = false;
 
+                                    //FormUtils.LogRegister("DEBUG filename raw |" + fileName + "|");
+
+                                    //foreach (char c in fileName)
+                                    //{
+                                    //    if (Path.GetInvalidFileNameChars().Contains(c))
+                                    //        FormUtils.LogRegister("INVALID CHAR : " + (int)c);
+                                    //}
 
                                     FileInfo fInfo = new FileInfo(folderLoc + fileName);
                                     //int size = fInfo.Length;//taille en octets 
@@ -1392,7 +1421,7 @@ namespace DCE_Manager
                                                         FileLoc_minor = Int32.Parse(tempVersion[1]);
                                                         FileLoc_build = Int32.Parse(tempVersion[2]);
 
-                                                        //FormUtils.LogRegister("LogRegister 1351 folderLoc, |"+ FileToRead + "| " + FileLoc_major + "| " + FileLoc_minor + "| " + FileLoc_build + "| ");
+                                                        //FormUtils.LogRegister("LogRegister 1351 folderLoc, |"+ fileToRead + "| " + FileLoc_major + "| " + FileLoc_minor + "| " + FileLoc_build + "| ");
 
 
                                                         break;
@@ -1443,7 +1472,14 @@ namespace DCE_Manager
                                     //{
 
                                     //}
+
                                 }
+                                //else
+                                //{
+                                //    FormUtils.LogRegister("LogRegister 1479 this file is not up to date, or is missing  |" + fileName + "| ");
+
+                                //    nbFileToUpdat++;
+                                //}
 
                                 //**********************************
                                 //check la version de DCE_Manager
@@ -2166,7 +2202,7 @@ namespace DCE_Manager
                                         fileUpdateArray[i, 2] = FileVersion[1];
                                         fileUpdateArray[i, 3] = FileVersion[2];
                                     }
-                                     else if (part[1].IndexOf(":") > -1 && part[1].IndexOf("/") > -1)
+                                    else if (part[1].IndexOf(":") > -1 && part[1].IndexOf("/") > -1)
                                     {
 
                                         //31/03/2021 09:37:31
@@ -2226,34 +2262,25 @@ namespace DCE_Manager
             }
 
 
-            //test la presence du dossier "Mission Scripts"
-            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts")) 
-            {
+            ////test la presence du dossier "Mission Scripts"
+            //if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts")) 
+            //{
                 
-                try
-                {
-                    System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", folderLoc + @"\Mission Scripts", true, true);
-                }
-            }
+            //    try
+            //    {
+            //        System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", folderLoc + @"\Mission Scripts", true, true);
+            //    }
+            //}
 
             //telecharge les fichiers à mettre à jour
             if (succeed)
             {
 
-                //tf.progressBarA.Visible = true;
-                //tf.progressBarA.Minimum = 1;
-                //// Set Maximum to the total number of files to copy.
-                //tf.progressBarA.Maximum = 50;
-                //// Set the initial value of the ProgressBar.
-                //tf.progressBarA.Value = 1;
-                //// Set the Step property to a value of 1 to represent each file being copied.
-                //tf.progressBarA.Step = 1;
-
-                var urlList = new Dictionary<string, string>();
+               var urlList = new Dictionary<string, string>();
 
                 //foreach (string fileUpdate in fileUpdateArray)
                 for (int i = 0; i < 150; i++)
@@ -2266,6 +2293,7 @@ namespace DCE_Manager
                     if (!String.IsNullOrEmpty(fileUpdate))
                     {
                         fileUpdate = fileUpdate.Replace("|", "\\");
+                        fileUpdate = fileUpdate.Trim();
                         fileLocName = fileUpdate;
                     }
                     
@@ -2273,11 +2301,12 @@ namespace DCE_Manager
                     if (!String.IsNullOrEmpty(fileUpdate))
                     {
                         bool fichierSain = true;
-                        bool fileUpdateExists = File.Exists(folderLoc + fileUpdate);
+                        string pathCombine = Path.Combine(folderLoc, fileUpdate);
+                        bool fileUpdateExists = File.Exists(pathCombine);
                         string ext = "";
                         bool downloadAutorise = false;
 
-                        FileInfo fInfo = new FileInfo(folderLoc + fileUpdate);
+                        FileInfo fInfo = new FileInfo(pathCombine);
                         //int size = fInfo.Length;//taille en octets 
 
                         if (fileUpdateExists)
@@ -2285,7 +2314,7 @@ namespace DCE_Manager
                             if (fInfo.Length < 1)
                                 fichierSain = false;
 
-                            ext = Path.GetExtension(folderLoc + fileUpdate);
+                            ext = Path.GetExtension(pathCombine);
                             //FormUtils.LogRegister("LogRegister 1899 fileUpdateExists |" + folderLoc + fileUpdate + "|");
                         }
                         else
@@ -2300,8 +2329,9 @@ namespace DCE_Manager
                             {
                                 if (fileUpdateExists && fichierSain)
                                 {
-                                    string FileToRead = folderLoc + fileUpdate;
-                                    using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                                    //string fileToRead = folderLoc + fileUpdate;
+                                    string fileToRead = Path.Combine(folderLoc, fileUpdate);
+                                    using (StreamReader ReaderObject = new StreamReader(fileToRead))
                                     {
                                         try
                                         {
@@ -2310,7 +2340,7 @@ namespace DCE_Manager
                                         catch (Exception ex)
                                         {
                                             //MessageBox.Show(fileUpdateArray[nbFileToUpdat, 0].ToString(), "version error");
-                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod():  version error", FileToRead, true, true);
+                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod():  version error", fileToRead, true, true);
                                         }
 
                                         try
@@ -2320,7 +2350,7 @@ namespace DCE_Manager
                                         catch (Exception ex)
                                         {
                                             //MessageBox.Show(fileUpdateArray[nbFileToUpdat, 0].ToString(), "version error");
-                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod() : version error", FileToRead, true, true);
+                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod() : version error", fileToRead, true, true);
                                         }
 
                                         try
@@ -2330,7 +2360,7 @@ namespace DCE_Manager
                                         catch (Exception ex)
                                         {
                                             //MessageBox.Show(fileUpdateArray[nbFileToUpdat, 0].ToString(), "version error");
-                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod() : version error", FileToRead, true, true);
+                                            FormUtils.ErrorGeneral_BoxOrLog(ex, "UpdateScriptsMod() : version error", fileToRead, true, true);
                                         }
 
 
@@ -2369,7 +2399,8 @@ namespace DCE_Manager
                             else
                             //autres fichiers de type ogg png
                             {
-                                DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + fileUpdate);
+                                string pathCombineOtherFile = Path.Combine(folderLoc, fileUpdate);
+                                DateTime dtFileLoc = File.GetLastWriteTime(pathCombineOtherFile);
 
                                 if (fileUpdateArray[i, 5] != null)
                                 {
@@ -2402,6 +2433,7 @@ namespace DCE_Manager
                             {
                                 typeClientServ = "";
                                 fileServerName = fileUpdateArray[i, 4];
+                                //fileServerName = "https://drive.google.com/uc?export=download&id=" + fileUpdateArray[i, 4];
                                 fileServerName = fileServerName.Replace("|", "\\");
 
                             }
@@ -2416,11 +2448,26 @@ namespace DCE_Manager
                             {
                                 try
                                 {
+                                    string fullPath = Path.Combine(folderLoc, fileLocName);
+
+                                    // récupère le dossier du fichier
+                                    string directory = Path.GetDirectoryName(fullPath);
+
+                                    // crée le dossier s'il n'existe pas
+                                    if (!Directory.Exists(directory))
+                                    {
+                                        Directory.CreateDirectory(directory);
+                                    }
 
                                     client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
                                     client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(client_DownloadFileCompleted);
-                                    client.DownloadFileAsync(new Uri(ParamServ.ServerSelected + typeClientServ + fileServerName), folderLoc + fileLocName,  fileLocName);
-                                    
+                                    //client.DownloadFileAsync(new Uri(ParamServ.ServerSelected + typeClientServ + fileServerName), folderLoc + fileLocName,  fileLocName);
+                                    client.DownloadFileAsync(
+                                        new Uri(ParamServ.ServerSelected + typeClientServ + fileServerName),
+                                        fullPath,
+                                        fileLocName
+                                    );
+
                                     nbFileUpdated++;
 
                                     string entryLog = " Updated: " + folderLoc + fileLocName + "\r\n"
@@ -2429,7 +2476,7 @@ namespace DCE_Manager
 
                                     tempLog = tempLog + entryLog;
                                    
-                                    FormUtils.LogRegister("LogRegister 2393 |" + entryLog);
+                                    FormUtils.LogRegister("LogRegister 2478 |" + entryLog);
 
                                 }
                                 catch (Exception ex)
@@ -2455,11 +2502,6 @@ namespace DCE_Manager
                 tf.progressBarA.Minimum = 0;
                 // Set Maximum to the total number of files to copy.
                 tf.progressBarA.Maximum = nbFileUpdated;
-                // Set the initial value of the ProgressBar.
-                //tf.progressBarA.Value = 1;
-                // Set the Step property to a value of 1 to represent each file being copied.
-                //tf.progressBarA.Step = 1;
-
                 tf.progressBarC.Minimum = 0;
                 tf.progressBarC.Maximum = nbFileUpdated;
 
@@ -2524,7 +2566,7 @@ namespace DCE_Manager
                     nbErrorAsyn++;
 
                     contentState = ea.Error.Message;
-                    FormUtils.LogRegister("LogRegister 2033 " + contentState);
+                    FormUtils.LogRegister("LogRegister 2568 " + contentState + " || " + tf.labelNameFile.Text);
                     tf.progressBarC.ForeColor = Color.Red;
                     tf.progressBarC.Visible = true;
                     tf.progressBarC.Value += 1;
@@ -3633,8 +3675,8 @@ namespace DCE_Manager
                         changeFolder = "Campaigns\\";
                     }
 
-
-                    bool fileUpdateExists = File.Exists(folderLoc + fileUpdate);
+                    string pathCombine = Path.Combine(folderLoc, fileUpdate);
+                    bool fileUpdateExists = File.Exists(pathCombine);
 
                     if (campaignFolderLocExists && !campaignNameTab.ContainsKey(campaignName))
                     {
@@ -3645,8 +3687,8 @@ namespace DCE_Manager
                     //cherche la version du fichier local, il l'ouvre pour cela
                     if (fileUpdateExists)
                     {
-                        string FileToRead = folderLoc + fileUpdate;
-                        using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                        //string pathCombine = folderLoc + fileUpdate;
+                        using (StreamReader ReaderObject = new StreamReader(pathCombine))
                         {
                             if (fileUpdateArray[i, 1] != null)
                             {
@@ -3655,7 +3697,7 @@ namespace DCE_Manager
                                 FileServer_build = Int32.Parse(fileUpdateArray[i, 3]);
                             }
 
-                            DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + fileUpdate);
+                            DateTime dtFileLoc = File.GetLastWriteTime(pathCombine);
 
                             if (fileUpdateArray[i, 5] != null)
                             {
@@ -3774,7 +3816,7 @@ namespace DCE_Manager
                                 {
                                     //client.DownloadFile(ParamServ.ServerSelected + changeFolder + fileUpdate, folderLoc + fileUpdate);
 
-                                    client.DownloadFile(ParamServ.ServerSelected + TypeClientServ + FileServerName, folderLoc + fileUpdate);
+                                    client.DownloadFile(ParamServ.ServerSelected + TypeClientServ + FileServerName, pathCombine);
 
 
                                     tempLog = tempLog + " Updated: " + fileUpdate + "\r\n";
@@ -3816,7 +3858,7 @@ namespace DCE_Manager
                                 string toto = ex.StackTrace;
                                 tempLog = tempLog + "Failed server: " + ParamServ.ServerSelected + TypeClientServ + FileServerName + "\r\n";
 
-                                tempLog = tempLog + "Or local: " + folderLoc + fileUpdate + "\r\n";
+                                tempLog = tempLog + "Or local: " + pathCombine + "\r\n";
 
                                 tempLog = tempLog + toto + "\r\n";
                                 //MessageBox.Show("Update failed, check log", "Report");
@@ -4650,8 +4692,8 @@ namespace DCE_Manager
 
 
                             //nbCampaign++;
-                            //string FileToRead = PathBatFile;
-                            //using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                            //string fileToRead = PathBatFile;
+                            //using (StreamReader ReaderObject = new StreamReader(fileToRead))
                             //{
                             //    string Line = "";
                             //    while ((Line = ReaderObject.ReadLine()) != null)
@@ -4669,7 +4711,7 @@ namespace DCE_Manager
 
                             ////cherche la ligne pathSavedGames pour s'assurer que le path est coherent
                             //bool PSD_bug = false;
-                            //using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                            //using (StreamReader ReaderObject = new StreamReader(fileToRead))
                             //{
                             //    string Line = "";
                             //    while ((Line = ReaderObject.ReadLine()) != null)
@@ -4715,7 +4757,7 @@ namespace DCE_Manager
 
                             ////cherche la ligne pathDCS pour s'assurer que le path est coherent
                             //bool PDCS_bug = false;
-                            //using (StreamReader ReaderObject = new StreamReader(FileToRead))
+                            //using (StreamReader ReaderObject = new StreamReader(fileToRead))
                             //{
                             //    string Line = "";
                             //    while ((Line = ReaderObject.ReadLine()) != null)
