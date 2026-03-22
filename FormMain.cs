@@ -1,31 +1,32 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.IO.Compression;
-using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using System.Text;
-using System.Windows.Forms;
-using System.Diagnostics;
-using System.Net;
-using System.Reflection;
-using System.ComponentModel;
-using Microsoft.VisualBasic.FileIO;
-using SearchOption = System.IO.SearchOption;
-using NLua;
-using System.Collections;
-using System.Data;
-using System.Threading.Tasks;
-using System.Net.Http;
-using System.Security.Cryptography;
 using System.Management;
-using DCE_Manager.Utils;
+using System.Net;
+using System.Net.Http;
+using System.Net.Sockets;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using System.Windows.Forms;
 using DCE_Manager.Parameters;
+using DCE_Manager.Utils;
+using Microsoft.VisualBasic.FileIO;
+using NLua;
 //using DCE_Manager.ASTI;
 using Ookii.Dialogs.WinForms;
-using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
-using System.Runtime.InteropServices.ComTypes;
+using SearchOption = System.IO.SearchOption;
 
 namespace DCE_Manager
 {
@@ -40,7 +41,16 @@ namespace DCE_Manager
         {
             get { return textBox_SavedGames.Text; }
         }
-        
+
+        private void AjusterLargeurTextBox(TextBox tb)
+        {
+            using (Graphics g = tb.CreateGraphics())
+            {
+                SizeF size = g.MeasureString(tb.Text, tb.Font);
+                tb.Width = (int)size.Width + 10; // marge de 10 pixels
+            }
+        }
+
         // Méthode qui met à jour la valeur partagée
         public void UpdateSharedData()
         {
@@ -85,6 +95,10 @@ namespace DCE_Manager
             //this.tabControl1.SelectedTab = tabPage2;
 
             VersionDceManager.Text = VersionLongDceManager();
+
+            textBox_id_client.Text = CreateIdClient();
+            AjusterLargeurTextBox(textBox_id_client);
+
 
             if (ParamServ.Server01Exit)
             {
@@ -7242,6 +7256,7 @@ namespace DCE_Manager
             CampUpdateButton.Visible = false;
             C_DataMap.Visible = false;
             C_DataMapCity.Visible = false;
+            textBox_id_client.Visible = false;
             ScriptsModUpdateButton.Text = "Update";
         }
 
@@ -7251,6 +7266,7 @@ namespace DCE_Manager
             checkBoxActiveFolder.Visible = true;
             checkBox_OvwNGfolder.Visible = true;
             checkBoxSanitize.Visible = true;
+            textBox_id_client.Visible = false;
             LabelStatut.Text = "Expert";
             ParamManager.userLevel = 2;
         }
@@ -7267,6 +7283,7 @@ namespace DCE_Manager
             CampUpdateButton.Visible = false;
             C_DataMap.Visible = false;
             C_DataMapCity.Visible = false;
+            textBox_id_client.Visible = false;
             LabelStatut.Text = "CampaignMaker";
             ScriptsModUpdateButton.Text = "Update";
             ParamManager.userLevel = 3;
@@ -7277,26 +7294,36 @@ namespace DCE_Manager
         {
             //Pour devenir DEV
 
-            VersionLongDceManager();
-            txtBoxFolderCreateUpdate.Visible = true;
-            textBoxCreateFileUpdate.Visible = true;
-            butCreateUpdateBrowse.Visible = true;
-            butCreaUpdate.Visible = true;
-            ScriptsModUpdateButton.Visible = true;
-            CampUpdateButton.Visible = true;
-            C_DataMap.Visible = true;
-            C_DataMapCity.Visible = true;
-            but_GPS_LL.Visible = true;
-            //checkBoxSanitize.Visible = true;
-            LabelStatut.Text = "DEV";
-            ScriptsModUpdateButton.Text = "Update DEV";
-            butCheckVersion.Visible = true;
+            if (ButtonPreview == true ) {
+
+
+                VersionLongDceManager();
+                txtBoxFolderCreateUpdate.Visible = true;
+                textBoxCreateFileUpdate.Visible = true;
+                butCreateUpdateBrowse.Visible = true;
+                butCreaUpdate.Visible = true;
+                ScriptsModUpdateButton.Visible = true;
+                CampUpdateButton.Visible = true;
+                C_DataMap.Visible = true;
+                C_DataMapCity.Visible = true;
+                but_GPS_LL.Visible = true;
+                //checkBoxSanitize.Visible = true;
+                LabelStatut.Text = "DEV";
+                ScriptsModUpdateButton.Text = "Update DEV";
+                butCheckVersion.Visible = true;
+                textBox_id_client.Visible = true;
+            }
 
         }
 
         private void butCheckVersion_Click(object sender, EventArgs e)
         {
             CheckVersionScriptsModLocal();
+        }
+
+        private void textBox_id_client_TextChanged(object sender, EventArgs e)
+        {
+
         }
     }
 

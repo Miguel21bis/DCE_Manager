@@ -88,6 +88,7 @@
             this.DceManagerAvailableVersion = new System.Windows.Forms.Label();
             this.button_UpdateManager = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
+            this.butCheckVersion = new System.Windows.Forms.Button();
             this.panel1 = new System.Windows.Forms.Panel();
             this.CampUpdateButton = new System.Windows.Forms.Button();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
@@ -145,7 +146,7 @@
             this.but_ASTI_Browse_Template = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
-            this.butCheckVersion = new System.Windows.Forms.Button();
+            this.textBox_id_client = new System.Windows.Forms.TextBox();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -178,7 +179,7 @@
             // m_ButtonDcsPath
             // 
             this.m_ButtonDcsPath.Location = new System.Drawing.Point(633, 17);
-            this.m_ButtonDcsPath.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.m_ButtonDcsPath.Margin = new System.Windows.Forms.Padding(4);
             this.m_ButtonDcsPath.Name = "m_ButtonDcsPath";
             this.m_ButtonDcsPath.Size = new System.Drawing.Size(147, 34);
             this.m_ButtonDcsPath.TabIndex = 1;
@@ -189,7 +190,7 @@
             // m_ButtonSavedGames
             // 
             this.m_ButtonSavedGames.Location = new System.Drawing.Point(633, 70);
-            this.m_ButtonSavedGames.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.m_ButtonSavedGames.Margin = new System.Windows.Forms.Padding(4);
             this.m_ButtonSavedGames.Name = "m_ButtonSavedGames";
             this.m_ButtonSavedGames.Size = new System.Drawing.Size(147, 34);
             this.m_ButtonSavedGames.TabIndex = 2;
@@ -200,7 +201,7 @@
             // textBox_DCS
             // 
             this.textBox_DCS.Location = new System.Drawing.Point(196, 23);
-            this.textBox_DCS.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_DCS.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_DCS.Name = "textBox_DCS";
             this.textBox_DCS.Size = new System.Drawing.Size(407, 22);
             this.textBox_DCS.TabIndex = 4;
@@ -217,9 +218,9 @@
             this.groupBox1.Controls.Add(this.textBox_Campaign);
             this.groupBox1.Controls.Add(this.Button_choiceCampaign);
             this.groupBox1.Location = new System.Drawing.Point(115, 219);
-            this.groupBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox1.Size = new System.Drawing.Size(815, 145);
             this.groupBox1.TabIndex = 6;
             this.groupBox1.TabStop = false;
@@ -229,7 +230,7 @@
             // 
             this.checkBoxSanitize.AutoSize = true;
             this.checkBoxSanitize.Location = new System.Drawing.Point(19, 113);
-            this.checkBoxSanitize.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkBoxSanitize.Margin = new System.Windows.Forms.Padding(4);
             this.checkBoxSanitize.Name = "checkBoxSanitize";
             this.checkBoxSanitize.Size = new System.Drawing.Size(428, 20);
             this.checkBoxSanitize.TabIndex = 20;
@@ -243,7 +244,7 @@
             // 
             this.checkBox_OvwNGfolder.AutoSize = true;
             this.checkBox_OvwNGfolder.Location = new System.Drawing.Point(19, 85);
-            this.checkBox_OvwNGfolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkBox_OvwNGfolder.Margin = new System.Windows.Forms.Padding(4);
             this.checkBox_OvwNGfolder.Name = "checkBox_OvwNGfolder";
             this.checkBox_OvwNGfolder.Size = new System.Drawing.Size(280, 20);
             this.checkBox_OvwNGfolder.TabIndex = 18;
@@ -267,7 +268,7 @@
             // 
             this.checkBoxActiveFolder.AutoSize = true;
             this.checkBoxActiveFolder.Location = new System.Drawing.Point(19, 57);
-            this.checkBoxActiveFolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.checkBoxActiveFolder.Margin = new System.Windows.Forms.Padding(4);
             this.checkBoxActiveFolder.Name = "checkBoxActiveFolder";
             this.checkBoxActiveFolder.Size = new System.Drawing.Size(396, 20);
             this.checkBoxActiveFolder.TabIndex = 17;
@@ -278,7 +279,7 @@
             // button_InstallCampaign
             // 
             this.button_InstallCampaign.Location = new System.Drawing.Point(633, 106);
-            this.button_InstallCampaign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button_InstallCampaign.Margin = new System.Windows.Forms.Padding(4);
             this.button_InstallCampaign.Name = "button_InstallCampaign";
             this.button_InstallCampaign.Size = new System.Drawing.Size(147, 28);
             this.button_InstallCampaign.TabIndex = 7;
@@ -299,7 +300,7 @@
             // textBox_Campaign
             // 
             this.textBox_Campaign.Location = new System.Drawing.Point(196, 23);
-            this.textBox_Campaign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_Campaign.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_Campaign.Name = "textBox_Campaign";
             this.textBox_Campaign.Size = new System.Drawing.Size(407, 22);
             this.textBox_Campaign.TabIndex = 9;
@@ -308,7 +309,7 @@
             // Button_choiceCampaign
             // 
             this.Button_choiceCampaign.Location = new System.Drawing.Point(633, 17);
-            this.Button_choiceCampaign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Button_choiceCampaign.Margin = new System.Windows.Forms.Padding(4);
             this.Button_choiceCampaign.Name = "Button_choiceCampaign";
             this.Button_choiceCampaign.Size = new System.Drawing.Size(147, 34);
             this.Button_choiceCampaign.TabIndex = 8;
@@ -341,7 +342,7 @@
             // textBox_OvGME
             // 
             this.textBox_OvGME.Location = new System.Drawing.Point(196, 129);
-            this.textBox_OvGME.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_OvGME.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_OvGME.Name = "textBox_OvGME";
             this.textBox_OvGME.Size = new System.Drawing.Size(407, 22);
             this.textBox_OvGME.TabIndex = 12;
@@ -350,7 +351,7 @@
             // button2
             // 
             this.button2.Location = new System.Drawing.Point(633, 123);
-            this.button2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button2.Margin = new System.Windows.Forms.Padding(4);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(147, 34);
             this.button2.TabIndex = 11;
@@ -381,7 +382,7 @@
             // textBox_SavedGames
             // 
             this.textBox_SavedGames.Location = new System.Drawing.Point(196, 76);
-            this.textBox_SavedGames.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_SavedGames.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_SavedGames.Name = "textBox_SavedGames";
             this.textBox_SavedGames.Size = new System.Drawing.Size(407, 22);
             this.textBox_SavedGames.TabIndex = 5;
@@ -389,7 +390,7 @@
             // button1
             // 
             this.button1.Location = new System.Drawing.Point(460, 428);
-            this.button1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button1.Margin = new System.Windows.Forms.Padding(4);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(100, 28);
             this.button1.TabIndex = 8;
@@ -434,7 +435,7 @@
             // 
             this.pictureBox3.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox3.Image")));
             this.pictureBox3.Location = new System.Drawing.Point(21, 238);
-            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox3.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox3.Name = "pictureBox3";
             this.pictureBox3.Size = new System.Drawing.Size(72, 63);
             this.pictureBox3.TabIndex = 12;
@@ -444,7 +445,7 @@
             // 
             this.pictureBox2.Image = global::DCE_Manager.Properties.Resources.SPA3_tissue50b;
             this.pictureBox2.Location = new System.Drawing.Point(340, 226);
-            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox2.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox2.Name = "pictureBox2";
             this.pictureBox2.Size = new System.Drawing.Size(67, 63);
             this.pictureBox2.TabIndex = 11;
@@ -456,7 +457,7 @@
             this.pictureBox1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.pictureBox1.Image = global::DCE_Manager.Properties.Resources.DCE_logo;
             this.pictureBox1.Location = new System.Drawing.Point(59, 44);
-            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox1.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(309, 178);
             this.pictureBox1.TabIndex = 9;
@@ -471,7 +472,7 @@
             this.tabControl.Controls.Add(this.tabPage5);
             this.tabControl.Controls.Add(this.tabPage13);
             this.tabControl.Location = new System.Drawing.Point(4, 14);
-            this.tabControl.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabControl.Margin = new System.Windows.Forms.Padding(4);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
             this.tabControl.Size = new System.Drawing.Size(1088, 570);
@@ -484,9 +485,9 @@
             this.tabPage1.Controls.Add(this.groupBox4);
             this.tabPage1.Controls.Add(this.groupBox1);
             this.tabPage1.Location = new System.Drawing.Point(4, 25);
-            this.tabPage1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage1.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage1.Size = new System.Drawing.Size(1080, 541);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Install";
@@ -504,9 +505,9 @@
             this.groupBox7.Controls.Add(this.button2);
             this.groupBox7.Controls.Add(this.textBox_OvGME);
             this.groupBox7.Location = new System.Drawing.Point(115, 17);
-            this.groupBox7.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox7.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox7.Name = "groupBox7";
-            this.groupBox7.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox7.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox7.Size = new System.Drawing.Size(815, 172);
             this.groupBox7.TabIndex = 25;
             this.groupBox7.TabStop = false;
@@ -517,9 +518,9 @@
             this.groupBox4.Controls.Add(this.groupBox8);
             this.groupBox4.Controls.Add(this.groupBox5);
             this.groupBox4.Location = new System.Drawing.Point(323, 391);
-            this.groupBox4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox4.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox4.Size = new System.Drawing.Size(431, 128);
             this.groupBox4.TabIndex = 22;
             this.groupBox4.TabStop = false;
@@ -532,9 +533,9 @@
             this.groupBox8.Controls.Add(this.m_Button_Config_Del);
             this.groupBox8.Controls.Add(this.button6);
             this.groupBox8.Location = new System.Drawing.Point(8, 70);
-            this.groupBox8.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox8.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox8.Name = "groupBox8";
-            this.groupBox8.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox8.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox8.Size = new System.Drawing.Size(368, 49);
             this.groupBox8.TabIndex = 27;
             this.groupBox8.TabStop = false;
@@ -543,7 +544,7 @@
             // 
             this.comboBox_Config.FormattingEnabled = true;
             this.comboBox_Config.Location = new System.Drawing.Point(8, 15);
-            this.comboBox_Config.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comboBox_Config.Margin = new System.Windows.Forms.Padding(4);
             this.comboBox_Config.Name = "comboBox_Config";
             this.comboBox_Config.Size = new System.Drawing.Size(160, 24);
             this.comboBox_Config.TabIndex = 18;
@@ -552,7 +553,7 @@
             // m_Button_Config_Del
             // 
             this.m_Button_Config_Del.Location = new System.Drawing.Point(267, 14);
-            this.m_Button_Config_Del.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.m_Button_Config_Del.Margin = new System.Windows.Forms.Padding(4);
             this.m_Button_Config_Del.Name = "m_Button_Config_Del";
             this.m_Button_Config_Del.Size = new System.Drawing.Size(84, 25);
             this.m_Button_Config_Del.TabIndex = 21;
@@ -563,7 +564,7 @@
             // button6
             // 
             this.button6.Location = new System.Drawing.Point(177, 14);
-            this.button6.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button6.Margin = new System.Windows.Forms.Padding(4);
             this.button6.Name = "button6";
             this.button6.Size = new System.Drawing.Size(84, 25);
             this.button6.TabIndex = 22;
@@ -576,9 +577,9 @@
             this.groupBox5.Controls.Add(this.textBox_Config);
             this.groupBox5.Controls.Add(this.m_Button_AddConfig);
             this.groupBox5.Location = new System.Drawing.Point(8, 23);
-            this.groupBox5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox5.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox5.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox5.Size = new System.Drawing.Size(267, 49);
             this.groupBox5.TabIndex = 26;
             this.groupBox5.TabStop = false;
@@ -586,7 +587,7 @@
             // textBox_Config
             // 
             this.textBox_Config.Location = new System.Drawing.Point(8, 15);
-            this.textBox_Config.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_Config.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_Config.Name = "textBox_Config";
             this.textBox_Config.Size = new System.Drawing.Size(160, 22);
             this.textBox_Config.TabIndex = 19;
@@ -594,7 +595,7 @@
             // m_Button_AddConfig
             // 
             this.m_Button_AddConfig.Location = new System.Drawing.Point(177, 15);
-            this.m_Button_AddConfig.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.m_Button_AddConfig.Margin = new System.Windows.Forms.Padding(4);
             this.m_Button_AddConfig.Name = "m_Button_AddConfig";
             this.m_Button_AddConfig.Size = new System.Drawing.Size(84, 25);
             this.m_Button_AddConfig.TabIndex = 20;
@@ -608,9 +609,9 @@
             this.tabPage2.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage2.Controls.Add(this.textBoxCampEdit);
             this.tabPage2.Location = new System.Drawing.Point(4, 25);
-            this.tabPage2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage2.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage2.Name = "tabPage2";
-            this.tabPage2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage2.Size = new System.Drawing.Size(1080, 541);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Campaign";
@@ -620,7 +621,7 @@
             // 
             this.textBoxCampEdit.AccessibleName = "";
             this.textBoxCampEdit.Location = new System.Drawing.Point(277, 18);
-            this.textBoxCampEdit.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
             this.textBoxCampEdit.Multiline = true;
             this.textBoxCampEdit.Name = "textBoxCampEdit";
             this.textBoxCampEdit.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -646,7 +647,7 @@
             this.tabPage3.Controls.Add(this.groupBox3);
             this.tabPage3.Controls.Add(this.groupBox2);
             this.tabPage3.Location = new System.Drawing.Point(4, 25);
-            this.tabPage3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage3.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Size = new System.Drawing.Size(1080, 541);
             this.tabPage3.TabIndex = 2;
@@ -655,7 +656,7 @@
             // buttonDocFolder
             // 
             this.buttonDocFolder.Location = new System.Drawing.Point(899, 444);
-            this.buttonDocFolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonDocFolder.Margin = new System.Windows.Forms.Padding(4);
             this.buttonDocFolder.Name = "buttonDocFolder";
             this.buttonDocFolder.Size = new System.Drawing.Size(87, 28);
             this.buttonDocFolder.TabIndex = 30;
@@ -666,7 +667,7 @@
             // C_DataMapCity
             // 
             this.C_DataMapCity.Location = new System.Drawing.Point(803, 315);
-            this.C_DataMapCity.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.C_DataMapCity.Margin = new System.Windows.Forms.Padding(4);
             this.C_DataMapCity.Name = "C_DataMapCity";
             this.C_DataMapCity.Size = new System.Drawing.Size(179, 28);
             this.C_DataMapCity.TabIndex = 29;
@@ -678,7 +679,7 @@
             // C_DataMap
             // 
             this.C_DataMap.Location = new System.Drawing.Point(803, 268);
-            this.C_DataMap.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.C_DataMap.Margin = new System.Windows.Forms.Padding(4);
             this.C_DataMap.Name = "C_DataMap";
             this.C_DataMap.Size = new System.Drawing.Size(179, 28);
             this.C_DataMap.TabIndex = 28;
@@ -690,7 +691,7 @@
             // textBoxCreateFileUpdate
             // 
             this.textBoxCreateFileUpdate.Location = new System.Drawing.Point(803, 150);
-            this.textBoxCreateFileUpdate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBoxCreateFileUpdate.Margin = new System.Windows.Forms.Padding(4);
             this.textBoxCreateFileUpdate.Name = "textBoxCreateFileUpdate";
             this.textBoxCreateFileUpdate.Size = new System.Drawing.Size(181, 22);
             this.textBoxCreateFileUpdate.TabIndex = 27;
@@ -699,7 +700,7 @@
             // butCreateUpdateBrowse
             // 
             this.butCreateUpdateBrowse.Location = new System.Drawing.Point(993, 98);
-            this.butCreateUpdateBrowse.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.butCreateUpdateBrowse.Margin = new System.Windows.Forms.Padding(4);
             this.butCreateUpdateBrowse.Name = "butCreateUpdateBrowse";
             this.butCreateUpdateBrowse.Size = new System.Drawing.Size(76, 25);
             this.butCreateUpdateBrowse.TabIndex = 26;
@@ -711,7 +712,7 @@
             // txtBoxFolderCreateUpdate
             // 
             this.txtBoxFolderCreateUpdate.Location = new System.Drawing.Point(803, 98);
-            this.txtBoxFolderCreateUpdate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtBoxFolderCreateUpdate.Margin = new System.Windows.Forms.Padding(4);
             this.txtBoxFolderCreateUpdate.Name = "txtBoxFolderCreateUpdate";
             this.txtBoxFolderCreateUpdate.Size = new System.Drawing.Size(181, 22);
             this.txtBoxFolderCreateUpdate.TabIndex = 25;
@@ -721,7 +722,7 @@
             // butCreaUpdate
             // 
             this.butCreaUpdate.Location = new System.Drawing.Point(803, 207);
-            this.butCreaUpdate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.butCreaUpdate.Margin = new System.Windows.Forms.Padding(4);
             this.butCreaUpdate.Name = "butCreaUpdate";
             this.butCreaUpdate.Size = new System.Drawing.Size(179, 28);
             this.butCreaUpdate.TabIndex = 24;
@@ -744,7 +745,7 @@
             // 
             this.comboBox_Server.FormattingEnabled = true;
             this.comboBox_Server.Location = new System.Drawing.Point(803, 42);
-            this.comboBox_Server.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comboBox_Server.Margin = new System.Windows.Forms.Padding(4);
             this.comboBox_Server.Name = "comboBox_Server";
             this.comboBox_Server.Size = new System.Drawing.Size(181, 24);
             this.comboBox_Server.TabIndex = 22;
@@ -753,7 +754,7 @@
             // button_Log
             // 
             this.button_Log.Location = new System.Drawing.Point(807, 444);
-            this.button_Log.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button_Log.Margin = new System.Windows.Forms.Padding(4);
             this.button_Log.Name = "button_Log";
             this.button_Log.Size = new System.Drawing.Size(84, 28);
             this.button_Log.TabIndex = 21;
@@ -769,9 +770,9 @@
             this.groupBox6.Controls.Add(this.DceManagerAvailableVersion);
             this.groupBox6.Controls.Add(this.button_UpdateManager);
             this.groupBox6.Location = new System.Drawing.Point(20, 119);
-            this.groupBox6.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox6.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox6.Name = "groupBox6";
-            this.groupBox6.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox6.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox6.Size = new System.Drawing.Size(760, 84);
             this.groupBox6.TabIndex = 4;
             this.groupBox6.TabStop = false;
@@ -821,7 +822,7 @@
             // button_UpdateManager
             // 
             this.button_UpdateManager.Location = new System.Drawing.Point(605, 39);
-            this.button_UpdateManager.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button_UpdateManager.Margin = new System.Windows.Forms.Padding(4);
             this.button_UpdateManager.Name = "button_UpdateManager";
             this.button_UpdateManager.Size = new System.Drawing.Size(135, 28);
             this.button_UpdateManager.TabIndex = 0;
@@ -836,19 +837,31 @@
             this.groupBox3.Controls.Add(this.panel1);
             this.groupBox3.Controls.Add(this.CampUpdateButton);
             this.groupBox3.Location = new System.Drawing.Point(20, 210);
-            this.groupBox3.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
-            this.groupBox3.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox3.Size = new System.Drawing.Size(760, 283);
             this.groupBox3.TabIndex = 3;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Campaign";
             // 
+            // butCheckVersion
+            // 
+            this.butCheckVersion.Location = new System.Drawing.Point(639, 138);
+            this.butCheckVersion.Margin = new System.Windows.Forms.Padding(4);
+            this.butCheckVersion.Name = "butCheckVersion";
+            this.butCheckVersion.Size = new System.Drawing.Size(113, 29);
+            this.butCheckVersion.TabIndex = 31;
+            this.butCheckVersion.Text = "CheckVersion";
+            this.butCheckVersion.UseVisualStyleBackColor = true;
+            this.butCheckVersion.Visible = false;
+            this.butCheckVersion.Click += new System.EventHandler(this.butCheckVersion_Click);
+            // 
             // panel1
             // 
             this.panel1.AutoScroll = true;
             this.panel1.Location = new System.Drawing.Point(27, 58);
-            this.panel1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel1.Margin = new System.Windows.Forms.Padding(4);
             this.panel1.Name = "panel1";
             this.panel1.Size = new System.Drawing.Size(604, 204);
             this.panel1.TabIndex = 1;
@@ -856,7 +869,7 @@
             // CampUpdateButton
             // 
             this.CampUpdateButton.Location = new System.Drawing.Point(8, 21);
-            this.CampUpdateButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.CampUpdateButton.Margin = new System.Windows.Forms.Padding(4);
             this.CampUpdateButton.Name = "CampUpdateButton";
             this.CampUpdateButton.Size = new System.Drawing.Size(183, 28);
             this.CampUpdateButton.TabIndex = 0;
@@ -874,9 +887,9 @@
             this.groupBox2.Controls.Add(this.ScriptsModUpdateButton);
             this.groupBox2.Controls.Add(this.ScriptsModAvailableVersion);
             this.groupBox2.Location = new System.Drawing.Point(20, 18);
-            this.groupBox2.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
-            this.groupBox2.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox2.Size = new System.Drawing.Size(760, 84);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
@@ -885,7 +898,7 @@
             // buttonResetSM
             // 
             this.buttonResetSM.Location = new System.Drawing.Point(27, 38);
-            this.buttonResetSM.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonResetSM.Margin = new System.Windows.Forms.Padding(4);
             this.buttonResetSM.Name = "buttonResetSM";
             this.buttonResetSM.Size = new System.Drawing.Size(72, 28);
             this.buttonResetSM.TabIndex = 5;
@@ -930,7 +943,7 @@
             // ScriptsModUpdateButton
             // 
             this.ScriptsModUpdateButton.Location = new System.Drawing.Point(605, 38);
-            this.ScriptsModUpdateButton.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.ScriptsModUpdateButton.Margin = new System.Windows.Forms.Padding(4);
             this.ScriptsModUpdateButton.Name = "ScriptsModUpdateButton";
             this.ScriptsModUpdateButton.Size = new System.Drawing.Size(135, 28);
             this.ScriptsModUpdateButton.TabIndex = 0;
@@ -960,7 +973,7 @@
             this.tabPage4.Controls.Add(this.textBox1);
             this.tabPage4.Controls.Add(this.label5);
             this.tabPage4.Location = new System.Drawing.Point(4, 25);
-            this.tabPage4.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage4.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage4.Name = "tabPage4";
             this.tabPage4.Size = new System.Drawing.Size(1080, 541);
             this.tabPage4.TabIndex = 3;
@@ -980,7 +993,7 @@
             // textBox_ChangelogScriptsMod
             // 
             this.textBox_ChangelogScriptsMod.Location = new System.Drawing.Point(60, 305);
-            this.textBox_ChangelogScriptsMod.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_ChangelogScriptsMod.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_ChangelogScriptsMod.Multiline = true;
             this.textBox_ChangelogScriptsMod.Name = "textBox_ChangelogScriptsMod";
             this.textBox_ChangelogScriptsMod.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -1001,7 +1014,7 @@
             // textBox_changelog
             // 
             this.textBox_changelog.Location = new System.Drawing.Point(60, 171);
-            this.textBox_changelog.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_changelog.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_changelog.Multiline = true;
             this.textBox_changelog.Name = "textBox_changelog";
             this.textBox_changelog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -1011,7 +1024,7 @@
             // textBox1
             // 
             this.textBox1.Location = new System.Drawing.Point(60, 25);
-            this.textBox1.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox1.Margin = new System.Windows.Forms.Padding(4);
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.Size = new System.Drawing.Size(649, 118);
@@ -1035,9 +1048,9 @@
             this.tabPage5.Controls.Add(this.panel_News);
             this.tabPage5.Controls.Add(this.textBox_News);
             this.tabPage5.Location = new System.Drawing.Point(4, 25);
-            this.tabPage5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage5.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage5.Name = "tabPage5";
-            this.tabPage5.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage5.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage5.Size = new System.Drawing.Size(1080, 541);
             this.tabPage5.TabIndex = 4;
             this.tabPage5.Text = "News";
@@ -1048,7 +1061,7 @@
             this.panel_News.BackColor = System.Drawing.SystemColors.Window;
             this.panel_News.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.panel_News.Location = new System.Drawing.Point(47, 17);
-            this.panel_News.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.panel_News.Margin = new System.Windows.Forms.Padding(4);
             this.panel_News.Name = "panel_News";
             this.panel_News.Size = new System.Drawing.Size(922, 464);
             this.panel_News.TabIndex = 4;
@@ -1056,7 +1069,7 @@
             // textBox_News
             // 
             this.textBox_News.Location = new System.Drawing.Point(61, 36);
-            this.textBox_News.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_News.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_News.Multiline = true;
             this.textBox_News.Name = "textBox_News";
             this.textBox_News.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -1072,9 +1085,9 @@
             this.tabPage13.Controls.Add(this.but_ASTI);
             this.tabPage13.Controls.Add(this.button_theWay);
             this.tabPage13.Location = new System.Drawing.Point(4, 25);
-            this.tabPage13.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage13.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage13.Name = "tabPage13";
-            this.tabPage13.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage13.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage13.Size = new System.Drawing.Size(1080, 541);
             this.tabPage13.TabIndex = 5;
             this.tabPage13.Text = "Tools";
@@ -1082,7 +1095,7 @@
             // textBox_ASTI
             // 
             this.textBox_ASTI.Location = new System.Drawing.Point(319, 214);
-            this.textBox_ASTI.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_ASTI.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_ASTI.Multiline = true;
             this.textBox_ASTI.Name = "textBox_ASTI";
             this.textBox_ASTI.ScrollBars = System.Windows.Forms.ScrollBars.Both;
@@ -1113,7 +1126,7 @@
             // but_ASTI
             // 
             this.but_ASTI.Location = new System.Drawing.Point(39, 187);
-            this.but_ASTI.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_ASTI.Margin = new System.Windows.Forms.Padding(4);
             this.but_ASTI.Name = "but_ASTI";
             this.but_ASTI.Size = new System.Drawing.Size(211, 28);
             this.but_ASTI.TabIndex = 1;
@@ -1123,7 +1136,7 @@
             // button_theWay
             // 
             this.button_theWay.Location = new System.Drawing.Point(39, 36);
-            this.button_theWay.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.button_theWay.Margin = new System.Windows.Forms.Padding(4);
             this.button_theWay.Name = "button_theWay";
             this.button_theWay.Size = new System.Drawing.Size(211, 28);
             this.button_theWay.TabIndex = 0;
@@ -1156,7 +1169,7 @@
             this.pictureBox5.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pictureBox5.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox5.Image")));
             this.pictureBox5.Location = new System.Drawing.Point(27, 325);
-            this.pictureBox5.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBox5.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBox5.Name = "pictureBox5";
             this.pictureBox5.Size = new System.Drawing.Size(67, 62);
             this.pictureBox5.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1169,7 +1182,7 @@
             this.pictureBoxOvGME.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pictureBoxOvGME.Image = ((System.Drawing.Image)(resources.GetObject("pictureBoxOvGME.Image")));
             this.pictureBoxOvGME.Location = new System.Drawing.Point(340, 331);
-            this.pictureBoxOvGME.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBoxOvGME.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBoxOvGME.Name = "pictureBoxOvGME";
             this.pictureBoxOvGME.Size = new System.Drawing.Size(67, 62);
             this.pictureBoxOvGME.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1179,6 +1192,7 @@
             // 
             // groupBoxDroiteAccueil
             // 
+            this.groupBoxDroiteAccueil.Controls.Add(this.textBox_id_client);
             this.groupBoxDroiteAccueil.Controls.Add(this.butCampMaker);
             this.groupBoxDroiteAccueil.Controls.Add(this.but_Expert);
             this.groupBoxDroiteAccueil.Controls.Add(this.butClient);
@@ -1193,9 +1207,9 @@
             this.groupBoxDroiteAccueil.Controls.Add(this.label3);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox2);
             this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(1115, 41);
-            this.groupBoxDroiteAccueil.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBoxDroiteAccueil.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxDroiteAccueil.Name = "groupBoxDroiteAccueil";
-            this.groupBoxDroiteAccueil.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBoxDroiteAccueil.Padding = new System.Windows.Forms.Padding(4);
             this.groupBoxDroiteAccueil.Size = new System.Drawing.Size(575, 492);
             this.groupBoxDroiteAccueil.TabIndex = 23;
             this.groupBoxDroiteAccueil.TabStop = false;
@@ -1204,7 +1218,7 @@
             // 
             this.butCampMaker.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.butCampMaker.Location = new System.Drawing.Point(460, 113);
-            this.butCampMaker.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.butCampMaker.Margin = new System.Windows.Forms.Padding(4);
             this.butCampMaker.Name = "butCampMaker";
             this.butCampMaker.Size = new System.Drawing.Size(100, 28);
             this.butCampMaker.TabIndex = 25;
@@ -1216,7 +1230,7 @@
             // 
             this.but_Expert.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.but_Expert.Location = new System.Drawing.Point(460, 78);
-            this.but_Expert.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_Expert.Margin = new System.Windows.Forms.Padding(4);
             this.but_Expert.Name = "but_Expert";
             this.but_Expert.Size = new System.Drawing.Size(100, 28);
             this.but_Expert.TabIndex = 24;
@@ -1228,7 +1242,7 @@
             // 
             this.butClient.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.butClient.Location = new System.Drawing.Point(460, 44);
-            this.butClient.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.butClient.Margin = new System.Windows.Forms.Padding(4);
             this.butClient.Name = "butClient";
             this.butClient.Size = new System.Drawing.Size(100, 28);
             this.butClient.TabIndex = 23;
@@ -1244,9 +1258,9 @@
             this.groupBoxCampEdit.Controls.Add(this.label4);
             this.groupBoxCampEdit.Controls.Add(this.CampaignTab);
             this.groupBoxCampEdit.Location = new System.Drawing.Point(1115, 14);
-            this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxCampEdit.Name = "groupBoxCampEdit";
-            this.groupBoxCampEdit.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBoxCampEdit.Padding = new System.Windows.Forms.Padding(4);
             this.groupBoxCampEdit.Size = new System.Drawing.Size(575, 578);
             this.groupBoxCampEdit.TabIndex = 24;
             this.groupBoxCampEdit.TabStop = false;
@@ -1256,7 +1270,7 @@
             // buttonResetBackup
             // 
             this.buttonResetBackup.Location = new System.Drawing.Point(117, 542);
-            this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4);
             this.buttonResetBackup.Name = "buttonResetBackup";
             this.buttonResetBackup.Size = new System.Drawing.Size(100, 28);
             this.buttonResetBackup.TabIndex = 14;
@@ -1268,7 +1282,7 @@
             // buttonSaveActive
             // 
             this.buttonSaveActive.Location = new System.Drawing.Point(217, 542);
-            this.buttonSaveActive.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonSaveActive.Margin = new System.Windows.Forms.Padding(4);
             this.buttonSaveActive.Name = "buttonSaveActive";
             this.buttonSaveActive.Size = new System.Drawing.Size(100, 28);
             this.buttonSaveActive.TabIndex = 13;
@@ -1280,7 +1294,7 @@
             // buttonSaveChgtCampaign
             // 
             this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(9, 542);
-            this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4);
             this.buttonSaveChgtCampaign.Name = "buttonSaveChgtCampaign";
             this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(100, 28);
             this.buttonSaveChgtCampaign.TabIndex = 12;
@@ -1299,7 +1313,7 @@
             this.CampaignTab.Controls.Add(this.tabPage11);
             this.CampaignTab.Controls.Add(this.tabPage12);
             this.CampaignTab.Location = new System.Drawing.Point(0, 14);
-            this.CampaignTab.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.CampaignTab.Margin = new System.Windows.Forms.Padding(4);
             this.CampaignTab.Name = "CampaignTab";
             this.CampaignTab.SelectedIndex = 0;
             this.CampaignTab.Size = new System.Drawing.Size(576, 517);
@@ -1312,9 +1326,9 @@
             this.tabPage6.Controls.Add(this.pictureBoxCampImage);
             this.tabPage6.Controls.Add(this.textBoxCampBriefing);
             this.tabPage6.Location = new System.Drawing.Point(4, 25);
-            this.tabPage6.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage6.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage6.Name = "tabPage6";
-            this.tabPage6.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage6.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage6.Size = new System.Drawing.Size(568, 488);
             this.tabPage6.TabIndex = 0;
             this.tabPage6.Text = "Intro";
@@ -1322,7 +1336,7 @@
             // pictureBoxCampImage
             // 
             this.pictureBoxCampImage.Location = new System.Drawing.Point(23, 251);
-            this.pictureBoxCampImage.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.pictureBoxCampImage.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBoxCampImage.Name = "pictureBoxCampImage";
             this.pictureBoxCampImage.Size = new System.Drawing.Size(532, 230);
             this.pictureBoxCampImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -1332,7 +1346,7 @@
             // textBoxCampBriefing
             // 
             this.textBoxCampBriefing.Location = new System.Drawing.Point(23, 22);
-            this.textBoxCampBriefing.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBoxCampBriefing.Margin = new System.Windows.Forms.Padding(4);
             this.textBoxCampBriefing.Multiline = true;
             this.textBoxCampBriefing.Name = "textBoxCampBriefing";
             this.textBoxCampBriefing.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -1344,9 +1358,9 @@
             this.tabPage7.AutoScroll = true;
             this.tabPage7.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage7.Location = new System.Drawing.Point(4, 25);
-            this.tabPage7.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage7.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage7.Name = "tabPage7";
-            this.tabPage7.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage7.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage7.Size = new System.Drawing.Size(568, 488);
             this.tabPage7.TabIndex = 1;
             this.tabPage7.Text = "Blue Init";
@@ -1356,9 +1370,9 @@
             this.tabPage8.AutoScroll = true;
             this.tabPage8.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage8.Location = new System.Drawing.Point(4, 25);
-            this.tabPage8.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage8.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage8.Name = "tabPage8";
-            this.tabPage8.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage8.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage8.Size = new System.Drawing.Size(568, 488);
             this.tabPage8.TabIndex = 2;
             this.tabPage8.Text = "Red Init";
@@ -1369,9 +1383,9 @@
             this.tabPage9.AutoScroll = true;
             this.tabPage9.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage9.Location = new System.Drawing.Point(4, 25);
-            this.tabPage9.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage9.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage9.Name = "tabPage9";
-            this.tabPage9.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage9.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage9.Size = new System.Drawing.Size(568, 488);
             this.tabPage9.TabIndex = 3;
             this.tabPage9.Text = "Blue Active";
@@ -1381,7 +1395,7 @@
             this.tabPage10.AutoScroll = true;
             this.tabPage10.BackColor = System.Drawing.SystemColors.Control;
             this.tabPage10.Location = new System.Drawing.Point(4, 25);
-            this.tabPage10.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage10.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage10.Name = "tabPage10";
             this.tabPage10.Size = new System.Drawing.Size(568, 488);
             this.tabPage10.TabIndex = 4;
@@ -1390,7 +1404,7 @@
             // tabPage11
             // 
             this.tabPage11.Location = new System.Drawing.Point(4, 25);
-            this.tabPage11.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage11.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage11.Name = "tabPage11";
             this.tabPage11.Size = new System.Drawing.Size(568, 488);
             this.tabPage11.TabIndex = 5;
@@ -1400,9 +1414,9 @@
             // 
             this.tabPage12.Controls.Add(this.textBox_Bugs);
             this.tabPage12.Location = new System.Drawing.Point(4, 25);
-            this.tabPage12.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage12.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage12.Name = "tabPage12";
-            this.tabPage12.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPage12.Padding = new System.Windows.Forms.Padding(4);
             this.tabPage12.Size = new System.Drawing.Size(568, 488);
             this.tabPage12.TabIndex = 6;
             this.tabPage12.Text = "Bugs";
@@ -1411,7 +1425,7 @@
             // textBox_Bugs
             // 
             this.textBox_Bugs.Location = new System.Drawing.Point(17, 4);
-            this.textBox_Bugs.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_Bugs.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_Bugs.Multiline = true;
             this.textBox_Bugs.Name = "textBox_Bugs";
             this.textBox_Bugs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
@@ -1432,9 +1446,9 @@
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_MissionFile);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_importTemplateFolder);
             this.groupBox_staticTemplate.Location = new System.Drawing.Point(1115, 76);
-            this.groupBox_staticTemplate.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox_staticTemplate.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox_staticTemplate.Name = "groupBox_staticTemplate";
-            this.groupBox_staticTemplate.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBox_staticTemplate.Padding = new System.Windows.Forms.Padding(4);
             this.groupBox_staticTemplate.Size = new System.Drawing.Size(547, 464);
             this.groupBox_staticTemplate.TabIndex = 2;
             this.groupBox_staticTemplate.TabStop = false;
@@ -1444,7 +1458,7 @@
             // but_GPS_LL
             // 
             this.but_GPS_LL.Location = new System.Drawing.Point(59, 298);
-            this.but_GPS_LL.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_GPS_LL.Margin = new System.Windows.Forms.Padding(4);
             this.but_GPS_LL.Name = "but_GPS_LL";
             this.but_GPS_LL.Size = new System.Drawing.Size(129, 31);
             this.but_GPS_LL.TabIndex = 8;
@@ -1455,7 +1469,7 @@
             // but_ASTI_Open_templateFolder
             // 
             this.but_ASTI_Open_templateFolder.Location = new System.Drawing.Point(336, 42);
-            this.but_ASTI_Open_templateFolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_ASTI_Open_templateFolder.Margin = new System.Windows.Forms.Padding(4);
             this.but_ASTI_Open_templateFolder.Name = "but_ASTI_Open_templateFolder";
             this.but_ASTI_Open_templateFolder.Size = new System.Drawing.Size(152, 31);
             this.but_ASTI_Open_templateFolder.TabIndex = 7;
@@ -1466,7 +1480,7 @@
             // but_ASTI_Process
             // 
             this.but_ASTI_Process.Location = new System.Drawing.Point(247, 401);
-            this.but_ASTI_Process.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_ASTI_Process.Margin = new System.Windows.Forms.Padding(4);
             this.but_ASTI_Process.Name = "but_ASTI_Process";
             this.but_ASTI_Process.Size = new System.Drawing.Size(241, 31);
             this.but_ASTI_Process.TabIndex = 4;
@@ -1476,7 +1490,7 @@
             // but_ASTI_Browse_MissionFile
             // 
             this.but_ASTI_Browse_MissionFile.Location = new System.Drawing.Point(59, 172);
-            this.but_ASTI_Browse_MissionFile.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_ASTI_Browse_MissionFile.Margin = new System.Windows.Forms.Padding(4);
             this.but_ASTI_Browse_MissionFile.Name = "but_ASTI_Browse_MissionFile";
             this.but_ASTI_Browse_MissionFile.Size = new System.Drawing.Size(241, 31);
             this.but_ASTI_Browse_MissionFile.TabIndex = 3;
@@ -1486,7 +1500,7 @@
             // but_ASTI_Browse_Template
             // 
             this.but_ASTI_Browse_Template.Location = new System.Drawing.Point(61, 42);
-            this.but_ASTI_Browse_Template.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.but_ASTI_Browse_Template.Margin = new System.Windows.Forms.Padding(4);
             this.but_ASTI_Browse_Template.Name = "but_ASTI_Browse_Template";
             this.but_ASTI_Browse_Template.Size = new System.Drawing.Size(241, 31);
             this.but_ASTI_Browse_Template.TabIndex = 2;
@@ -1496,7 +1510,7 @@
             // textBox_ASTI_MissionFile
             // 
             this.textBox_ASTI_MissionFile.Location = new System.Drawing.Point(59, 219);
-            this.textBox_ASTI_MissionFile.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_ASTI_MissionFile.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_ASTI_MissionFile.Name = "textBox_ASTI_MissionFile";
             this.textBox_ASTI_MissionFile.Size = new System.Drawing.Size(428, 22);
             this.textBox_ASTI_MissionFile.TabIndex = 1;
@@ -1504,22 +1518,22 @@
             // textBox_ASTI_importTemplateFolder
             // 
             this.textBox_ASTI_importTemplateFolder.Location = new System.Drawing.Point(59, 86);
-            this.textBox_ASTI_importTemplateFolder.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.textBox_ASTI_importTemplateFolder.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_ASTI_importTemplateFolder.Name = "textBox_ASTI_importTemplateFolder";
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(428, 22);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
-            // butCheckVersion
+            // textBox_id_client
             // 
-            this.butCheckVersion.Location = new System.Drawing.Point(639, 138);
-            this.butCheckVersion.Margin = new System.Windows.Forms.Padding(4);
-            this.butCheckVersion.Name = "butCheckVersion";
-            this.butCheckVersion.Size = new System.Drawing.Size(113, 29);
-            this.butCheckVersion.TabIndex = 31;
-            this.butCheckVersion.Text = "CheckVersion";
-            this.butCheckVersion.UseVisualStyleBackColor = true;
-            this.butCheckVersion.Visible = false;
-            this.butCheckVersion.Click += new System.EventHandler(this.butCheckVersion_Click);
+            this.textBox_id_client.BackColor = System.Drawing.SystemColors.Control;
+            this.textBox_id_client.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.textBox_id_client.Location = new System.Drawing.Point(71, 403);
+            this.textBox_id_client.Name = "textBox_id_client";
+            this.textBox_id_client.Size = new System.Drawing.Size(100, 15);
+            this.textBox_id_client.TabIndex = 27;
+            this.textBox_id_client.TabStop = false;
+            this.textBox_id_client.Visible = false;
+            this.textBox_id_client.TextChanged += new System.EventHandler(this.textBox_id_client_TextChanged);
             // 
             // Form1
             // 
@@ -1527,13 +1541,13 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(1700, 598);
-            this.Controls.Add(this.groupBox_staticTemplate);
             this.Controls.Add(this.tabControl);
-            this.Controls.Add(this.groupBoxCampEdit);
             this.Controls.Add(this.groupBoxDroiteAccueil);
+            this.Controls.Add(this.groupBox_staticTemplate);
+            this.Controls.Add(this.groupBoxCampEdit);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "Form1";
             this.Text = "DCE_Manager";
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
@@ -1709,6 +1723,7 @@
         public System.Windows.Forms.TextBox textBox_ASTI_importTemplateFolder;
         private System.Windows.Forms.TextBox textBox_ASTI;
         private System.Windows.Forms.Button butCheckVersion;
+        private System.Windows.Forms.TextBox textBox_id_client;
     }
 }
 
