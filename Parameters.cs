@@ -168,6 +168,31 @@ namespace DCE_Manager.Parameters
         public Dictionary<string, object> Roster { get; set; }
         public Dictionary<string, object> Score { get; set; }
 
+        public bool IsActive => !Inactive;
+
+        // Sert pour affichage GRID (Init vs Active)
+        public int DisplayReady
+        {
+            get
+            {
+                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("ready"))
+                    return Convert.ToInt32(Roster["ready"]);
+
+                return Number;
+            }
+        }
+
+        public int DisplayReserve
+        {
+            get
+            {
+                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("reserve"))
+                    return Convert.ToInt32(Roster["reserve"]);
+
+                return Reserve;
+            }
+        }
+
 
         // Dictionnaire pour les propriétés supplémentaires
         public Dictionary<string, object> AdditionalProperties { get; set; }

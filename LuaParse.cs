@@ -12,14 +12,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-//using System.Xml.Linq;
-//using System.IO;
 using System.Text.RegularExpressions;
-//using System.Xml;
-//using System.Net;
 using System.Globalization;
-//using System.Windows.Forms;
-//using DCE_Manager;
 using DCE_Manager.Utils;
 using DCE_Manager.Parameters;
 

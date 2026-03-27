@@ -1,7 +1,6 @@
 ﻿using System;
 using System.IO;
 using System.Windows.Forms;
-using DCE_Manager;
 using NLua;
 using System.Collections.Generic;
 using DCE_Manager.Utils;
@@ -9,7 +8,6 @@ using DCE_Manager.Parameters;
 using System.Threading;
 using System.Globalization;
 using System.Linq;
-using System.Diagnostics;
 
 namespace DCE_Manager
 {

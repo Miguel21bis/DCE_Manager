@@ -15,6 +15,7 @@ using System.Windows.Forms;
 using DCE_Manager;
 using DCE_Manager.Parameters;
 using Microsoft.Win32;
+using NLua;
 
 
 namespace DCE_Manager.Utils
@@ -1399,6 +1400,87 @@ namespace DCE_Manager.Utils
             sr2.Close();
         }
 
+
+        public static class LuaParser
+        {
+            // Fonction principale
+            public static LuaObject ParseFile(string path, string tableName = null)
+            {
+                string luaCode = File.ReadAllText(path);
+
+                using (var lua = new Lua())
+                {
+                    // 🔒 Sandbox
+                    lua.DoString(@"
+                    os = nil
+                    io = nil
+                    file = nil
+                    debug = nil
+                ");
+
+                    try
+                    {
+                        lua.DoString(luaCode);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new Exception("Lua parse error in " + path + " : " + ex.Message);
+                    }
+
+                    object result = null;
+
+                    // Si tableName fourni → on la récupère
+                    if (!string.IsNullOrEmpty(tableName))
+                    {
+                        result = lua[tableName];
+                    }
+                    else
+                    {
+                        //// Sinon on prend la première table trouvée
+                        //foreach (var key in lua.Globals.Keys)
+                        //{
+                        //    var val = lua[key];
+                        //    if (val is LuaTable)
+                        //    {
+                        //        result = val;
+                        //        break;
+                        //    }
+                        //}
+                    }
+
+                    if (result == null)
+                        throw new Exception("No Lua table found in " + path);
+
+                    return ConvertToLuaObject(result);
+                }
+            }
+
+            // Conversion Lua → ton LuaObject
+            private static LuaObject ConvertToLuaObject(object obj)
+            {
+                if (obj is LuaTable table)
+                {
+                    var dict = new Dictionary<string, LuaObject>();
+
+                    foreach (var key in table.Keys)
+                    {
+                        string k = key.ToString();
+                        dict[k] = ConvertToLuaObject(table[key]);
+                    }
+
+                    return new LuaObject(dict);
+                }
+
+                // Types simples
+                if (obj is string || obj is double || obj is bool || obj == null)
+                {
+                    return new LuaObject(obj);
+                }
+
+                // fallback
+                return new LuaObject(obj.ToString());
+            }
+        }
 
         public static string TableSerialization(LuaObject luaObj, int indentLevel)
         {

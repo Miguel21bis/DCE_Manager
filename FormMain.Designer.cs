@@ -1,4 +1,6 @@
-﻿namespace DCE_Manager
+﻿using System;
+
+namespace DCE_Manager
 {
     partial class Form1
     {
@@ -70,6 +72,8 @@
             this.m_Button_AddConfig = new System.Windows.Forms.Button();
             this.tabPage2 = new System.Windows.Forms.TabPage();
             this.textBoxCampEdit = new System.Windows.Forms.TextBox();
+            this.tabPage16 = new System.Windows.Forms.TabPage();
+            this.dataGridViewCampaigns = new System.Windows.Forms.DataGridView();
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.buttonDocFolder = new System.Windows.Forms.Button();
             this.C_DataMapCity = new System.Windows.Forms.Button();
@@ -119,17 +123,19 @@
             this.pictureBox5 = new System.Windows.Forms.PictureBox();
             this.pictureBoxOvGME = new System.Windows.Forms.PictureBox();
             this.groupBoxDroiteAccueil = new System.Windows.Forms.GroupBox();
+            this.textBox_id_client = new System.Windows.Forms.TextBox();
             this.butCampMaker = new System.Windows.Forms.Button();
             this.but_Expert = new System.Windows.Forms.Button();
             this.butClient = new System.Windows.Forms.Button();
             this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
-            this.buttonResetBackup = new System.Windows.Forms.Button();
-            this.buttonSaveActive = new System.Windows.Forms.Button();
-            this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.CampaignTab = new System.Windows.Forms.TabControl();
             this.tabPage6 = new System.Windows.Forms.TabPage();
             this.pictureBoxCampImage = new System.Windows.Forms.PictureBox();
             this.textBoxCampBriefing = new System.Windows.Forms.TextBox();
+            this.tabPage14 = new System.Windows.Forms.TabPage();
+            this.dataGridViewBlue = new System.Windows.Forms.DataGridView();
+            this.tabPage15 = new System.Windows.Forms.TabPage();
+            this.dataGridViewRed = new System.Windows.Forms.DataGridView();
             this.tabPage7 = new System.Windows.Forms.TabPage();
             this.tabPage8 = new System.Windows.Forms.TabPage();
             this.tabPage9 = new System.Windows.Forms.TabPage();
@@ -137,6 +143,9 @@
             this.tabPage11 = new System.Windows.Forms.TabPage();
             this.tabPage12 = new System.Windows.Forms.TabPage();
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
+            this.buttonResetBackup = new System.Windows.Forms.Button();
+            this.buttonSaveActive = new System.Windows.Forms.Button();
+            this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
             this.groupBox_staticTemplate = new System.Windows.Forms.GroupBox();
             this.but_GPS_LL = new System.Windows.Forms.Button();
@@ -146,7 +155,8 @@
             this.but_ASTI_Browse_Template = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
-            this.textBox_id_client = new System.Windows.Forms.TextBox();
+            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
+            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -158,6 +168,8 @@
             this.groupBox8.SuspendLayout();
             this.groupBox5.SuspendLayout();
             this.tabPage2.SuspendLayout();
+            this.tabPage16.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).BeginInit();
             this.tabPage3.SuspendLayout();
             this.groupBox6.SuspendLayout();
             this.groupBox3.SuspendLayout();
@@ -172,6 +184,10 @@
             this.CampaignTab.SuspendLayout();
             this.tabPage6.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCampImage)).BeginInit();
+            this.tabPage14.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).BeginInit();
+            this.tabPage15.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).BeginInit();
             this.tabPage12.SuspendLayout();
             this.groupBox_staticTemplate.SuspendLayout();
             this.SuspendLayout();
@@ -467,6 +483,7 @@
             // 
             this.tabControl.Controls.Add(this.tabPage1);
             this.tabControl.Controls.Add(this.tabPage2);
+            this.tabControl.Controls.Add(this.tabPage16);
             this.tabControl.Controls.Add(this.tabPage3);
             this.tabControl.Controls.Add(this.tabPage4);
             this.tabControl.Controls.Add(this.tabPage5);
@@ -629,6 +646,32 @@
             this.textBoxCampEdit.TabIndex = 11;
             this.textBoxCampEdit.Tag = "";
             this.textBoxCampEdit.TextChanged += new System.EventHandler(this.textBoxCampEdit_TextChanged);
+            // 
+            // tabPage16
+            // 
+            this.tabPage16.Controls.Add(this.dataGridViewCampaigns);
+            this.tabPage16.Location = new System.Drawing.Point(4, 25);
+            this.tabPage16.Name = "tabPage16";
+            this.tabPage16.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage16.Size = new System.Drawing.Size(1080, 541);
+            this.tabPage16.TabIndex = 6;
+            this.tabPage16.Text = "CampaignB";
+            this.tabPage16.UseVisualStyleBackColor = true;
+            // 
+            // dataGridViewCampaigns
+            // 
+            this.dataGridViewCampaigns.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
+            this.dataGridViewCampaigns.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewCampaigns.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.dataGridViewCampaigns.Location = new System.Drawing.Point(3, 3);
+            this.dataGridViewCampaigns.MultiSelect = false;
+            this.dataGridViewCampaigns.Name = "dataGridViewCampaigns";
+            this.dataGridViewCampaigns.ReadOnly = true;
+            this.dataGridViewCampaigns.RowHeadersWidth = 51;
+            this.dataGridViewCampaigns.RowTemplate.Height = 80;
+            this.dataGridViewCampaigns.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
+            this.dataGridViewCampaigns.Size = new System.Drawing.Size(1074, 535);
+            this.dataGridViewCampaigns.TabIndex = 0;
             // 
             // tabPage3
             // 
@@ -1214,6 +1257,18 @@
             this.groupBoxDroiteAccueil.TabIndex = 23;
             this.groupBoxDroiteAccueil.TabStop = false;
             // 
+            // textBox_id_client
+            // 
+            this.textBox_id_client.BackColor = System.Drawing.SystemColors.Control;
+            this.textBox_id_client.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.textBox_id_client.Location = new System.Drawing.Point(71, 403);
+            this.textBox_id_client.Name = "textBox_id_client";
+            this.textBox_id_client.Size = new System.Drawing.Size(100, 15);
+            this.textBox_id_client.TabIndex = 27;
+            this.textBox_id_client.TabStop = false;
+            this.textBox_id_client.Visible = false;
+            this.textBox_id_client.TextChanged += new System.EventHandler(this.textBox_id_client_TextChanged);
+            // 
             // butCampMaker
             // 
             this.butCampMaker.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
@@ -1252,11 +1307,11 @@
             // 
             // groupBoxCampEdit
             // 
+            this.groupBoxCampEdit.Controls.Add(this.CampaignTab);
             this.groupBoxCampEdit.Controls.Add(this.buttonResetBackup);
             this.groupBoxCampEdit.Controls.Add(this.buttonSaveActive);
             this.groupBoxCampEdit.Controls.Add(this.buttonSaveChgtCampaign);
             this.groupBoxCampEdit.Controls.Add(this.label4);
-            this.groupBoxCampEdit.Controls.Add(this.CampaignTab);
             this.groupBoxCampEdit.Location = new System.Drawing.Point(1115, 14);
             this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxCampEdit.Name = "groupBoxCampEdit";
@@ -1267,45 +1322,11 @@
             this.groupBoxCampEdit.Visible = false;
             this.groupBoxCampEdit.Enter += new System.EventHandler(this.groupBoxCampEdit_Enter);
             // 
-            // buttonResetBackup
-            // 
-            this.buttonResetBackup.Location = new System.Drawing.Point(117, 542);
-            this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonResetBackup.Name = "buttonResetBackup";
-            this.buttonResetBackup.Size = new System.Drawing.Size(100, 28);
-            this.buttonResetBackup.TabIndex = 14;
-            this.buttonResetBackup.Text = "Reset Init";
-            this.buttonResetBackup.UseVisualStyleBackColor = true;
-            this.buttonResetBackup.Visible = false;
-            this.buttonResetBackup.Click += new System.EventHandler(this.buttonResetBackup_Click);
-            // 
-            // buttonSaveActive
-            // 
-            this.buttonSaveActive.Location = new System.Drawing.Point(217, 542);
-            this.buttonSaveActive.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonSaveActive.Name = "buttonSaveActive";
-            this.buttonSaveActive.Size = new System.Drawing.Size(100, 28);
-            this.buttonSaveActive.TabIndex = 13;
-            this.buttonSaveActive.Text = "Save Active";
-            this.buttonSaveActive.UseVisualStyleBackColor = true;
-            this.buttonSaveActive.Visible = false;
-            this.buttonSaveActive.Click += new System.EventHandler(this.buttonSaveActive_Click);
-            // 
-            // buttonSaveChgtCampaign
-            // 
-            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(9, 542);
-            this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonSaveChgtCampaign.Name = "buttonSaveChgtCampaign";
-            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(100, 28);
-            this.buttonSaveChgtCampaign.TabIndex = 12;
-            this.buttonSaveChgtCampaign.Text = "Save Init";
-            this.buttonSaveChgtCampaign.UseVisualStyleBackColor = true;
-            this.buttonSaveChgtCampaign.Visible = false;
-            this.buttonSaveChgtCampaign.Click += new System.EventHandler(this.buttonSaveChgtCampaign_Click);
-            // 
             // CampaignTab
             // 
             this.CampaignTab.Controls.Add(this.tabPage6);
+            this.CampaignTab.Controls.Add(this.tabPage14);
+            this.CampaignTab.Controls.Add(this.tabPage15);
             this.CampaignTab.Controls.Add(this.tabPage7);
             this.CampaignTab.Controls.Add(this.tabPage8);
             this.CampaignTab.Controls.Add(this.tabPage9);
@@ -1352,6 +1373,52 @@
             this.textBoxCampBriefing.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBoxCampBriefing.Size = new System.Drawing.Size(531, 219);
             this.textBoxCampBriefing.TabIndex = 0;
+            // 
+            // tabPage14
+            // 
+            this.tabPage14.Controls.Add(this.dataGridViewBlue);
+            this.tabPage14.Location = new System.Drawing.Point(4, 25);
+            this.tabPage14.Name = "tabPage14";
+            this.tabPage14.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage14.Size = new System.Drawing.Size(568, 488);
+            this.tabPage14.TabIndex = 7;
+            this.tabPage14.Text = "OOB Blue";
+            this.tabPage14.UseVisualStyleBackColor = true;
+            // 
+            // dataGridViewBlue
+            // 
+            this.dataGridViewBlue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewBlue.Location = new System.Drawing.Point(-4, 23);
+            this.dataGridViewBlue.Name = "dataGridViewBlue";
+            this.dataGridViewBlue.RowHeadersWidth = 51;
+            this.dataGridViewBlue.RowTemplate.Height = 24;
+            this.dataGridViewBlue.Size = new System.Drawing.Size(547, 477);
+            this.dataGridViewBlue.TabIndex = 14;
+            this.dataGridViewBlue.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewBlue_CellContentClick);
+            // 
+            // tabPage15
+            // 
+            this.tabPage15.Controls.Add(this.radioButton_OOB_ACTIVE);
+            this.tabPage15.Controls.Add(this.radioButton_OOB_INIT);
+            this.tabPage15.Controls.Add(this.dataGridViewRed);
+            this.tabPage15.Location = new System.Drawing.Point(4, 25);
+            this.tabPage15.Name = "tabPage15";
+            this.tabPage15.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage15.Size = new System.Drawing.Size(568, 488);
+            this.tabPage15.TabIndex = 8;
+            this.tabPage15.Text = "OOB Red";
+            this.tabPage15.UseVisualStyleBackColor = true;
+            // 
+            // dataGridViewRed
+            // 
+            this.dataGridViewRed.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewRed.Location = new System.Drawing.Point(3, 32);
+            this.dataGridViewRed.Name = "dataGridViewRed";
+            this.dataGridViewRed.RowHeadersWidth = 51;
+            this.dataGridViewRed.RowTemplate.Height = 24;
+            this.dataGridViewRed.Size = new System.Drawing.Size(540, 478);
+            this.dataGridViewRed.TabIndex = 15;
+            this.dataGridViewRed.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewRed_CellContentClick);
             // 
             // tabPage7
             // 
@@ -1431,6 +1498,42 @@
             this.textBox_Bugs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.textBox_Bugs.Size = new System.Drawing.Size(531, 475);
             this.textBox_Bugs.TabIndex = 1;
+            // 
+            // buttonResetBackup
+            // 
+            this.buttonResetBackup.Location = new System.Drawing.Point(117, 542);
+            this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonResetBackup.Name = "buttonResetBackup";
+            this.buttonResetBackup.Size = new System.Drawing.Size(100, 28);
+            this.buttonResetBackup.TabIndex = 14;
+            this.buttonResetBackup.Text = "Reset Init";
+            this.buttonResetBackup.UseVisualStyleBackColor = true;
+            this.buttonResetBackup.Visible = false;
+            this.buttonResetBackup.Click += new System.EventHandler(this.buttonResetBackup_Click);
+            // 
+            // buttonSaveActive
+            // 
+            this.buttonSaveActive.Location = new System.Drawing.Point(217, 542);
+            this.buttonSaveActive.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonSaveActive.Name = "buttonSaveActive";
+            this.buttonSaveActive.Size = new System.Drawing.Size(100, 28);
+            this.buttonSaveActive.TabIndex = 13;
+            this.buttonSaveActive.Text = "Save Active";
+            this.buttonSaveActive.UseVisualStyleBackColor = true;
+            this.buttonSaveActive.Visible = false;
+            this.buttonSaveActive.Click += new System.EventHandler(this.buttonSaveActive_Click);
+            // 
+            // buttonSaveChgtCampaign
+            // 
+            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(9, 542);
+            this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonSaveChgtCampaign.Name = "buttonSaveChgtCampaign";
+            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(100, 28);
+            this.buttonSaveChgtCampaign.TabIndex = 12;
+            this.buttonSaveChgtCampaign.Text = "Save Init";
+            this.buttonSaveChgtCampaign.UseVisualStyleBackColor = true;
+            this.buttonSaveChgtCampaign.Visible = false;
+            this.buttonSaveChgtCampaign.Click += new System.EventHandler(this.buttonSaveChgtCampaign_Click);
             // 
             // toolTip3
             // 
@@ -1523,28 +1626,41 @@
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(428, 22);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
-            // textBox_id_client
+            // radioButton_OOB_INIT
             // 
-            this.textBox_id_client.BackColor = System.Drawing.SystemColors.Control;
-            this.textBox_id_client.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox_id_client.Location = new System.Drawing.Point(71, 403);
-            this.textBox_id_client.Name = "textBox_id_client";
-            this.textBox_id_client.Size = new System.Drawing.Size(100, 15);
-            this.textBox_id_client.TabIndex = 27;
-            this.textBox_id_client.TabStop = false;
-            this.textBox_id_client.Visible = false;
-            this.textBox_id_client.TextChanged += new System.EventHandler(this.textBox_id_client_TextChanged);
+            this.radioButton_OOB_INIT.AutoSize = true;
+            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(23, 3);
+            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
+            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(76, 20);
+            this.radioButton_OOB_INIT.TabIndex = 16;
+            this.radioButton_OOB_INIT.TabStop = true;
+            this.radioButton_OOB_INIT.Text = "OOB Init";
+            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_INIT.CheckedChanged += new System.EventHandler(this.radioButton_OOB_INIT_CheckedChanged);
+            // 
+            // radioButton_OOB_ACTIVE
+            // 
+            this.radioButton_OOB_ACTIVE.AutoSize = true;
+            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(178, 3);
+            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
+            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(97, 20);
+            this.radioButton_OOB_ACTIVE.TabIndex = 17;
+            this.radioButton_OOB_ACTIVE.TabStop = true;
+            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
+            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_ACTIVE.CheckedChanged += new System.EventHandler(this.radioButton_OOB_ACTIVE_CheckedChanged);
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoSize = true;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.ClientSize = new System.Drawing.Size(1700, 598);
             this.Controls.Add(this.tabControl);
+            this.Controls.Add(this.groupBoxCampEdit);
             this.Controls.Add(this.groupBoxDroiteAccueil);
             this.Controls.Add(this.groupBox_staticTemplate);
-            this.Controls.Add(this.groupBoxCampEdit);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
             this.Margin = new System.Windows.Forms.Padding(4);
@@ -1567,6 +1683,8 @@
             this.groupBox5.PerformLayout();
             this.tabPage2.ResumeLayout(false);
             this.tabPage2.PerformLayout();
+            this.tabPage16.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).EndInit();
             this.tabPage3.ResumeLayout(false);
             this.tabPage3.PerformLayout();
             this.groupBox6.ResumeLayout(false);
@@ -1590,12 +1708,22 @@
             this.tabPage6.ResumeLayout(false);
             this.tabPage6.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCampImage)).EndInit();
+            this.tabPage14.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).EndInit();
+            this.tabPage15.ResumeLayout(false);
+            this.tabPage15.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).EndInit();
             this.tabPage12.ResumeLayout(false);
             this.tabPage12.PerformLayout();
             this.groupBox_staticTemplate.ResumeLayout(false);
             this.groupBox_staticTemplate.PerformLayout();
             this.ResumeLayout(false);
 
+        }
+
+        private void textBoxCampEdit_TextChanged(object sender, EventArgs e)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion
@@ -1724,6 +1852,14 @@
         private System.Windows.Forms.TextBox textBox_ASTI;
         private System.Windows.Forms.Button butCheckVersion;
         private System.Windows.Forms.TextBox textBox_id_client;
+        public System.Windows.Forms.DataGridView dataGridViewBlue;
+        public System.Windows.Forms.DataGridView dataGridViewRed;
+        private System.Windows.Forms.TabPage tabPage14;
+        private System.Windows.Forms.TabPage tabPage15;
+        private System.Windows.Forms.TabPage tabPage16;
+        private System.Windows.Forms.DataGridView dataGridViewCampaigns;
+        private System.Windows.Forms.RadioButton radioButton_OOB_ACTIVE;
+        private System.Windows.Forms.RadioButton radioButton_OOB_INIT;
     }
 }
 
