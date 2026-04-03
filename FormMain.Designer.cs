@@ -128,6 +128,8 @@ namespace DCE_Manager
             this.but_Expert = new System.Windows.Forms.Button();
             this.butClient = new System.Windows.Forms.Button();
             this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
+            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
+            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
             this.CampaignTab = new System.Windows.Forms.TabControl();
             this.tabPage6 = new System.Windows.Forms.TabPage();
             this.pictureBoxCampImage = new System.Windows.Forms.PictureBox();
@@ -144,7 +146,6 @@ namespace DCE_Manager
             this.tabPage12 = new System.Windows.Forms.TabPage();
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
             this.buttonResetBackup = new System.Windows.Forms.Button();
-            this.buttonSaveActive = new System.Windows.Forms.Button();
             this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
             this.groupBox_staticTemplate = new System.Windows.Forms.GroupBox();
@@ -155,8 +156,6 @@ namespace DCE_Manager
             this.but_ASTI_Browse_Template = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
-            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
-            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
@@ -1307,9 +1306,10 @@ namespace DCE_Manager
             // 
             // groupBoxCampEdit
             // 
+            this.groupBoxCampEdit.Controls.Add(this.radioButton_OOB_INIT);
+            this.groupBoxCampEdit.Controls.Add(this.radioButton_OOB_ACTIVE);
             this.groupBoxCampEdit.Controls.Add(this.CampaignTab);
             this.groupBoxCampEdit.Controls.Add(this.buttonResetBackup);
-            this.groupBoxCampEdit.Controls.Add(this.buttonSaveActive);
             this.groupBoxCampEdit.Controls.Add(this.buttonSaveChgtCampaign);
             this.groupBoxCampEdit.Controls.Add(this.label4);
             this.groupBoxCampEdit.Location = new System.Drawing.Point(1115, 14);
@@ -1321,6 +1321,32 @@ namespace DCE_Manager
             this.groupBoxCampEdit.TabStop = false;
             this.groupBoxCampEdit.Visible = false;
             this.groupBoxCampEdit.Enter += new System.EventHandler(this.groupBoxCampEdit_Enter);
+            // 
+            // radioButton_OOB_INIT
+            // 
+            this.radioButton_OOB_INIT.AutoSize = true;
+            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(27, 546);
+            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
+            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(76, 20);
+            this.radioButton_OOB_INIT.TabIndex = 16;
+            this.radioButton_OOB_INIT.TabStop = true;
+            this.radioButton_OOB_INIT.Text = "OOB Init";
+            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_INIT.Visible = false;
+            this.radioButton_OOB_INIT.CheckedChanged += new System.EventHandler(this.radioButton_OOB_INIT_CheckedChanged);
+            // 
+            // radioButton_OOB_ACTIVE
+            // 
+            this.radioButton_OOB_ACTIVE.AutoSize = true;
+            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(127, 546);
+            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
+            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(97, 20);
+            this.radioButton_OOB_ACTIVE.TabIndex = 17;
+            this.radioButton_OOB_ACTIVE.TabStop = true;
+            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
+            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_ACTIVE.Visible = false;
+            this.radioButton_OOB_ACTIVE.CheckedChanged += new System.EventHandler(this.radioButton_OOB_ACTIVE_CheckedChanged);
             // 
             // CampaignTab
             // 
@@ -1388,18 +1414,16 @@ namespace DCE_Manager
             // dataGridViewBlue
             // 
             this.dataGridViewBlue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewBlue.Location = new System.Drawing.Point(-4, 23);
+            this.dataGridViewBlue.Location = new System.Drawing.Point(3, 3);
             this.dataGridViewBlue.Name = "dataGridViewBlue";
             this.dataGridViewBlue.RowHeadersWidth = 51;
             this.dataGridViewBlue.RowTemplate.Height = 24;
-            this.dataGridViewBlue.Size = new System.Drawing.Size(547, 477);
+            this.dataGridViewBlue.Size = new System.Drawing.Size(559, 477);
             this.dataGridViewBlue.TabIndex = 14;
             this.dataGridViewBlue.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewBlue_CellContentClick);
             // 
             // tabPage15
             // 
-            this.tabPage15.Controls.Add(this.radioButton_OOB_ACTIVE);
-            this.tabPage15.Controls.Add(this.radioButton_OOB_INIT);
             this.tabPage15.Controls.Add(this.dataGridViewRed);
             this.tabPage15.Location = new System.Drawing.Point(4, 25);
             this.tabPage15.Name = "tabPage15";
@@ -1412,11 +1436,11 @@ namespace DCE_Manager
             // dataGridViewRed
             // 
             this.dataGridViewRed.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewRed.Location = new System.Drawing.Point(3, 32);
+            this.dataGridViewRed.Location = new System.Drawing.Point(3, 3);
             this.dataGridViewRed.Name = "dataGridViewRed";
             this.dataGridViewRed.RowHeadersWidth = 51;
             this.dataGridViewRed.RowTemplate.Height = 24;
-            this.dataGridViewRed.Size = new System.Drawing.Size(540, 478);
+            this.dataGridViewRed.Size = new System.Drawing.Size(559, 478);
             this.dataGridViewRed.TabIndex = 15;
             this.dataGridViewRed.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewRed_CellContentClick);
             // 
@@ -1501,7 +1525,7 @@ namespace DCE_Manager
             // 
             // buttonResetBackup
             // 
-            this.buttonResetBackup.Location = new System.Drawing.Point(117, 542);
+            this.buttonResetBackup.Location = new System.Drawing.Point(410, 542);
             this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4);
             this.buttonResetBackup.Name = "buttonResetBackup";
             this.buttonResetBackup.Size = new System.Drawing.Size(100, 28);
@@ -1511,26 +1535,14 @@ namespace DCE_Manager
             this.buttonResetBackup.Visible = false;
             this.buttonResetBackup.Click += new System.EventHandler(this.buttonResetBackup_Click);
             // 
-            // buttonSaveActive
-            // 
-            this.buttonSaveActive.Location = new System.Drawing.Point(217, 542);
-            this.buttonSaveActive.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonSaveActive.Name = "buttonSaveActive";
-            this.buttonSaveActive.Size = new System.Drawing.Size(100, 28);
-            this.buttonSaveActive.TabIndex = 13;
-            this.buttonSaveActive.Text = "Save Active";
-            this.buttonSaveActive.UseVisualStyleBackColor = true;
-            this.buttonSaveActive.Visible = false;
-            this.buttonSaveActive.Click += new System.EventHandler(this.buttonSaveActive_Click);
-            // 
             // buttonSaveChgtCampaign
             // 
-            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(9, 542);
+            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(231, 542);
             this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4);
             this.buttonSaveChgtCampaign.Name = "buttonSaveChgtCampaign";
-            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(100, 28);
+            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(146, 28);
             this.buttonSaveChgtCampaign.TabIndex = 12;
-            this.buttonSaveChgtCampaign.Text = "Save Init";
+            this.buttonSaveChgtCampaign.Text = "Save Campaign";
             this.buttonSaveChgtCampaign.UseVisualStyleBackColor = true;
             this.buttonSaveChgtCampaign.Visible = false;
             this.buttonSaveChgtCampaign.Click += new System.EventHandler(this.buttonSaveChgtCampaign_Click);
@@ -1626,30 +1638,6 @@ namespace DCE_Manager
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(428, 22);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
-            // radioButton_OOB_INIT
-            // 
-            this.radioButton_OOB_INIT.AutoSize = true;
-            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(23, 3);
-            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
-            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(76, 20);
-            this.radioButton_OOB_INIT.TabIndex = 16;
-            this.radioButton_OOB_INIT.TabStop = true;
-            this.radioButton_OOB_INIT.Text = "OOB Init";
-            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
-            this.radioButton_OOB_INIT.CheckedChanged += new System.EventHandler(this.radioButton_OOB_INIT_CheckedChanged);
-            // 
-            // radioButton_OOB_ACTIVE
-            // 
-            this.radioButton_OOB_ACTIVE.AutoSize = true;
-            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(178, 3);
-            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
-            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(97, 20);
-            this.radioButton_OOB_ACTIVE.TabIndex = 17;
-            this.radioButton_OOB_ACTIVE.TabStop = true;
-            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
-            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
-            this.radioButton_OOB_ACTIVE.CheckedChanged += new System.EventHandler(this.radioButton_OOB_ACTIVE_CheckedChanged);
-            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -1711,7 +1699,6 @@ namespace DCE_Manager
             this.tabPage14.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).EndInit();
             this.tabPage15.ResumeLayout(false);
-            this.tabPage15.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).EndInit();
             this.tabPage12.ResumeLayout(false);
             this.tabPage12.PerformLayout();
@@ -1811,7 +1798,6 @@ namespace DCE_Manager
         public System.Windows.Forms.TabPage tabPage9;
         public System.Windows.Forms.TabPage tabPage10;
         private System.Windows.Forms.Button buttonSaveChgtCampaign;
-        private System.Windows.Forms.Button buttonSaveActive;
         private System.Windows.Forms.Button buttonResetBackup;
         private System.Windows.Forms.ToolTip toolTip3;
         public System.Windows.Forms.TextBox textBoxCampBriefing;
@@ -1854,12 +1840,12 @@ namespace DCE_Manager
         private System.Windows.Forms.TextBox textBox_id_client;
         public System.Windows.Forms.DataGridView dataGridViewBlue;
         public System.Windows.Forms.DataGridView dataGridViewRed;
-        private System.Windows.Forms.TabPage tabPage14;
-        private System.Windows.Forms.TabPage tabPage15;
-        private System.Windows.Forms.TabPage tabPage16;
-        private System.Windows.Forms.DataGridView dataGridViewCampaigns;
-        private System.Windows.Forms.RadioButton radioButton_OOB_ACTIVE;
-        private System.Windows.Forms.RadioButton radioButton_OOB_INIT;
+        public System.Windows.Forms.TabPage tabPage14;
+        public System.Windows.Forms.TabPage tabPage15;
+        public System.Windows.Forms.TabPage tabPage16;
+        public System.Windows.Forms.DataGridView dataGridViewCampaigns;
+        public System.Windows.Forms.RadioButton radioButton_OOB_ACTIVE;
+        public System.Windows.Forms.RadioButton radioButton_OOB_INIT;
     }
 }
 

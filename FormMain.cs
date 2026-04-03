@@ -20,6 +20,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.Design;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using Microsoft.VisualBasic.FileIO;
@@ -35,6 +36,9 @@ namespace DCE_Manager
         public static Form1 Instance { get; private set; }
 
         public DataTable dataTable;
+
+        public string currentState = "Init";
+        public List<Squad> currentSquads = new List<Squad>();
 
 
         // Cache des images de campagnes (évite rechargement disque)
@@ -135,6 +139,29 @@ namespace DCE_Manager
                 //string basePath = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns";
 
                 CampaignPlusClickOneEvent(null, null, basePath, name);
+            }
+            // Si on clique sur la colonne "Folder"
+            // Ouvre le dossier de la campagne dans l'explorateur Windows
+            else if (columnName == "Folder")
+            {
+                if (Directory.Exists(folderPath))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = "\"" + folderPath + "\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Campaign folder not found:\r\n" + folderPath,
+                        "Folder",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                }
             }
         }
 
@@ -307,6 +334,7 @@ namespace DCE_Manager
                                 null,       // Clone (bouton)
                                 img,        // Image
                                 NameCamp,   // Name
+                                null,       // Folder
                                 VerCamp,    // Version
                                 NbMission,  // Missions
                                 type,       // Aircraft
@@ -416,9 +444,6 @@ namespace DCE_Manager
             dataGridViewCampaigns.EnableHeadersVisualStyles = false;
             dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = SystemColors.Control;
             dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
-
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(45, 45, 48);
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
 
             dataGridViewCampaigns.GridColor = Color.LightGray;
 
@@ -1064,15 +1089,6 @@ namespace DCE_Manager
 
             // ===== COLONNE CLONE =====
             AddButtonColumn("Clone", "＋", 40);
-            //var colClone = new DataGridViewButtonColumn()
-            //{
-            //    Name = "Clone",
-            //    Text = "＋",
-            //    UseColumnTextForButtonValue = true,
-            //    Width = 30,
-            //    FlatStyle = FlatStyle.Flat
-            //};
-            //dataGridViewCampaigns.Columns.Add(colClone);
 
             // ===== IMAGE =====
             var colImg = new DataGridViewImageColumn()
@@ -1091,6 +1107,17 @@ namespace DCE_Manager
                 HeaderText = "Campaign",
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
+
+            // Colonne pour ouvrir le dossier
+            AddButtonColumn("Folder", "📂", 55);
+            //dataGridViewCampaigns.Columns.Add(new DataGridViewButtonColumn()
+            //{
+            //    Name = "OpenFolder",
+            //    HeaderText = "Folder",
+            //    Text = "Open",
+            //    UseColumnTextForButtonValue = true,
+            //    Width = 60
+            //});
 
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
@@ -4949,14 +4976,8 @@ namespace DCE_Manager
 
         void TabControl1_Selected(object sender, TabControlEventArgs e)
         {
-            //MessageBox.Show(e.TabPage.ToString(), "info");
 
             tabPage2.Controls.Clear();
-            //A = 0;
-            //B = 1;
-            //C = 1;
-            //D = 1;
-            //E = 1;
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage1       +++++++++++++++++++++++++
@@ -4965,7 +4986,6 @@ namespace DCE_Manager
             if (e.TabPage == tabPage1)
             {
                 checkBoxMod();
-                //button_InstallCampaign.Visible = true;
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
@@ -4977,61 +4997,7 @@ namespace DCE_Manager
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
-
-                //string pathFile = textBox_DCS.Text + @"\Scripts\MissionScripting.lua";
-
-                //Boolean find_OS = false;
-                //Boolean find_IO = false;
-
-                //if (File.Exists(pathFile))
-                //{
-                //    checkBoxSanitize.Enabled = true;
-                //    using (StreamReader reader = new StreamReader(pathFile))
-                //    {
-                //        string line;
-
-
-                //        while ((line = reader.ReadLine()) != null)
-                //        {
-                //            int nbcaractereOS = line.IndexOf("sanitizeModule('os");
-                //            if (nbcaractereOS > -1)
-                //            {
-
-                //                //MessageBox.Show("passe _o_",  nbcaractere.ToString());
-                //                int nbCaractTiret = line.IndexOf("--");
-                //                if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereOS )
-                //                {
-                //                    find_OS = true;
-                //                }
-                //            }
-                //            int nbcaractereIO = line.IndexOf("sanitizeModule('io");
-                //            if (nbcaractereIO > -1)
-                //            {
-                //                int nbCaractTiret = line.IndexOf("--");
-                //                if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereIO)
-                //                {
-                //                    find_IO = true;
-                //                }
-                //            }
-                //        }
-                //    }
-
-                //    if (find_OS && find_IO)
-                //    {
-                //        checkBoxSanitize.Checked = true;
-                //    }
-                //    else
-                //    {
-                //        checkBoxSanitize.Checked = false;
-                //    }
-                //}
-                //else
-                //{
-                //    checkBoxSanitize.Enabled = false;
-                //}
+                
 
             }
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5041,355 +5007,7 @@ namespace DCE_Manager
             else if (e.TabPage == tabPage2)
             {
 
-               //Cursor.Current = Cursors.WaitCursor;
-
-
-               //LoadCampaigns();
-
-
-               //Cursor.Current = Cursors.Default;
-
-                //var tabPage2Campaign = Stopwatch.StartNew();
-
-                //// Afficher le curseur en cercle tournant
-                //Cursor.Current = Cursors.WaitCursor;
-
-                //groupBoxDroiteAccueil.Visible = false;
-                //groupBoxCampEdit.Visible = true;
-                //groupBox_staticTemplate.Visible = false;
-                //tabPage7.Controls.Clear();
-                //tabPage8.Controls.Clear();
-                //tabPage9.Controls.Clear();
-                //tabPage10.Controls.Clear();
-                //groupBoxCampEdit.Text = "";
-                //int nbCampaign = 0;
-                //int A = 0;
-
-                //bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-                //if (false && folderCampExists)
-                //{
-                //    foreach (string subFolder in Directory.GetDirectories(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns"))
-                //    {
-                //        string[] NameCampTab = subFolder.Split('\\');
-                //        string NameCamp = NameCampTab[NameCampTab.Count() - 1];
-
-                //        bool folderLocExists = System.IO.Directory.Exists(subFolder);
-
-                //        //string VerScriptsMod = "unknown ";
-
-                //        bool erreurPath = false;
-                //        //string CheckPath_SG = "";
-                //        //string CheckPath_DCS = "";
-                //        string erreurPathString = "Error path.bat: ";
-
-                //        //cherche la version inscrite dans path.bat
-                //        string PathBatFile = subFolder + @"\Init\path.bat";
-                //        bool fileExistPathBat = File.Exists(PathBatFile);
-
-                //        if (fileExistPathBat)
-                //        {
-                //            if (textBox_DCS.Text != "" & textBox_SavedGames.Text != "")
-                //            {
-
-                //                string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                //               "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
-                //               "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                //               "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
-                //               "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
-                //               "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
-                //               "\r\n" +
-                //               "\r\n" +
-                //               "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
-
-                //                System.IO.File.WriteAllText(PathBatFile, textPathBat);
-                //            }
-
-
-
-                //            nbCampaign++;
-
-                //            //Cherche la version de la campagne
-                //            bool CampaignOriginal = false;
-                //            string VerCamp = "";
-                //            string PathCampInitFile = subFolder + @"\Init\camp_init.lua";
-                //            bool fileExistPathCampInitFile = File.Exists(PathCampInitFile);
-                //            if (fileExistPathCampInitFile)
-                //            {
-                //                string FileToRead2 = PathCampInitFile;
-                //                using (StreamReader ReaderObject = new StreamReader(FileToRead2))
-                //                {
-                //                    string Line = "";
-                //                    while ((Line = ReaderObject.ReadLine()) != null)
-                //                    {
-                //                        if (Line.IndexOf("version") > -1)   //version = "V18-gc",
-                //                        {
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            VerCamp = wordDeuz[0];
-                //                            VerCamp = VerCamp.Replace("\"", "");
-
-                //                            VerCamp = VerCamp.TrimStart().TrimEnd();
-
-                //                        }
-                //                        if (Line.IndexOf("CampaignOriginal") > -1)
-                //                        {
-
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            //wordDeuz[0] = wordDeuz[0].Replace(" ", "");
-                //                            wordDeuz[0] = wordDeuz[0].TrimStart().TrimEnd();
-                //                            CampaignOriginal = Convert.ToBoolean(wordDeuz[0]);
-                //                        }
-                //                    }
-                //                }
-                //            }
-
-
-                //            DrawIconPlus(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns", A);
-
-
-                //            //Cherche le nombre de mission joué
-                //            //['mission'] = 1,
-                //            string NbMission = "0";
-                //            string PathCampstatusFile = subFolder + @"\Active\camp_status.lua";
-                //            bool fileExistPathCampstatusFile = File.Exists(PathCampstatusFile);
-                //            if (fileExistPathCampstatusFile)
-                //            {
-                //                string FileToRead2 = PathCampstatusFile;
-                //                using (StreamReader ReaderObject = new StreamReader(FileToRead2))
-                //                {
-                //                    string Line = "";
-                //                    while ((Line = ReaderObject.ReadLine()) != null)
-                //                    {
-                //                        if (Line.IndexOf("['mission']") > -1 || Line.IndexOf("[\"mission\"]") > -1)
-                //                        {
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            NbMission = wordDeuz[0].Replace(" ", "");
-                //                            NbMission = (Int32.Parse(NbMission) - 1).ToString();
-                //                            break;
-                //                        }
-                //                    }
-                //                }
-                //            }
-
-                //            //cherche si une campagne doit etre reset a la suite d'un update
-                //            var campaignNameTab = new Dictionary<string, string>();
-
-                //            string colorFM = "";
-                //            string colorSM = "";
-                //            if (folderLocExists)
-                //            {
-
-                //                //DrawIconeCampaign
-
-                //                //cherche la couleur pour le bouton resetCampagn
-                //                if (campaignNameTab.ContainsKey(NameCamp))
-                //                {
-                //                    if (campaignNameTab[NameCamp] == "firstmission")
-                //                    {
-                //                        //cherche la date de creation/modif du fichier FirstMission.miz ou ongoing.miz
-                //                        //pour detecter si la generation de mission a été faite, et ainsi enlever la couleur rouge du button
-
-                //                        //TF-71-Hornet-GC22_first.miz
-                //                        //TF-71-Hornet-GC22_ongoing.miz
-
-                //                        DateTime dtNow = DateTime.Now;
-                //                        dtNow.ToString("MM/dd/yyyy HH:mm:ss");
-
-                //                        string PathFirstFile = subFolder + "_first.miz";
-                //                        if (File.Exists(PathFirstFile))
-                //                        {
-                //                            DateTime dtFileLoc = File.GetLastWriteTime(PathFirstFile);
-
-
-                //                            if (dtFileLoc < dtNow)
-                //                            {
-
-                //                            }
-                //                        }
-                //                        colorFM = "red";
-                //                    }
-                //                    else if (campaignNameTab[NameCamp] == "skipmission")
-                //                    {
-                //                        colorSM = "red";
-                //                    }
-                //                }
-
-                //                string path_oob_air = "";
-                //                if (Int32.Parse((string)NbMission) >= 1)
-                //                {
-                //                    path_oob_air = subFolder + @"\Active\oob_air.lua";
-                //                }
-                //                else
-                //                {
-                //                    path_oob_air = subFolder + @"\Init\oob_air_init.lua";
-                //                }
-
-
-                //                LuaParse C_db_oob_air = new LuaParse();
-
-                //                ParamCampaign.NameFileParse = path_oob_air;
-
-                //                C_db_oob_air.Parse(File.ReadAllText(path_oob_air));
-
-                //                string type = "default";
-                //                string type_temp = "default";
-                //                bool tag_break = false;
-
-                //                foreach (KeyValuePair<string, LuaObject> entry in C_db_oob_air.Val)
-                //                {
-                //                    foreach (KeyValuePair<string, LuaObject> entry2 in entry.Value)
-                //                    {
-                //                        bool tagPlayer = false;
-                //                        bool tagType = false;
-                //                        foreach (KeyValuePair<string, LuaObject> entry3 in entry2.Value)
-                //                        {
-
-                //                            //type = "A-10C_2",
-                //                            if (entry3.Key == "type")
-                //                            {
-                //                                type_temp = entry3.Value.luaobj.ToString();
-                //                                tagType = true;
-                //                            }
-                //                            //player = false,
-                //                            if (entry3.Key == "player" && entry3.Value.luaobj.ToString() == "true")
-                //                            {
-                //                                tagPlayer = true;
-                //                            }
-
-                //                        }
-
-                //                        if (tagPlayer && tagType)
-                //                        {
-                //                            tag_break = true;
-                //                            type = type_temp;
-                //                            break;
-                //                        }
-                //                    }
-                //                    if (tag_break)
-                //                        break;
-                //                }
-
-
-                //                //check si plusieurs images par type d'avion existe dans le dossier image
-                //                string filePNGbyePlane = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + @"\Images\planescreen_" + type + ".png");
-                //                string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
-                //                string fileBMP = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".bmp";
-
-                //                //FormUtils.LogRegister("LogRegister 4825 filePNGbyePlane  |" + filePNGbyePlane + "| ");
-
-                //                if (File.Exists(filePNGbyePlane))
-                //                {
-                //                    //File.Delete(fileIMG);
-                //                    File.Copy(filePNGbyePlane, filePNG, true);
-
-                //                    if (File.Exists(fileBMP))
-                //                    {
-                //                        //Image image2 = Image.FromFile(fileBMP);
-                //                        //image2.Dispose();
-                //                        File.Delete(fileBMP);
-                //                    }
-
-                //                    //FormUtils.LogRegister("LogRegister 4839 filePNGbyePlane exist");
-
-                //                }
-
-                //                //ajoute l'image de la campagne
-                //                //string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
-                //                string fileIMG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp);
-                //                bool ExistsfilePNG = File.Exists(filePNG);
-                //                if (ExistsfilePNG)
-                //                {
-                //                    DrawIconeCampaign(NameCamp, fileIMG, A);
-                //                }
-                //                else
-                //                {
-
-                //                    string[] fileNames = Assembly.GetExecutingAssembly().GetManifestResourceNames();
-                //                    foreach (String fileName in fileNames)
-                //                    {
-                //                        if (fileName.IndexOf("etiquetteLogo.png") > -1)
-                //                        {
-                //                            using (FileStream fileStream = File.Create(filePNG))
-                //                            {
-                //                                Assembly.GetExecutingAssembly().GetManifestResourceStream(fileName).CopyTo(fileStream);
-                //                            }
-                //                            DrawIconeCampaign(NameCamp, fileIMG, A);
-                //                        }
-                //                    }
-
-
-
-                //                }
-
-                //                Label_NameCampaign(NameCamp, A);                                                           //ajoute le nom et chemin des campaign
-                //                Label_VerCampaign(VerCamp, A);                                                 //ajoute la version de la campagne
-                //                //NbMissionPlayed(NameCamp, NbMission);                                               //ajoute la version de la campagne
-                //                Button_FirstMission(NameCamp, colorFM, A);                                                //ajoute le boutton FirstMission
-                //                Button_SkipMission(NameCamp, colorSM, A);                                                //ajoute le bouton Nextmission
-
-                //                bool confModFile = File.Exists(subFolder + @"\Init\conf_mod.lua");
-                //                if (confModFile)
-                //                {
-                //                    Button_Configuration(NameCamp, null, A);
-                //                }
-                //                else
-                //                {
-                //                    //D = D + 1;
-                //                }
-                //                //addNewLabelE(NameCamp, VerScriptsMod);
-                //                NbMissionPlayed(NbMission, A);//ajoute le label nb de mission joué
-
-                //                if (erreurPath)
-                //                {
-                //                    //addNewLabelErrorPath( erreurPathString);                            //affiche les erreurs trouvé sur le path
-                //                    DrawIconeError(10, 10, erreurPathString, A);                            //affiche les erreurs trouvé sur le path
-                //                }
-
-                //                //DrawIconDel(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-                //                CheckboxDel(NameCamp, A);
-
-                //                A = A + 1;
-
-                //            }
-                //        }
-
-                //    }
-
-
-                //    //ajoute ici le bouton Delete
-                //    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-                //    //pictureBox3.Location = new Point(730 + decalLargeur, ((A) * hLigne) - 20); //+20 largeur
-
-                //    if(nbCampaign > 0)
-                //    {
-                //        tabPage2.Controls.Add(but);
-                //        but.Top = A * hLigne + 20;
-                //        but.Left = 690;// + decalLargeur;
-                //        but.Size = new System.Drawing.Size(80, hLigne - 10);
-                //        but.Font = new Font("Georgia", 7);
-                //        but.Text = "Delete";
-
-                //        but.UseVisualStyleBackColor = true;
-                //        but.BackColor = SystemColors.Control;
-
-                //        but.Cursor = System.Windows.Forms.Cursors.Hand;
-                //        but.Click += new EventHandler(this.But_delete_campaign_Click);
-                //    }
-
-                //}
-                //else
-                //{
-                //    //MessageBox.Show("\"DCS Saved Game Folder\" path must be filled in the Instal tab ", "Report");
-                //}
-
-                // Remettre le curseur par défaut à la fin de la tâche
-                //Cursor.Current = Cursors.Default;
-
-                //tabPage2Campaign.Stop();
-                //FormUtils.LogRegister($"tabPage2Campaign : {tabPage2Campaign.ElapsedMilliseconds} ms");
+               
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5408,9 +5026,6 @@ namespace DCE_Manager
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
 
                 panel1.Controls.Clear();
                 ScriptsModUpdateButton.Visible = false;
@@ -5458,9 +5073,6 @@ namespace DCE_Manager
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
 
                 if (textBox_ChangelogScriptsMod.Text == "")
                 {
@@ -5498,6 +5110,8 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
+                //radioButton_OOB_INIT.Visible = false;
+                //radioButton_OOB_ACTIVE.Visible = false;
 
                 tabPage7.Controls.Clear();
                 tabPage8.Controls.Clear();
@@ -5507,9 +5121,8 @@ namespace DCE_Manager
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
+                //buttonSaveChgtCampaign.Visible = false;
+                //buttonResetBackup.Visible = false;
             }
             else if (e.TabPage == tabPage16)
             {
@@ -5526,8 +5139,17 @@ namespace DCE_Manager
 
                 LoadCampaigns();
 
-
                 Cursor.Current = Cursors.Default;
+
+                UpdateCampaignButtonsVisibility();
+            }
+            else
+            {
+                // On quitte l’onglet CampaignTab → on cache tout
+                buttonSaveChgtCampaign.Visible = false;
+                buttonResetBackup.Visible = false;
+                radioButton_OOB_INIT.Visible = false;
+                radioButton_OOB_ACTIVE.Visible = false;
             }
         }
 
@@ -7228,35 +6850,32 @@ namespace DCE_Manager
 
         }
 
-
-        //if (tabControl1.SelectedTab == someTabPage)
+        //void CampaignTab_Selected(object sender, TabControlEventArgs e)
         //{
-        //// Do stuff here...
+        //    bool show =
+        //        groupBoxCampEdit.Text != "" &&
+        //        (e.TabPage == tabPage14 || e.TabPage == tabPage15);
+
+        //    buttonSaveChgtCampaign.Visible = show;
+        //    buttonResetBackup.Visible = show;
+        //    radioButton_OOB_INIT.Visible = show;
+        //    radioButton_OOB_ACTIVE.Visible = show;
         //}
 
         void CampaignTab_Selected(object sender, TabControlEventArgs e)
         {
-             if (e.TabPage == tabPage6 || groupBoxCampEdit.Text == "")
-             {
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
-             }
-            if (groupBoxCampEdit.Text != "")
-            {
-                if (e.TabPage == tabPage7 || e.TabPage == tabPage8)
-                {
-                    buttonSaveChgtCampaign.Visible = true;
-                    buttonSaveActive.Visible = false;
-                    buttonResetBackup.Visible = true;
-                }
-                else if (e.TabPage == tabPage9 || e.TabPage == tabPage10 )
-                {
-                    buttonSaveChgtCampaign.Visible = false;
-                    buttonSaveActive.Visible = true;
-                    buttonResetBackup.Visible = false;
-                }
-            }
+            UpdateCampaignButtonsVisibility();
+        }
+        private void UpdateCampaignButtonsVisibility()
+        {
+            bool show =
+                groupBoxCampEdit.Text != "" &&
+                (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
+
+            buttonSaveChgtCampaign.Visible = show;
+            buttonResetBackup.Visible = show;
+            radioButton_OOB_INIT.Visible = show;
+            radioButton_OOB_ACTIVE.Visible = show;
         }
 
         public void modifiedCampaign(string pathFile, string pathFileBackup, string initActive)
@@ -7449,9 +7068,24 @@ namespace DCE_Manager
         public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
         {
             string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
-            string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
 
-            modifiedCampaign(pathFile, pathFileBackup, "Init");
+            string pathFile = "";
+            string FolderName = "";
+
+            if (radioButton_OOB_INIT.Checked)
+            {
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
+                FolderName = "Init";
+            }
+            else if (radioButton_OOB_ACTIVE.Checked)
+            {
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+
+                FolderName = "Active";
+            }
+
+
+            modifiedCampaign(pathFile, pathFileBackup, FolderName);
 
             tabPage7.Controls.Clear();
             tabPage8.Controls.Clear();
@@ -7460,7 +7094,7 @@ namespace DCE_Manager
             textBox_Bugs.Text = "";
             tabPage12.Text = "Bugs";
 
-            CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
+            //CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
 
         }
 
@@ -7477,7 +7111,7 @@ namespace DCE_Manager
             textBox_Bugs.Text = "";
             tabPage12.Text = "Bugs";
 
-            CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
+            //CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
         }
 
         private void buttonResetBackup_Click(object sender, EventArgs e)
@@ -7649,15 +7283,29 @@ namespace DCE_Manager
 
         }
 
-        private void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
+        public void RefreshGrids()
         {
-
+            CampaignEdit.LoadGridStatic(dataGridViewBlue, currentSquads, "blue", currentState);
+            CampaignEdit.LoadGridStatic(dataGridViewRed, currentSquads, "red", currentState);
         }
 
-        private void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
+        public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
         {
+            if (!radioButton_OOB_INIT.Checked) return;
 
+            currentState = "Init";
+            RefreshGrids();
         }
+
+        public void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!radioButton_OOB_ACTIVE.Checked) return;
+
+            currentState = "Active";
+            RefreshGrids();
+        }
+
+
     }
 
 }
