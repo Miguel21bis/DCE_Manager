@@ -204,13 +204,6 @@ namespace DCE_Manager
 
                     bool folderLocExists = System.IO.Directory.Exists(subFolder);
 
-                    //string VerScriptsMod = "unknown ";
-
-                    bool erreurPath = false;
-                    //string CheckPath_SG = "";
-                    //string CheckPath_DCS = "";
-                    string erreurPathString = "Error path.bat: ";
-
                     //cherche la version inscrite dans path.bat
                     string PathBatFile = subFolder + @"\Init\path.bat";
                     bool fileExistPathBat = File.Exists(PathBatFile);
@@ -310,9 +303,25 @@ namespace DCE_Manager
                             }
 
 
-                            // ✅ Image (avec cache)
-                            Image img = null;
+                            //// ✅ Image (avec cache)
+                            //Image img = null;
 
+                            //string imagePath = filePNG;
+
+                            //if (campaignImageCache.ContainsKey(imagePath))
+                            //{
+                            //    img = campaignImageCache[imagePath];
+                            //}
+                            //else if (File.Exists(imagePath))
+                            //{
+                            //    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read))
+                            //    {
+                            //        img = Image.FromStream(fs);
+                            //    }
+                            //    campaignImageCache[imagePath] = img;
+                            //}
+                            // Image (avec cache)
+                            Image img = null;
                             string imagePath = filePNG;
 
                             if (campaignImageCache.ContainsKey(imagePath))
@@ -321,11 +330,30 @@ namespace DCE_Manager
                             }
                             else if (File.Exists(imagePath))
                             {
-                                using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read))
+                                try
                                 {
-                                    img = Image.FromStream(fs);
+                                    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                                    using (var ms = new MemoryStream())
+                                    {
+                                        fs.CopyTo(ms);
+                                        ms.Position = 0;
+
+                                        try
+                                        {
+                                            img = Image.FromStream(ms);
+                                        }
+                                        catch (ArgumentException)
+                                        {
+                                            throw new Exception("Fichier image invalide : " + imagePath);
+                                        }
+                                    }
+
+                                    campaignImageCache[imagePath] = img;
                                 }
-                                campaignImageCache[imagePath] = img;
+                                catch (Exception ex)
+                                {
+                                    throw new Exception("Erreur lors du chargement de l'image : " + imagePath, ex);
+                                }
                             }
 
                             // ✅ Ajout dans le DataGridView
@@ -4404,30 +4432,31 @@ namespace DCE_Manager
 
 
         private readonly int hLigne = 44; //hauteur des lignes du tableau        //24 initialement
-        private readonly int decalLargeur = 30;      //decalle tout à droite de x points
+        //private readonly int decalLargeur = 30;      //decalle tout à droite de x points
 
 
-        //ajoute le + pour cloner une campagne
-        public System.Windows.Forms.PictureBox DrawIconPlus(string NameCamp, string path, int A)
-        {
-            System.Windows.Forms.PictureBox pictureBox0 = new System.Windows.Forms.PictureBox
-            {
-                Location = new Point(5, ((A + 1) * hLigne) - 20), //+20 largeur         
-                Size = new System.Drawing.Size(20, 20),
-                SizeMode = PictureBoxSizeMode.StretchImage
-            };
-            tabPage2.Controls.Add(pictureBox0);
-            tabPage2.Controls.SetChildIndex(pictureBox0, 1);
-            pictureBox0.Image = DCE_Manager.Properties.Resources.iconePlus;
-            toolTip1.SetToolTip(pictureBox0, "Clone this Campaign");
-            pictureBox0.Cursor = System.Windows.Forms.Cursors.Hand;
-            pictureBox0.Click += new EventHandler((sender, e) => CampaignPlusClickOneEvent(sender, e, path, NameCamp));
+        ////ajoute le + pour cloner une campagne
+        //public System.Windows.Forms.PictureBox DrawIconPlus(string NameCamp, string path, int A)
+        //{
+        //    System.Windows.Forms.PictureBox pictureBox0 = new System.Windows.Forms.PictureBox
+        //    {
+        //        Location = new Point(5, ((A + 1) * hLigne) - 20), //+20 largeur         
+        //        Size = new System.Drawing.Size(20, 20),
+        //        SizeMode = PictureBoxSizeMode.StretchImage
+        //    };
+        //    tabPage2.Controls.Add(pictureBox0);
+        //    tabPage2.Controls.SetChildIndex(pictureBox0, 1);
+        //    pictureBox0.Image = DCE_Manager.Properties.Resources.iconePlus;
+        //    toolTip1.SetToolTip(pictureBox0, "Clone this Campaign");
+        //    pictureBox0.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    pictureBox0.Click += new EventHandler((sender, e) => CampaignPlusClickOneEvent(sender, e, path, NameCamp));
 
-            return pictureBox0;
-        }
+        //    return pictureBox0;
+        //}
 
 
-        //// Affiche une icône de campagne dans un PictureBox
+
+        //// Affiche une icône de campagne dans un PictureBox (optimisé avec cache)
         //public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string campaignPath, int A)
         //{
         //    var pictureBox2 = new System.Windows.Forms.PictureBox
@@ -4438,23 +4467,30 @@ namespace DCE_Manager
         //        Cursor = System.Windows.Forms.Cursors.Hand
         //    };
 
-        //    tabPage2.Controls.Add(pictureBox2);
+        //    //tabPage2.Controls.Add(pictureBox2);
 
-        //    // Vérifie si l'image existe en format .bmp, sinon la crée
         //    string bitmapPath = campaignPath + ".bmp";
-        //    if (!File.Exists(bitmapPath))
-        //    {
-        //        FormUtils.ConvertToBitmap(campaignPath);
-        //    }
 
-        //    // Charger l'image BMP sans verrouiller le fichier
         //    try
         //    {
-        //        using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        //        // 🔥 1. Vérifie si l’image est déjà en cache
+        //        if (!campaignImageCache.ContainsKey(bitmapPath))
         //        {
-        //            pictureBox2.Image?.Dispose(); // Libère l'ancienne image si elle existe
-        //            pictureBox2.Image = new Bitmap(bmpStream); // Charge l'image dans le PictureBox
+        //            // 🔧 Conversion UNIQUEMENT si nécessaire
+        //            if (!File.Exists(bitmapPath))
+        //            {
+        //                FormUtils.ConvertToBitmap(campaignPath);
+        //            }
+
+        //            // 🔥 Chargement UNE SEULE FOIS
+        //            using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        //            {
+        //                campaignImageCache[bitmapPath] = new Bitmap(bmpStream);
+        //            }
         //        }
+
+        //        // 🔥 2. Réutilise l’image en mémoire
+        //        pictureBox2.Image = campaignImageCache[bitmapPath];
         //    }
         //    catch (Exception ex)
         //    {
@@ -4467,260 +4503,188 @@ namespace DCE_Manager
         //    return pictureBox2;
         //}
 
-        // Affiche une icône de campagne dans un PictureBox (optimisé avec cache)
-        public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string campaignPath, int A)
-        {
-            var pictureBox2 = new System.Windows.Forms.PictureBox
-            {
-                Size = new System.Drawing.Size(60, 30),
-                Location = new Point(42, ((A) * hLigne) + 20),
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Cursor = System.Windows.Forms.Cursors.Hand
-            };
-
-            tabPage2.Controls.Add(pictureBox2);
-
-            string bitmapPath = campaignPath + ".bmp";
-
-            try
-            {
-                // 🔥 1. Vérifie si l’image est déjà en cache
-                if (!campaignImageCache.ContainsKey(bitmapPath))
-                {
-                    // 🔧 Conversion UNIQUEMENT si nécessaire
-                    if (!File.Exists(bitmapPath))
-                    {
-                        FormUtils.ConvertToBitmap(campaignPath);
-                    }
-
-                    // 🔥 Chargement UNE SEULE FOIS
-                    using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        campaignImageCache[bitmapPath] = new Bitmap(bmpStream);
-                    }
-                }
-
-                // 🔥 2. Réutilise l’image en mémoire
-                pictureBox2.Image = campaignImageCache[bitmapPath];
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du chargement de l'image BMP", bitmapPath, true, true);
-            }
-
-            // Assignation de l'événement clic
-            pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, campaignPath, nameCamp);
-
-            return pictureBox2;
-        }
 
 
+        ////ajoute le label nom de campaign
+        //public System.Windows.Forms.Label Label_NameCampaign(string NameCamp, int A)
+        //{
+        //    System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
 
-        //dessine une icone en cas de pb de path
-        public System.Windows.Forms.PictureBox DrawIconeError(int Width, int Height, string str, int A)
-        {
-            Icon newIcon = SystemIcons.Warning;
-            Image bmp = newIcon.ToBitmap();
+        //    tabPage2.Controls.Add(txt);
+        //    txt.Top = A * hLigne + 30;
+        //    txt.Left = 72 + decalLargeur;
+        //    txt.AutoSize = true;
+        //    txt.Size = new System.Drawing.Size(170, 20);    // txt.Size = new System.Drawing.Size(170, 20);
+        //    txt.Text = NameCamp;
+        //    //A = A + 1;
+        //    //txt.Click += new EventHandler(ButtonClickOneEvent);
+        //    txt.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    txt.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, NameCamp));
 
-            System.Windows.Forms.PictureBox pictureBox1 = new System.Windows.Forms.PictureBox
-            {
-                Location = new Point(52 + decalLargeur, ((A) * hLigne) - 20), //+20 largeur
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Size = new System.Drawing.Size(20, 20)
-            };
+        //    return txt;
+        //}
 
-            tabPage2.Controls.Add(pictureBox1);
-            tabPage2.Controls.SetChildIndex(pictureBox1, 1);
+        ////ajoute le label version de campagne
+        //private System.Windows.Forms.Label Label_VerCampaign(string VerCamp, int A)
+        //{
+        //    System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
 
-            pictureBox1.Image = bmp;
+        //    tabPage2.Controls.Add(txt);
+        //    txt.Top = A * hLigne + 30;
+        //    txt.Left = 350 + decalLargeur;
+        //    //txt.AutoSize = true;
+        //    txt.AutoSize = false;
+        //    txt.Size = new System.Drawing.Size(40, 20);
+        //    txt.Text = VerCamp;
+        //    txt.TextAlign = ContentAlignment.MiddleCenter;
+        //    //A = A + 1;
+        //    return txt;
+        //}
 
-            toolTip1.SetToolTip(pictureBox1, str);
+        ////ajoute le boutton FirstMission
+        //private System.Windows.Forms.Button Button_FirstMission(string NameCamp, string color, int A) //ajoute le boutton FirstMission
+        //{
+        //    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
 
-            return pictureBox1;
-        }
+        //    tabPage2.Controls.Add(but);
+        //    but.Top = A * hLigne + 20;
+        //    but.Left = 395 + decalLargeur;
+        //    but.Tag = NameCamp;
+        //    but.Size = new System.Drawing.Size(80, hLigne - 10);
+        //    but.Font = new Font("Georgia", 7);
+        //    but.Text = "Start\r\nCampaign";
+        //    //but.TextAlign = ContentAlignment.BottomRight;
 
-        //ajoute le label nom de campaign
-        public System.Windows.Forms.Label Label_NameCampaign(string NameCamp, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
+        //    but.UseVisualStyleBackColor = true;
+        //    but.BackColor = SystemColors.Control;
+        //    //control.ForeColor = SystemColors.ControlText;
 
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 30;
-            txt.Left = 72 + decalLargeur;
-            txt.AutoSize = true;
-            txt.Size = new System.Drawing.Size(170, 20);    // txt.Size = new System.Drawing.Size(170, 20);
-            txt.Text = NameCamp;
-            //A = A + 1;
-            //txt.Click += new EventHandler(ButtonClickOneEvent);
-            txt.Cursor = System.Windows.Forms.Cursors.Hand;
-            txt.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, NameCamp));
+        //    toolTip1.SetToolTip(but, "Be careful, this will erase all the history of your campaign...");
 
-            return txt;
-        }
+        //    //but.Click += new EventHandler(ButtonClickOneEvent);
+        //    but.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "FirstMission.bat"));
 
-        //ajoute le label version de campagne
-        private System.Windows.Forms.Label Label_VerCampaign(string VerCamp, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
+        //    //B = B + 1;
+        //    return but;
+        //}
 
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 30;
-            txt.Left = 350 + decalLargeur;
-            //txt.AutoSize = true;
-            txt.AutoSize = false;
-            txt.Size = new System.Drawing.Size(40, 20);
-            txt.Text = VerCamp;
-            txt.TextAlign = ContentAlignment.MiddleCenter;
-            //A = A + 1;
-            return txt;
-        }
+        ////ajoute le boutton SkipMission
+        //public System.Windows.Forms.Button Button_SkipMission(string NameCamp, string color, int A) //ajoute le boutton SkipMission
+        //{
+        //    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
 
-        //int B = 1;
-        //ajoute le boutton FirstMission
-        private System.Windows.Forms.Button Button_FirstMission(string NameCamp, string color, int A) //ajoute le boutton FirstMission
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 395 + decalLargeur;
-            but.Tag = NameCamp;
-            but.Size = new System.Drawing.Size(80, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "Start\r\nCampaign";
-            //but.TextAlign = ContentAlignment.BottomRight;
-
-            but.UseVisualStyleBackColor = true;
-            but.BackColor = SystemColors.Control;
-            //control.ForeColor = SystemColors.ControlText;
-
-            toolTip1.SetToolTip(but, "Be careful, this will erase all the history of your campaign...");
-
-            //but.Click += new EventHandler(ButtonClickOneEvent);
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "FirstMission.bat"));
-
-            //B = B + 1;
-            return but;
-        }
-
-        //int C = 1;
-        //ajoute le boutton SkipMission
-        public System.Windows.Forms.Button Button_SkipMission(string NameCamp, string color, int A) //ajoute le boutton SkipMission
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 480 + decalLargeur;
-            but.Tag = NameCamp;
-            but.Size = new System.Drawing.Size(80, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "SkipMission";
-            but.UseVisualStyleBackColor = true;
-            if (color != null && color == "red")
-            {
-                but.BackColor = Color.Red;
-            }
-            else
-            {
-                but.BackColor = SystemColors.Control;
-            }
+        //    tabPage2.Controls.Add(but);
+        //    but.Top = A * hLigne + 20;
+        //    but.Left = 480 + decalLargeur;
+        //    but.Tag = NameCamp;
+        //    but.Size = new System.Drawing.Size(80, hLigne - 10);
+        //    but.Font = new Font("Georgia", 7);
+        //    but.Text = "SkipMission";
+        //    but.UseVisualStyleBackColor = true;
+        //    if (color != null && color == "red")
+        //    {
+        //        but.BackColor = Color.Red;
+        //    }
+        //    else
+        //    {
+        //        but.BackColor = SystemColors.Control;
+        //    }
 
 
 
-            //but.Click += new EventHandler(ButtonClickOneEvent);
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "SkipMission.bat"));
+        //    //but.Click += new EventHandler(ButtonClickOneEvent);
+        //    but.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "SkipMission.bat"));
 
-            //myTimer.Elapsed += new ElapsedEventHandler((sender, e) => PlayMusicEvent(sender, e, musicNote));
+        //    //myTimer.Elapsed += new ElapsedEventHandler((sender, e) => PlayMusicEvent(sender, e, musicNote));
 
-            return but;
-        }
+        //    return but;
+        //}
 
-        //ajoute le boutton Configuration
-        public System.Windows.Forms.Button Button_Configuration(string NameCamp, string color, int A) //ajoute le boutton Configuration
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-            //tabPage2.Controls.Add(but);
+        ////ajoute le boutton Configuration
+        //public System.Windows.Forms.Button Button_Configuration(string NameCamp, string color, int A) //ajoute le boutton Configuration
+        //{
+        //    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
+        //    //tabPage2.Controls.Add(but);
 
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 570 + decalLargeur;
-            but.Tag = NameCamp + @"\Init\";
-            but.Size = new System.Drawing.Size(85, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "Configuration";
-            but.UseVisualStyleBackColor = true;
-            if (color != null && color == "red")
-            {
-                but.BackColor = Color.Red;
-                toolTip1.SetToolTip(but, "After an update, the mission must be generated");
-            }
-            else
-            {
-                but.BackColor = SystemColors.Control;
-            }
+        //    tabPage2.Controls.Add(but);
+        //    but.Top = A * hLigne + 20;
+        //    but.Left = 570 + decalLargeur;
+        //    but.Tag = NameCamp + @"\Init\";
+        //    but.Size = new System.Drawing.Size(85, hLigne - 10);
+        //    but.Font = new Font("Georgia", 7);
+        //    but.Text = "Configuration";
+        //    but.UseVisualStyleBackColor = true;
+        //    if (color != null && color == "red")
+        //    {
+        //        but.BackColor = Color.Red;
+        //        toolTip1.SetToolTip(but, "After an update, the mission must be generated");
+        //    }
+        //    else
+        //    {
+        //        but.BackColor = SystemColors.Control;
+        //    }
 
-            //but.Click += new EventHandler(ButtonClickOneEvent( NameCamp + @"\Init\conf_mod.lua"));
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "conf_mod.lua"));
+        //    //but.Click += new EventHandler(ButtonClickOneEvent( NameCamp + @"\Init\conf_mod.lua"));
+        //    but.Cursor = System.Windows.Forms.Cursors.Hand;
+        //    but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "conf_mod.lua"));
 
-            toolTip1.SetToolTip(but, "After modification, you must restart a SkipMission");
+        //    toolTip1.SetToolTip(but, "After modification, you must restart a SkipMission");
 
-            //D = D + 1;
-            return but;
-        }
+        //    //D = D + 1;
+        //    return but;
+        //}
 
-        //ajoute le label NbMission
-        private System.Windows.Forms.Label NbMissionPlayed(string NbMission, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
+        ////ajoute le label NbMission
+        //private System.Windows.Forms.Label NbMissionPlayed(string NbMission, int A)
+        //{
+        //    System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
 
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 26;
-            txt.Left = 650 + decalLargeur;
-            //txt.AutoSize = true;
-            txt.AutoSize = false;
-            txt.Size = new System.Drawing.Size(90, 20);
-            if (NbMission == "0")
-            {
-                txt.Text = " ";
-            }
-            else
-            {
-                txt.Text = "Nb: " + NbMission;
-            }
+        //    tabPage2.Controls.Add(txt);
+        //    txt.Top = A * hLigne + 26;
+        //    txt.Left = 650 + decalLargeur;
+        //    //txt.AutoSize = true;
+        //    txt.AutoSize = false;
+        //    txt.Size = new System.Drawing.Size(90, 20);
+        //    if (NbMission == "0")
+        //    {
+        //        txt.Text = " ";
+        //    }
+        //    else
+        //    {
+        //        txt.Text = "Nb: " + NbMission;
+        //    }
             
-            txt.TextAlign = ContentAlignment.MiddleCenter;
+        //    txt.TextAlign = ContentAlignment.MiddleCenter;
 
-            return txt;
-        }
+        //    return txt;
+        //}
 
         // Créer une liste pour garder une référence à toutes les CheckBox associées aux campagnes
         private List<Tuple<CheckBox, string>> checkBoxCampaigns = new List<Tuple<CheckBox, string>>();
 
-        public System.Windows.Forms.CheckBox CheckboxDel(string NameCamp, int A)
-        {
-            // Créer une instance de CheckBox
-            System.Windows.Forms.CheckBox checkBoxDelete = new System.Windows.Forms.CheckBox
-            {
-                // Positionnement de la case à cocher
-                Location = new Point(730 + decalLargeur, (A * hLigne) + 30),
-                Size = new System.Drawing.Size(20, 20),
-                //Text = NameCamp,  // Ajoute le nom de la campagne à la CheckBox
-            };
+        //public System.Windows.Forms.CheckBox CheckboxDel(string NameCamp, int A)
+        //{
+        //    // Créer une instance de CheckBox
+        //    System.Windows.Forms.CheckBox checkBoxDelete = new System.Windows.Forms.CheckBox
+        //    {
+        //        // Positionnement de la case à cocher
+        //        Location = new Point(730 + decalLargeur, (A * hLigne) + 30),
+        //        Size = new System.Drawing.Size(20, 20),
+        //        //Text = NameCamp,  // Ajoute le nom de la campagne à la CheckBox
+        //    };
 
-            // Ajouter la case à cocher au tabPage
-            tabPage2.Controls.Add(checkBoxDelete);
-            tabPage2.Controls.SetChildIndex(checkBoxDelete, 1);
+        //    // Ajouter la case à cocher au tabPage
+        //    tabPage2.Controls.Add(checkBoxDelete);
+        //    tabPage2.Controls.SetChildIndex(checkBoxDelete, 1);
 
-            // Ajouter la CheckBox et son nom de campagne dans une liste pour plus tard
-            checkBoxCampaigns.Add(new Tuple<CheckBox, string>(checkBoxDelete, NameCamp));
+        //    // Ajouter la CheckBox et son nom de campagne dans une liste pour plus tard
+        //    checkBoxCampaigns.Add(new Tuple<CheckBox, string>(checkBoxDelete, NameCamp));
 
-            // Retourner la case à cocher
-            return checkBoxDelete;
-        }
+        //    // Retourner la case à cocher
+        //    return checkBoxDelete;
+        //}
 
 
         public void CampaignPlusClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
@@ -4977,7 +4941,7 @@ namespace DCE_Manager
         void TabControl1_Selected(object sender, TabControlEventArgs e)
         {
 
-            tabPage2.Controls.Clear();
+            //tabPage2.Controls.Clear();
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage1       +++++++++++++++++++++++++
@@ -4989,25 +4953,11 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
                 
 
-            }
-            //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //+++++++++++++++++++++++++++++++++  tabPage2       +++++++++++++++++++++++++
-            //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            else if (e.TabPage == tabPage2)
-            {
-
-               
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5019,10 +4969,6 @@ namespace DCE_Manager
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
 
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
@@ -5065,13 +5011,7 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
-
                 CampaignTab.Visible = false;
 
                 if (textBox_ChangelogScriptsMod.Text == "")
@@ -5110,19 +5050,9 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-                //radioButton_OOB_INIT.Visible = false;
-                //radioButton_OOB_ACTIVE.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
-
                 groupBoxCampEdit.Text = "";
-
                 CampaignTab.Visible = false;
-                //buttonSaveChgtCampaign.Visible = false;
-                //buttonResetBackup.Visible = false;
+
             }
             else if (e.TabPage == tabPage16)
             {
@@ -5131,10 +5061,6 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = false;
                 groupBoxCampEdit.Visible = true;
                 groupBox_staticTemplate.Visible = false;
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 LoadCampaigns();
@@ -5447,9 +5373,6 @@ namespace DCE_Manager
                 }
                 //*********************************************
             }
-
-
-            string NameServer = "";
             
             // parse le fichier upgrade pour connaitre la version DCE
             //string pathUpgradeFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\";
@@ -6899,155 +6822,146 @@ namespace DCE_Manager
 
             TEMPtableOobAirBBB = PublicTable.tableOobAiriNIT;
 
-            foreach (TabPage tbp in CampaignTab.TabPages)
-            {
+            //foreach (TabPage tbp in CampaignTab.TabPages)
+            //{
                 
-                if (tbp.Name == "tabPage7" | tbp.Name == "tabPage8" | tbp.Name == "tabPage9" | tbp.Name == "tabPage10")
-                {
-                    int idCamp = 0;
-                    if (tbp.Name == "tabPage7" | tbp.Name == "tabPage9")
-                    {
-                        idCamp = 1;
-                    }
-                    else if (tbp.Name == "tabPage8" | tbp.Name == "tabPage10")
-                    {
-                        idCamp = 2;
-                    }
+            //    if (tbp.Name == "tabPage7" | tbp.Name == "tabPage8" | tbp.Name == "tabPage9" | tbp.Name == "tabPage10")
+            //    {
 
-                    foreach (Control c in tbp.Controls)
-                    {
-                        if (c is CheckBox || c is RadioButton)
-                        {
-                            if (c.Name != "")
-                            {
-                                string[] words = c.Name.Split('|');
+            //        foreach (Control c in tbp.Controls)
+            //        {
+            //            if (c is CheckBox || c is RadioButton)
+            //            {
+            //                if (c.Name != "")
+            //                {
+            //                    string[] words = c.Name.Split('|');
 
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
-                                //int nbVariable = Int32.Parse((string)c.Tag);
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
+            //                    int idSquad = Int32.Parse((string)words[0]);
+            //                    string varName = words[1];
+            //                    string tableName = words[2];
+            //                    //int nbVariable = Int32.Parse((string)c.Tag);
+            //                    string[] wordsB = c.Tag.ToString().Split('|');
+            //                    int nbVariable = Int32.Parse((string)wordsB[0]);
+            //                    string keyName = wordsB[1];
 
-                                string ValueChecked = "";
+            //                    string ValueChecked = "";
 
-                                if (c is RadioButton)
-                                {
-                                    ValueChecked = ((RadioButton)c).Checked.ToString().ToLower();
-                                }
-                                else if (c is CheckBox)
-                                {
-                                    ValueChecked = ((CheckBox)c).Checked.ToString().ToLower();
-                                }
+            //                    if (c is RadioButton)
+            //                    {
+            //                        ValueChecked = ((RadioButton)c).Checked.ToString().ToLower();
+            //                    }
+            //                    else if (c is CheckBox)
+            //                    {
+            //                        ValueChecked = ((CheckBox)c).Checked.ToString().ToLower();
+            //                    }
                                 
-                                //if (keyName == "Active" || keyName == "Inactive")
-                                if (keyName == "Active")
-                                {
-                                    keyName = "Inactive";
-                                    if (ValueChecked == "false")
-                                    {
-                                        ValueChecked = "true";
-                                    }
-                                    else
-                                    {
-                                        ValueChecked = "false";
-                                    }
-                                }
+            //                    //if (keyName == "Active" || keyName == "Inactive")
+            //                    if (keyName == "Active")
+            //                    {
+            //                        keyName = "Inactive";
+            //                        if (ValueChecked == "false")
+            //                        {
+            //                            ValueChecked = "true";
+            //                        }
+            //                        else
+            //                        {
+            //                            ValueChecked = "false";
+            //                        }
+            //                    }
 
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    //var squad = List_oob_air_Manager.List_oob_air.Where(s => s.IdSquad == idSquad);
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
+            //                    if (ParamDivers.NewParseOobAir)
+            //                    {
+            //                        //var squad = List_oob_air_Manager.List_oob_air.Where(s => s.IdSquad == idSquad);
+            //                        var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
 
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }                              
-                            }
-                        }
-                        else if (c is ComboBox)
-                        {
-                            //MessageBox.Show("else if (c is ComboBox)");
+            //                        if (squad != null)
+            //                        {
+            //                            UpdateProperty(squad, keyName, tableName, ValueChecked);
+            //                        }
+            //                    }                              
+            //                }
+            //            }
+            //            else if (c is ComboBox)
+            //            {
+            //                //MessageBox.Show("else if (c is ComboBox)");
 
-                            if (c.Name != "")
-                            {
-                                //nameArg3 = args["item"].ToString();
-                                //label1.Name = nameArg1 + "_" + nameArg2 + "_" + nameArg3;
-                                //label1.Name = args["idSquad"].ToString() + "_" + Name + "_" + argsString["tablSup"];
-                                string[] words = c.Name.Split('|');
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
+            //                if (c.Name != "")
+            //                {
+            //                    //nameArg3 = args["item"].ToString();
+            //                    //label1.Name = nameArg1 + "_" + nameArg2 + "_" + nameArg3;
+            //                    //label1.Name = args["idSquad"].ToString() + "_" + Name + "_" + argsString["tablSup"];
+            //                    string[] words = c.Name.Split('|');
+            //                    int idSquad = Int32.Parse((string)words[0]);
+            //                    string varName = words[1];
+            //                    string tableName = words[2];
 
                                 
-                                //label1.Tag = args["idElement"].ToString() + "_" + argsString["key"];
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
+            //                    //label1.Tag = args["idElement"].ToString() + "_" + argsString["key"];
+            //                    string[] wordsB = c.Tag.ToString().Split('|');
+            //                    int nbVariable = Int32.Parse((string)wordsB[0]);
+            //                    string keyName = wordsB[1];
 
-                                string ValueChecked = "";
+            //                    string ValueChecked = "";
 
 
-                                if (((ComboBox)c).SelectedItem != null)
-                                {
-                                    ValueChecked = ((ComboBox)c).SelectedItem.ToString();
-                                }
-                                else
-                                {
-                                    //ValueChecked = varName.Replace(" ", "");
-                                    //ValueChecked = varName;
-                                }
+            //                    if (((ComboBox)c).SelectedItem != null)
+            //                    {
+            //                        ValueChecked = ((ComboBox)c).SelectedItem.ToString();
+            //                    }
+            //                    else
+            //                    {
+            //                        //ValueChecked = varName.Replace(" ", "");
+            //                        //ValueChecked = varName;
+            //                    }
 
-                                if (keyName == "BaseAlternative")
-                                { }
+            //                    if (keyName == "BaseAlternative")
+            //                    { }
 
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
+            //                    if (ParamDivers.NewParseOobAir)
+            //                    {
+            //                        var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
 
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }
-                             }
-                        }
+            //                        if (squad != null)
+            //                        {
+            //                            UpdateProperty(squad, keyName, tableName, ValueChecked);
+            //                        }
+            //                    }
+            //                 }
+            //            }
 
-                        //NumericUpDown control = new NumericUpDown();
-                        else if (c is NumericUpDown)
-                        {
-                            if (c.Name != "")
-                            {
-                                string[] words = c.Name.Split('|');
+            //            //NumericUpDown control = new NumericUpDown();
+            //            else if (c is NumericUpDown)
+            //            {
+            //                if (c.Name != "")
+            //                {
+            //                    string[] words = c.Name.Split('|');
 
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
-                                //int nbVariable = Int32.Parse((string)c.Tag);
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
+            //                    int idSquad = Int32.Parse((string)words[0]);
+            //                    string varName = words[1];
+            //                    string tableName = words[2];
+            //                    //int nbVariable = Int32.Parse((string)c.Tag);
+            //                    string[] wordsB = c.Tag.ToString().Split('|');
+            //                    int nbVariable = Int32.Parse((string)wordsB[0]);
+            //                    string keyName = wordsB[1];
 
-                                string ValueChecked = "";
+            //                    string ValueChecked = "";
 
-                                ValueChecked = ((NumericUpDown)c).Value.ToString();
+            //                    ValueChecked = ((NumericUpDown)c).Value.ToString();
                                 
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
+            //                    if (ParamDivers.NewParseOobAir)
+            //                    {
+            //                        var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
 
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            //                        if (squad != null)
+            //                        {
+            //                            UpdateProperty(squad, keyName, tableName, ValueChecked);
+            //                        }
+            //                    }
+            //                }
+            //            }
+            //        }
+            //    }
+            //}
 
            
             //active l'unité du squad sélectionné
@@ -7087,8 +7001,8 @@ namespace DCE_Manager
 
             modifiedCampaign(pathFile, pathFileBackup, FolderName);
 
-            tabPage7.Controls.Clear();
-            tabPage8.Controls.Clear();
+            //tabPage7.Controls.Clear();
+            //tabPage8.Controls.Clear();
 
             PublicTable.errorTable.Clear();
             textBox_Bugs.Text = "";
@@ -7103,9 +7017,6 @@ namespace DCE_Manager
             string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
            
             modifiedCampaign(pathFile, null, "Active");
-
-            tabPage9.Controls.Clear();
-            tabPage10.Controls.Clear();
 
             PublicTable.errorTable.Clear();
             textBox_Bugs.Text = "";

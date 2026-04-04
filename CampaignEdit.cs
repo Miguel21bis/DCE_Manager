@@ -28,115 +28,14 @@ namespace DCE_Manager
         private static List<string> playableList = new List<string>();
 
         public List<Squad> currentSquads = new List<Squad>();
-        //public void RefreshGrids()
-        //{
-        //    // Implémentation vide pour satisfaire le compilateur.
-        //    // À compléter selon la logique métier si nécessaire.
-        //}
-
-
-        //private void LoadGrid(DataGridView grid, List<Squad> squads, string side, string state)
-        //{
-        //    var filtered = squads
-        //        .Where(s => s.SideString == side && s.FolderFile == state)
-        //        .ToList();
-
-        //    grid.Columns.Clear();
-        //    grid.AutoGenerateColumns = false;
-        //    grid.DataSource = null;
-
-        //    // --- ACTIVE ---
-        //    grid.Columns.Add(new DataGridViewCheckBoxColumn()
-        //    {
-        //        HeaderText = "Actif",
-        //        DataPropertyName = "IsActive",
-        //        Width = 50
-        //    });
-
-        //    // --- PLAYER ---
-        //    grid.Columns.Add(new DataGridViewCheckBoxColumn()
-        //    {
-        //        HeaderText = "Player",
-        //        DataPropertyName = "Player",
-        //        Width = 50
-        //    });
-
-        //    // --- NAME ---
-        //    grid.Columns.Add(new DataGridViewTextBoxColumn()
-        //    {
-        //        HeaderText = "Name",
-        //        DataPropertyName = "Name",
-        //        Width = 140
-        //    });
-
-        //    // --- TYPE ---
-        //    grid.Columns.Add(new DataGridViewTextBoxColumn()
-        //    {
-        //        HeaderText = "Type",
-        //        DataPropertyName = "Type",
-        //        Width = 80
-        //    });
-
-        //    // --- BASE ---
-        //    grid.Columns.Add(new DataGridViewTextBoxColumn()
-        //    {
-        //        HeaderText = "Base",
-        //        DataPropertyName = "Base",
-        //        Width = 120
-        //    });
-
-        //    // --- READY ---
-        //    grid.Columns.Add(new DataGridViewTextBoxColumn()
-        //    {
-        //        HeaderText = "Ready",
-        //        DataPropertyName = "DisplayReady",
-        //        Width = 60
-        //    });
-
-        //    // --- RESERVE ---
-        //    grid.Columns.Add(new DataGridViewTextBoxColumn()
-        //    {
-        //        HeaderText = "Reserve",
-        //        DataPropertyName = "DisplayReserve",
-        //        Width = 60
-        //    });
-
-        //    // --- CLONE BUTTON ---
-        //    grid.Columns.Add(new DataGridViewButtonColumn()
-        //    {
-        //        HeaderText = "+",
-        //        Text = "+",
-        //        UseColumnTextForButtonValue = true,
-        //        Width = 40
-        //    });
-
-        //    // --- DELETE BUTTON ---
-        //    grid.Columns.Add(new DataGridViewButtonColumn()
-        //    {
-        //        HeaderText = "X",
-        //        Text = "X",
-        //        UseColumnTextForButtonValue = true,
-        //        Width = 40
-        //    });
-
-        //    grid.DataSource = filtered;
-        //}
-
+        
         // 🔹 2. CONSTRUCTEUR
         public CampaignEdit(Form1 form1, string nameCamp)
         {
-            //InitializeComponent();
-
             _form1 = form1;
 
             var time_LuaPart = Stopwatch.StartNew();
 
-            // 👉 ton parsing ici
-
-            form1.tabPage7.Controls.Clear();
-            form1.tabPage8.Controls.Clear();
-            form1.tabPage9.Controls.Clear();
-            form1.tabPage10.Controls.Clear();
 
             form1.dataGridViewBlue.CellContentClick += Grid_CellClick;
             form1.dataGridViewRed.CellContentClick += Grid_CellClick;
@@ -241,42 +140,7 @@ namespace DCE_Manager
                 { "Active", new Dictionary<string, List<string>> { { "blue", new List<string>() }, { "red", new List<string>() } } }
             };
 
-            //for (int d = 1; d <= 2; d++)
-            //{
-            //    string pathAirbase = "";
-
-            //    if (d == 1)
-            //        pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Init\db_airbases.lua");
-            //    else
-            //        pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Active\db_airbases.lua");
-
-            //    if (!File.Exists(pathAirbase))
-            //        continue;
-
-            //    ParamCampaign.NameFileParse = pathAirbase;
-
-            //    var luaObj = LuaParser.ParseFile(pathAirbase, "db_airbases");
-
-            //    string state = d == 1 ? "Init" : "Active";
-
-            //    foreach (var entry in (Dictionary<string, LuaObject>)luaObj.luaobj)
-            //    {
-            //        var airbase = entry.Value.luaobj as Dictionary<string, LuaObject>;
-
-            //        foreach (var sub in airbase)
-            //        {
-            //            if (sub.Key == "side" || sub.Key == "coalition")
-            //            {
-            //                var val = sub.Value.luaobj?.ToString();
-
-            //                if (val == "red")
-            //                    PublicTable.Airdrome[state]["red"].Add(entry.Key);
-            //                else if (val == "blue")
-            //                    PublicTable.Airdrome[state]["blue"].Add(entry.Key);
-            //            }
-            //        }
-            //    }
-            //}
+            
             time_airbase.Stop();
             LogRegister($"time_airbase : {time_airbase.ElapsedMilliseconds} ms");
 
@@ -464,8 +328,6 @@ namespace DCE_Manager
 
                 time_UI.Stop();
                 LogRegister($"Time UI: {time_UI.ElapsedMilliseconds} ms");
-
-
 
 
                 IDictionary<int, string> pathOobAir = new Dictionary<int, string>();
@@ -732,6 +594,14 @@ namespace DCE_Manager
 
             grid.Columns.Add(new DataGridViewButtonColumn()
             {
+                HeaderText = "Edit",
+                Text = "✎",
+                UseColumnTextForButtonValue = true,
+                Width = 35
+            });
+
+            grid.Columns.Add(new DataGridViewButtonColumn()
+            {
                 HeaderText = "Clone(+)",
                 Text = "+",
                 UseColumnTextForButtonValue = true,
@@ -756,23 +626,74 @@ namespace DCE_Manager
         private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             var grid = sender as DataGridView;
-            if (e.RowIndex < 0) return;
+            if (e.RowIndex < 0)
+                return;
 
             var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
-            if (squad == null) return;
+            if (squad == null)
+                return;
 
-            // colonne clone
-            if (e.ColumnIndex == 7)
+            // EDIT
+            if (e.ColumnIndex == 6)
             {
-                MessageBox.Show($"Clone {squad.Name}");
+                using (var frm = new FormSquadEdit(squad, false))
+                {
+                    if (frm.ShowDialog(_form1) == DialogResult.OK)
+                    {
+                        _form1.RefreshGrids();
+                    }
+                }
             }
 
-            // colonne delete
-            if (e.ColumnIndex == 8)
+            // CLONE
+            else if (e.ColumnIndex == 7)
             {
-                MessageBox.Show($"Delete {squad.Name}");
+                using (var frm = new FormSquadEdit(squad, true))
+                {
+                    if (frm.ShowDialog(_form1) == DialogResult.OK)
+                    {
+                        _form1.currentSquads.Add(frm.EditedSquad);
+                        _form1.RefreshGrids();
+                    }
+                }
+            }
+
+            // DELETE
+            else if (e.ColumnIndex == 8)
+            {
+                var result = MessageBox.Show(
+                    $"Delete squad '{squad.Name}' ?",
+                    "Delete",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (result == DialogResult.Yes)
+                {
+                    _form1.currentSquads.Remove(squad);
+                    _form1.RefreshGrids();
+                }
             }
         }
+        //private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
+        //{
+        //    var grid = sender as DataGridView;
+        //    if (e.RowIndex < 0) return;
+
+        //    var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+        //    if (squad == null) return;
+
+        //    // colonne clone
+        //    if (e.ColumnIndex == 7)
+        //    {
+        //        MessageBox.Show($"Clone {squad.Name}");
+        //    }
+
+        //    // colonne delete
+        //    if (e.ColumnIndex == 8)
+        //    {
+        //        MessageBox.Show($"Delete {squad.Name}");
+        //    }
+        //}
         //méthode
         private void Grid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
         {
