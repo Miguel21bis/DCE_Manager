@@ -192,17 +192,20 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CampaignEdit.cs">
+    <Compile Include="CampaignEdit\CampaignEdit.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="appsettings.cs" />
+    <Compile Include="CampaignEdit\CampaignLuaLoader.cs" />
+    <Compile Include="CampaignEdit\triggersParser.cs" />
     <Compile Include="Class_ASTI.cs" />
-    <Compile Include="FormSquadEdit.cs">
+    <Compile Include="CampaignEdit\FormSquadEdit.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="FormSquadEdit.Designer.cs">
+    <Compile Include="CampaignEdit\FormSquadEdit.Designer.cs">
       <DependentUpon>FormSquadEdit.cs</DependentUpon>
     </Compile>
+    <Compile Include="CampaignEdit\OobAirParser.cs" />
     <Compile Include="Proj_NET.cs" />
     <Compile Include="LuaParse.cs" />
     <Compile Include="FixedProcess.cs">
@@ -250,7 +253,7 @@
     <EmbeddedResource Include="FormMissionGenerator.resx">
       <DependentUpon>FormMissionGenerator.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="FormSquadEdit.resx">
+    <EmbeddedResource Include="CampaignEdit\FormSquadEdit.resx">
       <DependentUpon>FormSquadEdit.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
