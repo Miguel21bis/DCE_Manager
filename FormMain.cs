@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -75,27 +76,6 @@ namespace DCE_Manager
             KeyPreview = true;
 
             InitializeComponent();
-
-            //############# InitGrid START
-
-            //InitGrid();
-            //InitStyle();
-
-            //dataGridViewCampaigns.CellClick += dataGridViewCampaigns_CellClick;
-
-            //dataGridViewCampaigns.RowTemplate.Height = 70;
-
-            //dataGridViewCampaigns.DefaultCellStyle.Font = new Font("Segoe UI", 9);
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-
-            //dataGridViewCampaigns.EnableHeadersVisualStyles = false;
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = SystemColors.Control;
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
-
-            //dataGridViewCampaigns.GridColor = Color.LightGray;
-
-            //dataGridViewCampaigns.BorderStyle = BorderStyle.None;
-
 
             //*************************
             InitializeCampaignGrid();
@@ -764,13 +744,17 @@ namespace DCE_Manager
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 Name = "Version",
-                Width = 60
+                Width = 60,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+
             });
 
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 Name = "Missions",
-                Width = 50
+                Width = 50,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+
             });
 
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
@@ -1000,6 +984,21 @@ namespace DCE_Manager
             dataGridViewCampaigns.ClearSelection();
             dataGridViewCampaigns.Rows[e.RowIndex].Selected = true;
 
+            // Coche automatiquement Init ou Active selon le nombre de missions jouées
+            string nbMissionText = dataGridViewCampaigns.Rows[e.RowIndex].Cells["Missions"].Value?.ToString();
+
+            int nbMission = 0;
+            int.TryParse(nbMissionText, out nbMission);
+
+            if (nbMission <= 0)
+            {
+                radioButton_OOB_INIT.Checked = true;
+            }
+            else
+            {
+                radioButton_OOB_ACTIVE.Checked = true;
+            }
+
             // Pour toutes les colonnes "normales", sélectionner la campagne
             CampaignEdit1(null, null, folderPath + "\\" + name, name);
         }
@@ -1110,44 +1109,76 @@ namespace DCE_Manager
                                 oobAirContent = File.ReadAllText(path_oob_air);
 
 
-
-                            //string type = "default";
-
-                            //if (oobAirContent != null && oobAirContent.Contains("player = true"))
-                            //{
-                            //    var match = Regex.Match(oobAirContent, @"type\s*=\s*""([^""]+)""");
-                            //    if (match.Success)
-                            //        type = match.Groups[1].Value;
-                            //}
-                            // Cherche le type de l'escadron qui a réellement player = true.
-                            // Pourquoi : l'ancien code prenait le premier "type =" du fichier, souvent faux.
                             string type = "default";
 
                             if (!string.IsNullOrEmpty(oobAirContent))
                             {
-                                int start = oobAirContent.IndexOf("oob_air");
+                                string content = oobAirContent;
 
-                                if (start >= 0)
+                                // Supprime les commentaires Lua
+                                content = Regex.Replace(content, @"--\[\[.*?\]\]", "", RegexOptions.Singleline);
+                                content = Regex.Replace(content, @"--.*?$", "", RegexOptions.Multiline);
+
+                                // Trouve player = true ou ["player"] = true
+                                Match playerMatch = Regex.Match(
+                                    content,
+                                    @"(?:\[\s*""player""\s*\]|player)\s*=\s*true",
+                                    RegexOptions.IgnoreCase);
+
+                                if (playerMatch.Success)
                                 {
-                                    string realContent = oobAirContent.Substring(start);
+                                    int playerPos = playerMatch.Index;
 
-                                    int playerIndex = realContent.IndexOf("player = true");
+                                    // Remonte jusqu'au { du bloc contenant ce player
+                                    int level = 0;
+                                    int blockStart = -1;
 
-                                    if (playerIndex >= 0)
+                                    for (int i = playerPos; i >= 0; i--)
                                     {
-                                        // Cherche le début du bloc contenant player = true
-                                        int blockStart = realContent.LastIndexOf('{', playerIndex);
-
-                                        if (blockStart >= 0)
+                                        if (content[i] == '}')
                                         {
-                                            // Prend une portion raisonnable après le début du bloc
-                                            string block = realContent.Substring(
-                                                blockStart,
-                                                Math.Min(1000, realContent.Length - blockStart));
+                                            level++;
+                                        }
+                                        else if (content[i] == '{')
+                                        {
+                                            if (level == 0)
+                                            {
+                                                blockStart = i;
+                                                break;
+                                            }
 
-                                            var typeMatch = Regex.Match(
+                                            level--;
+                                        }
+                                    }
+
+                                    if (blockStart >= 0)
+                                    {
+                                        // Redescend jusqu'à la } correspondante
+                                        level = 1;
+                                        int blockEnd = -1;
+
+                                        for (int i = blockStart + 1; i < content.Length; i++)
+                                        {
+                                            if (content[i] == '{')
+                                                level++;
+                                            else if (content[i] == '}')
+                                                level--;
+
+                                            if (level == 0)
+                                            {
+                                                blockEnd = i;
+                                                break;
+                                            }
+                                        }
+
+                                        if (blockEnd > blockStart)
+                                        {
+                                            string block = content.Substring(blockStart, blockEnd - blockStart + 1);
+
+                                            Match typeMatch = Regex.Match(
                                                 block,
-                                                @"type\s*=\s*""([^""]+)""");
+                                                @"(?:\[\s*""type""\s*\]|type)\s*=\s*""([^""]+)""",
+                                                RegexOptions.IgnoreCase);
 
                                             if (typeMatch.Success)
                                                 type = typeMatch.Groups[1].Value;
@@ -1162,22 +1193,6 @@ namespace DCE_Manager
                             string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
                             string fileBMP = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".bmp";
 
-                            //if (File.Exists(filePNGbyePlane))
-                            //{
-                            //    //File.Copy(filePNGbyePlane, filePNG, true);
-                            //    using (var source = new FileStream(filePNGbyePlane, FileMode.Open, FileAccess.Read))
-                            //    using (var dest = new FileStream(filePNG, FileMode.Create, FileAccess.Write))
-                            //    {
-                            //        source.CopyTo(dest);
-
-                            //    }
-
-                            //    if (File.Exists(fileBMP))
-                            //    {
-                            //        File.Delete(fileBMP);
-                            //    }
-
-                            //}
                             // Copie l'image spécifique à l'avion vers l'image principale de la campagne.
                             // Pourquoi : File.Copy utilise l'API native Windows et consomme moins de CPU que CopyTo.
                             if (File.Exists(filePNGbyePlane))
@@ -1189,7 +1204,6 @@ namespace DCE_Manager
                                     File.Delete(fileBMP);
                                 }
                             }
-
 
 
                             // Image (avec cache)
@@ -1204,21 +1218,6 @@ namespace DCE_Manager
                             {
                                 try
                                 {
-                                    //using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                                    //using (var ms = new MemoryStream())
-                                    //{
-                                    //    fs.CopyTo(ms);
-                                    //    ms.Position = 0;
-
-                                    //    try
-                                    //    {
-                                    //        img = Image.FromStream(ms);
-                                    //    }
-                                    //    catch (ArgumentException)
-                                    //    {
-                                    //        throw new Exception("Fichier image invalide : " + imagePath);
-                                    //    }
-                                    //}
 
                                     // Charge l'image sans passer par un MemoryStream intermédiaire.
                                     // Pourquoi : évite une copie mémoire supplémentaire et réduit l'utilisation CPU.
@@ -4508,7 +4507,7 @@ namespace DCE_Manager
 
             //Test.Form3_Clonage CloneForm = new Test.Form3_Clonage(this, path, OldNameCamp);
             DCE_Manager.FormClonage CloneForm = new DCE_Manager.FormClonage(this, path, OldNameCamp);
-            CloneForm.ShowDialog();
+            CloneForm.Show();
 
             tabControl.SelectedIndex = 3;
             tabControl.SelectedIndex = 1;
@@ -6602,7 +6601,7 @@ namespace DCE_Manager
             radioButton_OOB_ACTIVE.Visible = show;
         }
 
-        public void modifiedCampaign(string pathFile, string pathFileBackup, string initActive)
+        public void modifiedCampaign(string pathFile, string pathFileBackup, string folderName)
         {
             //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
             if (pathFileBackup != null && !File.Exists(pathFileBackup))
@@ -6634,10 +6633,69 @@ namespace DCE_Manager
             }
 
             //ecrit les Class de tous les squad dans le fichier oob_air
-            FormUtils.WriteListClassSquadsToFile(pathFile, initActive);
+            FormUtils.WriteListClassSquadsToFile(pathFile, folderName);
 
             MessageBox.Show("Changes saved.", "Report");
         }
+
+        //public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
+        //{
+        //    string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
+
+        //    string pathFile = "";
+        //    string FolderName = "";
+
+        //    if (radioButton_OOB_INIT.Checked)
+        //    {
+        //        pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
+        //        FolderName = "Init";
+        //    }
+        //    else if (radioButton_OOB_ACTIVE.Checked)
+        //    {
+        //        pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+
+        //        FolderName = "Active";
+        //    }
+
+
+        //    modifiedCampaign(pathFile, pathFileBackup, FolderName);
+
+        //    // Met à jour la colonne Aircraft de la campagne actuellement affichée
+        //    for (int i = 0; i < dataGridViewCampaigns.Rows.Count; i++)
+        //    {
+        //        string rowName = dataGridViewCampaigns.Rows[i].Cells["Name"].Value?.ToString();
+
+        //        if (rowName == groupBoxCampEdit.Text)   // nom de la campagne en cours
+        //        {
+        //            dataGridViewCampaigns.Rows[i].Cells["Aircraft"].Value = newType;
+
+        //            // Si tu affiches aussi une image dépendant du type
+        //            string imagePath = Path.Combine(
+        //                textBox_SavedGames.Text,
+        //                "Mods", "tech", "DCE", "Missions", "Campaigns",
+        //                groupBoxCampEdit.Text,
+        //                "Images",
+        //                "planescreen_" + newType + ".png");
+
+        //            if (File.Exists(imagePath))
+        //            {
+        //                using (var temp = Image.FromFile(imagePath))
+        //                {
+        //                    dataGridViewCampaigns.Rows[i].Cells["Image"].Value = new Bitmap(temp);
+        //                }
+        //            }
+
+        //            break;
+        //        }
+        //    }
+
+
+        //    PublicTable.errorTable.Clear();
+        //    textBox_Bugs.Text = "";
+        //    tabPage12.Text = "Bugs";
+
+        //}
+
 
         public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
         {
@@ -6658,9 +6716,52 @@ namespace DCE_Manager
                 FolderName = "Active";
             }
 
-
             modifiedCampaign(pathFile, pathFileBackup, FolderName);
 
+            // Recherche le squad actuellement marqué Player = true
+            string newType = null;
+
+            foreach (var squad in currentSquads)
+            {
+                if (squad.Player)
+                {
+                    newType = squad.Type;
+                    break;
+                }
+            }
+
+            // Si aucun squad player trouvé, on ne fait rien
+            if (!string.IsNullOrEmpty(newType))
+            {
+                for (int i = 0; i < dataGridViewCampaigns.Rows.Count; i++)
+                {
+                    string rowName = dataGridViewCampaigns.Rows[i].Cells["Name"].Value?.ToString();
+
+                    if (rowName == groupBoxCampEdit.Text)
+                    {
+                        // Met à jour la colonne Aircraft
+                        dataGridViewCampaigns.Rows[i].Cells["Aircraft"].Value = newType;
+
+                        // Met à jour aussi l'image si elle dépend du type
+                        string imagePath = Path.Combine(
+                            textBox_SavedGames.Text,
+                            "Mods", "tech", "DCE", "Missions", "Campaigns",
+                            groupBoxCampEdit.Text,
+                            "Images",
+                            "planescreen_" + newType + ".png");
+
+                        if (File.Exists(imagePath))
+                        {
+                            using (var temp = Image.FromFile(imagePath))
+                            {
+                                dataGridViewCampaigns.Rows[i].Cells["Image"].Value = new Bitmap(temp);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
 
             PublicTable.errorTable.Clear();
             textBox_Bugs.Text = "";

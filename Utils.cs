@@ -1015,8 +1015,102 @@ namespace DCE_Manager.Utils
             return char.ToLower(input[0]) + input.Substring(1);
 
         }
+        
+        public static void ProcessEntries(
+            object key,
+            object value,
+            char[] forbiddenChars,
+            StringBuilder sb,
+            int nbTab,
+            string arg)
+        {
+            string accKey1 = "[\"";
+            string accKey2 = "\"]";
+            string accValue1 = "\"";
+            string accValue2 = "\"";
 
-        public static string ProcessEntries(object key, object value, char[] forbiddenChars, string texteFinal, int nbTab, string arg)
+            string valueKey = key.ToString();
+            string valueName = value.ToString();
+
+            string stringTab = "";
+
+            for (int n = 1; n <= nbTab; n++)
+            {
+                stringTab += "\t";
+            }
+
+            if (valueKey.IndexOfAny(forbiddenChars) == -1)
+            {
+                accKey1 = "";
+                accKey2 = "";
+            }
+
+            if (int.TryParse(valueKey, out int intKey))
+            {
+                accKey1 = "[";
+                accKey2 = "]";
+                valueKey = intKey.ToString();
+            }
+
+            if (int.TryParse(valueName, out int intValue))
+            {
+                accValue1 = "";
+                accValue2 = "";
+
+                sb.AppendLine(
+                    $"{stringTab}{accKey1}{valueKey}{accKey2} = {accValue1}{intValue}{accValue2},");    //--{arg} -ProcessEntries int- 
+            }
+            else if (double.TryParse(valueName, out double doubleValue))
+            {
+                accValue1 = "";
+                accValue2 = "";
+
+                sb.AppendLine(
+                    $"{stringTab}{accKey1}{valueKey}{accKey2} = {accValue1}{doubleValue}{accValue2},");
+            }
+            else if (bool.TryParse(valueName, out bool boolValue))
+            {
+                accValue1 = "";
+                accValue2 = "";
+
+                sb.AppendLine(
+                    $"{stringTab}{accKey1}{valueKey}{accKey2} = {accValue1}{boolValue.ToString().ToLower()}{accValue2},");  //--{arg} -ProcessEntries bool- 
+            }
+            else if (value is string)
+            {
+                if (valueName.Length >= 1 && valueName[0] == '\"')
+                {
+                    accValue1 = "";
+                    accValue2 = "";
+                }
+
+                if (valueKey.IndexOf("_") > -1)
+                {
+                    string[] word = valueKey.Split('_');
+
+                    if (word.Length > 1 && int.TryParse(word[1], out int intKeyB))
+                    {
+                        accKey1 = "[";
+                        accKey2 = "]";
+
+                        sb.AppendLine(
+                            $"{stringTab}{accKey1}{intKeyB}{accKey2} = {accValue1}{valueName}{accValue2},");    //-- {arg} -ProcessEntries stringToInt- 
+
+                        return;
+                    }
+                }
+
+                sb.AppendLine(
+                     $"{stringTab}{accKey1}{valueKey}{accKey2} = {accValue1}{valueName}{accValue2},");    //--{arg} -ProcessEntries global string- 
+            }
+            else
+            {
+                sb.AppendLine(
+                    $"{stringTab}{accKey1}{valueKey}{accKey2} = {accValue1}{valueName}{accValue2},");   //--{arg} -ProcessEntries global ELSE- 
+            }
+        }
+
+        public static string ProcessEntries_OLD(object key, object value, char[] forbiddenChars, string texteFinal, int nbTab, string arg)
         {
             string accKey1 = "[\"";
             string accKey2 = "\"]";
@@ -1109,8 +1203,12 @@ namespace DCE_Manager.Utils
             // Liste des caractères interdits
             char[] forbiddenChars = new char[] { ' ', '-' };
 
-            string texteFinal = "oob_air = " + "\r\n" +
-                                "{ " + "\r\n"; ;
+            //string texteFinal = "oob_air = " + "\r\n" +
+            //                    "{ " + "\r\n"; ;
+            var sb = new StringBuilder();
+
+            sb.AppendLine("oob_air = ");
+            sb.AppendLine("{");
 
             string accKey1 = "";
             string accKey2 = "";
@@ -1129,9 +1227,18 @@ namespace DCE_Manager.Utils
             // Itérer sur chaque camp
             foreach (var side in PublicTable.SideList)
             {
-                texteFinal = texteFinal +
+                sb.Append(
                  "\t" + "[\"" + side + "\"] = " + "\r\n" +
-                   "\t" + "{" + "\r\n";
+                   "\t" + "{" + "\r\n");
+
+                if (List_oob_air_Manager.List_oob_air.Count == 0)
+                {
+                    MessageBox.Show("Le fichier oob_air est vide, rien à sauvegarder.", "WriteChanedSquad Error A");
+                    FormUtils.LogRegister("Le fichier oob_air est vide, rien à sauvegarder.List_oob_air.Count:" + List_oob_air_Manager.List_oob_air.Count);
+
+                    return;
+                }
+
 
                 var filteredSquads = List_oob_air_Manager.List_oob_air
                     .Where(squad => squad.FolderFile == folderFile && squad.SideString == side);
@@ -1140,7 +1247,7 @@ namespace DCE_Manager.Utils
                 foreach (var squad in filteredSquads)
                 {
 
-                    texteFinal = texteFinal + "\t\t{" + "\r\n";
+                    sb.Append( "\t\t{" + "\r\n");
 
                     // Obtenir le type de l'objet
                     Type type = squad.GetType();
@@ -1179,7 +1286,7 @@ namespace DCE_Manager.Utils
                             if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
                             { accKey1 = ""; accKey2 = ""; }
 
-                            texteFinal = texteFinal + "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n";
+                            sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
 
                             foreach (DictionaryEntry entry in dictionary)
                             {
@@ -1192,21 +1299,21 @@ namespace DCE_Manager.Utils
                                 if (int.TryParse(entry.Value.ToString(), out int intValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
-                                    texteFinal = texteFinal + "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n";
+                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
                                 }
                                 else if (double.TryParse(entry.Value.ToString(), out double doubleValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
-                                    texteFinal = texteFinal + "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n";
+                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
                                 }
                                 else if (bool.TryParse(entry.Value.ToString(), out bool boolValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
-                                    texteFinal = texteFinal + "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n";
+                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
                                 }
 
                             }
-                            texteFinal = texteFinal + "\t\t\t}," + "\r\n";
+                            sb.Append( "\t\t\t}," + "\r\n");
                         }
 
                         // Si la propriété est une List
@@ -1217,18 +1324,18 @@ namespace DCE_Manager.Utils
                             if (listName.IndexOfAny(forbiddenChars) == -1)
                             { accKey1 = ""; accKey2 = ""; }
 
-                            texteFinal = texteFinal + "\t\t\t" + accKey1 + listName + accKey2 + " = " + "{" + "\r\n";
+                            sb.Append( "\t\t\t" + accKey1 + listName + accKey2 + " = " + "{" + "\r\n");
 
                             int i = 1;
                             foreach (var item in list)
                             {
                                 accValue1 = "\""; accValue2 = "\"";
                                 accKey1 = "["; accKey2 = "]";
-                                texteFinal = texteFinal + "\t\t\t\t" + accKey1 + i.ToString() + accKey2 + " = " + accValue1 + item + accValue2 + ",\r\n";
+                                sb.Append( "\t\t\t\t" + accKey1 + i.ToString() + accKey2 + " = " + accValue1 + item + accValue2 + ",\r\n");
                                 i++;
                             }
 
-                            texteFinal = texteFinal + "\t\t\t}," + "\r\n";
+                            sb.Append( "\t\t\t}," + "\r\n");
                         }
                         else if (value != null && property.Name != "AdditionalProperties")
                         {
@@ -1244,21 +1351,21 @@ namespace DCE_Manager.Utils
                             if (int.TryParse(value.ToString(), out int intValue))
                             {
                                 accValue1 = ""; accValue2 = "";
-                                texteFinal = texteFinal + "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n";
+                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
                             }
                             else if (double.TryParse(value.ToString(), out double doubleValue))
                             {
                                 accValue1 = ""; accValue2 = "";
-                                texteFinal = texteFinal + "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n";
+                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
                             }
                             else if (bool.TryParse(value.ToString(), out bool boolValue))
                             {
                                 accValue1 = ""; accValue2 = "";
-                                texteFinal = texteFinal + "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n";
+                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
                             }
                             else
                             {
-                                texteFinal = texteFinal + "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + valueName + accValue2 + ",\r\n";
+                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + valueName + accValue2 + ",\r\n");
                             }
                         }
                     }
@@ -1299,7 +1406,8 @@ namespace DCE_Manager.Utils
 
                                 arg = "-addProp No Objet-";
                                 nbTab = 3;
-                                texteFinal = ProcessEntries(keyName, valueName, forbiddenChars, texteFinal, nbTab, arg);
+                                //texteFinal = ProcessEntries(keyName, valueName, forbiddenChars, texteFinal, nbTab, arg);
+                                ProcessEntries(keyName, valueName, forbiddenChars, sb, nbTab, arg);
 
                             }
                             else
@@ -1311,7 +1419,7 @@ namespace DCE_Manager.Utils
                                 if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
                                 { accKey1 = ""; accKey2 = ""; }
 
-                                texteFinal = texteFinal + "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n";
+                                sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
 
                                 if (addProp.Value is Dictionary<string, object> dict)
                                 {
@@ -1341,7 +1449,7 @@ namespace DCE_Manager.Utils
                                         if (dictEntry.Value is Dictionary<string, LuaObject> luaDict4)
                                         {
                                             accKey1 = "[\""; accKey2 = "\"]";
-                                            texteFinal = texteFinal + "\t\t\t\t" + accKey1 + dictEntry.Key + accKey2 + " = " + "{" + "\r\n";
+                                            sb.Append( "\t\t\t\t" + accKey1 + dictEntry.Key + accKey2 + " = " + "{" + "\r\n");
 
                                             // Obtenir la première clé de luaDict4
                                             int addB = 0;
@@ -1362,42 +1470,72 @@ namespace DCE_Manager.Utils
                                                 //{ }
                                                 arg = "-addProp Obj luaObj 5-";
                                                 nbTab = 5;
-                                                texteFinal = ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, texteFinal, nbTab, arg);
+                                                //texteFinal = ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, texteFinal, nbTab, arg);
+                                                ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, sb, nbTab, arg);
                                             }
 
-                                            texteFinal = texteFinal + "\t\t\t\t}," + "\r\n";
+                                            sb.Append( "\t\t\t\t}," + "\r\n");
                                         }
                                         else
                                         {
 
                                             arg = "-addProp Obj else 4-";
                                             nbTab = 4;
-                                            texteFinal = ProcessEntries(keyA, dictEntry.Value, forbiddenChars, texteFinal, nbTab, arg);
+                                            //texteFinal = ProcessEntries(keyA, dictEntry.Value, forbiddenChars, texteFinal, nbTab, arg);
+                                            ProcessEntries(keyA, dictEntry.Value, forbiddenChars, sb, nbTab, arg);
                                         }
                                     }
                                 }
-                                texteFinal = texteFinal + "\t\t\t}," + "\r\n";
+                                sb.Append("\t\t\t}," + "\r\n");
 
                             }
                         }
                     }
 
-                    texteFinal = texteFinal + "\t\t}," + "\r\n";
+                    sb.Append( "\t\t}," + "\r\n");
                 }
-                texteFinal = texteFinal + "\t}," + "\r\n";
+                sb.Append( "\t}," + "\r\n");
             }
 
+            sb.Append( "}" + "\r\n");
 
-            // Attendre que l'utilisateur appuie sur Entrée avant de fermer la console
-            Console.WriteLine("Appuyez sur Entrée pour fermer la console...");
-            Console.ReadLine();
+            //// Attendre que l'utilisateur appuie sur Entrée avant de fermer la console
+            //Console.WriteLine("Appuyez sur Entrée pour fermer la console...");
+            //Console.ReadLine();
 
-            //texteFinal = texteFinal + "\t}," + "\r\n";
-            texteFinal = texteFinal + "}" + "\r\n";
 
-            StreamWriter sr2 = new StreamWriter(path);
-            sr2.WriteLine(texteFinal);
-            sr2.Close();
+
+            string texteFinal = sb.ToString();
+
+            // Vérifier si la liste de squads est vide
+            if (!List_oob_air_Manager.List_oob_air.Any())
+            {
+                MessageBox.Show("Aucune donnée détectée. Le fichier ne sera pas écrasé.", "WriteChanedSquad Error B");
+                return;
+            }
+
+            // Vérifier si texteFinal contient au moins un bloc de squad
+            if (!texteFinal.Contains("\t\t{"))
+            {
+                MessageBox.Show("Le fichier généré est vide. Écriture annulée.", "WriteChanedSquad Error C");
+                return;
+            }
+
+            int nbOpen = texteFinal.Count(c => c == '{');
+            int nbClose = texteFinal.Count(c => c == '}');
+
+            FormUtils.LogRegister($"{{={nbOpen} }}={nbClose}");
+
+            if (nbClose != nbOpen)
+            {
+                MessageBox.Show("Nb d'accolades {} différent.", "WriteChanedSquad Error D");
+                return;
+            }
+
+            using (StreamWriter sr2 = new StreamWriter(path))
+            {
+                sr2.Write(texteFinal);
+            }
         }
 
 

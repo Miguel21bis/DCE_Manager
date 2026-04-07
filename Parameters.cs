@@ -155,20 +155,40 @@ namespace DCE_Manager.Parameters
         public bool Player { get; set; }
         public string Type { get; set; }
         public string Country { get; set; }
-        public Dictionary<string, object> Livery { get; set; }
+        //public Dictionary<string, object> Livery { get; set; }
         public string Base { get; set; }
         public List<string> BaseAlternative { get; set; }
         public string Skill { get; set; }
-        public Dictionary<string, object> Tasks { get; set; }
-        public Dictionary<string, object> TasksCoef { get; set; }
+        //public Dictionary<string, object> Tasks { get; set; }
+        //public Dictionary<string, object> TasksCoef { get; set; }
         public int InitNumber { get; set; }
         public int InitReserve { get; set; }
         public int Number { get; set; }
         public int Reserve { get; set; }
         public Dictionary<string, object> Roster { get; set; }
         public Dictionary<string, object> Score { get; set; }
+        public Dictionary<string, object> parking_id { get; set; }
 
-        public bool IsActive => !Inactive;
+        public object Livery { get; set; }
+        public Dictionary<string, bool> Tasks { get; set; }
+        public Dictionary<string, double> TasksCoef { get; set; }
+
+        public string Side { get; set; }          // "blue"
+        public string Callsign { get; set; }      // "Uzi"
+        public int? CallsignId { get; set; }      // 3
+        public Dictionary<string, object> ScoreLast { get; set; }
+        //public Dictionary<string, object> TasksCoefPourcent { get; set; }
+        public Dictionary<string, int> TasksCoefPourcent { get; set; }
+        public Dictionary<int, string> LiveryModex { get; set; }
+        public List<int> SideNumber { get; set; }
+        public Dictionary<int, int> ParkingId { get; set; }
+
+        //public bool IsActive => !Inactive;
+        public bool IsActive
+        {
+            get { return !Inactive; }
+            set { Inactive = !value; }
+        }
 
         // Sert pour affichage GRID (Init vs Active)
         public int DisplayReady

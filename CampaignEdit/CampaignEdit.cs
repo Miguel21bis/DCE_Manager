@@ -52,8 +52,6 @@ namespace DCE_Manager
 
         private void ResetUi() { }
         private void LoadAirbases() { }
-        //private void LoadBriefing() { }
-        //private void LoadCampaignImage() { }
         private void DisplayErrors() { }
 
 
@@ -68,6 +66,10 @@ namespace DCE_Manager
             _campaignName = campaignName;
 
             InitializeGridEvents();
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.WindowState = FormWindowState.Normal;
+            this.Size = new Size(1200, 850);
+
             InitializeCampaign();
         }
 
@@ -82,7 +84,6 @@ namespace DCE_Manager
             LoadAirbases();
             LoadSquads();
             LoadTrigger();
-            //LoadCampaignImage();
             SetCampaignImage();
             DisplayErrors();
 
@@ -102,7 +103,9 @@ namespace DCE_Manager
 
         private void RegisterGrid(DataGridView grid)
         {
-            grid.CellContentClick += Grid_CellClick;
+            //grid.CellContentClick += Grid_CellClick;
+            grid.CellMouseDown += Grid_CellMouseDown;
+            grid.RowHeaderMouseClick += Grid_RowHeaderMouseClick;
             grid.CellValueChanged += Grid_CellValueChanged;
             grid.CurrentCellDirtyStateChanged += Grid_CurrentCellDirtyStateChanged;
             grid.DataError += Grid_DataError;
@@ -110,14 +113,6 @@ namespace DCE_Manager
 
         }
 
-        //private void LoadLuaData()
-        //{
-        //    var loader = new CampaignLuaLoader();
-        //    loader.Load(_campaignName);
-
-        //    _playableList.Clear();
-        //    _playableList.AddRange(loader.PlayableAircraft);
-        //}
         private void LoadLuaData()
         {
             var loader = new CampaignLuaLoader();
@@ -127,10 +122,6 @@ namespace DCE_Manager
             _playableList.AddRange(loader.PlayableAircraft);
 
             _taskByPlane = loader.TaskByPlane;
-
-            FormUtils.LogRegister( "CampaignEdit.cs: _playableList.Count = " + _playableList.Count);
-
-            FormUtils.LogRegister( "CampaignEdit.cs: _taskByPlane.Count = " + _taskByPlane.Count);
         }
 
         private void LoadSquads()
@@ -138,24 +129,13 @@ namespace DCE_Manager
 
             var parser = new OobAirParser();
 
+            //remplissage de la grille squad
             CurrentSquads = parser.LoadCampaignSquads(_campaignName);
-
-            //MessageBox.Show("Squads loaded: " + CurrentSquads.Count);
-            FormUtils.LogRegister("CampaignEdit.cs:LoadSquads(): CurrentSquads.Count: " + CurrentSquads.Count);
 
             _form1.currentSquads = CurrentSquads;
             _form1.RefreshGrids();
         }
 
-        //private void LoadTrigger()
-        //{
-
-        //    var parser = new triggerParser();
-
-        //    BriefingCampaign = parser.BriefingCampaign(_campaignName);
-
-        //    SetBriefingText(BriefingCampaign);
-        //}
 
         // Cette fonction charge le briefing depuis camp_triggers_init.lua.
         // Pourquoi : le parser retourne maintenant simplement une chaîne.
@@ -210,8 +190,6 @@ namespace DCE_Manager
                 _form1.pictureBoxCampImage.Image = null;
             }
 
-            //_form1.pictureBoxCampImage.Image?.Dispose();
-            //_form1.pictureBoxCampImage.Image = image;
         }
 
  
@@ -231,7 +209,8 @@ namespace DCE_Manager
             {
                 HeaderText = "Actif",
                 DataPropertyName = "IsActive",
-                Width = 50
+                Width = 50,
+                Name = "ActifColumn"
             });
 
             // Colonne Player
@@ -271,14 +250,7 @@ namespace DCE_Manager
 
             grid.Columns.Add(new DataGridViewButtonColumn()
             {
-                HeaderText = "Edit",
-                Text = "✎",
-                UseColumnTextForButtonValue = true,
-                Width = 35
-            });
-
-            grid.Columns.Add(new DataGridViewButtonColumn()
-            {
+                Name = "CloneColumn",
                 HeaderText = "Clone(+)",
                 Text = "+",
                 UseColumnTextForButtonValue = true,
@@ -286,6 +258,7 @@ namespace DCE_Manager
             });
             grid.Columns.Add(new DataGridViewButtonColumn()
             {
+                Name = "DeleteColumn",
                 HeaderText = "Delete(X)",
                 Text = "X",
                 UseColumnTextForButtonValue = true,
@@ -297,59 +270,179 @@ namespace DCE_Manager
             grid.DataBindingComplete -= Grid_DataBindingComplete; // sécurité pour ne pas doubler
             grid.DataBindingComplete += Grid_DataBindingComplete;
 
+            foreach (DataGridViewColumn column in grid.Columns)
+            {
+                bool editable =
+                    column.Name == "ActifColumn" ||
+                    column.Name == "PlayerColumn" ||
+                    column.Name == "CloneColumn" ||
+                    column.Name == "DeleteColumn";
+
+                column.ReadOnly = !editable;
+            }
+
         }
 
         //méthode
-        private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
+        private void Grid_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
         {
-            var grid = sender as DataGridView;
             if (e.RowIndex < 0)
                 return;
 
-            var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+            DataGridView grid = (DataGridView)sender;
+
+            DataGridViewRow row = grid.Rows[e.RowIndex];
+            Squad squad = row.DataBoundItem as Squad;
+
             if (squad == null)
                 return;
 
-            // EDIT
-            if (e.ColumnIndex == 6)
-            {
-                using (var frm = new FormSquadEdit(squad, false))
-                {
-                    if (frm.ShowDialog(_form1) == DialogResult.OK)
-                    {
-                        _form1.RefreshGrids();
-                    }
-                }
-            }
+            string columnName = e.ColumnIndex >= 0
+            ? grid.Columns[e.ColumnIndex].Name
+            : "";
 
-            // CLONE
-            else if (e.ColumnIndex == 7)
+            // Actif + Player : on laisse juste la checkbox fonctionner
+            if (columnName == "PlayerColumn" || columnName == "ActifColumn")
+                return;
+
+
+            // Clone
+            if (columnName == "CloneColumn")
             {
-                using (var frm = new FormSquadEdit(squad, true))
+                var frm = new FormSquadEdit(squad, true);
+
+                frm.FormClosed += (s, args) =>
                 {
-                    if (frm.ShowDialog(_form1) == DialogResult.OK)
+                    if (frm.DialogResult == DialogResult.OK)
                     {
                         _form1.currentSquads.Add(frm.EditedSquad);
                         _form1.RefreshGrids();
                     }
-                }
+                };
+
+                frm.Show();
+                return;
             }
 
-            // DELETE
-            else if (e.ColumnIndex == 8)
+            // Delete
+            if (columnName == "DeleteColumn")
             {
-                var result = MessageBox.Show(
-                    $"Delete squad '{squad.Name}' ?",
-                    "Delete",
+                if (MessageBox.Show(
+                    "Delete squad \"" + squad.Name + "\" ?",
+                    "Confirm delete",
                     MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Warning);
-
-                if (result == DialogResult.Yes)
+                    MessageBoxIcon.Question) == DialogResult.Yes)
                 {
                     _form1.currentSquads.Remove(squad);
                     _form1.RefreshGrids();
                 }
+
+                return;
             }
+
+            // Toute autre colonne => édition
+            var editFrm = new FormSquadEdit(squad, false);
+
+            editFrm.FormClosed += (s, args) =>
+            {
+                if (editFrm.DialogResult == DialogResult.OK)
+                {
+                    _form1.RefreshGrids();
+                }
+            };
+
+            editFrm.Show();
+        }
+        //private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
+        //{
+        //    var grid = sender as DataGridView;
+        //    if (e.RowIndex < 0)
+        //        return;
+
+        //    var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+        //    if (squad == null)
+        //        return;
+
+
+        //    //// EDIT
+        //    string columnName = grid.Columns[e.ColumnIndex].Name;
+
+        //    // Si ce n'est ni Clone ni Delete, on ouvre directement l'éditeur
+        //    if (columnName != "CloneColumn" && columnName != "DeleteColumn")
+        //    {
+        //        var frm = new FormSquadEdit(squad, false);
+
+        //        frm.FormClosed += (s, args) =>
+        //        {
+        //            if (frm.DialogResult == DialogResult.OK)
+        //            {
+        //                _form1.RefreshGrids();
+        //            }
+        //        };
+
+        //        //frm.Show(_form1);
+        //        frm.Show();
+        //        return;
+        //    }
+
+        //    // CLONE
+        //    if (columnName == "CloneColumn")
+        //    {
+        //        var frm = new FormSquadEdit(squad, true);
+
+        //        frm.FormClosed += (s, args) =>
+        //        {
+        //            if (frm.DialogResult == DialogResult.OK)
+        //            {
+        //                _form1.currentSquads.Add(frm.EditedSquad);
+        //                _form1.RefreshGrids();
+        //            }
+        //        };
+
+        //        //frm.Show(_form1);
+        //        frm.Show();
+        //    }
+
+        //    // DELETE
+        //    else if (columnName == "DeleteColumn")
+        //    {
+        //        var result = MessageBox.Show(
+        //            $"Delete squad '{squad.Name}' ?",
+        //            "Delete",
+        //            MessageBoxButtons.YesNo,
+        //            MessageBoxIcon.Warning);
+
+        //        if (result == DialogResult.Yes)
+        //        {
+        //            _form1.currentSquads.Remove(squad);
+        //            _form1.RefreshGrids();
+        //        }
+        //    }
+        //}
+        private void Grid_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.RowIndex < 0)
+                return;
+
+            DataGridView grid = (DataGridView)sender;
+
+            DataGridViewRow row = grid.Rows[e.RowIndex];
+            Squad squad = row.DataBoundItem as Squad;
+
+            if (squad == null)
+                return;
+
+            var frm = new FormSquadEdit(squad, false);
+
+            frm.FormClosed += (s, args) =>
+            {
+                if (frm.DialogResult == DialogResult.OK)
+                {
+                    _form1.RefreshGrids();
+                }
+            };
+
+            frm.Show();
         }
 
         //méthode

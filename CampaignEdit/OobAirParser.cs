@@ -19,15 +19,25 @@ namespace DCE_Manager
         {
             var squads = new List<Squad>();
 
+            // on vide UNE seule fois avant les 2 chargements
+            List_oob_air_Manager.List_oob_air = new List<Squad>();
+
+            FormUtils.LogRegister(
+                "Avant LoadFile " + campaignName +
+                " Count=" + List_oob_air_Manager.List_oob_air.Count);
             LoadFile(campaignName, "Init", squads);
             LoadFile(campaignName, "Active", squads);
+
+            FormUtils.LogRegister(
+            "Après  LoadFile " + campaignName +
+            " Count=" + List_oob_air_Manager.List_oob_air.Count);
 
             return squads;
         }
 
         private void LoadFile(string campaignName, string folderName, List<Squad> squads)
         {
-            List_oob_air_Manager.List_oob_air = new List<Squad>();
+            //List_oob_air_Manager.List_oob_air = new List<Squad>();
 
             var time_ParseOobAir = Stopwatch.StartNew();
 
@@ -111,6 +121,9 @@ namespace DCE_Manager
                         List_oob_air_Manager.List_oob_air.Add(squad);
                         squads.Add(squad);
 
+                        
+                         FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
+
 
                         var level2 = entry2.Value.luaobj as Dictionary<string, LuaObject>;
                         if (level2 == null) continue;
@@ -148,7 +161,8 @@ namespace DCE_Manager
                                 case "tasks":
                                     if (valObj is Dictionary<string, LuaObject> tasks)
                                     {
-                                        squad.Tasks = new Dictionary<string, object>(tasks.Count);
+                                        //squad.Tasks = new Dictionary<string, object>(tasks.Count);
+                                        squad.Tasks = new Dictionary<string, bool>(tasks.Count);
                                         foreach (var e in tasks)
                                             squad.Tasks[e.Key] = Convert.ToBoolean(e.Value.luaobj);
                                     }
@@ -157,7 +171,8 @@ namespace DCE_Manager
                                 case "tasksCoef":
                                     if (valObj is Dictionary<string, LuaObject> tasksCoef)
                                     {
-                                        squad.TasksCoef = new Dictionary<string, object>(tasksCoef.Count);
+                                        //squad.TasksCoef = new Dictionary<string, object>(tasksCoef.Count);
+                                        squad.TasksCoef = new Dictionary<string, double>(tasksCoef.Count);
                                         foreach (var e in tasksCoef)
                                         {
                                             if (double.TryParse(e.Value.luaobj.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
@@ -185,6 +200,27 @@ namespace DCE_Manager
                                         squad.Score = new Dictionary<string, object>(score.Count);
                                         foreach (var e in score)
                                             squad.Score[e.Key] = Convert.ToInt32(e.Value.luaobj);
+                                    }
+                                    break;
+
+                                case "livery":
+                                    // livery peut être soit une string, soit une table [1]="...", [2]="..."
+                                    if (valObj is Dictionary<string, LuaObject> liveryDict)
+                                    {
+                                        squad.Livery = new Dictionary<int, string>();
+
+                                        foreach (var e in liveryDict)
+                                        {
+                                            if (int.TryParse(e.Key, out int index))
+                                            {
+                                                ((Dictionary<int, string>)squad.Livery)[index] =
+                                                    e.Value.luaobj?.ToString();
+                                            }
+                                        }
+                                    }
+                                    else
+                                    {
+                                        squad.Livery = valObj?.ToString();
                                     }
                                     break;
 

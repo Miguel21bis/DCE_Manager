@@ -1213,11 +1213,11 @@ namespace DCE_Manager
             this.groupBoxDroiteAccueil.Controls.Add(this.VersionDceManager);
             this.groupBoxDroiteAccueil.Controls.Add(this.label3);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox2);
-            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(1115, 41);
+            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(1176, 41);
             this.groupBoxDroiteAccueil.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxDroiteAccueil.Name = "groupBoxDroiteAccueil";
             this.groupBoxDroiteAccueil.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBoxDroiteAccueil.Size = new System.Drawing.Size(575, 492);
+            this.groupBoxDroiteAccueil.Size = new System.Drawing.Size(596, 492);
             this.groupBoxDroiteAccueil.TabIndex = 23;
             this.groupBoxDroiteAccueil.TabStop = false;
             // 
@@ -1281,7 +1281,7 @@ namespace DCE_Manager
             this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxCampEdit.Name = "groupBoxCampEdit";
             this.groupBoxCampEdit.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBoxCampEdit.Size = new System.Drawing.Size(575, 578);
+            this.groupBoxCampEdit.Size = new System.Drawing.Size(711, 578);
             this.groupBoxCampEdit.TabIndex = 24;
             this.groupBoxCampEdit.TabStop = false;
             this.groupBoxCampEdit.Visible = false;
@@ -1324,7 +1324,7 @@ namespace DCE_Manager
             this.CampaignTab.Margin = new System.Windows.Forms.Padding(4);
             this.CampaignTab.Name = "CampaignTab";
             this.CampaignTab.SelectedIndex = 0;
-            this.CampaignTab.Size = new System.Drawing.Size(576, 517);
+            this.CampaignTab.Size = new System.Drawing.Size(699, 517);
             this.CampaignTab.TabIndex = 11;
             this.CampaignTab.Visible = false;
             // 
@@ -1337,13 +1337,13 @@ namespace DCE_Manager
             this.tabPage6.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage6.Name = "tabPage6";
             this.tabPage6.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage6.Size = new System.Drawing.Size(568, 488);
+            this.tabPage6.Size = new System.Drawing.Size(691, 488);
             this.tabPage6.TabIndex = 0;
             this.tabPage6.Text = "Intro";
             // 
             // pictureBoxCampImage
             // 
-            this.pictureBoxCampImage.Location = new System.Drawing.Point(23, 251);
+            this.pictureBoxCampImage.Location = new System.Drawing.Point(85, 234);
             this.pictureBoxCampImage.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBoxCampImage.Name = "pictureBoxCampImage";
             this.pictureBoxCampImage.Size = new System.Drawing.Size(532, 230);
@@ -1353,12 +1353,12 @@ namespace DCE_Manager
             // 
             // textBoxCampBriefing
             // 
-            this.textBoxCampBriefing.Location = new System.Drawing.Point(23, 22);
+            this.textBoxCampBriefing.Location = new System.Drawing.Point(67, 15);
             this.textBoxCampBriefing.Margin = new System.Windows.Forms.Padding(4);
             this.textBoxCampBriefing.Multiline = true;
             this.textBoxCampBriefing.Name = "textBoxCampBriefing";
             this.textBoxCampBriefing.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxCampBriefing.Size = new System.Drawing.Size(531, 219);
+            this.textBoxCampBriefing.Size = new System.Drawing.Size(576, 219);
             this.textBoxCampBriefing.TabIndex = 0;
             // 
             // tabPage14
@@ -1367,7 +1367,7 @@ namespace DCE_Manager
             this.tabPage14.Location = new System.Drawing.Point(4, 25);
             this.tabPage14.Name = "tabPage14";
             this.tabPage14.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage14.Size = new System.Drawing.Size(568, 488);
+            this.tabPage14.Size = new System.Drawing.Size(691, 488);
             this.tabPage14.TabIndex = 7;
             this.tabPage14.Text = "OOB Blue";
             this.tabPage14.UseVisualStyleBackColor = true;
@@ -1379,7 +1379,7 @@ namespace DCE_Manager
             this.dataGridViewBlue.Name = "dataGridViewBlue";
             this.dataGridViewBlue.RowHeadersWidth = 51;
             this.dataGridViewBlue.RowTemplate.Height = 24;
-            this.dataGridViewBlue.Size = new System.Drawing.Size(559, 477);
+            this.dataGridViewBlue.Size = new System.Drawing.Size(682, 477);
             this.dataGridViewBlue.TabIndex = 14;
             this.dataGridViewBlue.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewBlue_CellContentClick);
             // 
@@ -1389,7 +1389,7 @@ namespace DCE_Manager
             this.tabPage15.Location = new System.Drawing.Point(4, 25);
             this.tabPage15.Name = "tabPage15";
             this.tabPage15.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage15.Size = new System.Drawing.Size(568, 488);
+            this.tabPage15.Size = new System.Drawing.Size(691, 488);
             this.tabPage15.TabIndex = 8;
             this.tabPage15.Text = "OOB Red";
             this.tabPage15.UseVisualStyleBackColor = true;
@@ -1401,7 +1401,7 @@ namespace DCE_Manager
             this.dataGridViewRed.Name = "dataGridViewRed";
             this.dataGridViewRed.RowHeadersWidth = 51;
             this.dataGridViewRed.RowTemplate.Height = 24;
-            this.dataGridViewRed.Size = new System.Drawing.Size(559, 478);
+            this.dataGridViewRed.Size = new System.Drawing.Size(682, 478);
             this.dataGridViewRed.TabIndex = 15;
             this.dataGridViewRed.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewRed_CellContentClick);
             // 
@@ -1410,7 +1410,7 @@ namespace DCE_Manager
             this.tabPage11.Location = new System.Drawing.Point(4, 25);
             this.tabPage11.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage11.Name = "tabPage11";
-            this.tabPage11.Size = new System.Drawing.Size(568, 488);
+            this.tabPage11.Size = new System.Drawing.Size(691, 488);
             this.tabPage11.TabIndex = 5;
             this.tabPage11.Text = "Options";
             // 
@@ -1421,7 +1421,7 @@ namespace DCE_Manager
             this.tabPage12.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage12.Name = "tabPage12";
             this.tabPage12.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage12.Size = new System.Drawing.Size(568, 488);
+            this.tabPage12.Size = new System.Drawing.Size(691, 488);
             this.tabPage12.TabIndex = 6;
             this.tabPage12.Text = "Bugs";
             this.tabPage12.UseVisualStyleBackColor = true;
@@ -1433,7 +1433,7 @@ namespace DCE_Manager
             this.textBox_Bugs.Multiline = true;
             this.textBox_Bugs.Name = "textBox_Bugs";
             this.textBox_Bugs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_Bugs.Size = new System.Drawing.Size(531, 475);
+            this.textBox_Bugs.Size = new System.Drawing.Size(666, 475);
             this.textBox_Bugs.TabIndex = 1;
             // 
             // buttonResetBackup
@@ -1473,11 +1473,11 @@ namespace DCE_Manager
             this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Browse_Template);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_MissionFile);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_importTemplateFolder);
-            this.groupBox_staticTemplate.Location = new System.Drawing.Point(1115, 76);
+            this.groupBox_staticTemplate.Location = new System.Drawing.Point(1176, 76);
             this.groupBox_staticTemplate.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox_staticTemplate.Name = "groupBox_staticTemplate";
             this.groupBox_staticTemplate.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox_staticTemplate.Size = new System.Drawing.Size(547, 464);
+            this.groupBox_staticTemplate.Size = new System.Drawing.Size(560, 464);
             this.groupBox_staticTemplate.TabIndex = 2;
             this.groupBox_staticTemplate.TabStop = false;
             this.groupBox_staticTemplate.Text = "ASTI";
@@ -1557,7 +1557,7 @@ namespace DCE_Manager
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.AutoSize = true;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.ClientSize = new System.Drawing.Size(1700, 598);
+            this.ClientSize = new System.Drawing.Size(1827, 598);
             this.Controls.Add(this.tabControl);
             this.Controls.Add(this.groupBoxCampEdit);
             this.Controls.Add(this.groupBoxDroiteAccueil);

@@ -395,7 +395,8 @@ namespace DCE_Manager
                                     else if (entry3.Key == "tasks")
                                     {
 
-                                        squad.Tasks = new Dictionary<string, object>();
+                                        //squad.Tasks = new Dictionary<string, object>();
+                                        squad.Tasks = new Dictionary<string, bool>();
 
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
@@ -408,7 +409,8 @@ namespace DCE_Manager
                                     }
                                     else if (entry3.Key == "tasksCoef")
                                     {
-                                        squad.TasksCoef = new Dictionary<string, object>();
+                                        //squad.TasksCoef = new Dictionary<string, object>();
+                                        squad.TasksCoef = new Dictionary<string, double>();
 
                                         foreach (KeyValuePair<string, LuaObject> entry4 in entry3.Value)
                                         {
