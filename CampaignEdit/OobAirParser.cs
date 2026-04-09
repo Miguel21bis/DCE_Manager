@@ -15,31 +15,37 @@ namespace DCE_Manager
 {
     internal class OobAirParser
     {
-        public List<Squad> LoadCampaignSquads(string campaignName)
-        {
-            var squads = new List<Squad>();
+        //public List<Squad> LoadCampaignSquads(string campaignName)
+        //{
+        //    var squads = new List<Squad>();
 
-            // on vide UNE seule fois avant les 2 chargements
+        //    // on vide UNE seule fois avant les 2 chargements
+        //    List_oob_air_Manager.List_oob_air = new List<Squad>();
+
+        //    LoadFile(campaignName, "Init", squads);
+        //    LoadFile(campaignName, "Active", squads);
+
+
+        //    return squads;
+        //}
+
+        public List<CampaignSquad> LoadCampaignSquads(string campaignName)
+        {
+            // Ancienne liste conservée pour compatibilité temporaire.
             List_oob_air_Manager.List_oob_air = new List<Squad>();
 
-            FormUtils.LogRegister(
-                "Avant LoadFile " + campaignName +
-                " Count=" + List_oob_air_Manager.List_oob_air.Count);
-            LoadFile(campaignName, "Init", squads);
-            LoadFile(campaignName, "Active", squads);
+            // Nouvelle liste logique.
+            List_oob_air_Manager.List_campaignSquads = new List<CampaignSquad>();
 
-            FormUtils.LogRegister(
-            "Après  LoadFile " + campaignName +
-            " Count=" + List_oob_air_Manager.List_oob_air.Count);
+            LoadFile(campaignName, "Init");
+            LoadFile(campaignName, "Active");
 
-            return squads;
+            return List_oob_air_Manager.List_campaignSquads;
         }
 
-        private void LoadFile(string campaignName, string folderName, List<Squad> squads)
+        private void LoadFile(string campaignName, string folderName)
         {
-            //List_oob_air_Manager.List_oob_air = new List<Squad>();
-
-            var time_ParseOobAir = Stopwatch.StartNew();
+           var time_ParseOobAir = Stopwatch.StartNew();
 
             //on compte tous les squads differement, init ou active, sinon ça fout le bordel
             int idSquad = -1;
@@ -96,6 +102,8 @@ namespace DCE_Manager
                     return;
                 }
 
+                FormUtils.LogRegister("START Parser campaignName " + campaignName);
+
 
                 foreach (var entry in root) // side
                 {
@@ -116,13 +124,54 @@ namespace DCE_Manager
                             SideString = side,
                             IdSquad = idSquad,
                             FolderFile = folderName,
+
                         };
+                        ////string squadKey = side + "|" + entry2.Key;
+                        //string squadNameKey = squad.Name != null
+                        //? squad.Name.Trim().ToLowerInvariant()
+                        //: "";
 
-                        List_oob_air_Manager.List_oob_air.Add(squad);
-                        squads.Add(squad);
+                        //string squadKey = side.Trim().ToLowerInvariant() + "|" + squadNameKey;
 
-                        
-                         FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
+                        //CampaignSquad campaignSquad =
+                        //    List_oob_air_Manager.List_campaignSquads
+                        //    .FirstOrDefault(x => x.Key == squadKey);
+
+                        //if (campaignSquad == null)
+                        //{
+                        //    campaignSquad = new CampaignSquad
+                        //    {
+                        //        Key = squadKey,
+                        //        SideString = side
+                        //    };
+
+                        //    List_oob_air_Manager.List_campaignSquads.Add(campaignSquad);
+                        //}
+
+                        ////var squad = new Squad
+                        ////{
+                        ////    SideString = side,
+                        ////    IdSquad = idSquad,
+                        ////    FolderFile = folderName,
+                        ////};
+
+                        //if (folderName == "Init")
+                        //{ 
+                        //    campaignSquad.Init = squad;
+                        //    FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
+                        //}
+                        //else
+                        //{
+                        //    campaignSquad.Active = squad;
+                        //    FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
+                        //}
+                           
+
+                        //// Ancienne liste conservée pour compatibilité temporaire.
+                        //List_oob_air_Manager.List_oob_air.Add(squad);
+
+
+                        //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
 
 
                         var level2 = entry2.Value.luaobj as Dictionary<string, LuaObject>;
@@ -137,7 +186,18 @@ namespace DCE_Manager
                             // ⚡ SWITCH = beaucoup + rapide que 30 if
                             switch (key)
                             {
-                                case "name": squad.Name = valObj?.ToString(); break;
+                                case "name":
+                                    squad.Name = valObj?.ToString();
+
+                                    //if (campaignSquad != null)
+                                    //{
+                                    //    campaignSquad.Key = side + "|" + squad.Name;
+
+                                    //    FormUtils.LogRegister(  "Parser squad.name " + squad.Name );
+                                    //}
+                                    if (squad.Name == "469th TFS")
+                                    { }
+                                    break;
                                 case "player": squad.Player = Convert.ToBoolean(valObj); break;
                                 case "type": squad.Type = valObj?.ToString(); break;
                                 case "country": squad.Country = valObj?.ToString(); break;
@@ -186,20 +246,70 @@ namespace DCE_Manager
                                     break;
 
                                 case "roster":
-                                    if (valObj is Dictionary<string, LuaObject> roster)
+                                    if (valObj is Dictionary<string, LuaObject> rosterDict)
                                     {
-                                        squad.Roster = new Dictionary<string, object>(roster.Count);
-                                        foreach (var e in roster)
-                                            squad.Roster[e.Key] = Convert.ToInt32(e.Value.luaobj);
+                                        squad.Roster = new Dictionary<string, object>();
+
+                                        foreach (var rosterEntry in rosterDict)
+                                        {
+                                            object rosterValue = rosterEntry.Value != null
+                                                ? rosterEntry.Value.luaobj
+                                                : null;
+
+                                            if (rosterValue is LuaObject luaRoster)
+                                                rosterValue = luaRoster.luaobj;
+
+                                            int intValue;
+                                            if (rosterValue != null &&
+                                                int.TryParse(rosterValue.ToString(), out intValue))
+                                            {
+                                                squad.Roster[rosterEntry.Key] = intValue;
+                                            }
+                                            else
+                                            {
+                                                squad.Roster[rosterEntry.Key] = rosterValue;
+                                            }
+                                        }
+
+                                        FormUtils.LogRegister("Roster chargé pour squad.Name " + squad.Name +
+                                            " : " + squad.Roster.Count + " éléments");
+                                    }
+                                    else
+                                    {
+                                        FormUtils.LogRegister("Roster introuvable ou mauvais type pour squad.Name " + squad.Name +
+                                            " ; type = " + (valObj != null ? valObj.GetType().ToString() : "null"));
                                     }
                                     break;
 
                                 case "score":
-                                    if (valObj is Dictionary<string, LuaObject> score)
+                                    if (valObj is Dictionary<string, LuaObject> scoreDict)
                                     {
-                                        squad.Score = new Dictionary<string, object>(score.Count);
-                                        foreach (var e in score)
-                                            squad.Score[e.Key] = Convert.ToInt32(e.Value.luaobj);
+                                        squad.Score = new Dictionary<string, object>();
+
+                                        foreach (var scoreEntry in scoreDict)
+                                        {
+                                            object scoreValue = scoreEntry.Value != null
+                                                ? scoreEntry.Value.luaobj
+                                                : null;
+
+                                            if (scoreValue is LuaObject luaScore)
+                                                scoreValue = luaScore.luaobj;
+
+                                            int intValue;
+                                            if (scoreValue != null &&
+                                                int.TryParse(scoreValue.ToString(), out intValue))
+                                            {
+                                                squad.Score[scoreEntry.Key] = intValue;
+                                            }
+                                            else
+                                            {
+                                                squad.Score[scoreEntry.Key] = scoreValue;
+                                            }
+                                        }
+
+                                        FormUtils.LogRegister(
+                                            "Score chargé pour squad " + squad.Name +
+                                            " : " + squad.Score.Count + " éléments");
                                     }
                                     break;
 
@@ -241,6 +351,53 @@ namespace DCE_Manager
                                     break;
                             }
                         }
+
+                        //string squadKey = side + "|" + entry2.Key;
+                        string squadNameKey = squad.Name != null
+                        ? squad.Name.Trim().ToLowerInvariant()
+                        : "";
+
+                        string squadKey = side.Trim().ToLowerInvariant() + "|" + squadNameKey;
+
+                        CampaignSquad campaignSquad =
+                            List_oob_air_Manager.List_campaignSquads
+                            .FirstOrDefault(x => x.Key == squadKey);
+
+                        if (campaignSquad == null)
+                        {
+                            campaignSquad = new CampaignSquad
+                            {
+                                Key = squadKey,
+                                SideString = side
+                            };
+
+                            List_oob_air_Manager.List_campaignSquads.Add(campaignSquad);
+                        }
+
+                        //var squad = new Squad
+                        //{
+                        //    SideString = side,
+                        //    IdSquad = idSquad,
+                        //    FolderFile = folderName,
+                        //};
+
+                        if (folderName == "Init")
+                        {
+                            campaignSquad.Init = squad;
+                            FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
+                        }
+                        else
+                        {
+                            campaignSquad.Active = squad;
+                            FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
+                        }
+
+
+                        // Ancienne liste conservée pour compatibilité temporaire.
+                        List_oob_air_Manager.List_oob_air.Add(squad);
+
+
+                        FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
                     }
                 }
 
@@ -251,6 +408,22 @@ namespace DCE_Manager
 
             var time_UI = Stopwatch.StartNew();
 
+        }
+
+        // Recherche un squad logique à partir du nom + camp.
+        // Pourquoi : retrouver facilement Init et Active du même squad.
+        public static CampaignSquad FindCampaignSquad(string side, string squadName)
+        {
+            if (List_oob_air_Manager.List_campaignSquads == null)
+                return null;
+
+            return List_oob_air_Manager.List_campaignSquads.FirstOrDefault(campaignSquad =>
+                campaignSquad != null &&
+                campaignSquad.SideString == side &&
+                (
+                    (campaignSquad.Init != null && campaignSquad.Init.Name == squadName) ||
+                    (campaignSquad.Active != null && campaignSquad.Active.Name == squadName)
+                ));
         }
     }
 }

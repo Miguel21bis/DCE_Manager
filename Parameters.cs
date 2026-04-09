@@ -144,6 +144,64 @@ namespace DCE_Manager.Parameters
     {
         public static string verScriptsMod = "0.0.0";
     }
+
+    public class CampaignSquad
+    {
+        // Identifiant unique du squad dans la campagne.
+        // Pourquoi : un même nom peut exister côté blue et red.
+        public string Key { get; set; }
+
+        public string SideString { get; set; }
+
+        // Données provenant de Init\oob_air_init.lua
+        public Squad Init { get; set; }
+
+        // Données provenant de Active\oob_air.lua
+        public Squad Active { get; set; }
+
+        // Retourne le squad correspondant au mode demandé.
+        // Pourquoi : simplifier toute l'interface.
+        public Squad GetSquad(string folder)
+        {
+            return folder == "Active" ? Active : Init;
+        }
+    }
+
+    public static class CampaignSquadTools
+    {
+        // Copie les informations utiles du Active vers Init.
+        // Pourquoi : permettre plus tard "sauver la campagne courante comme nouveau départ".
+        public static void CopyActiveToInit(CampaignSquad campaignSquad)
+        {
+            if (campaignSquad == null ||
+                campaignSquad.Active == null ||
+                campaignSquad.Init == null)
+            {
+                return;
+            }
+
+            if (campaignSquad.Active.Roster != null)
+            {
+                if (campaignSquad.Active.Roster.ContainsKey("ready"))
+                {
+                    campaignSquad.Init.Number =
+                        Convert.ToInt32(campaignSquad.Active.Roster["ready"]);
+                }
+
+                if (campaignSquad.Active.Roster.ContainsKey("reserve"))
+                {
+                    campaignSquad.Init.Reserve =
+                        Convert.ToInt32(campaignSquad.Active.Roster["reserve"]);
+                }
+            }
+
+            campaignSquad.Init.Base = campaignSquad.Active.Base;
+            campaignSquad.Init.Type = campaignSquad.Active.Type;
+            campaignSquad.Init.Player = campaignSquad.Active.Player;
+            campaignSquad.Init.Inactive = campaignSquad.Active.Inactive;
+        }
+    }
+
     public class Squad
     {
 
@@ -227,6 +285,11 @@ namespace DCE_Manager.Parameters
     {
         // Liste publique et statique de squads
         public static List<Squad> List_oob_air { get; set; } = new List<Squad>();
+
+        // Nouvelle liste logique regroupant Init + Active.
+        // Pourquoi : manipuler un seul squad par nom.
+        public static List<CampaignSquad> List_campaignSquads = new List<CampaignSquad>();
+
     }
 
     public static class PublicTable

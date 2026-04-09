@@ -8,12 +8,17 @@ using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
+using DCE_Manager.Utils;
 
 namespace DCE_Manager
 {
     public partial class FormSquadEdit : Form
     {
         public Squad EditedSquad { get; private set; }
+
+        // Déclaration membre de classe
+        // Pourquoi : garder une référence sur la ComboBox pour pouvoir la mettre à jour.
+        private ComboBox _comboBoxLivery;
 
         // Cette liste mémorise les contrôles dynamiques des tâches.
         // Pourquoi : récupérer facilement les valeurs lors du Save.
@@ -37,6 +42,8 @@ namespace DCE_Manager
 
             LoadStaticLists();
             FillControls();
+            BuildBasesAlternative();
+            BuildLiveryArea();
             BuildTasksArea();
             BuildScoreArea();
             BuildAdditionalArea();
@@ -67,6 +74,7 @@ namespace DCE_Manager
                 TasksCoef = source.TasksCoef != null ? new Dictionary<string, double>(source.TasksCoef) : new Dictionary<string, double>(),
                 Roster = source.Roster != null ? new Dictionary<string, object>(source.Roster) : new Dictionary<string, object>(),
                 Score = source.Score != null ? new Dictionary<string, object>(source.Score) : new Dictionary<string, object>(),
+                Livery = source.Livery,
                 AdditionalProperties = source.AdditionalProperties != null
                     ? new Dictionary<string, object>(source.AdditionalProperties)
                     : new Dictionary<string, object>()
@@ -125,7 +133,128 @@ namespace DCE_Manager
             numericInitNumber.Value = EditedSquad.InitNumber;
             numericReserve.Value = EditedSquad.Reserve;
             numericInitReserve.Value = EditedSquad.InitReserve;
+
+            
         }
+
+        private void BuildBasesAlternative()
+        {
+            comboBoxBasesAdd.Items.Clear();
+
+            var baseAlterList = EditedSquad.BaseAlternative;
+
+            if (baseAlterList != null && baseAlterList.Count > 0)
+            {
+                foreach (var entry in baseAlterList)
+                {
+                    comboBoxBasesAdd.Items.Add(entry);
+                }
+
+                // Afficher immédiatement la première base
+                comboBoxBasesAdd.SelectedIndex = 0;
+            }
+        }
+
+        // Cette fonction remplit la zone Livery.
+        // Pourquoi : afficher immédiatement la première skin et permettre d'en ajouter.
+        private void BuildLiveryArea()
+        {
+            comboBox_Livery.Items.Clear();
+            comboBox_Livery.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            // Cas 1 : aucune livery connue
+            if (EditedSquad.Livery == null)
+            {
+                comboBox_Livery.Items.Add("(aucune skin)");
+                comboBox_Livery.SelectedIndex = 0;
+
+                // On prépare malgré tout un dictionnaire vide pour les futurs ajouts.
+                EditedSquad.Livery = new Dictionary<int, string>();
+            }
+
+            // Cas 2 : une seule livery sous forme de string
+            else if (EditedSquad.Livery is string liveryString)
+            {
+                comboBox_Livery.Items.Add(liveryString);
+
+                // On affiche la première skin directement sans ouvrir la liste.
+                comboBox_Livery.SelectedIndex = 0;
+            }
+
+            // Cas 3 : plusieurs liveries dans un dictionnaire
+            else if (EditedSquad.Livery is Dictionary<int, string> liveryDict)
+            {
+                foreach (var entry in liveryDict.OrderBy(x => x.Key))
+                {
+                    comboBox_Livery.Items.Add(entry.Value);
+                }
+
+                // Important : afficher immédiatement la première skin.
+                if (comboBox_Livery.Items.Count > 0)
+                {
+                    comboBox_Livery.SelectedIndex = 0;
+                }
+            }
+
+            // Cette fonction ajoute une nouvelle skin depuis textBox_AddSkin.
+            // Pourquoi : permettre au campaignMaker d'ajouter librement des liveries.
+            button_AddSkin.Click -= Button_AddSkin_Click;
+            button_AddSkin.Click += Button_AddSkin_Click;
+        }
+
+        // Cette fonction ajoute une skin dans la ComboBox et dans EditedSquad.Livery.
+        // Pourquoi : conserver les nouvelles skins dans les données du squad.
+        private void Button_AddSkin_Click(object sender, EventArgs e)
+        {
+            string newSkin = textBox_AddSkin.Text.Trim();
+
+            if (string.IsNullOrEmpty(newSkin))
+                return;
+
+            // Évite les doublons visuels
+            foreach (var item in comboBox_Livery.Items)
+            {
+                if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
+                {
+                    comboBox_Livery.SelectedItem = item;
+                    textBox_AddSkin.Clear();
+                    return;
+                }
+            }
+
+            comboBox_Livery.Items.Add(newSkin);
+            comboBox_Livery.SelectedItem = newSkin;
+
+            // Cas : aucune livery existante ou simple string
+            if (!(EditedSquad.Livery is Dictionary<int, string> dict))
+            {
+                dict = new Dictionary<int, string>();
+
+                // Si on avait déjà une livery string, on la conserve comme entrée 1
+                if (EditedSquad.Livery is string existingString &&
+                    !string.IsNullOrWhiteSpace(existingString))
+                {
+                    dict[1] = existingString;
+                }
+
+                EditedSquad.Livery = dict;
+            }
+
+            // Cherche le prochain index disponible
+            int newIndex = 1;
+
+            while (((Dictionary<int, string>)EditedSquad.Livery).ContainsKey(newIndex))
+            {
+                newIndex++;
+            }
+
+            ((Dictionary<int, string>)EditedSquad.Livery)[newIndex] = newSkin;
+
+            textBox_AddSkin.Clear();
+            textBox_AddSkin.Focus();
+        }
+
+        
 
         // Cette fonction construit dynamiquement la zone des tâches.
         // Pourquoi : chaque squad peut avoir des tâches différentes.
@@ -185,11 +314,63 @@ namespace DCE_Manager
             }
         }
 
-        // Cette fonction construit la zone Roster / Score.
-        // Pourquoi : afficher tous les chiffres du squad sur une seule zone.
         private void BuildScoreArea()
         {
             flowLayoutPanelScore.Controls.Clear();
+
+            FormUtils.LogRegister("BuildScoreArea() squad.Name " + EditedSquad.Name  );
+
+            if (EditedSquad.Roster == null)
+                return;
+
+            //if ((EditedSquad.Roster == null || EditedSquad.Roster.Count == 0) &&
+            //    EditedSquad.AdditionalProperties != null &&
+            //    EditedSquad.AdditionalProperties.ContainsKey("roster"))
+            if (EditedSquad.Roster.Count > 0)
+            {
+                //var rawRoster = EditedSquad.AdditionalProperties["roster"] as System.Collections.IDictionary;
+                var rawRoster = EditedSquad.Roster as System.Collections.IDictionary;
+
+                if (rawRoster != null)
+                {
+                    EditedSquad.Roster = new Dictionary<string, object>();
+
+                    foreach (System.Collections.DictionaryEntry entry in rawRoster)
+                    {
+                        object value = entry.Value;
+
+                        if (value is LuaObject luaObj)
+                            value = luaObj.luaobj;
+
+                        EditedSquad.Roster[entry.Key.ToString()] = value;
+                    }
+                }
+            }
+
+            //if ((EditedSquad.Score == null || EditedSquad.Score.Count == 0) &&
+            //    EditedSquad.AdditionalProperties != null &&
+            //    EditedSquad.AdditionalProperties.ContainsKey("score"))
+            if (EditedSquad.Score.Count > 0)
+            {
+                //var rawScore = EditedSquad.AdditionalProperties["score"] as System.Collections.IDictionary;
+                var rawScore = EditedSquad.Score as System.Collections.IDictionary;
+
+                if (rawScore != null)
+                {
+                    EditedSquad.Score = new Dictionary<string, object>();
+
+                    foreach (System.Collections.DictionaryEntry entry in rawScore)
+                    {
+                        object value = entry.Value;
+
+                        if (value is LuaObject luaObj)
+                            value = luaObj.luaobj;
+
+                        EditedSquad.Score[entry.Key.ToString()] = value;
+                    }
+                }
+            }
+
 
             AddDictionarySection("Roster", EditedSquad.Roster);
             AddDictionarySection("Score", EditedSquad.Score);
@@ -202,6 +383,8 @@ namespace DCE_Manager
             }
         }
 
+
+
         // Cette fonction ajoute une sous-section issue d'un dictionnaire.
         // Pourquoi : mutualiser l'affichage des roster, score et autres futurs blocs.
         private void AddDictionarySection(string title, Dictionary<string, object> dict)
@@ -209,10 +392,12 @@ namespace DCE_Manager
             if (dict == null)
                 return;
 
+
             GroupBox group = new GroupBox();
             group.Text = title;
             group.Width = 430;
-            group.Height = 120;
+            //group.Height = 120;
+            group.Height = Math.Max(120, 35 + (dict.Count * 28));
             group.Margin = new Padding(10);
 
             int y = 20;
@@ -253,46 +438,54 @@ namespace DCE_Manager
             if (EditedSquad.AdditionalProperties == null)
                 return;
 
-            if (EditedSquad.Livery != null)
-            {
-                Panel row = new Panel();
-                row.Width = 1400;
-                row.Height = 120;
 
-                Label label = new Label();
-                label.Text = "livery";
-                label.Location = new Point(0, 10);
-                label.Width = 220;
+            //if (EditedSquad.Livery != null)
+            //{
+            //    Panel row = new Panel();
+            //    row.Width = 1400;
+            //    row.Height = 120;
 
-                TextBox textBox = new TextBox();
-                textBox.Location = new Point(230, 10);
-                textBox.Width = 1100;
-                textBox.Height = 90;
-                textBox.Multiline = true;
-                textBox.ScrollBars = ScrollBars.Vertical;
+            //    Label label = new Label();
+            //    label.Text = "livery";
+            //    label.Location = new Point(0, 10);
+            //    label.Width = 220;
 
-                if (EditedSquad.Livery is Dictionary<int, string> dict)
-                {
-                    textBox.Text = string.Join(
-                        Environment.NewLine,
-                        dict.OrderBy(x => x.Key)
-                            .Select(x => "[" + x.Key + "] = " + x.Value));
-                }
-                else
-                {
-                    textBox.Text = EditedSquad.Livery.ToString();
-                }
+            //    TextBox textBox = new TextBox();
+            //    textBox.Location = new Point(230, 10);
+            //    textBox.Width = 1100;
+            //    textBox.Height = 90;
+            //    textBox.Multiline = true;
+            //    textBox.ScrollBars = ScrollBars.Vertical;
 
-                row.Controls.Add(label);
-                row.Controls.Add(textBox);
+            //    if (EditedSquad.Livery is Dictionary<int, string> dict)
+            //    {
+            //        textBox.Text = string.Join(
+            //            Environment.NewLine,
+            //            dict.OrderBy(x => x.Key)
+            //                .Select(x => "[" + x.Key + "] = " + x.Value));
+            //    }
+            //    else
+            //    {
+            //        textBox.Text = EditedSquad.Livery.ToString();
+            //    }
 
-                flowLayoutPanelAdditional.Controls.Add(row);
-            }
+            //    row.Controls.Add(label);
+            //    row.Controls.Add(textBox);
+
+            //    flowLayoutPanelAdditional.Controls.Add(row);
+            //}
 
             foreach (var property in EditedSquad.AdditionalProperties.OrderBy(p => p.Key))
             {
-                if (property.Key == "score_last")
+                //if (property.Key == "score_last")
+                //    continue;
+
+                if (property.Key == "score_last" ||
+                    property.Key == "roster" ||
+                    property.Key == "score")
+                {
                     continue;
+                }
 
                 Panel row = new Panel();
                 row.Width = 1400;
@@ -321,25 +514,7 @@ namespace DCE_Manager
             }
         }
 
-        // Cette fonction convertit une propriété Lua complexe en texte lisible.
-        // Pourquoi : afficher proprement les dictionnaires et listes dans la zone additionnelle.
-        //private string ConvertPropertyToText(object value)
-        //{
-        //    if (value == null)
-        //        return "";
 
-        //    if (value is Dictionary<string, object> dict)
-        //    {
-        //        return string.Join(" ; ", dict.Select(d => d.Key + "=" + d.Value));
-        //    }
-
-        //    if (value is List<string> list)
-        //    {
-        //        return string.Join(" ; ", list);
-        //    }
-
-        //    return value.ToString();
-        //}
         private string ConvertPropertyToText(object value)
         {
             if (value == null)
@@ -449,6 +624,11 @@ namespace DCE_Manager
         {
             public string PropertyName { get; set; }
             public TextBox ValueTextBox { get; set; }
+        }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
         }
     }
 }
