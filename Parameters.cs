@@ -281,6 +281,19 @@ namespace DCE_Manager.Parameters
         }
     }
 
+    public class CampaignLuaData
+    {
+        public HashSet<string> PlayableAircraft { get; set; }
+        public HashSet<string> AllPlaneHeli { get; set; }
+
+        public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
+
+        // plus tard :
+        // public Dictionary<string, string> CountryByPlane { get; set; }
+        // public Dictionary<string, int> FuelByPlane { get; set; }
+        // etc.
+    }
+
     public static class List_oob_air_Manager
     {
         // Liste publique et statique de squads

@@ -16,6 +16,8 @@ namespace DCE_Manager
     {
         public Squad EditedSquad { get; private set; }
 
+        private readonly CampaignLuaData _luaData;
+
         // Déclaration membre de classe
         // Pourquoi : garder une référence sur la ComboBox pour pouvoir la mettre à jour.
         private ComboBox _comboBoxLivery;
@@ -28,9 +30,11 @@ namespace DCE_Manager
         // Pourquoi : permettre plus tard d'éditer également les nouvelles variables Lua.
         private readonly List<AdditionalRow> _additionalRows = new List<AdditionalRow>();
 
-        public FormSquadEdit(Squad squad, bool cloneMode = false)
+        //public FormSquadEdit(Squad squad, bool cloneMode = false)
+        public FormSquadEdit(  Squad squad, CampaignLuaData luaData, bool cloneMode = false)
         {
             InitializeComponent();
+            _luaData = luaData;
 
             // On clone le squad pour éviter de modifier l'original avant Save.
             // Pourquoi : l'utilisateur peut encore annuler.
@@ -90,17 +94,26 @@ namespace DCE_Manager
                 "USA", "Russia", "France", "UK", "Germany", "Israel", "Turkey", "Georgia"
             });
 
-            // A remplacer plus tard par ta vraie liste d'avions.
-            comboBoxType.Items.AddRange(new object[]
+            ////AllPlaneHeli
+            //// A remplacer plus tard par ta vraie liste d'avions.
+            //comboBoxType.Items.AddRange(new object[]
+            //{
+            //    EditedSquad.Type,
+            //    "F-4E-45MC",
+            //    "MiG-23MLD",
+            //    "F-14B",
+            //    "F-16C_50",
+            //    "FA-18C_hornet",
+            //    "Mirage-F1CE"
+            //});
+
+            comboBoxType.Items.Clear();
+
+            if (_luaData != null && _luaData.AllPlaneHeli != null)
             {
-                EditedSquad.Type,
-                "F-4E-45MC",
-                "MiG-23MLD",
-                "F-14B",
-                "F-16C_50",
-                "FA-18C_hornet",
-                "Mirage-F1CE"
-            });
+                comboBoxType.Items.AddRange(_luaData.AllPlaneHeli.ToArray());
+            }
+
 
             // A remplacer plus tard par ta vraie liste de bases.
             comboBoxBase.Items.Add(EditedSquad.Base);
@@ -320,13 +333,13 @@ namespace DCE_Manager
 
             FormUtils.LogRegister("BuildScoreArea() squad.Name " + EditedSquad.Name  );
 
-            if (EditedSquad.Roster == null)
-                return;
+            //if (EditedSquad.Roster == null)
+            //    return;
 
             //if ((EditedSquad.Roster == null || EditedSquad.Roster.Count == 0) &&
             //    EditedSquad.AdditionalProperties != null &&
             //    EditedSquad.AdditionalProperties.ContainsKey("roster"))
-            if (EditedSquad.Roster.Count > 0)
+            if (EditedSquad.Roster != null && EditedSquad.Roster.Count > 0)
             {
                 //var rawRoster = EditedSquad.AdditionalProperties["roster"] as System.Collections.IDictionary;
                 var rawRoster = EditedSquad.Roster as System.Collections.IDictionary;
@@ -350,7 +363,7 @@ namespace DCE_Manager
             //if ((EditedSquad.Score == null || EditedSquad.Score.Count == 0) &&
             //    EditedSquad.AdditionalProperties != null &&
             //    EditedSquad.AdditionalProperties.ContainsKey("score"))
-            if (EditedSquad.Score.Count > 0)
+            if (EditedSquad.Score != null && EditedSquad.Score.Count > 0)
             {
                 //var rawScore = EditedSquad.AdditionalProperties["score"] as System.Collections.IDictionary;
                 var rawScore = EditedSquad.Score as System.Collections.IDictionary;
@@ -375,12 +388,12 @@ namespace DCE_Manager
             AddDictionarySection("Roster", EditedSquad.Roster);
             AddDictionarySection("Score", EditedSquad.Score);
 
-            if (EditedSquad.AdditionalProperties != null &&
-                EditedSquad.AdditionalProperties.ContainsKey("score_last"))
-            {
-                var dict = EditedSquad.AdditionalProperties["score_last"] as Dictionary<string, object>;
-                AddDictionarySection("Score Last Mission", dict);
-            }
+            //if (EditedSquad.AdditionalProperties != null &&
+            //    EditedSquad.AdditionalProperties.ContainsKey("score_last"))
+            //{
+            //    var dict = EditedSquad.AdditionalProperties["score_last"] as Dictionary<string, object>;
+            //    AddDictionarySection("Score Last Mission", dict);
+            //}
         }
 
 

@@ -11,14 +11,18 @@ namespace DCE_Manager
 {
     internal class CampaignLuaLoader
     {
-        public List<string> PlayableAircraft { get; private set; } = new List<string>();
+        //public List<string> PlayableAircraft { get; private set; } = new List<string>();
 
-        public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; private set; }
+        //public List<string> AllPlaneHeli { get; private set; } = new List<string>();
+
+        //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; private set; }
+
+        private CampaignLuaData _data = new CampaignLuaData();
 
         private static object _cachedLuaResult = null;
-        private static List<string> _playableList = new List<string>();
+        //private static List<string> _playableList = new List<string>();
 
-        public void Load(string campaignName)
+        public CampaignLuaData Load(string campaignName)
         {
             Lua lua = new Lua();
 
@@ -37,20 +41,22 @@ namespace DCE_Manager
 
             if (_cachedLuaResult == null)
             {
-                _cachedLuaResult = lua.DoFile(
-                    SharedData.textBox_SavedGames +
-                    @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
+                _cachedLuaResult = lua.DoFile( SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
             }
 
             result = (object[])_cachedLuaResult;
 
             LuaTable luaTable = (LuaTable)result[0];
 
+            _data.PlayableAircraft = new HashSet<string>();
+            _data.AllPlaneHeli = new HashSet<string>();
+            _data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
+
             // -----------------------------------------------------------------
             // Playable aircraft
             // -----------------------------------------------------------------
 
-            PlayableAircraft.Clear();
+            
 
             LuaTable playableLua = luaTable["Playable_m"] as LuaTable;
 
@@ -58,20 +64,64 @@ namespace DCE_Manager
             {
                 foreach (object key in playableLua.Keys)
                 {
-                    string plane = key.ToString();
-
-                    if (!PlayableAircraft.Contains(plane))
-                    {
-                        PlayableAircraft.Add(plane);
-                    }
+                    _data.PlayableAircraft.Add(key.ToString());
                 }
             }
+
+            //PlayableAircraft.Clear();
+
+            //LuaTable playableLua = luaTable["Playable_m"] as LuaTable;
+
+            //if (playableLua != null)
+            //{
+            //    foreach (object key in playableLua.Keys)
+            //    {
+            //        string plane = key.ToString();
+
+            //        if (!PlayableAircraft.Contains(plane))
+            //        {
+            //            PlayableAircraft.Add(plane);
+            //        }
+            //    }
+            //}
+
+
+            // -----------------------------------------------------------------
+            // all_PlaneHeli
+            // -----------------------------------------------------------------
+
+            LuaTable all_PlaneHeliLua = luaTable["all_PlaneHeli"] as LuaTable;
+
+            if (all_PlaneHeliLua != null)
+            {
+                foreach (object key in all_PlaneHeliLua.Keys)
+                {
+                    _data.AllPlaneHeli.Add(key.ToString());
+                }
+            }
+
+            //AllPlaneHeli.Clear();
+
+            //LuaTable all_PlaneHeliLua = luaTable["all_PlaneHeli"] as LuaTable;
+
+            //if (all_PlaneHeliLua != null)
+            //{
+            //    foreach (object key in all_PlaneHeliLua.Keys)
+            //    {
+            //        string plane = key.ToString();
+
+            //        if (!AllPlaneHeli.Contains(plane))
+            //        {
+            //            AllPlaneHeli.Add(plane);
+            //        }
+            //    }
+            //}
 
             // -----------------------------------------------------------------
             // Tasks by plane
             // -----------------------------------------------------------------
 
-            TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
+            _data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
 
             LuaTable taskByPlaneLua = luaTable["taskByPlane"] as LuaTable;
 
@@ -108,15 +158,21 @@ namespace DCE_Manager
                         tasks[taskName] = enabled;
                     }
 
-                    TaskByPlane[planeName] = tasks;
+                    _data.TaskByPlane[planeName] = tasks;
                 }
             }
 
-            FormUtils.LogRegister( "CampaignLuaLoader.cs: PlayableAircraft.Count = " +  PlayableAircraft.Count);
+            FormUtils.LogRegister( "CampaignLuaLoader.cs: PlayableAircraft.Count = " +
+            _data.PlayableAircraft.Count);
 
-            FormUtils.LogRegister(  "CampaignLuaLoader.cs: TaskByPlane.Count = " + TaskByPlane.Count);
+            FormUtils.LogRegister( "CampaignLuaLoader.cs: TaskByPlane.Count = " +
+                _data.TaskByPlane.Count);
+
+            return _data;
         }
 
        
     }
+
+
 }

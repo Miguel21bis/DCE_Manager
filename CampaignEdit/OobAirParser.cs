@@ -189,12 +189,6 @@ namespace DCE_Manager
                                 case "name":
                                     squad.Name = valObj?.ToString();
 
-                                    //if (campaignSquad != null)
-                                    //{
-                                    //    campaignSquad.Key = side + "|" + squad.Name;
-
-                                    //    FormUtils.LogRegister(  "Parser squad.name " + squad.Name );
-                                    //}
                                     if (squad.Name == "469th TFS")
                                     { }
                                     break;
@@ -352,7 +346,6 @@ namespace DCE_Manager
                             }
                         }
 
-                        //string squadKey = side + "|" + entry2.Key;
                         string squadNameKey = squad.Name != null
                         ? squad.Name.Trim().ToLowerInvariant()
                         : "";
@@ -374,13 +367,6 @@ namespace DCE_Manager
                             List_oob_air_Manager.List_campaignSquads.Add(campaignSquad);
                         }
 
-                        //var squad = new Squad
-                        //{
-                        //    SideString = side,
-                        //    IdSquad = idSquad,
-                        //    FolderFile = folderName,
-                        //};
-
                         if (folderName == "Init")
                         {
                             campaignSquad.Init = squad;
@@ -395,6 +381,9 @@ namespace DCE_Manager
 
                         // Ancienne liste conservée pour compatibilité temporaire.
                         List_oob_air_Manager.List_oob_air.Add(squad);
+
+                        if (squad.Name == "469th TFS")
+                        { }
 
 
                         FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);

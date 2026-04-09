@@ -25,6 +25,10 @@ namespace DCE_Manager
         private void InitializeComponent()
         {
             this.panelMain = new System.Windows.Forms.Panel();
+            this.groupBox_Livery = new System.Windows.Forms.GroupBox();
+            this.button_AddSkin = new System.Windows.Forms.Button();
+            this.textBox_AddSkin = new System.Windows.Forms.TextBox();
+            this.comboBox_Livery = new System.Windows.Forms.ComboBox();
             this.groupBoxAdditional = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanelAdditional = new System.Windows.Forms.FlowLayoutPanel();
             this.groupBoxScore = new System.Windows.Forms.GroupBox();
@@ -41,6 +45,8 @@ namespace DCE_Manager
             this.labelInitReserve = new System.Windows.Forms.Label();
             this.numericInitReserve = new System.Windows.Forms.NumericUpDown();
             this.groupBoxGeneral = new System.Windows.Forms.GroupBox();
+            this.comboBoxBasesAdd = new System.Windows.Forms.ComboBox();
+            this.labelBasesAdd = new System.Windows.Forms.Label();
             this.labelName = new System.Windows.Forms.Label();
             this.textBoxName = new System.Windows.Forms.TextBox();
             this.labelType = new System.Windows.Forms.Label();
@@ -55,13 +61,8 @@ namespace DCE_Manager
             this.checkBoxInactive = new System.Windows.Forms.CheckBox();
             this.buttonOK = new System.Windows.Forms.Button();
             this.buttonCancel = new System.Windows.Forms.Button();
-            this.groupBox_Livery = new System.Windows.Forms.GroupBox();
-            this.labelBasesAdd = new System.Windows.Forms.Label();
-            this.comboBoxBasesAdd = new System.Windows.Forms.ComboBox();
-            this.comboBox_Livery = new System.Windows.Forms.ComboBox();
-            this.textBox_AddSkin = new System.Windows.Forms.TextBox();
-            this.button_AddSkin = new System.Windows.Forms.Button();
             this.panelMain.SuspendLayout();
+            this.groupBox_Livery.SuspendLayout();
             this.groupBoxAdditional.SuspendLayout();
             this.groupBoxScore.SuspendLayout();
             this.groupBoxTasks.SuspendLayout();
@@ -71,7 +72,6 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericReserve)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).BeginInit();
             this.groupBoxGeneral.SuspendLayout();
-            this.groupBox_Livery.SuspendLayout();
             this.SuspendLayout();
             // 
             // panelMain
@@ -91,10 +91,47 @@ namespace DCE_Manager
             this.panelMain.Size = new System.Drawing.Size(1282, 1055);
             this.panelMain.TabIndex = 0;
             // 
+            // groupBox_Livery
+            // 
+            this.groupBox_Livery.Controls.Add(this.button_AddSkin);
+            this.groupBox_Livery.Controls.Add(this.textBox_AddSkin);
+            this.groupBox_Livery.Controls.Add(this.comboBox_Livery);
+            this.groupBox_Livery.Location = new System.Drawing.Point(27, 576);
+            this.groupBox_Livery.Name = "groupBox_Livery";
+            this.groupBox_Livery.Size = new System.Drawing.Size(578, 167);
+            this.groupBox_Livery.TabIndex = 7;
+            this.groupBox_Livery.TabStop = false;
+            this.groupBox_Livery.Text = "Livery";
+            // 
+            // button_AddSkin
+            // 
+            this.button_AddSkin.Location = new System.Drawing.Point(318, 96);
+            this.button_AddSkin.Name = "button_AddSkin";
+            this.button_AddSkin.Size = new System.Drawing.Size(75, 23);
+            this.button_AddSkin.TabIndex = 16;
+            this.button_AddSkin.Text = "Add Skin";
+            this.button_AddSkin.UseVisualStyleBackColor = true;
+            // 
+            // textBox_AddSkin
+            // 
+            this.textBox_AddSkin.Location = new System.Drawing.Point(15, 98);
+            this.textBox_AddSkin.Name = "textBox_AddSkin";
+            this.textBox_AddSkin.Size = new System.Drawing.Size(260, 22);
+            this.textBox_AddSkin.TabIndex = 15;
+            // 
+            // comboBox_Livery
+            // 
+            this.comboBox_Livery.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBox_Livery.Location = new System.Drawing.Point(15, 42);
+            this.comboBox_Livery.Name = "comboBox_Livery";
+            this.comboBox_Livery.Size = new System.Drawing.Size(280, 24);
+            this.comboBox_Livery.TabIndex = 14;
+            this.comboBox_Livery.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
+            // 
             // groupBoxAdditional
             // 
             this.groupBoxAdditional.Controls.Add(this.flowLayoutPanelAdditional);
-            this.groupBoxAdditional.Location = new System.Drawing.Point(12, 859);
+            this.groupBoxAdditional.Location = new System.Drawing.Point(27, 749);
             this.groupBoxAdditional.Name = "groupBoxAdditional";
             this.groupBoxAdditional.Size = new System.Drawing.Size(1053, 260);
             this.groupBoxAdditional.TabIndex = 0;
@@ -111,6 +148,9 @@ namespace DCE_Manager
             this.flowLayoutPanelAdditional.Size = new System.Drawing.Size(1018, 280);
             this.flowLayoutPanelAdditional.TabIndex = 0;
             this.flowLayoutPanelAdditional.WrapContents = false;
+            this.flowLayoutPanelAdditional.AutoScroll = true;
+            this.flowLayoutPanelAdditional.WrapContents = false;
+            this.flowLayoutPanelAdditional.FlowDirection = FlowDirection.TopDown;
             // 
             // groupBoxScore
             // 
@@ -126,6 +166,7 @@ namespace DCE_Manager
             // 
             this.flowLayoutPanelScore.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanelScore.AutoScroll = true;
             this.flowLayoutPanelScore.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanelScore.Location = new System.Drawing.Point(15, 21);
             this.flowLayoutPanelScore.Name = "flowLayoutPanelScore";
@@ -147,6 +188,7 @@ namespace DCE_Manager
             // 
             this.flowLayoutPanelTasks.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanelTasks.AutoScroll = true;
             this.flowLayoutPanelTasks.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanelTasks.Location = new System.Drawing.Point(15, 25);
             this.flowLayoutPanelTasks.Name = "flowLayoutPanelTasks";
@@ -278,6 +320,23 @@ namespace DCE_Manager
             this.groupBoxGeneral.TabStop = false;
             this.groupBoxGeneral.Text = "General";
             // 
+            // comboBoxBasesAdd
+            // 
+            this.comboBoxBasesAdd.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxBasesAdd.Location = new System.Drawing.Point(560, 72);
+            this.comboBoxBasesAdd.Name = "comboBoxBasesAdd";
+            this.comboBoxBasesAdd.Size = new System.Drawing.Size(280, 24);
+            this.comboBoxBasesAdd.TabIndex = 13;
+            // 
+            // labelBasesAdd
+            // 
+            this.labelBasesAdd.AutoSize = true;
+            this.labelBasesAdd.Location = new System.Drawing.Point(470, 80);
+            this.labelBasesAdd.Name = "labelBasesAdd";
+            this.labelBasesAdd.Size = new System.Drawing.Size(74, 16);
+            this.labelBasesAdd.TabIndex = 12;
+            this.labelBasesAdd.Text = "Bases Add";
+            // 
             // labelName
             // 
             this.labelName.AutoSize = true;
@@ -385,7 +444,7 @@ namespace DCE_Manager
             // 
             // buttonOK
             // 
-            this.buttonOK.Location = new System.Drawing.Point(742, 1117);
+            this.buttonOK.Location = new System.Drawing.Point(940, 1015);
             this.buttonOK.Name = "buttonOK";
             this.buttonOK.Size = new System.Drawing.Size(120, 36);
             this.buttonOK.TabIndex = 5;
@@ -394,67 +453,12 @@ namespace DCE_Manager
             // 
             // buttonCancel
             // 
-            this.buttonCancel.Location = new System.Drawing.Point(887, 1117);
+            this.buttonCancel.Location = new System.Drawing.Point(1122, 1018);
             this.buttonCancel.Name = "buttonCancel";
             this.buttonCancel.Size = new System.Drawing.Size(120, 36);
             this.buttonCancel.TabIndex = 6;
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
-            // 
-            // groupBox_Livery
-            // 
-            this.groupBox_Livery.Controls.Add(this.button_AddSkin);
-            this.groupBox_Livery.Controls.Add(this.textBox_AddSkin);
-            this.groupBox_Livery.Controls.Add(this.comboBox_Livery);
-            this.groupBox_Livery.Location = new System.Drawing.Point(12, 609);
-            this.groupBox_Livery.Name = "groupBox_Livery";
-            this.groupBox_Livery.Size = new System.Drawing.Size(593, 167);
-            this.groupBox_Livery.TabIndex = 7;
-            this.groupBox_Livery.TabStop = false;
-            this.groupBox_Livery.Text = "Livery";
-            this.comboBox_Livery.Width = 400;
-            // 
-            // labelBasesAdd
-            // 
-            this.labelBasesAdd.AutoSize = true;
-            this.labelBasesAdd.Location = new System.Drawing.Point(470, 80);
-            this.labelBasesAdd.Name = "labelBasesAdd";
-            this.labelBasesAdd.Size = new System.Drawing.Size(74, 16);
-            this.labelBasesAdd.TabIndex = 12;
-            this.labelBasesAdd.Text = "Bases Add";
-            // 
-            // comboBoxBasesAdd
-            // 
-            this.comboBoxBasesAdd.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxBasesAdd.Location = new System.Drawing.Point(560, 72);
-            this.comboBoxBasesAdd.Name = "comboBoxBasesAdd";
-            this.comboBoxBasesAdd.Size = new System.Drawing.Size(280, 24);
-            this.comboBoxBasesAdd.TabIndex = 13;
-            // 
-            // comboBox_Livery
-            // 
-            this.comboBox_Livery.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBox_Livery.Location = new System.Drawing.Point(15, 42);
-            this.comboBox_Livery.Name = "comboBox_Livery";
-            this.comboBox_Livery.Size = new System.Drawing.Size(280, 24);
-            this.comboBox_Livery.TabIndex = 14;
-            this.comboBox_Livery.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
-            // 
-            // textBox_AddSkin
-            // 
-            this.textBox_AddSkin.Location = new System.Drawing.Point(15, 98);
-            this.textBox_AddSkin.Name = "textBox_AddSkin";
-            this.textBox_AddSkin.Size = new System.Drawing.Size(260, 22);
-            this.textBox_AddSkin.TabIndex = 15;
-            // 
-            // button_AddSkin
-            // 
-            this.button_AddSkin.Location = new System.Drawing.Point(318, 96);
-            this.button_AddSkin.Name = "button_AddSkin";
-            this.button_AddSkin.Size = new System.Drawing.Size(75, 23);
-            this.button_AddSkin.TabIndex = 16;
-            this.button_AddSkin.Text = "Add Skin";
-            this.button_AddSkin.UseVisualStyleBackColor = true;
             // 
             // FormSquadEdit
             // 
@@ -466,6 +470,8 @@ namespace DCE_Manager
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Squad Editor";
             this.panelMain.ResumeLayout(false);
+            this.groupBox_Livery.ResumeLayout(false);
+            this.groupBox_Livery.PerformLayout();
             this.groupBoxAdditional.ResumeLayout(false);
             this.groupBoxScore.ResumeLayout(false);
             this.groupBoxTasks.ResumeLayout(false);
@@ -477,8 +483,6 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).EndInit();
             this.groupBoxGeneral.ResumeLayout(false);
             this.groupBoxGeneral.PerformLayout();
-            this.groupBox_Livery.ResumeLayout(false);
-            this.groupBox_Livery.PerformLayout();
             this.ResumeLayout(false);
 
         }

@@ -46,10 +46,13 @@ namespace DCE_Manager
         private readonly string _campaignName;
 
         private static object _cachedLuaResult = null;
-        private static List<string> _playableList = new List<string>();
+        //private static List<string> _playableList = new List<string>();
 
-        private Dictionary<string, Dictionary<string, bool>> _taskByPlane =
-            new Dictionary<string, Dictionary<string, bool>>();
+
+        //private Dictionary<string, Dictionary<string, bool>> _taskByPlane =
+        //    new Dictionary<string, Dictionary<string, bool>>();
+
+        private static CampaignLuaData _luaData;
 
         private void ResetUi() { }
         private void LoadAirbases() { }
@@ -61,6 +64,8 @@ namespace DCE_Manager
         // Pourquoi : retrouver facilement les deux versions d'un squad.
         public List<CampaignSquad> CurrentCampaignSquads { get; private set; } = new List<CampaignSquad>();
         public string BriefingCampaign { get; set; }
+
+        //public List<string> AllPlaneHeliList = new List<string>();
 
 
         // 3. constructeur
@@ -117,15 +122,22 @@ namespace DCE_Manager
 
         }
 
-        private void LoadLuaData()
+        //public void LoadLuaData()
+        //{
+        //    var loader = new CampaignLuaLoader();
+        //    loader.Load(_campaignName);
+
+        //    _playableList.Clear();
+        //    _playableList.AddRange(loader.PlayableAircraft);
+        //    AllPlaneHeliList.AddRange(loader.AllPlaneHeli);
+
+        //    _taskByPlane = loader.TaskByPlane;
+        //}
+
+        public void LoadLuaData()
         {
             var loader = new CampaignLuaLoader();
-            loader.Load(_campaignName);
-
-            _playableList.Clear();
-            _playableList.AddRange(loader.PlayableAircraft);
-
-            _taskByPlane = loader.TaskByPlane;
+            _luaData = loader.Load(_campaignName);
         }
 
         private void LoadSquads()
@@ -330,8 +342,7 @@ namespace DCE_Manager
                     squadToEdit_A = campaignSquad_A.Init ?? campaignSquad_A.Active;
                 }
 
-                //var frm = new FormSquadEdit(squad, true);
-                var frm = new FormSquadEdit(squadToEdit_A, true);
+                var frm = new FormSquadEdit(squadToEdit_A, _luaData, true);
 
                 frm.FormClosed += (s, args) =>
                 {
@@ -388,8 +399,7 @@ namespace DCE_Manager
                 squadToEdit_B.Roster = campaignSquad.Active.Roster;
                 squadToEdit_B.Score = campaignSquad.Active.Score;
             }
-            //var editFrm = new FormSquadEdit(squad, false);
-            var editFrm = new FormSquadEdit(squadToEdit_B, false);
+            var editFrm = new FormSquadEdit(squadToEdit_B, _luaData, false);
 
 
 
@@ -432,7 +442,7 @@ namespace DCE_Manager
                 squadToEdit_C = campaignSquad.Init ?? campaignSquad.Active;
             }
 
-            var frm = new FormSquadEdit(squadToEdit_C, false);
+            var frm = new FormSquadEdit(squadToEdit_C, _luaData, false);
 
             frm.FormClosed += (s, args) =>
             {
@@ -469,7 +479,8 @@ namespace DCE_Manager
 
             var squadTest = grid.Rows[e.RowIndex].DataBoundItem as Squad;
 
-            if (squadTest == null || !_playableList.Contains(squadTest.Type))
+            //if (squadTest == null || !_playableList.Contains(squadTest.Type))
+            if (squadTest == null || !_luaData.PlayableAircraft.Contains(squadTest.Type))
                 return;
 
             var selectedSquad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
@@ -504,7 +515,8 @@ namespace DCE_Manager
             {
                 if (row.DataBoundItem is Squad squad)
                 {
-                    bool playable = _playableList.Contains(squad.Type);
+                    //bool playable = _playableList.Contains(squad.Type);
+                    bool playable = _luaData.PlayableAircraft.Contains(squad.Type);
                     if (!playable)
                     {
                         // Remplacer la checkbox Player par une cellule texte
@@ -537,7 +549,8 @@ namespace DCE_Manager
             if (squad == null)
                 return;
 
-            bool playable = _playableList.Contains(squad.Type);
+            //bool playable = _playableList.Contains(squad.Type);
+            bool playable = _luaData.PlayableAircraft.Contains(squad.Type);
 
             if (!playable)
             {
