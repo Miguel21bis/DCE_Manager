@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+//using DCE_Manager.CampaignEdit;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using NLua;
@@ -46,16 +47,12 @@ namespace DCE_Manager
         private readonly string _campaignName;
 
         private static object _cachedLuaResult = null;
-        //private static List<string> _playableList = new List<string>();
 
+        private static CampaignContext _campaignContext;
 
-        //private Dictionary<string, Dictionary<string, bool>> _taskByPlane =
-        //    new Dictionary<string, Dictionary<string, bool>>();
-
-        private static CampaignLuaData _luaData;
 
         private void ResetUi() { }
-        private void LoadAirbases() { }
+        //private void LoadAirbases() { }
         private void DisplayErrors() { }
 
 
@@ -65,12 +62,12 @@ namespace DCE_Manager
         public List<CampaignSquad> CurrentCampaignSquads { get; private set; } = new List<CampaignSquad>();
         public string BriefingCampaign { get; set; }
 
-        //public List<string> AllPlaneHeliList = new List<string>();
-
 
         // 3. constructeur
         public CampaignEdit(Form1 form1, string campaignName)
         {
+            this.FormClosed += CampaignEdit_FormClosed;
+
             _form1 = form1;
             _campaignName = campaignName;
 
@@ -80,6 +77,7 @@ namespace DCE_Manager
             this.Size = new Size(1200, 850);
 
             InitializeCampaign();
+
         }
 
 
@@ -88,14 +86,16 @@ namespace DCE_Manager
         {
             _form1.UpdateSharedData();
 
+            _campaignContext = new CampaignContext();
+            _campaignContext.CampaignName = _campaignName;
+
             ResetUi();
             LoadLuaData();
             LoadAirbases();
-            LoadSquads();
             LoadTrigger();
             SetCampaignImage();
+            LoadSquads();
             DisplayErrors();
-
 
         }
 
@@ -112,32 +112,37 @@ namespace DCE_Manager
 
         private void RegisterGrid(DataGridView grid)
         {
-            //grid.CellContentClick += Grid_CellClick;
+            //grid.CellMouseDown += Grid_CellMouseDown;
+            //grid.RowHeaderMouseClick += Grid_RowHeaderMouseClick;
+            //grid.CellValueChanged += Grid_CellValueChanged;
+            //grid.CurrentCellDirtyStateChanged += Grid_CurrentCellDirtyStateChanged;
+            //grid.DataError += Grid_DataError;
+            //grid.CellFormatting += Grid_CellFormatting;
+            // 🔧 Ligne à modifier dans RegisterGrid
+            grid.CellMouseDown -= Grid_CellMouseDown; // évite doublons
             grid.CellMouseDown += Grid_CellMouseDown;
+
+            grid.RowHeaderMouseClick -= Grid_RowHeaderMouseClick;
             grid.RowHeaderMouseClick += Grid_RowHeaderMouseClick;
+
+            grid.CellValueChanged -= Grid_CellValueChanged;
             grid.CellValueChanged += Grid_CellValueChanged;
+
+            grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
             grid.CurrentCellDirtyStateChanged += Grid_CurrentCellDirtyStateChanged;
+
+            grid.DataError -= Grid_DataError;
             grid.DataError += Grid_DataError;
+
+            grid.CellFormatting -= Grid_CellFormatting;
             grid.CellFormatting += Grid_CellFormatting;
 
         }
 
-        //public void LoadLuaData()
-        //{
-        //    var loader = new CampaignLuaLoader();
-        //    loader.Load(_campaignName);
-
-        //    _playableList.Clear();
-        //    _playableList.AddRange(loader.PlayableAircraft);
-        //    AllPlaneHeliList.AddRange(loader.AllPlaneHeli);
-
-        //    _taskByPlane = loader.TaskByPlane;
-        //}
-
         public void LoadLuaData()
         {
             var loader = new CampaignLuaLoader();
-            _luaData = loader.Load(_campaignName);
+            _campaignContext.LuaData = loader.Load(_campaignName);
         }
 
         private void LoadSquads()
@@ -164,6 +169,12 @@ namespace DCE_Manager
             BriefingCampaign = parser.LoadBriefingCampaign(_campaignName);
 
             SetBriefingText(BriefingCampaign);
+        }
+
+        private void LoadAirbases()
+        {
+            var parser = new db_airbasesParser();
+            _campaignContext.Airbases = parser.Load_db_airbases(_campaignName);
         }
 
         // Cette fonction affiche le briefing dans la textbox.
@@ -307,6 +318,8 @@ namespace DCE_Manager
             if (e.RowIndex < 0)
                 return;
 
+            FormUtils.LogRegister("CLICK Grid_CellMouseDown instance: " + this.GetHashCode());
+
             DataGridView grid = (DataGridView)sender;
 
             DataGridViewRow row = grid.Rows[e.RowIndex];
@@ -342,7 +355,8 @@ namespace DCE_Manager
                     squadToEdit_A = campaignSquad_A.Init ?? campaignSquad_A.Active;
                 }
 
-                var frm = new FormSquadEdit(squadToEdit_A, _luaData, true);
+                //var frm = new FormSquadEdit(squadToEdit_A, _campaignContext.LuaData, true);
+                var frm = new FormSquadEdit(squadToEdit_A, _campaignContext, true);
 
                 frm.FormClosed += (s, args) =>
                 {
@@ -399,7 +413,8 @@ namespace DCE_Manager
                 squadToEdit_B.Roster = campaignSquad.Active.Roster;
                 squadToEdit_B.Score = campaignSquad.Active.Score;
             }
-            var editFrm = new FormSquadEdit(squadToEdit_B, _luaData, false);
+            //var editFrm = new FormSquadEdit(squadToEdit_B, _campaignContext.LuaData, false);
+            var editFrm = new FormSquadEdit(squadToEdit_B, _campaignContext, false);
 
 
 
@@ -442,7 +457,8 @@ namespace DCE_Manager
                 squadToEdit_C = campaignSquad.Init ?? campaignSquad.Active;
             }
 
-            var frm = new FormSquadEdit(squadToEdit_C, _luaData, false);
+            //var frm = new FormSquadEdit(squadToEdit_C, _campaignContext.LuaData, false);
+            var frm = new FormSquadEdit(squadToEdit_C, _campaignContext, false);
 
             frm.FormClosed += (s, args) =>
             {
@@ -480,7 +496,7 @@ namespace DCE_Manager
             var squadTest = grid.Rows[e.RowIndex].DataBoundItem as Squad;
 
             //if (squadTest == null || !_playableList.Contains(squadTest.Type))
-            if (squadTest == null || !_luaData.PlayableAircraft.Contains(squadTest.Type))
+            if (squadTest == null || !_campaignContext.LuaData.PlayableAircraft.Contains(squadTest.Type))
                 return;
 
             var selectedSquad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
@@ -516,7 +532,7 @@ namespace DCE_Manager
                 if (row.DataBoundItem is Squad squad)
                 {
                     //bool playable = _playableList.Contains(squad.Type);
-                    bool playable = _luaData.PlayableAircraft.Contains(squad.Type);
+                    bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
                     if (!playable)
                     {
                         // Remplacer la checkbox Player par une cellule texte
@@ -549,8 +565,7 @@ namespace DCE_Manager
             if (squad == null)
                 return;
 
-            //bool playable = _playableList.Contains(squad.Type);
-            bool playable = _luaData.PlayableAircraft.Contains(squad.Type);
+            bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
 
             if (!playable)
             {
@@ -561,6 +576,39 @@ namespace DCE_Manager
                     grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionBackColor;
             }
         }
+
+        // 🔧 Nettoie les events pour éviter les duplications
+        // Pourquoi : sinon les anciennes instances restent abonnées aux grids du Form1
+        private void UnregisterGrid(DataGridView grid)
+        {
+            grid.CellMouseDown -= Grid_CellMouseDown;
+            grid.RowHeaderMouseClick -= Grid_RowHeaderMouseClick;
+            grid.CellValueChanged -= Grid_CellValueChanged;
+            grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
+            grid.DataError -= Grid_DataError;
+            grid.CellFormatting -= Grid_CellFormatting;
+        }
+        // 🔧 Se désabonne quand la fenêtre est fermée
+        // Pourquoi : empêcher les handlers fantômes
+        private void CampaignEdit_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            UnregisterGrid(_form1.dataGridViewBlue);
+            UnregisterGrid(_form1.dataGridViewRed);
+        }
+
+        // 🔧 Nettoyage manuel des events
+        // Pourquoi : éviter accumulation des handlers sur Form1
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                UnregisterGrid(_form1.dataGridViewBlue);
+                UnregisterGrid(_form1.dataGridViewRed);
+            }
+
+            base.Dispose(disposing);
+        }
+
 
 
     }

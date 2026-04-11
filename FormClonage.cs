@@ -183,7 +183,7 @@ namespace DCE_Manager
 
             //*************************************************************************
             //CREATION DES TABLES BASE ********************************************************
-            //PARSE les fichiers BASE  (db_airbases.lua) ********************************************************
+            //PARSE les fichiers BASE  (db_airbasesParser.lua) ********************************************************
             //*************************************************************************
 
             //string nameCamp = "YourCampaignName";  // Remplacez par le nom de votre campagne
@@ -203,9 +203,9 @@ namespace DCE_Manager
                 string pathAirbase = "";
 
                 if (d == 1)
-                    pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Init\db_airbases.lua");
+                    pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Init\db_airbasesParser.lua");
                 else if (d == 2)
-                    pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Active\db_airbases.lua");
+                    pathAirbase = Path.Combine(savedGamesPath, @"Mods\tech\DCE\Missions\Campaigns\", nameCamp, @"Active\db_airbasesParser.lua");
 
                 if (File.Exists(pathAirbase))
                 {

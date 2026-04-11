@@ -67,7 +67,7 @@ namespace DCE_Manager
         public string currentState = "Init";
         public List<Squad> currentSquads = new List<Squad>();
 
-
+        private CampaignEdit _currentCampaignEdit;
 
 
         //constructeur :
@@ -4514,241 +4514,45 @@ namespace DCE_Manager
 
         }
 
+        //public void CampaignEdit1(object sender, EventArgs e, string path, string NameCamp)
+        //{
+        //    var time_CampaignEdit1 = Stopwatch.StartNew();
+
+        //    DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, NameCamp);
+        //    //EditCampaignForm.ShowDialog();
+
+        //    time_CampaignEdit1.Stop();
+        //    FormUtils.LogRegister($"time_CampaignEdit1 : {time_CampaignEdit1.ElapsedMilliseconds} ms");
+        //}
+
         public void CampaignEdit1(object sender, EventArgs e, string path, string NameCamp)
         {
             var time_CampaignEdit1 = Stopwatch.StartNew();
 
-            DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, NameCamp);
-            //EditCampaignForm.ShowDialog();
+            //// 🔧 Ferme l'ancienne instance si elle existe
+            //if (_currentCampaignEdit != null && !_currentCampaignEdit.IsDisposed)
+            //{
+            //    _currentCampaignEdit.Close();
+            //    _currentCampaignEdit.Dispose();
+            //}
+
+            //// 🔧 Crée une seule instance
+            //_currentCampaignEdit = new CampaignEdit(this, NameCamp);
+            ////_currentCampaignEdit.Show(); // OBLIGATOIRE
+
+            // 🔧 Nettoyage de l'ancienne instance
+            if (_currentCampaignEdit != null)
+            {
+                _currentCampaignEdit.Dispose(); // 🔥 IMPORTANT
+            }
+
+            // 🔧 Nouvelle instance
+            _currentCampaignEdit = new CampaignEdit(this, NameCamp);
 
             time_CampaignEdit1.Stop();
-            FormUtils.LogRegister($"time_CampaignEdit1 : {time_CampaignEdit1.ElapsedMilliseconds} ms");
         }
-        //private void But_delete_campaign_Click(object sender, EventArgs e)
-        //{
-        //    // Lister les campagnes à supprimer
-        //    List<string> campaignsToDelete = new List<string>();
-
-        //    // Parcourir toutes les cases à cocher et vérifier celles qui sont cochées
-        //    foreach (var checkBoxCampaign in checkBoxCampaigns)
-        //    {
-        //        CheckBox checkBox = checkBoxCampaign.Item1;
-        //        string campaignName = checkBoxCampaign.Item2;
-
-        //        if (checkBox.Checked)
-        //        {
-        //            // Ajouter le nom de la campagne à la liste des campagnes à supprimer
-        //            campaignsToDelete.Add(campaignName);
-        //        }
-        //    }
-
-        //    // Si aucune campagne n'est sélectionnée, afficher un message et sortir de la fonction
-        //    if (campaignsToDelete.Count == 0)
-        //    {
-        //        MessageBox.Show("No campaign selected for suppression.", "Information");
-        //        return;
-        //    }
-
-        //    // Construire un message avec les noms des campagnes à supprimer
-        //    string campaignsToDeleteMessage = string.Join("\r\n", campaignsToDelete);
-        //    string confirmationMessage = "The following campaigns will be deleted :\r\n\r\n" + campaignsToDeleteMessage + "\r\n\r\nAre you sure ?";
-
-        //    // Afficher une fenêtre de confirmation avec la liste des campagnes
-        //    DialogResult dialogResult = MessageBox.Show(confirmationMessage, "Delete confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-        //    // Si l'utilisateur confirme la suppression
-        //    if (dialogResult == DialogResult.Yes)
-        //    {
-        //        // Supprimer les campagnes sélectionnées
-        //        foreach (string campaign in campaignsToDelete)
-        //        {
-        //            // Appel à la fonction de suppression pour chaque campagne
-        //            DeleteCampaign(campaign);
-        //        }
-
-        //        // Rafraîchir la page après suppression
-        //        tabControl.SelectedIndex = 3;
-        //        tabControl.SelectedIndex = 1;
-        //    }
-        //    else if (dialogResult == DialogResult.No)
-        //    {
-        //        // Si l'utilisateur annule la suppression, ne fais rien
-        //        MessageBox.Show("Deletion cancelled.", "Cancellation");
-        //    }
-        //}
-
-        //public void DeleteCampaign(string OldNameCamp)
-        //{
-        //    // Afficher le curseur en cercle tournant
-        //    Cursor.Current = Cursors.WaitCursor;
-
-        //    string path = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
-        //    string folderLoc = Path.Combine(path, OldNameCamp);
-
-        //    // Vérifier si le dossier de la campagne existe
-        //    if (Directory.Exists(folderLoc))
-        //    {
-        //        DirectoryInfo di = new DirectoryInfo(folderLoc);
-
-        //        // Supprimer les fichiers du dossier
-        //        foreach (FileInfo file in di.EnumerateFiles())
-        //        {
-        //            try
-        //            {
-        //                // Vérifier et fermer le fichier s'il est ouvert, puis le supprimer
-        //                file.IsReadOnly = false; // S'assurer que le fichier est en écriture
-        //                FileSystem.DeleteFile(file.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-        //            }
-        //            catch (IOException ioEx)
-        //            {
-        //                FormUtils.LogRegister($"Error deleting file {file.FullName}: {ioEx.Message}");
-        //            }
-        //        }
-
-        //        // Supprimer les sous-dossiers
-        //        foreach (DirectoryInfo dir in di.EnumerateDirectories())
-        //        {
-        //            try
-        //            {
-        //                dir.Delete(true);
-        //            }
-        //            catch (IOException ioEx)
-        //            {
-        //                FormUtils.LogRegister($"Error deleting subfolder {dir.FullName}: {ioEx.Message}");
-        //            }
-        //        }
-
-        //        // Supprimer le dossier de la campagne
-        //        try
-        //        {
-        //            di.Delete(true);
-        //        }
-        //        catch (IOException ioEx)
-        //        {
-        //            FormUtils.LogRegister($"Error deleting folder {di.FullName}: {ioEx.Message}");
-        //        }
-        //    }
-
-        //    // Supprimer les fichiers .cmp et .png associés à la campagne
-        //    DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".cmp"));
-        //    DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_first.miz"));
-        //    DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_ongoing.miz"));
-        //    DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".png"));
-        //    DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".bmp"));
-
-        //    ScriptModInstalledVersion.Text = "";
-
-        //    // Remettre le curseur par défaut à la fin de la tâche
-        //    Cursor.Current = Cursors.Default;
-        //}
-
-        //private void DeleteFileToRecycleBin(string filePath)
-        //{
-        //    if (File.Exists(filePath))
-        //    {
-        //        try
-        //        {
-        //            File.SetAttributes(filePath, FileAttributes.Normal); // Retirer le verrouillage en lecture seule
-        //            FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-        //        }
-        //        catch (IOException ioEx)
-        //        {
-        //            FormUtils.LogRegister($"Erreur lors de la suppression du fichier {filePath}: {ioEx.Message}");
-        //        }
-        //    }
-        //}
 
 
-        //public void ButtonClickOneEvent(object sender, EventArgs e, string path)
-        //{
-        //    if (sender is Button button)
-        //    {
-        //        //// verif du fichier requiredModules
-        //        string ModRequiredFile = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\Init\requiredModules.lua");
-        //        string msg = "";
-
-        //        if (File.Exists(ModRequiredFile))
-        //        {
-
-        //            try
-        //            {
-        //                // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-        //                using (FileStream fs = new FileStream(ModRequiredFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-        //                using (StreamReader sr = new StreamReader(fs))
-        //                {
-        //                    string line;
-        //                    while ((line = sr.ReadLine()) != null)
-        //                    {
-        //                        if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
-        //                        {
-        //                            msg = msg + line + "\r\n";
-        //                        }
-        //                    }
-        //                    MessageBox.Show(msg, "Module required:");
-        //                }
-        //            }
-
-        //            catch (Exception ex)
-        //            {
-        //                //FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-        //                FormUtils.ErrorGeneral_BoxOrLog(ex, "ButtonClickOneEvent", ModRequiredFile, false, true);
-        //            }
-        //        }
-
-
-        //        //if (LabelStatut.Text == "DEV")
-        //        if (ParamManager.userLevel == 5)
-        //        {
-
-        //            string missionName = "Test Mission";
-
-        //            // Passez des arguments au formulaire
-        //            FormMissionGenerator MissGene = new FormMissionGenerator(missionName, this);
-
-        //            // Utilisez ShowDialog pour afficher le formulaire de manière modale
-        //            MissGene.ShowDialog();
-
-        //        }
-        //        else
-        //        {
-        //            Process process = new Process();
-        //            // Configure the process using the StartInfo properties.
-        //            process.StartInfo.FileName = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\" + path;
-        //            process.StartInfo.Arguments = " ";
-        //            process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-        //            process.StartInfo.WorkingDirectory = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\";
-
-        //            process.Start();
-
-        //        }
-
-        //    }
-
-        //    if (sender is Label label)
-        //    {
-        //        Process process = new Process();
-        //        // Configure the process using the StartInfo properties.
-        //        process.StartInfo.FileName = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + label.Text;
-        //        process.StartInfo.Arguments = " ";
-        //        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-        //        //process.StartInfo.WorkingDirectory = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" ;
-
-        //        process.Start();
-
-        //    }
-
-        //    if (sender is PictureBox)
-        //    {
-        //        Process process = new Process();
-        //        // Configure the process using the StartInfo properties.
-        //        process.StartInfo.FileName = path;
-        //        process.StartInfo.Arguments = " ";
-        //        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-
-        //        process.Start();
-
-        //    }
-        //}
 
         void TabControl1_Selected(object sender, TabControlEventArgs e)
         {

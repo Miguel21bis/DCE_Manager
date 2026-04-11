@@ -213,12 +213,9 @@ namespace DCE_Manager.Parameters
         public bool Player { get; set; }
         public string Type { get; set; }
         public string Country { get; set; }
-        //public Dictionary<string, object> Livery { get; set; }
-        public string Base { get; set; }
+       public string Base { get; set; }
         public List<string> BaseAlternative { get; set; }
         public string Skill { get; set; }
-        //public Dictionary<string, object> Tasks { get; set; }
-        //public Dictionary<string, object> TasksCoef { get; set; }
         public int InitNumber { get; set; }
         public int InitReserve { get; set; }
         public int Number { get; set; }
@@ -227,7 +224,8 @@ namespace DCE_Manager.Parameters
         public Dictionary<string, object> Score { get; set; }
         public Dictionary<string, object> parking_id { get; set; }
 
-        public object Livery { get; set; }
+        //public object Livery { get; set; }
+        public Dictionary<int, string> Livery { get; set; }
         public Dictionary<string, bool> Tasks { get; set; }
         public Dictionary<string, double> TasksCoef { get; set; }
 
@@ -235,8 +233,7 @@ namespace DCE_Manager.Parameters
         public string Callsign { get; set; }      // "Uzi"
         public int? CallsignId { get; set; }      // 3
         public Dictionary<string, object> ScoreLast { get; set; }
-        //public Dictionary<string, object> TasksCoefPourcent { get; set; }
-        public Dictionary<string, int> TasksCoefPourcent { get; set; }
+       public Dictionary<string, int> TasksCoefPourcent { get; set; }
         public Dictionary<int, string> LiveryModex { get; set; }
         public List<int> SideNumber { get; set; }
         public Dictionary<int, int> ParkingId { get; set; }
@@ -281,12 +278,61 @@ namespace DCE_Manager.Parameters
         }
     }
 
+    public class AirbaseInfo
+    {
+        public string Name { get; set; }
+        public string AliasName { get; set; }
+        public string Side { get; set; }
+        public int Elevation { get; set; }
+        public int AirdromeId { get; set; }
+        public bool Divert { get; set; }
+        public bool Inactive { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+
+        public List<RunwayInfo> Runways { get; set; }
+        public List<ParkSpot> ParkAlertSAR { get; set; }
+
+        public Dictionary<string, string> Code { get; set; }
+        public List<double> ATCFrequencies { get; set; }
+
+        public AirbaseInfo()
+        {
+            Runways = new List<RunwayInfo>();
+            ParkAlertSAR = new List<ParkSpot>();
+            Code = new Dictionary<string, string>();
+            ATCFrequencies = new List<double>();
+        }
+    }
+
+
+    public class RunwayInfo
+    {
+        public string Name { get; set; }
+        public double Hdg { get; set; }
+        public bool TrueHdg { get; set; }
+        public int Length { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    public class ParkSpot
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public bool ReservedAR { get; set; }
+        public bool ReservedSAR { get; set; }
+        public bool Occupied { get; set; }
+    }
+    
+
     public class CampaignLuaData
     {
         public HashSet<string> PlayableAircraft { get; set; }
         public HashSet<string> AllPlaneHeli { get; set; }
 
-        public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
+        //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
+        public Dictionary<string, List<string>> TaskByPlane { get; set; }
 
         // plus tard :
         // public Dictionary<string, string> CountryByPlane { get; set; }

@@ -15,20 +15,6 @@ namespace DCE_Manager
 {
     internal class OobAirParser
     {
-        //public List<Squad> LoadCampaignSquads(string campaignName)
-        //{
-        //    var squads = new List<Squad>();
-
-        //    // on vide UNE seule fois avant les 2 chargements
-        //    List_oob_air_Manager.List_oob_air = new List<Squad>();
-
-        //    LoadFile(campaignName, "Init", squads);
-        //    LoadFile(campaignName, "Active", squads);
-
-
-        //    return squads;
-        //}
-
         public List<CampaignSquad> LoadCampaignSquads(string campaignName)
         {
             // Ancienne liste conservée pour compatibilité temporaire.
@@ -126,53 +112,7 @@ namespace DCE_Manager
                             FolderFile = folderName,
 
                         };
-                        ////string squadKey = side + "|" + entry2.Key;
-                        //string squadNameKey = squad.Name != null
-                        //? squad.Name.Trim().ToLowerInvariant()
-                        //: "";
-
-                        //string squadKey = side.Trim().ToLowerInvariant() + "|" + squadNameKey;
-
-                        //CampaignSquad campaignSquad =
-                        //    List_oob_air_Manager.List_campaignSquads
-                        //    .FirstOrDefault(x => x.Key == squadKey);
-
-                        //if (campaignSquad == null)
-                        //{
-                        //    campaignSquad = new CampaignSquad
-                        //    {
-                        //        Key = squadKey,
-                        //        SideString = side
-                        //    };
-
-                        //    List_oob_air_Manager.List_campaignSquads.Add(campaignSquad);
-                        //}
-
-                        ////var squad = new Squad
-                        ////{
-                        ////    SideString = side,
-                        ////    IdSquad = idSquad,
-                        ////    FolderFile = folderName,
-                        ////};
-
-                        //if (folderName == "Init")
-                        //{ 
-                        //    campaignSquad.Init = squad;
-                        //    FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
-                        //}
-                        //else
-                        //{
-                        //    campaignSquad.Active = squad;
-                        //    FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
-                        //}
-                           
-
-                        //// Ancienne liste conservée pour compatibilité temporaire.
-                        //List_oob_air_Manager.List_oob_air.Add(squad);
-
-
-                        //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
-
+                        
 
                         var level2 = entry2.Value.luaobj as Dictionary<string, LuaObject>;
                         if (level2 == null) continue;
@@ -308,24 +248,28 @@ namespace DCE_Manager
                                     break;
 
                                 case "livery":
-                                    // livery peut être soit une string, soit une table [1]="...", [2]="..."
+                                    // Toujours convertir en Dictionary<int,string>
+                                    // Pourquoi : uniformiser le modèle et éviter les cas spéciaux partout
+
+                                    squad.Livery = new Dictionary<int, string>();
+
+                                    // Cas 1 : table Lua
                                     if (valObj is Dictionary<string, LuaObject> liveryDict)
                                     {
-                                        squad.Livery = new Dictionary<int, string>();
-
                                         foreach (var e in liveryDict)
                                         {
                                             if (int.TryParse(e.Key, out int index))
                                             {
-                                                ((Dictionary<int, string>)squad.Livery)[index] =
-                                                    e.Value.luaobj?.ToString();
+                                                squad.Livery[index] = e.Value.luaobj?.ToString();
                                             }
                                         }
                                     }
-                                    else
+                                    // Cas 2 : string simple
+                                    else if (valObj != null)
                                     {
-                                        squad.Livery = valObj?.ToString();
+                                        squad.Livery[1] = valObj.ToString();
                                     }
+
                                     break;
 
                                 default:
@@ -370,12 +314,12 @@ namespace DCE_Manager
                         if (folderName == "Init")
                         {
                             campaignSquad.Init = squad;
-                            FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
+                            //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
                         }
                         else
                         {
                             campaignSquad.Active = squad;
-                            FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
+                            //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
                         }
 
 
@@ -386,7 +330,7 @@ namespace DCE_Manager
                         { }
 
 
-                        FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
+                        //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
                     }
                 }
 

@@ -25,10 +25,17 @@ namespace DCE_Manager
         private void InitializeComponent()
         {
             this.panelMain = new System.Windows.Forms.Panel();
+            this.groupBox_Bases = new System.Windows.Forms.GroupBox();
+            this.button_Base_Haut = new System.Windows.Forms.Button();
+            this.button_Base_Down = new System.Windows.Forms.Button();
+            this.button_Base_Moins = new System.Windows.Forms.Button();
+            this.button_base_plus = new System.Windows.Forms.Button();
+            this.comboBox_All_bases = new System.Windows.Forms.ComboBox();
+            this.listBoxBasesAlternat = new System.Windows.Forms.ListBox();
+            this.labelBasesAdd = new System.Windows.Forms.Label();
             this.groupBox_Livery = new System.Windows.Forms.GroupBox();
             this.button_AddSkin = new System.Windows.Forms.Button();
             this.textBox_AddSkin = new System.Windows.Forms.TextBox();
-            this.comboBox_Livery = new System.Windows.Forms.ComboBox();
             this.groupBoxAdditional = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanelAdditional = new System.Windows.Forms.FlowLayoutPanel();
             this.groupBoxScore = new System.Windows.Forms.GroupBox();
@@ -45,8 +52,6 @@ namespace DCE_Manager
             this.labelInitReserve = new System.Windows.Forms.Label();
             this.numericInitReserve = new System.Windows.Forms.NumericUpDown();
             this.groupBoxGeneral = new System.Windows.Forms.GroupBox();
-            this.comboBoxBasesAdd = new System.Windows.Forms.ComboBox();
-            this.labelBasesAdd = new System.Windows.Forms.Label();
             this.labelName = new System.Windows.Forms.Label();
             this.textBoxName = new System.Windows.Forms.TextBox();
             this.labelType = new System.Windows.Forms.Label();
@@ -61,7 +66,10 @@ namespace DCE_Manager
             this.checkBoxInactive = new System.Windows.Forms.CheckBox();
             this.buttonOK = new System.Windows.Forms.Button();
             this.buttonCancel = new System.Windows.Forms.Button();
+            this.listBoxLivery = new System.Windows.Forms.ListBox();
+            this.button_RemoveSkin = new System.Windows.Forms.Button();
             this.panelMain.SuspendLayout();
+            this.groupBox_Bases.SuspendLayout();
             this.groupBox_Livery.SuspendLayout();
             this.groupBoxAdditional.SuspendLayout();
             this.groupBoxScore.SuspendLayout();
@@ -77,6 +85,7 @@ namespace DCE_Manager
             // panelMain
             // 
             this.panelMain.AutoScroll = true;
+            this.panelMain.Controls.Add(this.groupBox_Bases);
             this.panelMain.Controls.Add(this.groupBox_Livery);
             this.panelMain.Controls.Add(this.groupBoxAdditional);
             this.panelMain.Controls.Add(this.groupBoxScore);
@@ -91,11 +100,94 @@ namespace DCE_Manager
             this.panelMain.Size = new System.Drawing.Size(1282, 1055);
             this.panelMain.TabIndex = 0;
             // 
+            // groupBox_Bases
+            // 
+            this.groupBox_Bases.Controls.Add(this.button_Base_Haut);
+            this.groupBox_Bases.Controls.Add(this.button_Base_Down);
+            this.groupBox_Bases.Controls.Add(this.button_Base_Moins);
+            this.groupBox_Bases.Controls.Add(this.button_base_plus);
+            this.groupBox_Bases.Controls.Add(this.comboBox_All_bases);
+            this.groupBox_Bases.Controls.Add(this.listBoxBasesAlternat);
+            this.groupBox_Bases.Controls.Add(this.labelBasesAdd);
+            this.groupBox_Bases.Location = new System.Drawing.Point(626, 205);
+            this.groupBox_Bases.Name = "groupBox_Bases";
+            this.groupBox_Bases.Size = new System.Drawing.Size(616, 130);
+            this.groupBox_Bases.TabIndex = 8;
+            this.groupBox_Bases.TabStop = false;
+            this.groupBox_Bases.Text = "Alternatives AirBases";
+            // 
+            // button_Base_Haut
+            // 
+            this.button_Base_Haut.Location = new System.Drawing.Point(261, 27);
+            this.button_Base_Haut.Name = "button_Base_Haut";
+            this.button_Base_Haut.Size = new System.Drawing.Size(33, 30);
+            this.button_Base_Haut.TabIndex = 20;
+            this.button_Base_Haut.Text = "▲";
+            this.button_Base_Haut.UseVisualStyleBackColor = true;
+            this.button_Base_Haut.Click += new System.EventHandler(this.button_Base_Haut_Click);
+            // 
+            // button_Base_Down
+            // 
+            this.button_Base_Down.Location = new System.Drawing.Point(261, 94);
+            this.button_Base_Down.Name = "button_Base_Down";
+            this.button_Base_Down.Size = new System.Drawing.Size(33, 30);
+            this.button_Base_Down.TabIndex = 19;
+            this.button_Base_Down.Text = "▼";
+            this.button_Base_Down.UseVisualStyleBackColor = true;
+            this.button_Base_Down.Click += new System.EventHandler(this.button_Base_Down_Click);
+            // 
+            // button_Base_Moins
+            // 
+            this.button_Base_Moins.Location = new System.Drawing.Point(231, 61);
+            this.button_Base_Moins.Name = "button_Base_Moins";
+            this.button_Base_Moins.Size = new System.Drawing.Size(33, 30);
+            this.button_Base_Moins.TabIndex = 18;
+            this.button_Base_Moins.Text = "➖";
+            this.button_Base_Moins.UseVisualStyleBackColor = true;
+            this.button_Base_Moins.Click += new System.EventHandler(this.buttonBaseMoins_Click);
+            // 
+            // button_base_plus
+            // 
+            this.button_base_plus.Location = new System.Drawing.Point(292, 58);
+            this.button_base_plus.Name = "button_base_plus";
+            this.button_base_plus.Size = new System.Drawing.Size(33, 30);
+            this.button_base_plus.TabIndex = 17;
+            this.button_base_plus.Text = "➕";
+            this.button_base_plus.UseVisualStyleBackColor = true;
+            this.button_base_plus.Click += new System.EventHandler(this.button_base_plus_Click);
+            // 
+            // comboBox_All_bases
+            // 
+            this.comboBox_All_bases.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBox_All_bases.Location = new System.Drawing.Point(16, 64);
+            this.comboBox_All_bases.Name = "comboBox_All_bases";
+            this.comboBox_All_bases.Size = new System.Drawing.Size(180, 24);
+            this.comboBox_All_bases.TabIndex = 14;
+            // 
+            // listBoxBasesAlternat
+            // 
+            this.listBoxBasesAlternat.FormattingEnabled = true;
+            this.listBoxBasesAlternat.ItemHeight = 16;
+            this.listBoxBasesAlternat.Location = new System.Drawing.Point(380, 40);
+            this.listBoxBasesAlternat.Name = "listBoxBasesAlternat";
+            this.listBoxBasesAlternat.Size = new System.Drawing.Size(200, 84);
+            this.listBoxBasesAlternat.TabIndex = 21;
+            // 
+            // labelBasesAdd
+            // 
+            this.labelBasesAdd.AutoSize = true;
+            this.labelBasesAdd.Location = new System.Drawing.Point(426, 42);
+            this.labelBasesAdd.Name = "labelBasesAdd";
+            this.labelBasesAdd.Size = new System.Drawing.Size(98, 16);
+            this.labelBasesAdd.TabIndex = 12;
+            this.labelBasesAdd.Text = "Alternatives AB";
+            // 
             // groupBox_Livery
             // 
+            this.groupBox_Livery.Controls.Add(this.button_RemoveSkin);
+            this.groupBox_Livery.Controls.Add(this.listBoxLivery);
             this.groupBox_Livery.Controls.Add(this.button_AddSkin);
             this.groupBox_Livery.Controls.Add(this.textBox_AddSkin);
-            this.groupBox_Livery.Controls.Add(this.comboBox_Livery);
             this.groupBox_Livery.Location = new System.Drawing.Point(27, 576);
             this.groupBox_Livery.Name = "groupBox_Livery";
             this.groupBox_Livery.Size = new System.Drawing.Size(578, 167);
@@ -105,28 +197,20 @@ namespace DCE_Manager
             // 
             // button_AddSkin
             // 
-            this.button_AddSkin.Location = new System.Drawing.Point(318, 96);
+            this.button_AddSkin.Location = new System.Drawing.Point(279, 29);
             this.button_AddSkin.Name = "button_AddSkin";
-            this.button_AddSkin.Size = new System.Drawing.Size(75, 23);
+            this.button_AddSkin.Size = new System.Drawing.Size(33, 30);
             this.button_AddSkin.TabIndex = 16;
-            this.button_AddSkin.Text = "Add Skin";
+            this.button_AddSkin.Text = "➕";
             this.button_AddSkin.UseVisualStyleBackColor = true;
+            this.button_AddSkin.Click += new System.EventHandler(this.button_AddSkin_Click);
             // 
             // textBox_AddSkin
             // 
-            this.textBox_AddSkin.Location = new System.Drawing.Point(15, 98);
+            this.textBox_AddSkin.Location = new System.Drawing.Point(8, 30);
             this.textBox_AddSkin.Name = "textBox_AddSkin";
-            this.textBox_AddSkin.Size = new System.Drawing.Size(260, 22);
+            this.textBox_AddSkin.Size = new System.Drawing.Size(249, 22);
             this.textBox_AddSkin.TabIndex = 15;
-            // 
-            // comboBox_Livery
-            // 
-            this.comboBox_Livery.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBox_Livery.Location = new System.Drawing.Point(15, 42);
-            this.comboBox_Livery.Name = "comboBox_Livery";
-            this.comboBox_Livery.Size = new System.Drawing.Size(280, 24);
-            this.comboBox_Livery.TabIndex = 14;
-            this.comboBox_Livery.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
             // 
             // groupBoxAdditional
             // 
@@ -142,15 +226,13 @@ namespace DCE_Manager
             // 
             this.flowLayoutPanelAdditional.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanelAdditional.AutoScroll = true;
             this.flowLayoutPanelAdditional.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
             this.flowLayoutPanelAdditional.Location = new System.Drawing.Point(15, 25);
             this.flowLayoutPanelAdditional.Name = "flowLayoutPanelAdditional";
             this.flowLayoutPanelAdditional.Size = new System.Drawing.Size(1018, 280);
             this.flowLayoutPanelAdditional.TabIndex = 0;
             this.flowLayoutPanelAdditional.WrapContents = false;
-            this.flowLayoutPanelAdditional.AutoScroll = true;
-            this.flowLayoutPanelAdditional.WrapContents = false;
-            this.flowLayoutPanelAdditional.FlowDirection = FlowDirection.TopDown;
             // 
             // groupBoxScore
             // 
@@ -299,8 +381,6 @@ namespace DCE_Manager
             // 
             // groupBoxGeneral
             // 
-            this.groupBoxGeneral.Controls.Add(this.comboBoxBasesAdd);
-            this.groupBoxGeneral.Controls.Add(this.labelBasesAdd);
             this.groupBoxGeneral.Controls.Add(this.labelName);
             this.groupBoxGeneral.Controls.Add(this.textBoxName);
             this.groupBoxGeneral.Controls.Add(this.labelType);
@@ -315,27 +395,10 @@ namespace DCE_Manager
             this.groupBoxGeneral.Controls.Add(this.checkBoxInactive);
             this.groupBoxGeneral.Location = new System.Drawing.Point(12, 12);
             this.groupBoxGeneral.Name = "groupBoxGeneral";
-            this.groupBoxGeneral.Size = new System.Drawing.Size(1053, 180);
+            this.groupBoxGeneral.Size = new System.Drawing.Size(810, 180);
             this.groupBoxGeneral.TabIndex = 4;
             this.groupBoxGeneral.TabStop = false;
             this.groupBoxGeneral.Text = "General";
-            // 
-            // comboBoxBasesAdd
-            // 
-            this.comboBoxBasesAdd.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxBasesAdd.Location = new System.Drawing.Point(560, 72);
-            this.comboBoxBasesAdd.Name = "comboBoxBasesAdd";
-            this.comboBoxBasesAdd.Size = new System.Drawing.Size(280, 24);
-            this.comboBoxBasesAdd.TabIndex = 13;
-            // 
-            // labelBasesAdd
-            // 
-            this.labelBasesAdd.AutoSize = true;
-            this.labelBasesAdd.Location = new System.Drawing.Point(470, 80);
-            this.labelBasesAdd.Name = "labelBasesAdd";
-            this.labelBasesAdd.Size = new System.Drawing.Size(74, 16);
-            this.labelBasesAdd.TabIndex = 12;
-            this.labelBasesAdd.Text = "Bases Add";
             // 
             // labelName
             // 
@@ -350,7 +413,7 @@ namespace DCE_Manager
             // 
             this.textBoxName.Location = new System.Drawing.Point(140, 32);
             this.textBoxName.Name = "textBoxName";
-            this.textBoxName.Size = new System.Drawing.Size(260, 22);
+            this.textBoxName.Size = new System.Drawing.Size(239, 22);
             this.textBoxName.TabIndex = 1;
             // 
             // labelType
@@ -366,7 +429,7 @@ namespace DCE_Manager
             // 
             this.comboBoxType.Location = new System.Drawing.Point(140, 72);
             this.comboBoxType.Name = "comboBoxType";
-            this.comboBoxType.Size = new System.Drawing.Size(260, 24);
+            this.comboBoxType.Size = new System.Drawing.Size(239, 24);
             this.comboBoxType.TabIndex = 3;
             // 
             // labelCountry
@@ -382,13 +445,13 @@ namespace DCE_Manager
             // 
             this.comboBoxCountry.Location = new System.Drawing.Point(140, 112);
             this.comboBoxCountry.Name = "comboBoxCountry";
-            this.comboBoxCountry.Size = new System.Drawing.Size(260, 24);
+            this.comboBoxCountry.Size = new System.Drawing.Size(239, 24);
             this.comboBoxCountry.TabIndex = 5;
             // 
             // labelBase
             // 
             this.labelBase.AutoSize = true;
-            this.labelBase.Location = new System.Drawing.Point(470, 35);
+            this.labelBase.Location = new System.Drawing.Point(403, 38);
             this.labelBase.Name = "labelBase";
             this.labelBase.Size = new System.Drawing.Size(39, 16);
             this.labelBase.TabIndex = 6;
@@ -397,19 +460,21 @@ namespace DCE_Manager
             // comboBoxBase
             // 
             this.comboBoxBase.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.comboBoxBase.Location = new System.Drawing.Point(560, 32);
+            this.comboBoxBase.Location = new System.Drawing.Point(467, 30);
             this.comboBoxBase.Name = "comboBoxBase";
-            this.comboBoxBase.Size = new System.Drawing.Size(280, 24);
+            this.comboBoxBase.Size = new System.Drawing.Size(180, 24);
             this.comboBoxBase.TabIndex = 7;
+            this.comboBoxBase.SelectedIndexChanged += new System.EventHandler(this.comboBoxBase_SelectedIndexChanged);
             // 
             // labelSkill
             // 
             this.labelSkill.AutoSize = true;
-            this.labelSkill.Location = new System.Drawing.Point(470, 120);
+            this.labelSkill.Location = new System.Drawing.Point(403, 120);
             this.labelSkill.Name = "labelSkill";
             this.labelSkill.Size = new System.Drawing.Size(32, 16);
             this.labelSkill.TabIndex = 8;
             this.labelSkill.Text = "Skill";
+            this.labelSkill.Click += new System.EventHandler(this.labelSkill_Click);
             // 
             // comboBoxSkill
             // 
@@ -419,7 +484,7 @@ namespace DCE_Manager
             "Good",
             "High",
             "Excellent"});
-            this.comboBoxSkill.Location = new System.Drawing.Point(560, 112);
+            this.comboBoxSkill.Location = new System.Drawing.Point(467, 112);
             this.comboBoxSkill.Name = "comboBoxSkill";
             this.comboBoxSkill.Size = new System.Drawing.Size(180, 24);
             this.comboBoxSkill.TabIndex = 9;
@@ -427,7 +492,7 @@ namespace DCE_Manager
             // checkBoxPlayer
             // 
             this.checkBoxPlayer.AutoSize = true;
-            this.checkBoxPlayer.Location = new System.Drawing.Point(920, 35);
+            this.checkBoxPlayer.Location = new System.Drawing.Point(683, 38);
             this.checkBoxPlayer.Name = "checkBoxPlayer";
             this.checkBoxPlayer.Size = new System.Drawing.Size(109, 20);
             this.checkBoxPlayer.TabIndex = 10;
@@ -436,7 +501,7 @@ namespace DCE_Manager
             // checkBoxInactive
             // 
             this.checkBoxInactive.AutoSize = true;
-            this.checkBoxInactive.Location = new System.Drawing.Point(920, 70);
+            this.checkBoxInactive.Location = new System.Drawing.Point(683, 73);
             this.checkBoxInactive.Name = "checkBoxInactive";
             this.checkBoxInactive.Size = new System.Drawing.Size(75, 20);
             this.checkBoxInactive.TabIndex = 11;
@@ -460,6 +525,25 @@ namespace DCE_Manager
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
+            // listBoxLivery
+            // 
+            this.listBoxLivery.FormattingEnabled = true;
+            this.listBoxLivery.ItemHeight = 16;
+            this.listBoxLivery.Location = new System.Drawing.Point(329, 21);
+            this.listBoxLivery.Name = "listBoxLivery";
+            this.listBoxLivery.Size = new System.Drawing.Size(237, 84);
+            this.listBoxLivery.TabIndex = 22;
+            // 
+            // button_RemoveSkin
+            // 
+            this.button_RemoveSkin.Location = new System.Drawing.Point(279, 75);
+            this.button_RemoveSkin.Name = "button_RemoveSkin";
+            this.button_RemoveSkin.Size = new System.Drawing.Size(33, 30);
+            this.button_RemoveSkin.TabIndex = 23;
+            this.button_RemoveSkin.Text = "➖";
+            this.button_RemoveSkin.UseVisualStyleBackColor = true;
+            this.button_RemoveSkin.Click += new System.EventHandler(this.button_RemoveSkin_Click);
+            // 
             // FormSquadEdit
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
@@ -470,6 +554,8 @@ namespace DCE_Manager
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Squad Editor";
             this.panelMain.ResumeLayout(false);
+            this.groupBox_Bases.ResumeLayout(false);
+            this.groupBox_Bases.PerformLayout();
             this.groupBox_Livery.ResumeLayout(false);
             this.groupBox_Livery.PerformLayout();
             this.groupBoxAdditional.ResumeLayout(false);
@@ -527,10 +613,17 @@ namespace DCE_Manager
         private Label labelBase;
         private Label labelSkill;
         private GroupBox groupBox_Livery;
-        private ComboBox comboBoxBasesAdd;
+        private ListBox listBoxBasesAlternat;
         private Label labelBasesAdd;
         private TextBox textBox_AddSkin;
-        private ComboBox comboBox_Livery;
         private Button button_AddSkin;
+        private Button button_base_plus;
+        private ComboBox comboBox_All_bases;
+        private GroupBox groupBox_Bases;
+        private Button button_Base_Moins;
+        private Button button_Base_Haut;
+        private Button button_Base_Down;
+        private ListBox listBoxLivery;
+        private Button button_RemoveSkin;
     }
 }

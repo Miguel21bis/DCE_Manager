@@ -16,7 +16,7 @@ namespace DCE_Manager
     {
         public Squad EditedSquad { get; private set; }
 
-        private readonly CampaignLuaData _luaData;
+        private readonly CampaignContext _campaignContext;
 
         // Déclaration membre de classe
         // Pourquoi : garder une référence sur la ComboBox pour pouvoir la mettre à jour.
@@ -30,11 +30,12 @@ namespace DCE_Manager
         // Pourquoi : permettre plus tard d'éditer également les nouvelles variables Lua.
         private readonly List<AdditionalRow> _additionalRows = new List<AdditionalRow>();
 
-        //public FormSquadEdit(Squad squad, bool cloneMode = false)
-        public FormSquadEdit(  Squad squad, CampaignLuaData luaData, bool cloneMode = false)
+
+        public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false)
         {
             InitializeComponent();
-            _luaData = luaData;
+
+            _campaignContext = campaignContext;
 
             // On clone le squad pour éviter de modifier l'original avant Save.
             // Pourquoi : l'utilisateur peut encore annuler.
@@ -46,6 +47,7 @@ namespace DCE_Manager
 
             LoadStaticLists();
             FillControls();
+            BuildBase();
             BuildBasesAlternative();
             BuildLiveryArea();
             BuildTasksArea();
@@ -94,39 +96,60 @@ namespace DCE_Manager
                 "USA", "Russia", "France", "UK", "Germany", "Israel", "Turkey", "Georgia"
             });
 
-            ////AllPlaneHeli
-            //// A remplacer plus tard par ta vraie liste d'avions.
-            //comboBoxType.Items.AddRange(new object[]
-            //{
-            //    EditedSquad.Type,
-            //    "F-4E-45MC",
-            //    "MiG-23MLD",
-            //    "F-14B",
-            //    "F-16C_50",
-            //    "FA-18C_hornet",
-            //    "Mirage-F1CE"
-            //});
-
             comboBoxType.Items.Clear();
 
-            if (_luaData != null && _luaData.AllPlaneHeli != null)
+            if (_campaignContext != null &&
+                _campaignContext.LuaData != null &&
+                _campaignContext.LuaData.AllPlaneHeli != null)
             {
-                comboBoxType.Items.AddRange(_luaData.AllPlaneHeli.ToArray());
+                comboBoxType.Items.AddRange(_campaignContext.LuaData.AllPlaneHeli.ToArray());
             }
 
+        }
 
-            // A remplacer plus tard par ta vraie liste de bases.
-            comboBoxBase.Items.Add(EditedSquad.Base);
 
-            if (EditedSquad.BaseAlternative != null)
+
+        private void BuildBase()
+        {
+            comboBoxBase.BeginUpdate();
+
+
+            comboBoxBase.Items.Clear();
+
+            if (_campaignContext != null &&
+                _campaignContext.Airbases != null)
             {
-                foreach (string baseAlt in EditedSquad.BaseAlternative)
+                IEnumerable<AirbaseInfo> bases = _campaignContext.Airbases.Values;
+
+                // Si le squad a un side connu, on filtre la liste.
+                if (!string.IsNullOrEmpty(EditedSquad.SideString))
                 {
-                    if (!comboBoxBase.Items.Contains(baseAlt))
-                        comboBoxBase.Items.Add(baseAlt);
+                    bases = bases.Where(a =>
+                        string.Equals(a.Side, EditedSquad.SideString,
+                            StringComparison.OrdinalIgnoreCase));
+                }
+
+                foreach (AirbaseInfo airbase in bases.OrderBy(a => a.Name))
+                {
+                    comboBoxBase.Items.Add(airbase.Name);
+                    comboBox_All_bases.Items.Add(airbase.Name);
                 }
             }
+
+            // On garde la base actuelle visible même si elle n'est plus dans la liste.
+            if (!string.IsNullOrEmpty(EditedSquad.Base))
+            {
+                if (!comboBoxBase.Items.Contains(EditedSquad.Base))
+                {
+                    comboBoxBase.Items.Add(EditedSquad.Base);
+                }
+
+                comboBoxBase.SelectedItem = EditedSquad.Base;
+            }
+
+            comboBoxBase.EndUpdate();
         }
+
 
         // Cette fonction charge les propriétés simples du squad dans les contrôles.
         // Pourquoi : préremplir immédiatement la fenêtre d'édition.
@@ -150,124 +173,251 @@ namespace DCE_Manager
             
         }
 
+        //private void BuildBasesAlternative()
+        //{
+        //    comboBoxBasesAlternat.Items.Clear();
+
+        //    var baseAlterList = EditedSquad.BaseAlternative;
+
+        //    if (baseAlterList != null && baseAlterList.Count > 0)
+        //    {
+        //        foreach (var entry in baseAlterList)
+        //        {
+        //            comboBoxBasesAlternat.Items.Add(entry);
+        //        }
+
+        //        // Afficher immédiatement la première base
+        //        comboBoxBasesAlternat.SelectedIndex = 0;
+        //    }
+        //}
+        // Cette fonction remplit la ListBox des bases alternatives.
+        // Pourquoi : afficher uniquement les bases de repli (sans la base principale).
         private void BuildBasesAlternative()
         {
-            comboBoxBasesAdd.Items.Clear();
+            listBoxBasesAlternat.Items.Clear();
 
             var baseAlterList = EditedSquad.BaseAlternative;
 
-            if (baseAlterList != null && baseAlterList.Count > 0)
-            {
-                foreach (var entry in baseAlterList)
-                {
-                    comboBoxBasesAdd.Items.Add(entry);
-                }
+            if (baseAlterList == null)
+                return;
 
-                // Afficher immédiatement la première base
-                comboBoxBasesAdd.SelectedIndex = 0;
+            foreach (var entry in baseAlterList)
+            {
+                // Sécurité : ne jamais afficher la base principale
+                if (!string.Equals(entry, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
+                {
+                    listBoxBasesAlternat.Items.Add(entry);
+                }
             }
         }
+        // Ajoute une base alternative depuis la comboBox_All_bases.
+        // Pourquoi : permettre d'ajouter une base de repli sans doublon ni incohérence.
+        private void button_base_plus_Click(object sender, EventArgs e)
+        {
+            string selectedBase = comboBox_All_bases.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(selectedBase))
+                return;
+
+            // Interdit : identique à la base principale
+            if (string.Equals(selectedBase, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Interdit : doublon
+            foreach (var item in listBoxBasesAlternat.Items)
+            {
+                if (string.Equals(item.ToString(), selectedBase, StringComparison.OrdinalIgnoreCase))
+                    return;
+            }
+
+            listBoxBasesAlternat.Items.Add(selectedBase);
+        }
+        // Supprime la base alternative sélectionnée.
+        // Pourquoi : permettre de retirer une base de repli.
+        private void buttonBaseMoins_Click(object sender, EventArgs e)
+        {
+            int index = listBoxBasesAlternat.SelectedIndex;
+
+            if (index >= 0)
+            {
+                listBoxBasesAlternat.Items.RemoveAt(index);
+            }
+        }
+        // Remonte la base sélectionnée d'un cran.
+        // Pourquoi : modifier la priorité des bases de repli.
+        private void button_Base_Haut_Click(object sender, EventArgs e)
+        {
+            int index = listBoxBasesAlternat.SelectedIndex;
+
+            if (index > 0)
+            {
+                object item = listBoxBasesAlternat.Items[index];
+
+                listBoxBasesAlternat.Items.RemoveAt(index);
+                listBoxBasesAlternat.Items.Insert(index - 1, item);
+
+                listBoxBasesAlternat.SelectedIndex = index - 1;
+            }
+        }
+        // Descend la base sélectionnée d'un cran.
+        // Pourquoi : modifier la priorité des bases de repli.
+        private void button_Base_Down_Click(object sender, EventArgs e)
+        {
+            int index = listBoxBasesAlternat.SelectedIndex;
+
+            if (index >= 0 && index < listBoxBasesAlternat.Items.Count - 1)
+            {
+                object item = listBoxBasesAlternat.Items[index];
+
+                listBoxBasesAlternat.Items.RemoveAt(index);
+                listBoxBasesAlternat.Items.Insert(index + 1, item);
+
+                listBoxBasesAlternat.SelectedIndex = index + 1;
+            }
+        }
+        // Quand la base principale change.
+        // Pourquoi : éviter qu'une base alternative soit identique à la base actuelle.
+        private void comboBoxBase_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            string newBase = comboBoxBase.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(newBase))
+                return;
+
+            // Supprime si présente dans les alternatives
+            for (int i = listBoxBasesAlternat.Items.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(listBoxBasesAlternat.Items[i].ToString(), newBase, StringComparison.OrdinalIgnoreCase))
+                {
+                    listBoxBasesAlternat.Items.RemoveAt(i);
+                }
+            }
+        }
+
 
         // Cette fonction remplit la zone Livery.
         // Pourquoi : afficher immédiatement la première skin et permettre d'en ajouter.
+        //private void BuildLiveryArea()
+        //{
+        //    comboBox_Livery.Items.Clear();
+        //    comboBox_Livery.DropDownStyle = ComboBoxStyle.DropDownList;
+
+        //    // Cas 1 : aucune livery connue
+        //    if (EditedSquad.Livery == null)
+        //    {
+        //        comboBox_Livery.Items.Add("(aucune skin)");
+        //        comboBox_Livery.SelectedIndex = 0;
+
+        //        // On prépare malgré tout un dictionnaire vide pour les futurs ajouts.
+        //        EditedSquad.Livery = new Dictionary<int, string>();
+        //    }
+
+        //    // Cas 2 : une seule livery sous forme de string
+        //    else if (EditedSquad.Livery is string liveryString)
+        //    {
+        //        comboBox_Livery.Items.Add(liveryString);
+
+        //        // On affiche la première skin directement sans ouvrir la liste.
+        //        comboBox_Livery.SelectedIndex = 0;
+        //    }
+
+        //    // Cas 3 : plusieurs liveries dans un dictionnaire
+        //    else if (EditedSquad.Livery is Dictionary<int, string> liveryDict)
+        //    {
+        //        foreach (var entry in liveryDict.OrderBy(x => x.Key))
+        //        {
+        //            comboBox_Livery.Items.Add(entry.Value);
+        //        }
+
+        //        // Important : afficher immédiatement la première skin.
+        //        if (comboBox_Livery.Items.Count > 0)
+        //        {
+        //            comboBox_Livery.SelectedIndex = 0;
+        //        }
+        //    }
+
+        //    // Cette fonction ajoute une nouvelle skin depuis textBox_AddSkin.
+        //    // Pourquoi : permettre au campaignMaker d'ajouter librement des liveries.
+        //    button_AddSkin.Click -= Button_AddSkin_Click;
+        //    button_AddSkin.Click += Button_AddSkin_Click;
+        //}
+
+        // Construit la liste des liveries.
+        // Pourquoi : affichage simple + cohérent avec les autres listes.
         private void BuildLiveryArea()
         {
-            comboBox_Livery.Items.Clear();
-            comboBox_Livery.DropDownStyle = ComboBoxStyle.DropDownList;
+            listBoxLivery.Items.Clear();
 
-            // Cas 1 : aucune livery connue
+            var dict = NormalizeLivery();
+
+            foreach (var entry in dict.OrderBy(x => x.Key))
+            {
+                listBoxLivery.Items.Add(entry.Value);
+            }
+        }
+
+        // Convertit Livery en Dictionary<int,string> sûr.
+        // Pourquoi : garantir un format unique partout.
+        private Dictionary<int, string> NormalizeLivery()
+        {
             if (EditedSquad.Livery == null)
             {
-                comboBox_Livery.Items.Add("(aucune skin)");
-                comboBox_Livery.SelectedIndex = 0;
-
-                // On prépare malgré tout un dictionnaire vide pour les futurs ajouts.
                 EditedSquad.Livery = new Dictionary<int, string>();
             }
 
-            // Cas 2 : une seule livery sous forme de string
-            else if (EditedSquad.Livery is string liveryString)
-            {
-                comboBox_Livery.Items.Add(liveryString);
+            return EditedSquad.Livery;
+        }
+        // Ajoute une nouvelle skin.
+        // Pourquoi : permettre l'ajout simple sans doublon.
+        //private void button_AddSkin_Click(object sender, EventArgs e)
+        //{
+        //    string newSkin = textBox_AddSkin.Text.Trim();
 
-                // On affiche la première skin directement sans ouvrir la liste.
-                comboBox_Livery.SelectedIndex = 0;
-            }
+        //    if (string.IsNullOrEmpty(newSkin))
+        //        return;
 
-            // Cas 3 : plusieurs liveries dans un dictionnaire
-            else if (EditedSquad.Livery is Dictionary<int, string> liveryDict)
-            {
-                foreach (var entry in liveryDict.OrderBy(x => x.Key))
-                {
-                    comboBox_Livery.Items.Add(entry.Value);
-                }
+        //    foreach (var item in listBoxLivery.Items)
+        //    {
+        //        if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
+        //            return;
+        //    }
 
-                // Important : afficher immédiatement la première skin.
-                if (comboBox_Livery.Items.Count > 0)
-                {
-                    comboBox_Livery.SelectedIndex = 0;
-                }
-            }
+        //    listBoxLivery.Items.Add(newSkin);
 
-            // Cette fonction ajoute une nouvelle skin depuis textBox_AddSkin.
-            // Pourquoi : permettre au campaignMaker d'ajouter librement des liveries.
-            button_AddSkin.Click -= Button_AddSkin_Click;
-            button_AddSkin.Click += Button_AddSkin_Click;
+        //    textBox_AddSkin.Clear();
+        //}
+        // Supprime la skin sélectionnée.
+        // Pourquoi : permettre la gestion de la liste.
+        private void button_RemoveSkin_Click(object sender, EventArgs e)
+        {
+            int index = listBoxLivery.SelectedIndex;
+
+            if (index >= 0)
+                listBoxLivery.Items.RemoveAt(index);
         }
 
-        // Cette fonction ajoute une skin dans la ComboBox et dans EditedSquad.Livery.
-        // Pourquoi : conserver les nouvelles skins dans les données du squad.
-        private void Button_AddSkin_Click(object sender, EventArgs e)
+        // Ajoute une nouvelle skin.
+        // Pourquoi : éviter doublons + garder cohérence UI.
+        private void button_AddSkin_Click(object sender, EventArgs e)
         {
             string newSkin = textBox_AddSkin.Text.Trim();
 
             if (string.IsNullOrEmpty(newSkin))
                 return;
 
-            // Évite les doublons visuels
-            foreach (var item in comboBox_Livery.Items)
+            foreach (var item in listBoxLivery.Items)
             {
                 if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
-                {
-                    comboBox_Livery.SelectedItem = item;
-                    textBox_AddSkin.Clear();
                     return;
-                }
             }
 
-            comboBox_Livery.Items.Add(newSkin);
-            comboBox_Livery.SelectedItem = newSkin;
-
-            // Cas : aucune livery existante ou simple string
-            if (!(EditedSquad.Livery is Dictionary<int, string> dict))
-            {
-                dict = new Dictionary<int, string>();
-
-                // Si on avait déjà une livery string, on la conserve comme entrée 1
-                if (EditedSquad.Livery is string existingString &&
-                    !string.IsNullOrWhiteSpace(existingString))
-                {
-                    dict[1] = existingString;
-                }
-
-                EditedSquad.Livery = dict;
-            }
-
-            // Cherche le prochain index disponible
-            int newIndex = 1;
-
-            while (((Dictionary<int, string>)EditedSquad.Livery).ContainsKey(newIndex))
-            {
-                newIndex++;
-            }
-
-            ((Dictionary<int, string>)EditedSquad.Livery)[newIndex] = newSkin;
+            listBoxLivery.Items.Add(newSkin);
 
             textBox_AddSkin.Clear();
             textBox_AddSkin.Focus();
         }
 
-        
+
 
         // Cette fonction construit dynamiquement la zone des tâches.
         // Pourquoi : chaque squad peut avoir des tâches différentes.
@@ -612,6 +762,18 @@ namespace DCE_Manager
                 EditedSquad.AdditionalProperties[row.PropertyName] = row.ValueTextBox.Text;
             }
 
+            // Reconstruction des liveries depuis la ListBox
+            // Pourquoi : synchroniser UI -> données
+            EditedSquad.Livery = new Dictionary<int, string>();
+
+            int index = 1;
+
+            foreach (var item in listBoxLivery.Items)
+            {
+                EditedSquad.Livery[index] = item.ToString();
+                index++;
+            }
+
             DialogResult = DialogResult.OK;
             Close();
         }
@@ -643,5 +805,16 @@ namespace DCE_Manager
         {
 
         }
+
+        private void labelSkill_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void labelBasesAdd_Click(object sender, EventArgs e)
+        {
+
+        }
+
     }
 }
