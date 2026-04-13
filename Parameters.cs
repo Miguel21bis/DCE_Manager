@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+//using System.Linq;
+//using System.Text;
+//using System.Threading.Tasks;
 
 namespace DCE_Manager.Parameters
 {
@@ -159,12 +159,12 @@ namespace DCE_Manager.Parameters
         // Données provenant de Active\oob_air.lua
         public Squad Active { get; set; }
 
-        // Retourne le squad correspondant au mode demandé.
-        // Pourquoi : simplifier toute l'interface.
-        public Squad GetSquad(string folder)
-        {
-            return folder == "Active" ? Active : Init;
-        }
+        //// Retourne le squad correspondant au mode demandé.
+        //// Pourquoi : simplifier toute l'interface.
+        //public Squad GetSquad(string folder)
+        //{
+        //    return folder == "Active" ? Active : Init;
+        //}
     }
 
     public static class CampaignSquadTools
@@ -236,7 +236,7 @@ namespace DCE_Manager.Parameters
        public Dictionary<string, int> TasksCoefPourcent { get; set; }
         public Dictionary<int, string> LiveryModex { get; set; }
         public List<int> SideNumber { get; set; }
-        public Dictionary<int, int> ParkingId { get; set; }
+        //public Dictionary<int, int> ParkingId { get; set; }
 
         //public bool IsActive => !Inactive;
         public bool IsActive

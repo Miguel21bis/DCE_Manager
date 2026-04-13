@@ -34,6 +34,8 @@ namespace DCE_Manager
             this.listBoxBasesAlternat = new System.Windows.Forms.ListBox();
             this.labelBasesAdd = new System.Windows.Forms.Label();
             this.groupBox_Livery = new System.Windows.Forms.GroupBox();
+            this.button_RemoveSkin = new System.Windows.Forms.Button();
+            this.listBoxLivery = new System.Windows.Forms.ListBox();
             this.button_AddSkin = new System.Windows.Forms.Button();
             this.textBox_AddSkin = new System.Windows.Forms.TextBox();
             this.groupBoxAdditional = new System.Windows.Forms.GroupBox();
@@ -66,8 +68,8 @@ namespace DCE_Manager
             this.checkBoxInactive = new System.Windows.Forms.CheckBox();
             this.buttonOK = new System.Windows.Forms.Button();
             this.buttonCancel = new System.Windows.Forms.Button();
-            this.listBoxLivery = new System.Windows.Forms.ListBox();
-            this.button_RemoveSkin = new System.Windows.Forms.Button();
+            this.groupBox_PanelTables = new System.Windows.Forms.GroupBox();
+            this.flowLayoutPanelTables = new System.Windows.Forms.FlowLayoutPanel();
             this.panelMain.SuspendLayout();
             this.groupBox_Bases.SuspendLayout();
             this.groupBox_Livery.SuspendLayout();
@@ -80,11 +82,13 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericReserve)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).BeginInit();
             this.groupBoxGeneral.SuspendLayout();
+            this.groupBox_PanelTables.SuspendLayout();
             this.SuspendLayout();
             // 
             // panelMain
             // 
             this.panelMain.AutoScroll = true;
+            this.panelMain.Controls.Add(this.groupBox_PanelTables);
             this.panelMain.Controls.Add(this.groupBox_Bases);
             this.panelMain.Controls.Add(this.groupBox_Livery);
             this.panelMain.Controls.Add(this.groupBoxAdditional);
@@ -194,6 +198,25 @@ namespace DCE_Manager
             this.groupBox_Livery.TabIndex = 7;
             this.groupBox_Livery.TabStop = false;
             this.groupBox_Livery.Text = "Livery";
+            // 
+            // button_RemoveSkin
+            // 
+            this.button_RemoveSkin.Location = new System.Drawing.Point(279, 75);
+            this.button_RemoveSkin.Name = "button_RemoveSkin";
+            this.button_RemoveSkin.Size = new System.Drawing.Size(33, 30);
+            this.button_RemoveSkin.TabIndex = 23;
+            this.button_RemoveSkin.Text = "➖";
+            this.button_RemoveSkin.UseVisualStyleBackColor = true;
+            this.button_RemoveSkin.Click += new System.EventHandler(this.button_RemoveSkin_Click);
+            // 
+            // listBoxLivery
+            // 
+            this.listBoxLivery.FormattingEnabled = true;
+            this.listBoxLivery.ItemHeight = 16;
+            this.listBoxLivery.Location = new System.Drawing.Point(329, 21);
+            this.listBoxLivery.Name = "listBoxLivery";
+            this.listBoxLivery.Size = new System.Drawing.Size(237, 84);
+            this.listBoxLivery.TabIndex = 22;
             // 
             // button_AddSkin
             // 
@@ -525,31 +548,37 @@ namespace DCE_Manager
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
-            // listBoxLivery
+            // groupBox_PanelTables
             // 
-            this.listBoxLivery.FormattingEnabled = true;
-            this.listBoxLivery.ItemHeight = 16;
-            this.listBoxLivery.Location = new System.Drawing.Point(329, 21);
-            this.listBoxLivery.Name = "listBoxLivery";
-            this.listBoxLivery.Size = new System.Drawing.Size(237, 84);
-            this.listBoxLivery.TabIndex = 22;
+            this.groupBox_PanelTables.Controls.Add(this.flowLayoutPanelTables);
+            this.groupBox_PanelTables.Location = new System.Drawing.Point(611, 576);
+            this.groupBox_PanelTables.Name = "groupBox_PanelTables";
+            this.groupBox_PanelTables.Size = new System.Drawing.Size(631, 182);
+            this.groupBox_PanelTables.TabIndex = 9;
+            this.groupBox_PanelTables.TabStop = false;
+            this.groupBox_PanelTables.Text = "Panel Table";
             // 
-            // button_RemoveSkin
+            // flowLayoutPanelTables
             // 
-            this.button_RemoveSkin.Location = new System.Drawing.Point(279, 75);
-            this.button_RemoveSkin.Name = "button_RemoveSkin";
-            this.button_RemoveSkin.Size = new System.Drawing.Size(33, 30);
-            this.button_RemoveSkin.TabIndex = 23;
-            this.button_RemoveSkin.Text = "➖";
-            this.button_RemoveSkin.UseVisualStyleBackColor = true;
-            this.button_RemoveSkin.Click += new System.EventHandler(this.button_RemoveSkin_Click);
+            this.flowLayoutPanelTables.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.flowLayoutPanelTables.AutoScroll = true;
+            this.flowLayoutPanelTables.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.flowLayoutPanelTables.Location = new System.Drawing.Point(15, 21);
+            this.flowLayoutPanelTables.Name = "flowLayoutPanelTables";
+            this.flowLayoutPanelTables.Size = new System.Drawing.Size(596, 146);
+            this.flowLayoutPanelTables.TabIndex = 0;
+            this.flowLayoutPanelTables.WrapContents = false;
+            this.flowLayoutPanelTables.Visible = true;
+            this.flowLayoutPanelTables.Dock = DockStyle.Fill;
             // 
             // FormSquadEdit
             // 
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None;
             this.ClientSize = new System.Drawing.Size(1282, 1055);
             this.Controls.Add(this.panelMain);
-            this.MinimumSize = new System.Drawing.Size(1300, 800);
+            this.MinimizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(1300, 1018);
             this.Name = "FormSquadEdit";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Squad Editor";
@@ -569,6 +598,7 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).EndInit();
             this.groupBoxGeneral.ResumeLayout(false);
             this.groupBoxGeneral.PerformLayout();
+            this.groupBox_PanelTables.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -625,5 +655,7 @@ namespace DCE_Manager
         private Button button_Base_Down;
         private ListBox listBoxLivery;
         private Button button_RemoveSkin;
+        private GroupBox groupBox_PanelTables;
+        private FlowLayoutPanel flowLayoutPanelTables;
     }
 }

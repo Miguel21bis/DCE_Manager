@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Input;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using static DCE_Manager.Utils.FormUtils;
@@ -105,6 +106,8 @@ namespace DCE_Manager
                         //FormUtils.LogRegister("OobAirParser.cs: C foreach  (foreach (var entry2 in level1) // squad) ");
                         idSquad++;
 
+                        FormUtils.LogRegister("new Squad: " + idSquad );
+
                         var squad = new Squad
                         {
                             SideString = side,
@@ -119,15 +122,21 @@ namespace DCE_Manager
 
                         foreach (var entry3 in level2) // propriétés squad
                         {
+                            
                             //FormUtils.LogRegister("OobAirParser.cs: D foreach   foreach (var entry3 in level2) // propriétés squad ");
-                            var key = entry3.Key;
+                            //var key = entry3.Key;
+                            var key = entry3.Key?.Trim().ToLowerInvariant();
                             var valObj = entry3.Value.luaobj;
+
+                            //FormUtils.LogRegister("KEY DETECTED: [" + key + "]"); // 👈 AJOUT
 
                             // ⚡ SWITCH = beaucoup + rapide que 30 if
                             switch (key)
                             {
                                 case "name":
                                     squad.Name = valObj?.ToString();
+
+                                    FormUtils.LogRegister("Found squad Name: [" + squad.Name + "]");
 
                                     if (squad.Name == "469th TFS")
                                     { }
@@ -205,8 +214,8 @@ namespace DCE_Manager
                                             }
                                         }
 
-                                        FormUtils.LogRegister("Roster chargé pour squad.Name " + squad.Name +
-                                            " : " + squad.Roster.Count + " éléments");
+                                        //FormUtils.LogRegister("Roster chargé pour squad.Name " + squad.Name +
+                                        //    " : " + squad.Roster.Count + " éléments");
                                     }
                                     else
                                     {
@@ -241,9 +250,9 @@ namespace DCE_Manager
                                             }
                                         }
 
-                                        FormUtils.LogRegister(
-                                            "Score chargé pour squad " + squad.Name +
-                                            " : " + squad.Score.Count + " éléments");
+                                        //FormUtils.LogRegister(
+                                        //    "Score chargé pour squad " + squad.Name +
+                                        //    " : " + squad.Score.Count + " éléments");
                                     }
                                     break;
 
@@ -272,19 +281,75 @@ namespace DCE_Manager
 
                                     break;
 
+                                case "parking_id":
+                                    if (valObj is Dictionary<string, LuaObject> parkingDict)
+                                    {
+                                        squad.parking_id = new Dictionary<string, object>();
+
+                                        foreach (var e in parkingDict)
+                                        {
+                                            // conversion du sous-niveau
+                                            if (e.Value.luaobj is Dictionary<string, LuaObject> subDict)
+                                            {
+                                                var list = new List<int>();
+
+                                                //FormUtils.LogRegister("CASE parking_id D");
+
+                                                foreach (var _sub in subDict)
+                                                {
+                                                    //FormUtils.LogRegister("CASE parking_id E");
+                                                    if (int.TryParse(_sub.Value.luaobj.ToString(), out int v))
+                                                    {
+                                                        list.Add(v);
+                                                        //FormUtils.LogRegister("CASE parking_id F");
+                                                    }
+
+                                                }
+
+                                                squad.parking_id[e.Key] = list;
+                                                //FormUtils.LogRegister($"CASE parking_id G {e.Key}: [{string.Join(", ", list)}]");
+
+                                                //var dumpA = string.Join(" | ",
+                                                //        squad.parking_id.Select(kv =>
+                                                //            $"{kv.Key}: [{string.Join(", ", (kv.Value as IEnumerable<int>) ?? new List<int>())}]"
+                                                //        )
+                                                //    );
+
+                                                //FormUtils.LogRegister("AA_parking_id  = " + dumpA);
+
+                                            }
+                                        }
+                                    }
+                                    break;
+
+                                //case "parking_id":
+                                //    squad.parking_id = ConvertLuaValue(valObj) as Dictionary<string, object>;
+                                //    break;
+
                                 default:
                                     // ⚡ ultra important : éviter GetType() (lent)
+
                                     if (valObj is Dictionary<string, LuaObject> sub)
                                     {
-                                        var dict = new Dictionary<string, object>(sub.Count);
-                                        foreach (var e in sub)
-                                            dict[e.Key] = e.Value.luaobj;
+                                        //var dict = new Dictionary<string, object>(sub.Count);
+                                        //foreach (var e in sub)
+                                        //    dict[e.Key] = e.Value.luaobj;
 
-                                        squad.AdditionalProperties[key] = dict;
+                                        var dict = new Dictionary<string, object>(sub.Count);
+
+                                        foreach (var e in sub)
+                                        {
+                                            dict[e.Key] = ConvertLuaValue(e.Value);
+                                        }
+
+                                        squad.AdditionalProperties[key.Trim().ToLowerInvariant()] = dict;
+
+                                        //squad.AdditionalProperties[key] = dict;
                                     }
                                     else
                                     {
-                                        squad.AdditionalProperties[key] = valObj;
+                                        //squad.AdditionalProperties[key] = valObj;
+                                        squad.AdditionalProperties[key.Trim().ToLowerInvariant()] = valObj;
                                     }
                                     break;
                             }
@@ -296,9 +361,7 @@ namespace DCE_Manager
 
                         string squadKey = side.Trim().ToLowerInvariant() + "|" + squadNameKey;
 
-                        CampaignSquad campaignSquad =
-                            List_oob_air_Manager.List_campaignSquads
-                            .FirstOrDefault(x => x.Key == squadKey);
+                        CampaignSquad campaignSquad = List_oob_air_Manager.List_campaignSquads.FirstOrDefault(x => x.Key == squadKey);
 
                         if (campaignSquad == null)
                         {
@@ -309,6 +372,25 @@ namespace DCE_Manager
                             };
 
                             List_oob_air_Manager.List_campaignSquads.Add(campaignSquad);
+                        }
+
+                        if (folderName == "Init")
+                        {
+                            if (campaignSquad.Init != null)
+                            {
+                                FormUtils.LogRegister("⚠️ INIT ECRASÉ: " + squadKey);
+                            }
+
+                            campaignSquad.Init = squad;
+                        }
+                        else
+                        {
+                            if (campaignSquad.Active != null)
+                            {
+                                FormUtils.LogRegister("⚠️ ACTIVE ECRASÉ: " + squadKey);
+                            }
+
+                            campaignSquad.Active = squad;
                         }
 
                         if (folderName == "Init")
@@ -326,8 +408,19 @@ namespace DCE_Manager
                         // Ancienne liste conservée pour compatibilité temporaire.
                         List_oob_air_Manager.List_oob_air.Add(squad);
 
-                        if (squad.Name == "469th TFS")
-                        { }
+                        LogRegister("squad.Name |" + squad.Name+"|");
+                        LogRegister("squadNameKey |" + squadNameKey + "|");
+
+                        if (squad.Name == "73 TFS")
+                        {
+                            LogRegister("ShowClassAndProperty START " + squad.Name);
+
+                            ShowClassAndProperty(squad);
+
+                            LogRegister("ShowClassAndProperty END " + squad.Name);
+
+                        }
+
 
 
                         //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
@@ -345,18 +438,125 @@ namespace DCE_Manager
 
         // Recherche un squad logique à partir du nom + camp.
         // Pourquoi : retrouver facilement Init et Active du même squad.
-        public static CampaignSquad FindCampaignSquad(string side, string squadName)
+        //public static CampaignSquad FindCampaignSquad(string side, string squadName)
+        //{
+        //    if (List_oob_air_Manager.List_campaignSquads == null)
+        //        return null;
+
+        //    return List_oob_air_Manager.List_campaignSquads.FirstOrDefault(campaignSquad =>
+        //        campaignSquad != null &&
+        //        campaignSquad.SideString == side &&
+        //        (
+        //            (campaignSquad.Init != null && campaignSquad.Init.Name == squadName) ||
+        //            (campaignSquad.Active != null && campaignSquad.Active.Name == squadName)
+        //        ));
+        //}
+
+        // Recherche FIABLE basée sur clé unique
+        // Pourquoi : éviter collisions et écrasements silencieux
+        public static CampaignSquad FindCampaignSquad(string key)
         {
             if (List_oob_air_Manager.List_campaignSquads == null)
                 return null;
 
-            return List_oob_air_Manager.List_campaignSquads.FirstOrDefault(campaignSquad =>
-                campaignSquad != null &&
-                campaignSquad.SideString == side &&
-                (
-                    (campaignSquad.Init != null && campaignSquad.Init.Name == squadName) ||
-                    (campaignSquad.Active != null && campaignSquad.Active.Name == squadName)
-                ));
+            return List_oob_air_Manager.List_campaignSquads
+                .FirstOrDefault(campaignSquad =>
+                    campaignSquad != null &&
+                    campaignSquad.Key == key);
         }
+
+        // Convertit récursivement les LuaObject
+        // Pourquoi : gérer les tables imbriquées (cas parking_id, etc.)
+        private object ConvertLuaValue(object value)
+        {
+            if (value is LuaObject luaObj)
+                value = luaObj.luaobj;
+
+            // dictionnaire
+            if (value is Dictionary<string, LuaObject> dict)
+            {
+                var result = new Dictionary<string, object>();
+
+                foreach (var kv in dict)
+                {
+                    result[kv.Key] = ConvertLuaValue(kv.Value);
+                }
+
+                return result;
+            }
+
+            // liste (table indexée)
+            if (value is IEnumerable<object> list)
+            {
+                return list.Select(v => ConvertLuaValue(v)).ToList();
+            }
+
+            return value;
+        }
+
+        public static void ShowClassAndProperty(object obj)
+        {
+            ShowObject(obj, 0);
+        }
+
+        private static void ShowObject(object obj, int indent)
+        {
+            if (obj == null)
+            {
+                Log(indent, "null");
+                return;
+            }
+
+            Type type = obj.GetType();
+            Log(indent, "Type: " + type.Name);
+
+            // Types simples
+            if (IsSimple(type))
+            {
+                Log(indent, obj.ToString());
+                return;
+            }
+
+            // Listes / IEnumerable
+            if (obj is System.Collections.IEnumerable enumerable && !(obj is string))
+            {
+                Log(indent, "(IEnumerable)");
+                foreach (var item in enumerable)
+                {
+                    ShowObject(item, indent + 2);
+                }
+                return;
+            }
+
+            // Objets complexes → propriétés
+            var props = type.GetProperties();
+            foreach (var prop in props)
+            {
+                object value = null;
+                try { value = prop.GetValue(obj); }
+                catch { }
+
+                Log(indent, prop.Name + " = " + (value == null ? "null" : ""));
+
+                if (value != null)
+                    ShowObject(value, indent + 2);
+            }
+        }
+
+        private static bool IsSimple(Type type)
+        {
+            return type.IsPrimitive
+                || type.IsEnum
+                || type == typeof(string)
+                || type == typeof(decimal)
+                || type == typeof(DateTime)
+                || type == typeof(Guid);
+        }
+
+        private static void Log(int indent, string msg)
+        {
+            FormUtils.LogRegister(new string(' ', indent) + msg);
+        }
+
     }
 }

@@ -1,22 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
-using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
-//using DCE_Manager.CampaignEdit;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
-using NLua;
-using static System.Windows.Forms.AxHost;
 using static DCE_Manager.Utils.FormUtils;
 
-//using static DCE_Manager.OobAirParser;
-//using static DCE_Manager.CampaignLuaLoader;
-//using static DCE_Manager.FormSquadEdit;
+
 
 //namespace DCE_Manager
 //{
@@ -318,6 +310,12 @@ namespace DCE_Manager
             if (e.RowIndex < 0)
                 return;
 
+            bool isActive = _form1.radioButton_OOB_ACTIVE.Checked;
+
+            CampaignSquad campaignSquad;
+
+            Squad squadToEdit;
+
             FormUtils.LogRegister("CLICK Grid_CellMouseDown instance: " + this.GetHashCode());
 
             DataGridView grid = (DataGridView)sender;
@@ -340,23 +338,17 @@ namespace DCE_Manager
             // Clone
             if (columnName == "CloneColumn")
             {
-                CampaignSquad campaignSquad_A = OobAirParser.FindCampaignSquad(
-                squad.SideString,
-                squad.Name);
 
-                Squad squadToEdit_A;
+                string squadKey_A = squad.SideString.Trim().ToLowerInvariant() + "|" +
+                    squad.Name.Trim().ToLowerInvariant();
 
-                if (_form1.radioButton_OOB_ACTIVE.Checked)
-                {
-                    squadToEdit_A = campaignSquad_A.Active ?? campaignSquad_A.Init;
-                }
-                else
-                {
-                    squadToEdit_A = campaignSquad_A.Init ?? campaignSquad_A.Active;
-                }
+                campaignSquad = OobAirParser.FindCampaignSquad(squadKey_A);
 
-                //var frm = new FormSquadEdit(squadToEdit_A, _campaignContext.LuaData, true);
-                var frm = new FormSquadEdit(squadToEdit_A, _campaignContext, true);
+                squadToEdit = isActive
+                    ? campaignSquad.Active
+                    : campaignSquad.Init;
+
+                var frm = new FormSquadEdit(squadToEdit, _campaignContext, true, "A Grid_RowHeaderMouseClick");
 
                 frm.FormClosed += (s, args) =>
                 {
@@ -387,34 +379,24 @@ namespace DCE_Manager
                 return;
             }
 
-            CampaignSquad campaignSquad = OobAirParser.FindCampaignSquad(
-                squad.SideString,
-                squad.Name);
+            string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" +
+                    squad.Name.Trim().ToLowerInvariant();
 
-            Squad squadToEdit_B;
+            campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
 
-            if (_form1.radioButton_OOB_ACTIVE.Checked)
+            //campaignSquad = OobAirParser.FindCampaignSquad( squad.SideString, squad.Name, isActive);
+
+            squadToEdit = isActive ? campaignSquad.Active : campaignSquad.Init;
+
+
+            if (squadToEdit.Name == "73 TFS")
             {
-                squadToEdit_B = campaignSquad.Active ?? campaignSquad.Init;
-            }
-            else
-            {
-                squadToEdit_B = campaignSquad.Init ?? campaignSquad.Active;
+                LogRegister("FormSquadEdit START squadToEdit: " + squadToEdit.Name + " isActive: " + isActive);
+                OobAirParser.ShowClassAndProperty(squadToEdit);
+                LogRegister("FormSquadEdit END " + squadToEdit.Name);
             }
 
-            // Toute autre colonne => édition
-
-            // Si on édite le fichier Active, on recopie explicitement roster/score
-            // Pourquoi : certains champs ne sont pas recopiés automatiquement lors du merge Init/Active.
-            if (_form1.radioButton_OOB_ACTIVE.Checked &&
-                campaignSquad != null &&
-                campaignSquad.Active != null)
-            {
-                squadToEdit_B.Roster = campaignSquad.Active.Roster;
-                squadToEdit_B.Score = campaignSquad.Active.Score;
-            }
-            //var editFrm = new FormSquadEdit(squadToEdit_B, _campaignContext.LuaData, false);
-            var editFrm = new FormSquadEdit(squadToEdit_B, _campaignContext, false);
+            var editFrm = new FormSquadEdit(squadToEdit, _campaignContext, false, "B Grid_RowHeaderMouseClick");
 
 
 
@@ -442,23 +424,18 @@ namespace DCE_Manager
             if (squad == null)
                 return;
 
-            CampaignSquad campaignSquad = OobAirParser.FindCampaignSquad(
-            squad.SideString,
-            squad.Name);
+            bool isActive = _form1.radioButton_OOB_ACTIVE.Checked;
 
-            Squad squadToEdit_C;
+            string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" +
+                                squad.Name.Trim().ToLowerInvariant();
 
-            if (_form1.radioButton_OOB_ACTIVE.Checked)
-            {
-                squadToEdit_C = campaignSquad.Active ?? campaignSquad.Init;
-            }
-            else
-            {
-                squadToEdit_C = campaignSquad.Init ?? campaignSquad.Active;
-            }
+            CampaignSquad  campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
 
-            //var frm = new FormSquadEdit(squadToEdit_C, _campaignContext.LuaData, false);
-            var frm = new FormSquadEdit(squadToEdit_C, _campaignContext, false);
+            Squad squadToEdit = isActive
+                ? campaignSquad.Active
+                : campaignSquad.Init;
+
+            var frm = new FormSquadEdit(squadToEdit, _campaignContext, false, "C Grid_RowHeaderMouseClick");
 
             frm.FormClosed += (s, args) =>
             {

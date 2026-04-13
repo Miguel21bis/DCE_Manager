@@ -1197,7 +1197,15 @@ namespace DCE_Manager
                             // Pourquoi : File.Copy utilise l'API native Windows et consomme moins de CPU que CopyTo.
                             if (File.Exists(filePNGbyePlane))
                             {
-                                File.Copy(filePNGbyePlane, filePNG, true);
+                                //File.Copy(filePNGbyePlane, filePNG, true);
+                                try
+                                {
+                                    File.Copy(filePNGbyePlane, filePNG, true);
+                                }
+                                catch (IOException)
+                                {
+                                    // ignore si en cours d'utilisation
+                                }
 
                                 if (File.Exists(fileBMP))
                                 {
@@ -1218,21 +1226,42 @@ namespace DCE_Manager
                             {
                                 try
                                 {
+                                    var fileInfo = new FileInfo(imagePath);
+                                    if (fileInfo.Length < 100) // seuil sécurité
+                                    {
+                                        throw new Exception("Image corrompue ou vide : " + imagePath);
+                                    }
 
-                                    // Charge l'image sans passer par un MemoryStream intermédiaire.
-                                    // Pourquoi : évite une copie mémoire supplémentaire et réduit l'utilisation CPU.
-                                    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                                    using (var temp = Image.FromStream(fs))
+                                    // 🔵 BONUS → À PLACER ICI (voir explication plus bas)
+                                    //var fileInfo = new FileInfo(imagePath);
+                                    if (fileInfo.Length < 100)
+                                    {
+                                        throw new Exception("Image corrompue ou vide : " + imagePath);
+                                    }
+
+                                    for (int i = 0; i < 3; i++)
                                     {
                                         try
                                         {
-                                            img = new Bitmap(temp);
+                                            using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                            using (var temp = Image.FromStream(fs))
+                                            {
+                                                img = new Bitmap(temp);
+                                            }
+                                            break;
                                         }
-                                        catch (ArgumentException)
+                                        catch (IOException)
                                         {
-                                            throw new Exception("Fichier image invalide : " + imagePath);
+                                            System.Threading.Thread.Sleep(50);
                                         }
                                     }
+
+                                    // 🔴 sécurité : si après retry img toujours null
+                                    if (img == null)
+                                    {
+                                        throw new Exception("Impossible de charger l'image après plusieurs tentatives : " + imagePath);
+                                    }
+
                                     campaignImageCache[imagePath] = img;
                                 }
                                 catch (Exception ex)

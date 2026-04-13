@@ -3,12 +3,15 @@
 // Pourquoi : permettre d'afficher et modifier immédiatement toutes les variables connues et futures.
 
 using System;
+//using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+//using System.Web.UI.WebControls;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
+using static DCE_Manager.Utils.FormUtils;
 
 namespace DCE_Manager
 {
@@ -31,9 +34,20 @@ namespace DCE_Manager
         private readonly List<AdditionalRow> _additionalRows = new List<AdditionalRow>();
 
 
-        public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false)
+        //CONSTRUCTEUR
+        public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false, String txt="")
         {
+            LogRegister("FormSquadEdit INIT " + squad.Name + " txt: " + txt);
+
+            //if (squad.Name == "73 TFS")
+            //{
+            //    LogRegister("FormSquadEdit START " + squad.Name);
+            //    OobAirParser.ShowClassAndProperty(squad);
+            //    LogRegister("FormSquadEdit END " + squad.Name);
+            //}
+
             InitializeComponent();
+
 
             _campaignContext = campaignContext;
 
@@ -47,19 +61,30 @@ namespace DCE_Manager
 
             LoadStaticLists();
             FillControls();
+            BuildGenericTables(); // ← AJOUT ICI
             BuildBase();
             BuildBasesAlternative();
             BuildLiveryArea();
             BuildTasksArea();
             BuildScoreArea();
             BuildAdditionalArea();
+
+
+           
         }
 
         // Cette fonction crée une copie manuelle du squad.
         // Pourquoi : éviter que le mode clone modifie le squad original.
         private Squad CloneSquad(Squad source)
         {
-            return new Squad
+            //if (source.Name == "73 TFS")
+            //{
+            //    LogRegister("CloneSquad START " + source.Name);
+            //    OobAirParser.ShowClassAndProperty(source);
+            //    LogRegister("CloneSquad END " + source.Name);
+            //}
+
+            Squad tempSquad = new Squad
             {
                 Name = source.Name + "_Copy",
                 SideString = source.SideString,
@@ -80,11 +105,27 @@ namespace DCE_Manager
                 TasksCoef = source.TasksCoef != null ? new Dictionary<string, double>(source.TasksCoef) : new Dictionary<string, double>(),
                 Roster = source.Roster != null ? new Dictionary<string, object>(source.Roster) : new Dictionary<string, object>(),
                 Score = source.Score != null ? new Dictionary<string, object>(source.Score) : new Dictionary<string, object>(),
-                Livery = source.Livery,
+                //Livery = source.Livery,
                 AdditionalProperties = source.AdditionalProperties != null
                     ? new Dictionary<string, object>(source.AdditionalProperties)
-                    : new Dictionary<string, object>()
+                    : new Dictionary<string, object>(),
+                parking_id = source.parking_id != null
+                    ? new Dictionary<string, object>(source.parking_id)
+                    : new Dictionary<string, object>(),
+                Livery = source.Livery != null
+                    ? new Dictionary<int, string>(source.Livery)
+                    : new Dictionary<int, string>(),
             };
+
+            //if (source.Name == "73 TFS")
+            //{
+            //    LogRegister("tempSquad START " + source.Name);
+            //    OobAirParser.ShowClassAndProperty(source);
+            //    LogRegister("tempSquad END " + source.Name);
+            //}
+
+            return tempSquad;
+
         }
 
         // Cette fonction remplit les listes connues des ComboBox.
@@ -173,23 +214,6 @@ namespace DCE_Manager
             
         }
 
-        //private void BuildBasesAlternative()
-        //{
-        //    comboBoxBasesAlternat.Items.Clear();
-
-        //    var baseAlterList = EditedSquad.BaseAlternative;
-
-        //    if (baseAlterList != null && baseAlterList.Count > 0)
-        //    {
-        //        foreach (var entry in baseAlterList)
-        //        {
-        //            comboBoxBasesAlternat.Items.Add(entry);
-        //        }
-
-        //        // Afficher immédiatement la première base
-        //        comboBoxBasesAlternat.SelectedIndex = 0;
-        //    }
-        //}
         // Cette fonction remplit la ListBox des bases alternatives.
         // Pourquoi : afficher uniquement les bases de repli (sans la base principale).
         private void BuildBasesAlternative()
@@ -295,52 +319,6 @@ namespace DCE_Manager
         }
 
 
-        // Cette fonction remplit la zone Livery.
-        // Pourquoi : afficher immédiatement la première skin et permettre d'en ajouter.
-        //private void BuildLiveryArea()
-        //{
-        //    comboBox_Livery.Items.Clear();
-        //    comboBox_Livery.DropDownStyle = ComboBoxStyle.DropDownList;
-
-        //    // Cas 1 : aucune livery connue
-        //    if (EditedSquad.Livery == null)
-        //    {
-        //        comboBox_Livery.Items.Add("(aucune skin)");
-        //        comboBox_Livery.SelectedIndex = 0;
-
-        //        // On prépare malgré tout un dictionnaire vide pour les futurs ajouts.
-        //        EditedSquad.Livery = new Dictionary<int, string>();
-        //    }
-
-        //    // Cas 2 : une seule livery sous forme de string
-        //    else if (EditedSquad.Livery is string liveryString)
-        //    {
-        //        comboBox_Livery.Items.Add(liveryString);
-
-        //        // On affiche la première skin directement sans ouvrir la liste.
-        //        comboBox_Livery.SelectedIndex = 0;
-        //    }
-
-        //    // Cas 3 : plusieurs liveries dans un dictionnaire
-        //    else if (EditedSquad.Livery is Dictionary<int, string> liveryDict)
-        //    {
-        //        foreach (var entry in liveryDict.OrderBy(x => x.Key))
-        //        {
-        //            comboBox_Livery.Items.Add(entry.Value);
-        //        }
-
-        //        // Important : afficher immédiatement la première skin.
-        //        if (comboBox_Livery.Items.Count > 0)
-        //        {
-        //            comboBox_Livery.SelectedIndex = 0;
-        //        }
-        //    }
-
-        //    // Cette fonction ajoute une nouvelle skin depuis textBox_AddSkin.
-        //    // Pourquoi : permettre au campaignMaker d'ajouter librement des liveries.
-        //    button_AddSkin.Click -= Button_AddSkin_Click;
-        //    button_AddSkin.Click += Button_AddSkin_Click;
-        //}
 
         // Construit la liste des liveries.
         // Pourquoi : affichage simple + cohérent avec les autres listes.
@@ -431,20 +409,20 @@ namespace DCE_Manager
 
             foreach (var task in EditedSquad.Tasks.OrderBy(t => t.Key))
             {
-                Panel row = new Panel();
+                System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
                 row.Width = 1350;
                 row.Height = 32;
 
-                Label label = new Label();
+                System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
                 label.Text = task.Key;
                 label.Location = new Point(0, 7);
                 label.Width = 220;
 
-                CheckBox checkBox = new CheckBox();
+                System.Windows.Forms.CheckBox checkBox = new System.Windows.Forms.CheckBox();
                 checkBox.Checked = Convert.ToBoolean(task.Value);
                 checkBox.Location = new Point(240, 5);
 
-                Label labelCoef = new Label();
+                System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label ();
                 labelCoef.Text = "Coef";
                 labelCoef.Location = new Point(320, 7);
                 labelCoef.Width = 40;
@@ -567,7 +545,7 @@ namespace DCE_Manager
 
             foreach (var item in dict)
             {
-                Label label = new Label();
+                System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
                 label.Text = item.Key;
                 label.Location = new Point(10, y + 3);
                 label.Width = 180;
@@ -602,42 +580,6 @@ namespace DCE_Manager
                 return;
 
 
-            //if (EditedSquad.Livery != null)
-            //{
-            //    Panel row = new Panel();
-            //    row.Width = 1400;
-            //    row.Height = 120;
-
-            //    Label label = new Label();
-            //    label.Text = "livery";
-            //    label.Location = new Point(0, 10);
-            //    label.Width = 220;
-
-            //    TextBox textBox = new TextBox();
-            //    textBox.Location = new Point(230, 10);
-            //    textBox.Width = 1100;
-            //    textBox.Height = 90;
-            //    textBox.Multiline = true;
-            //    textBox.ScrollBars = ScrollBars.Vertical;
-
-            //    if (EditedSquad.Livery is Dictionary<int, string> dict)
-            //    {
-            //        textBox.Text = string.Join(
-            //            Environment.NewLine,
-            //            dict.OrderBy(x => x.Key)
-            //                .Select(x => "[" + x.Key + "] = " + x.Value));
-            //    }
-            //    else
-            //    {
-            //        textBox.Text = EditedSquad.Livery.ToString();
-            //    }
-
-            //    row.Controls.Add(label);
-            //    row.Controls.Add(textBox);
-
-            //    flowLayoutPanelAdditional.Controls.Add(row);
-            //}
-
             foreach (var property in EditedSquad.AdditionalProperties.OrderBy(p => p.Key))
             {
                 //if (property.Key == "score_last")
@@ -650,16 +592,16 @@ namespace DCE_Manager
                     continue;
                 }
 
-                Panel row = new Panel();
+                System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
                 row.Width = 1400;
                 row.Height = 55;
 
-                Label label = new Label();
+                System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
                 label.Text = property.Key;
                 label.Location = new Point(0, 18);
                 label.Width = 220;
 
-                TextBox textBox = new TextBox();
+                System.Windows.Forms.TextBox textBox = new System.Windows.Forms.TextBox();
                 textBox.Location = new Point(230, 15);
                 textBox.Width = 1100;
                 textBox.Text = ConvertPropertyToText(property.Value);
@@ -790,7 +732,7 @@ namespace DCE_Manager
         private class TaskRow
         {
             public string TaskName { get; set; }
-            public CheckBox EnabledCheckBox { get; set; }
+            public System.Windows.Forms.CheckBox EnabledCheckBox { get; set; }
             public NumericUpDown CoefNumeric { get; set; }
         }
 
@@ -798,7 +740,7 @@ namespace DCE_Manager
         private class AdditionalRow
         {
             public string PropertyName { get; set; }
-            public TextBox ValueTextBox { get; set; }
+            public System.Windows.Forms.TextBox ValueTextBox { get; set; }
         }
 
         private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
@@ -814,6 +756,189 @@ namespace DCE_Manager
         private void labelBasesAdd_Click(object sender, EventArgs e)
         {
 
+        }
+        // Construit un éditeur générique pour table Lua
+        // Pourquoi : éviter de coder 10 UI différents
+        private void AddGenericTable(string title, object data)
+        {
+            if (data == null)
+                return;
+
+            GroupBox group = new GroupBox();
+            //group.Text = title;
+            group.Text = $"{title} ({data.GetType().Name})";
+            group.Width = 520;
+            group.Height = 220;
+
+            System.Windows.Forms.ListBox list = new System.Windows.Forms.ListBox();
+            list.Width = 480;
+            list.Height = 120;
+            list.Location = new Point(10, 20);
+
+            System.Windows.Forms.TextBox textKey = new System.Windows.Forms.TextBox();
+            textKey.Width = 100;
+            textKey.Location = new Point(10, 150);
+
+            System.Windows.Forms.TextBox textValue = new System.Windows.Forms.TextBox();
+            textValue.Width = 200;
+            textValue.Location = new Point(120, 150);
+
+            System.Windows.Forms.Button btnAdd = new System.Windows.Forms.Button();
+            btnAdd.Text = "+";
+            btnAdd.Location = new Point(330, 148);
+
+            System.Windows.Forms.Button btnRemove = new System.Windows.Forms.Button();
+            btnRemove.Text = "-";
+            btnRemove.Location = new Point(370, 148);
+
+            // Type détecté
+            bool hasKey = true;
+
+            // Détection universelle
+            // Pourquoi : supporter toutes les structures Lua sans ajouter de code
+            if (data is System.Collections.IDictionary dict)
+            {
+                foreach (System.Collections.DictionaryEntry entry in dict)
+                {
+                    string key = entry.Key.ToString();
+
+                    if (ReferenceEquals(entry.Value, data))
+                    {
+                        list.Items.Add($"{key} = (self reference)");
+                        continue;
+                    }
+
+                    if (entry.Value is System.Collections.IEnumerable enumerable && !(entry.Value is string))
+                    {
+                        int count = 0;
+                        List<string> preview = new List<string>();
+
+                        foreach (var v in enumerable)
+                        {
+                            if (count < 5) // 🔴 limite affichage
+                                preview.Add(v != null ? v.ToString() : "null");
+
+                            count++;
+
+                            if (count > 20) break; // 🔴 sécurité absolue
+                        }
+
+                        list.Items.Add($"{key} = [Count={count}] ({string.Join(",", preview)})");
+                    }
+                    else
+                    {
+                        list.Items.Add($"{key} = {entry.Value}");
+                    }
+                }
+            }
+            else if (data is System.Collections.IEnumerable enumerable && !(data is string))
+            {
+                foreach (var v in enumerable)
+                {
+                    list.Items.Add(v.ToString());
+                }
+
+                hasKey = false;
+            }
+
+           
+
+            // Si pas de clé → on désactive le champ key
+            textKey.Enabled = hasKey;
+
+            // ---------------------------
+            // ➕ ADD
+            // ---------------------------
+            btnAdd.Click += (s, e) =>
+            {
+                string key = textKey.Text.Trim();
+                string val = textValue.Text.Trim();
+
+                if (string.IsNullOrEmpty(val))
+                    return;
+
+                if (hasKey)
+                    list.Items.Add($"{key} = {val}");
+                else
+                    list.Items.Add(val);
+
+                textKey.Clear();
+                textValue.Clear();
+            };
+
+            // ---------------------------
+            // ➖ REMOVE
+            // ---------------------------
+            btnRemove.Click += (s, e) =>
+            {
+                if (list.SelectedIndex >= 0)
+                    list.Items.RemoveAt(list.SelectedIndex);
+            };
+
+            group.Controls.Add(list);
+            group.Controls.Add(textKey);
+            group.Controls.Add(textValue);
+            group.Controls.Add(btnAdd);
+            group.Controls.Add(btnRemove);
+
+            //flowLayoutPanelAdditional.Controls.Add(group);
+            flowLayoutPanelTables.Controls.Add(group);
+        }
+
+        // Construit automatiquement les tables typées du Squad
+        // Pourquoi : éviter de déclarer chaque table à la main et rendre l'UI scalable
+        private void BuildGenericTables()
+        {
+            flowLayoutPanelTables.Controls.Clear();
+
+            var properties = typeof(Squad).GetProperties();
+
+            foreach (var prop in properties)
+            {
+                // 🔴 EXCLUSIONS (UI spécifique déjà existante)
+                if (prop.Name == "Livery" ||
+                    prop.Name == "Tasks" ||
+                    prop.Name == "TasksCoef" ||
+                    prop.Name == "Roster" ||
+                    prop.Name == "Score" ||
+                    prop.Name == "BaseAlternative" ||
+                    prop.Name == "ScoreLast" ||
+                    prop.Name == "TasksCoefPourcent" ||
+                    prop.Name == "SideNumber" ||
+
+                    prop.Name == "AdditionalProperties")
+                {
+                    continue;
+                }
+
+                object value = prop.GetValue(EditedSquad);
+
+                FormUtils.LogRegister($"TABLE CHECK: {prop.Name} = {(value == null ? "NULL" : value.GetType().Name)}");
+
+                //FormUtils.LogRegister($"VALUE parking_id = {value}");
+
+
+                //if (value == null)
+                //    continue;
+                if (value == null)
+                {
+                    // afficher quand même une table vide
+                    if (prop.PropertyType != typeof(string))
+                        AddGenericTable(prop.Name, new List<string>());
+                    continue;
+                }
+
+
+                // 🧠 Détection automatique table
+                bool isDictionary = value is System.Collections.IDictionary;
+                bool isList = value is System.Collections.IEnumerable && !(value is string);
+
+                if (isDictionary || isList)
+                {
+                    FormUtils.LogRegister($"TABLE ADDED: {prop.Name}");
+                    AddGenericTable(prop.Name, value);
+                }
+            }
         }
 
     }
