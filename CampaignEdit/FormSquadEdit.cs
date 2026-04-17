@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
+
 //using System.Web.UI.WebControls;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
@@ -37,33 +39,35 @@ namespace DCE_Manager
         //CONSTRUCTEUR
         public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false, String txt="")
         {
-            LogRegister("FormSquadEdit INIT " + squad.Name + " txt: " + txt);
-
-            //if (squad.Name == "73 TFS")
-            //{
-            //    LogRegister("FormSquadEdit START " + squad.Name);
-            //    OobAirParser.ShowClassAndProperty(squad);
-            //    LogRegister("FormSquadEdit END " + squad.Name);
-            //}
-
             InitializeComponent();
 
 
             _campaignContext = campaignContext;
 
+            if (squad == null)
+            {
+                MessageBox.Show("Squad NULL lors de l'ouverture", "Erreur");
+                return;
+            }
+
             // On clone le squad pour éviter de modifier l'original avant Save.
             // Pourquoi : l'utilisateur peut encore annuler.
             EditedSquad = cloneMode ? CloneSquad(squad) : squad;
 
+            //Text = cloneMode
+            //    ? "Clone Squad - " + EditedSquad.Name
+            //    : "Edit Squad - " + EditedSquad.Name;
+
             Text = cloneMode
-                ? "Clone Squad - " + EditedSquad.Name
-                : "Edit Squad - " + EditedSquad.Name;
+            ? "Clone Squad - " + EditedSquad.DisplayName
+            : "Edit Squad - " + EditedSquad.DisplayName;
 
             LoadStaticLists();
             FillControls();
             BuildGenericTables(); // ← AJOUT ICI
             BuildBase();
             BuildBasesAlternative();
+            BuildCallSign();
             BuildLiveryArea();
             BuildTasksArea();
             BuildScoreArea();
@@ -77,13 +81,6 @@ namespace DCE_Manager
         // Pourquoi : éviter que le mode clone modifie le squad original.
         private Squad CloneSquad(Squad source)
         {
-            //if (source.Name == "73 TFS")
-            //{
-            //    LogRegister("CloneSquad START " + source.Name);
-            //    OobAirParser.ShowClassAndProperty(source);
-            //    LogRegister("CloneSquad END " + source.Name);
-            //}
-
             Squad tempSquad = new Squad
             {
                 Name = source.Name + "_Copy",
@@ -92,8 +89,11 @@ namespace DCE_Manager
                 IdSquad = source.IdSquad,
                 Inactive = source.Inactive,
                 Player = source.Player,
+                HumainOnly = source.HumainOnly,
                 Type = source.Type,
                 Country = source.Country,
+                Callsign = source.Callsign,
+                CallsignId = source.CallsignId,
                 Base = source.Base,
                 Skill = source.Skill,
                 Number = source.Number,
@@ -116,13 +116,6 @@ namespace DCE_Manager
                     ? new Dictionary<int, string>(source.Livery)
                     : new Dictionary<int, string>(),
             };
-
-            //if (source.Name == "73 TFS")
-            //{
-            //    LogRegister("tempSquad START " + source.Name);
-            //    OobAirParser.ShowClassAndProperty(source);
-            //    LogRegister("tempSquad END " + source.Name);
-            //}
 
             return tempSquad;
 
@@ -196,7 +189,8 @@ namespace DCE_Manager
         // Pourquoi : préremplir immédiatement la fenêtre d'édition.
         private void FillControls()
         {
-            textBoxName.Text = EditedSquad.Name;
+            //textBoxName.Text = EditedSquad.Name;
+            textBoxName.Text = EditedSquad.DisplayName;
 
             comboBoxType.Text = EditedSquad.Type;
             comboBoxCountry.Text = EditedSquad.Country;
@@ -204,7 +198,10 @@ namespace DCE_Manager
             comboBoxSkill.Text = EditedSquad.Skill;
 
             checkBoxPlayer.Checked = EditedSquad.Player;
+            checkBox_HumainOnly.Checked = EditedSquad.HumainOnly;
             checkBoxInactive.Checked = EditedSquad.Inactive;
+
+            
 
             numericNumber.Value = EditedSquad.Number;
             numericInitNumber.Value = EditedSquad.InitNumber;
@@ -234,6 +231,89 @@ namespace DCE_Manager
                 }
             }
         }
+        private void BuildCallSign()
+        {
+            comboBox_Callsign.Items.Clear();
+
+            // Toujours ajouter "Automatic" en premier
+            comboBox_Callsign.Items.Add("Automatic");
+
+            string selectedCallsign = EditedSquad.Callsign; // string ou null ?
+
+            if (EditedSquad.SideString == "blue")
+            {
+                var aircraft = EditedSquad.Type;
+
+                if (_campaignContext?.LuaData?.SpecificCallnames != null)
+                {
+                    if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
+                    {
+                        var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
+
+                        if (dict.ContainsKey(EditedSquad.Country))
+                        {
+                            comboBox_Callsign.Items.AddRange(dict[EditedSquad.Country].ToArray());
+                        }
+                        else if (dict.ContainsKey("USA")) // fallback
+                        {
+                            comboBox_Callsign.Items.AddRange(dict["USA"].ToArray());
+                        }
+                    }
+                    else
+                    {
+                        string typeFCT = "generic";
+
+                        if (EditedSquad.Tasks != null)
+                        {
+                            foreach (var task in EditedSquad.Tasks)
+                            {
+                                if (task.Key == "AWACS" && task.Value)
+                                {
+                                    typeFCT = "AWACS";
+                                    break;
+                                }
+
+                                if (task.Key == "Refueling" && task.Value)
+                                {
+                                    typeFCT = "tanker";
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
+                        {
+                            comboBox_Callsign.Items.AddRange(_campaignContext.LuaData.CallsignWest[typeFCT].ToArray());
+                        }
+                    }
+                }
+            }
+            else
+            {
+                comboBox_Callsign.Enabled = false;
+                return;
+            }
+
+            // Ajouter le callsign déjà sélectionné s'il n'est pas dans la liste
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                !comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.Items.Add(selectedCallsign);
+            }
+
+            // Sélectionner le callsign actuel ou "Automatic"
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.SelectedItem = selectedCallsign;
+            }
+            else
+            {
+                comboBox_Callsign.SelectedItem = "Automatic";
+            }
+        }
+
+
         // Ajoute une base alternative depuis la comboBox_All_bases.
         // Pourquoi : permettre d'ajouter une base de repli sans doublon ni incohérence.
         private void button_base_plus_Click(object sender, EventArgs e)
@@ -785,10 +865,12 @@ namespace DCE_Manager
 
             System.Windows.Forms.Button btnAdd = new System.Windows.Forms.Button();
             btnAdd.Text = "+";
+            btnAdd.Size = new Size(30, 25);
             btnAdd.Location = new Point(330, 148);
 
             System.Windows.Forms.Button btnRemove = new System.Windows.Forms.Button();
             btnRemove.Text = "-";
+            btnRemove.Size = new Size(30, 25);
             btnRemove.Location = new Point(370, 148);
 
             // Type détecté
@@ -808,22 +890,18 @@ namespace DCE_Manager
                         continue;
                     }
 
+                    
                     if (entry.Value is System.Collections.IEnumerable enumerable && !(entry.Value is string))
                     {
-                        int count = 0;
-                        List<string> preview = new List<string>();
+                        List<string> values = new List<string>();
 
                         foreach (var v in enumerable)
                         {
-                            if (count < 5) // 🔴 limite affichage
-                                preview.Add(v != null ? v.ToString() : "null");
-
-                            count++;
-
-                            if (count > 20) break; // 🔴 sécurité absolue
+                            values.Add(v != null ? v.ToString() : "null");
                         }
 
-                        list.Items.Add($"{key} = [Count={count}] ({string.Join(",", preview)})");
+                        // 👉 affichage simple demandé
+                        list.Items.Add($"{key} = {string.Join(",", values)}");
                     }
                     else
                     {
@@ -905,6 +983,9 @@ namespace DCE_Manager
                     prop.Name == "ScoreLast" ||
                     prop.Name == "TasksCoefPourcent" ||
                     prop.Name == "SideNumber" ||
+                    prop.Name == "Callsign" ||
+                    prop.Name == "CallsignId" ||
+                    
 
                     prop.Name == "AdditionalProperties")
                 {

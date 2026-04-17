@@ -27,6 +27,8 @@ namespace DCE_Manager
             LoadFile(campaignName, "Init");
             LoadFile(campaignName, "Active");
 
+            DetectDuplicateNames(campaignName);
+
             return List_oob_air_Manager.List_campaignSquads;
         }
 
@@ -103,8 +105,7 @@ namespace DCE_Manager
 
                     foreach (var entry2 in level1) // squad
                     {
-                        //FormUtils.LogRegister("OobAirParser.cs: C foreach  (foreach (var entry2 in level1) // squad) ");
-                        idSquad++;
+                       idSquad++;
 
                         FormUtils.LogRegister("new Squad: " + idSquad );
 
@@ -122,29 +123,37 @@ namespace DCE_Manager
 
                         foreach (var entry3 in level2) // propriétés squad
                         {
-                            
-                            //FormUtils.LogRegister("OobAirParser.cs: D foreach   foreach (var entry3 in level2) // propriétés squad ");
-                            //var key = entry3.Key;
-                            var key = entry3.Key?.Trim().ToLowerInvariant();
+
+                            //var key = entry3.Key?.Trim().ToLowerInvariant();
+                            var key = entry3.Key?.Trim();
                             var valObj = entry3.Value.luaobj;
 
-                            //FormUtils.LogRegister("KEY DETECTED: [" + key + "]"); // 👈 AJOUT
+                            FormUtils.LogRegister("KEY DETECTED: [" + key + "]"); // 👈 AJOUT
 
                             // ⚡ SWITCH = beaucoup + rapide que 30 if
                             switch (key)
                             {
                                 case "name":
                                     squad.Name = valObj?.ToString();
-
-                                    FormUtils.LogRegister("Found squad Name: [" + squad.Name + "]");
-
-                                    if (squad.Name == "469th TFS")
+                                    squad.DisplayName = squad.Name; // valeur par défaut
+                                    FormUtils.LogRegister("squad.Name: " + squad.Name);
+                                    if (squad.Name == "77 TFS")
                                     { }
-                                    break;
+                                        break;
+
                                 case "player": squad.Player = Convert.ToBoolean(valObj); break;
+                                    
+                                case "humainOnly": squad.HumainOnly = Convert.ToBoolean(valObj); break;
                                 case "type": squad.Type = valObj?.ToString(); break;
                                 case "country": squad.Country = valObj?.ToString(); break;
+                                //case "country": squad.Country = valObj?.ToString(); break;
                                 case "skill": squad.Skill = valObj?.ToString(); break;
+
+                                case "callsign": squad.Callsign = valObj?.ToString(); break;
+                                case "callsignId": squad.CallsignId = Convert.ToInt32(valObj); break;
+
+
+
                                 case "base": squad.Base = valObj?.ToString(); break;
 
                                 case "baseAlternative":
@@ -171,18 +180,46 @@ namespace DCE_Manager
                                     }
                                     break;
 
+                                //case "tasksCoef":
+                                //    if (valObj is Dictionary<string, LuaObject> tasksCoef)
+                                //    {
+                                //        //squad.TasksCoef = new Dictionary<string, object>(tasksCoef.Count);
+                                //        squad.TasksCoef = new Dictionary<string, double>(tasksCoef.Count);
+                                //        foreach (var e in tasksCoef)
+                                //        {
+                                //            //if (double.TryParse(e.Value.luaobj.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                                //            double v = Convert.ToDouble(e.Value.luaobj, CultureInfo.InvariantCulture);
+                                //            squad.TasksCoef[e.Key] = v;
+                                //        }
+                                //    }
+                                //    break;
                                 case "tasksCoef":
                                     if (valObj is Dictionary<string, LuaObject> tasksCoef)
                                     {
-                                        //squad.TasksCoef = new Dictionary<string, object>(tasksCoef.Count);
                                         squad.TasksCoef = new Dictionary<string, double>(tasksCoef.Count);
+
                                         foreach (var e in tasksCoef)
                                         {
-                                            if (double.TryParse(e.Value.luaobj.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
-                                                squad.TasksCoef[e.Key] = v;
+                                            object raw = e.Value.luaobj;
+                                            double v;
+
+                                            // Conversion directe, sans passer par ToString()
+                                            try
+                                            {
+                                                v = Convert.ToDouble(raw, CultureInfo.InvariantCulture);
+                                            }
+                                            catch
+                                            {
+                                                // fallback si jamais c'est une string bizarre
+                                                double.TryParse(raw?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out v);
+                                            }
+
+                                            squad.TasksCoef[e.Key] = v;
                                         }
                                     }
                                     break;
+
+
 
                                 case "inactive":
                                     squad.Inactive = Convert.ToBoolean(valObj);
@@ -307,35 +344,18 @@ namespace DCE_Manager
                                                 }
 
                                                 squad.parking_id[e.Key] = list;
-                                                //FormUtils.LogRegister($"CASE parking_id G {e.Key}: [{string.Join(", ", list)}]");
-
-                                                //var dumpA = string.Join(" | ",
-                                                //        squad.parking_id.Select(kv =>
-                                                //            $"{kv.Key}: [{string.Join(", ", (kv.Value as IEnumerable<int>) ?? new List<int>())}]"
-                                                //        )
-                                                //    );
-
-                                                //FormUtils.LogRegister("AA_parking_id  = " + dumpA);
-
+                                                
                                             }
                                         }
                                     }
                                     break;
-
-                                //case "parking_id":
-                                //    squad.parking_id = ConvertLuaValue(valObj) as Dictionary<string, object>;
-                                //    break;
 
                                 default:
                                     // ⚡ ultra important : éviter GetType() (lent)
 
                                     if (valObj is Dictionary<string, LuaObject> sub)
                                     {
-                                        //var dict = new Dictionary<string, object>(sub.Count);
-                                        //foreach (var e in sub)
-                                        //    dict[e.Key] = e.Value.luaobj;
-
-                                        var dict = new Dictionary<string, object>(sub.Count);
+                                         var dict = new Dictionary<string, object>(sub.Count);
 
                                         foreach (var e in sub)
                                         {
@@ -411,7 +431,7 @@ namespace DCE_Manager
                         LogRegister("squad.Name |" + squad.Name+"|");
                         LogRegister("squadNameKey |" + squadNameKey + "|");
 
-                        if (squad.Name == "73 TFS")
+                        if (squad.Name == "77 TFS")
                         {
                             LogRegister("ShowClassAndProperty START " + squad.Name);
 
@@ -556,6 +576,50 @@ namespace DCE_Manager
         private static void Log(int indent, string msg)
         {
             FormUtils.LogRegister(new string(' ', indent) + msg);
+        }
+
+        // Détecte les doublons de noms de squad et alerte
+        // Pourquoi : informer sans casser le parsing ni la logique
+        private void DetectDuplicateNames(string campaignName)
+        {
+            var duplicates = List_oob_air_Manager.List_oob_air
+                .GroupBy(s => (s.SideString + "|" + s.Name + "|" + s.FolderFile).ToLowerInvariant())
+                .Where(g => g.Count() > 1);
+
+            List<string> messages = new List<string>();
+
+            foreach (var group in duplicates)
+            {
+                var squads = group.ToList();
+
+                // Marquage UI
+                foreach (var s in squads)
+                {
+                    s.DisplayName = "DOUBLON_" + s.Name;
+                }
+
+                // Message détaillé
+                string detail = string.Join(" | ",
+                    squads.Select(s =>
+                        $"{s.Name} ({s.FolderFile} / base={s.Base} / type={s.Type})"
+                    )
+                );
+
+                messages.Add(detail);
+
+                FormUtils.LogRegister("⚠️ DOUBLON DETECTE: " + detail);
+            }
+
+            // Popup UNIQUE
+            if (messages.Count > 0)
+            {
+                string msg =
+                    "ATTENTION : doublons détectés dans la campagne '" + campaignName + "'\n\n" +
+                    string.Join("\n", messages) +
+                    "\n\nLes données peuvent être incohérentes.";
+
+                MessageBox.Show(msg, "Doublons détectés", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
     }

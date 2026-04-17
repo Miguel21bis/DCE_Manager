@@ -159,12 +159,6 @@ namespace DCE_Manager.Parameters
         // Données provenant de Active\oob_air.lua
         public Squad Active { get; set; }
 
-        //// Retourne le squad correspondant au mode demandé.
-        //// Pourquoi : simplifier toute l'interface.
-        //public Squad GetSquad(string folder)
-        //{
-        //    return folder == "Active" ? Active : Init;
-        //}
     }
 
     public static class CampaignSquadTools
@@ -211,9 +205,11 @@ namespace DCE_Manager.Parameters
         public string Name { get; set; }
         public bool Inactive { get; set; }
         public bool Player { get; set; }
+        public bool HumainOnly { get; set; }
+        
         public string Type { get; set; }
         public string Country { get; set; }
-       public string Base { get; set; }
+        public string Base { get; set; }
         public List<string> BaseAlternative { get; set; }
         public string Skill { get; set; }
         public int InitNumber { get; set; }
@@ -233,10 +229,13 @@ namespace DCE_Manager.Parameters
         public string Callsign { get; set; }      // "Uzi"
         public int? CallsignId { get; set; }      // 3
         public Dictionary<string, object> ScoreLast { get; set; }
-       public Dictionary<string, int> TasksCoefPourcent { get; set; }
+        public Dictionary<string, int> TasksCoefPourcent { get; set; }
         public Dictionary<int, string> LiveryModex { get; set; }
         public List<int> SideNumber { get; set; }
-        //public Dictionary<int, int> ParkingId { get; set; }
+      
+        // Nom affiché dans l'UI (différent du Name brut Lua)
+        // Pourquoi : gérer les doublons sans casser le matching
+        public string DisplayName { get; set; }
 
         //public bool IsActive => !Inactive;
         public bool IsActive
@@ -330,14 +329,12 @@ namespace DCE_Manager.Parameters
     {
         public HashSet<string> PlayableAircraft { get; set; }
         public HashSet<string> AllPlaneHeli { get; set; }
+        public Dictionary<string, List<string>> CallsignWest { get; set; }
+        public Dictionary<string, Dictionary<string, List<string>>> SpecificCallnames { get; set; }
+        public Dictionary<string, List<string>> Country { get; set; }
 
-        //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
         public Dictionary<string, List<string>> TaskByPlane { get; set; }
-
-        // plus tard :
-        // public Dictionary<string, string> CountryByPlane { get; set; }
-        // public Dictionary<string, int> FuelByPlane { get; set; }
-        // etc.
+        //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
     }
 
     public static class List_oob_air_Manager

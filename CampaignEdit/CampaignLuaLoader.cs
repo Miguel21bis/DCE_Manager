@@ -39,14 +39,15 @@ namespace DCE_Manager
 
             _data.PlayableAircraft = new HashSet<string>();
             _data.AllPlaneHeli = new HashSet<string>();
-            //_data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
             _data.TaskByPlane = new Dictionary<string, List<string>>();
+            //_data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
+            _data.CallsignWest = new Dictionary<string, List<string>>();
+            _data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
+            _data.Country = new Dictionary<string, List<string>>();
 
             // -----------------------------------------------------------------
             // Playable aircraft
             // -----------------------------------------------------------------
-
-
 
             LuaTable playableLua = luaTable["Playable_m"] as LuaTable;
 
@@ -100,7 +101,103 @@ namespace DCE_Manager
                 }
             }
 
-          
+            // -----------------------------------------------------------------
+            // CallsignWest
+            // -----------------------------------------------------------------
+            LuaTable callsignWestLua = luaTable["CallsignWest"] as LuaTable;
+
+            if (callsignWestLua != null)
+            {
+                foreach (object key in callsignWestLua.Keys)
+                {
+                    string type = key.ToString();
+
+                    LuaTable subTable = callsignWestLua[key] as LuaTable;
+                    if (subTable == null)
+                        continue;
+
+                    List<string> list = new List<string>();
+
+                    foreach (object subKey in subTable.Keys)
+                    {
+                        object val = subTable[subKey];
+                        if (val != null)
+                        {
+                            list.Add(val.ToString());
+                        }
+                    }
+
+                    _data.CallsignWest[type] = list;
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // SpecificCallnames
+            // -----------------------------------------------------------------
+
+            _data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
+
+            LuaTable specificLua = luaTable["SpecificCallnames"] as LuaTable;
+
+            if (specificLua != null)
+            {
+                foreach (object aircraftKey in specificLua.Keys)
+                {
+                    string aircraft = aircraftKey.ToString();
+
+                    LuaTable countriesTable = specificLua[aircraftKey] as LuaTable;
+                    if (countriesTable == null)
+                        continue;
+
+                    var countryDict = new Dictionary<string, List<string>>();
+
+                    foreach (object countryKey in countriesTable.Keys)
+                    {
+                        string country = countryKey.ToString();
+
+                        LuaTable callSignTable = countriesTable[countryKey] as LuaTable;
+                        if (callSignTable == null)
+                            continue;
+
+                        List<string> list = new List<string>();
+
+                        foreach (object subKey in callSignTable.Keys)
+                        {
+                            object val = callSignTable[subKey];
+                            if (val != null)
+                            {
+                                list.Add(val.ToString());
+                            }
+                        }
+
+                        countryDict[country] = list;
+                    }
+
+                    _data.SpecificCallnames[aircraft] = countryDict;
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // Country
+            // -----------------------------------------------------------------
+
+            //LuaTable countryLua = luaTable["Country"] as LuaTable;
+
+            //if (countryLua != null)
+            //{
+            //    _data.Country = new List<string>();
+
+            //    foreach (object key in countryLua.Keys)
+            //    {
+            //        object val = countryLua[key];
+            //        if (val != null)
+            //        {
+            //            _data.Country.Add(val.ToString());
+            //        }
+            //    }
+            //}
+
+
             //FormUtils.LogRegister("CampaignLuaLoader.cs: PlayableAircraft.Count = " + _data.PlayableAircraft.Count);
 
             //FormUtils.LogRegister("CampaignLuaLoader.cs: TaskByPlane.Count = " +  _data.TaskByPlane.Count);

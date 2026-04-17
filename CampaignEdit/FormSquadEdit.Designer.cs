@@ -25,6 +25,8 @@ namespace DCE_Manager
         private void InitializeComponent()
         {
             this.panelMain = new System.Windows.Forms.Panel();
+            this.groupBox_PanelTables = new System.Windows.Forms.GroupBox();
+            this.flowLayoutPanelTables = new System.Windows.Forms.FlowLayoutPanel();
             this.groupBox_Bases = new System.Windows.Forms.GroupBox();
             this.button_Base_Haut = new System.Windows.Forms.Button();
             this.button_Base_Down = new System.Windows.Forms.Button();
@@ -54,6 +56,8 @@ namespace DCE_Manager
             this.labelInitReserve = new System.Windows.Forms.Label();
             this.numericInitReserve = new System.Windows.Forms.NumericUpDown();
             this.groupBoxGeneral = new System.Windows.Forms.GroupBox();
+            this.label_Callsign = new System.Windows.Forms.Label();
+            this.comboBox_Callsign = new System.Windows.Forms.ComboBox();
             this.labelName = new System.Windows.Forms.Label();
             this.textBoxName = new System.Windows.Forms.TextBox();
             this.labelType = new System.Windows.Forms.Label();
@@ -68,9 +72,9 @@ namespace DCE_Manager
             this.checkBoxInactive = new System.Windows.Forms.CheckBox();
             this.buttonOK = new System.Windows.Forms.Button();
             this.buttonCancel = new System.Windows.Forms.Button();
-            this.groupBox_PanelTables = new System.Windows.Forms.GroupBox();
-            this.flowLayoutPanelTables = new System.Windows.Forms.FlowLayoutPanel();
+            this.checkBox_HumainOnly = new System.Windows.Forms.CheckBox();
             this.panelMain.SuspendLayout();
+            this.groupBox_PanelTables.SuspendLayout();
             this.groupBox_Bases.SuspendLayout();
             this.groupBox_Livery.SuspendLayout();
             this.groupBoxAdditional.SuspendLayout();
@@ -82,7 +86,6 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericReserve)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).BeginInit();
             this.groupBoxGeneral.SuspendLayout();
-            this.groupBox_PanelTables.SuspendLayout();
             this.SuspendLayout();
             // 
             // panelMain
@@ -103,6 +106,27 @@ namespace DCE_Manager
             this.panelMain.Name = "panelMain";
             this.panelMain.Size = new System.Drawing.Size(1282, 1055);
             this.panelMain.TabIndex = 0;
+            // 
+            // groupBox_PanelTables
+            // 
+            this.groupBox_PanelTables.Controls.Add(this.flowLayoutPanelTables);
+            this.groupBox_PanelTables.Location = new System.Drawing.Point(611, 576);
+            this.groupBox_PanelTables.Name = "groupBox_PanelTables";
+            this.groupBox_PanelTables.Size = new System.Drawing.Size(631, 270);
+            this.groupBox_PanelTables.TabIndex = 9;
+            this.groupBox_PanelTables.TabStop = false;
+            this.groupBox_PanelTables.Text = "Panel Table";
+            // 
+            // flowLayoutPanelTables
+            // 
+            this.flowLayoutPanelTables.AutoScroll = true;
+            this.flowLayoutPanelTables.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flowLayoutPanelTables.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.flowLayoutPanelTables.Location = new System.Drawing.Point(3, 18);
+            this.flowLayoutPanelTables.Name = "flowLayoutPanelTables";
+            this.flowLayoutPanelTables.Size = new System.Drawing.Size(625, 249);
+            this.flowLayoutPanelTables.TabIndex = 0;
+            this.flowLayoutPanelTables.WrapContents = false;
             // 
             // groupBox_Bases
             // 
@@ -238,9 +262,9 @@ namespace DCE_Manager
             // groupBoxAdditional
             // 
             this.groupBoxAdditional.Controls.Add(this.flowLayoutPanelAdditional);
-            this.groupBoxAdditional.Location = new System.Drawing.Point(27, 749);
+            this.groupBoxAdditional.Location = new System.Drawing.Point(27, 841);
             this.groupBoxAdditional.Name = "groupBoxAdditional";
-            this.groupBoxAdditional.Size = new System.Drawing.Size(1053, 260);
+            this.groupBoxAdditional.Size = new System.Drawing.Size(1053, 168);
             this.groupBoxAdditional.TabIndex = 0;
             this.groupBoxAdditional.TabStop = false;
             this.groupBoxAdditional.Text = "Additional / Future Lua Variables";
@@ -404,6 +428,9 @@ namespace DCE_Manager
             // 
             // groupBoxGeneral
             // 
+            this.groupBoxGeneral.Controls.Add(this.checkBox_HumainOnly);
+            this.groupBoxGeneral.Controls.Add(this.label_Callsign);
+            this.groupBoxGeneral.Controls.Add(this.comboBox_Callsign);
             this.groupBoxGeneral.Controls.Add(this.labelName);
             this.groupBoxGeneral.Controls.Add(this.textBoxName);
             this.groupBoxGeneral.Controls.Add(this.labelType);
@@ -422,6 +449,23 @@ namespace DCE_Manager
             this.groupBoxGeneral.TabIndex = 4;
             this.groupBoxGeneral.TabStop = false;
             this.groupBoxGeneral.Text = "General";
+            // 
+            // label_Callsign
+            // 
+            this.label_Callsign.AutoSize = true;
+            this.label_Callsign.Location = new System.Drawing.Point(403, 74);
+            this.label_Callsign.Name = "label_Callsign";
+            this.label_Callsign.Size = new System.Drawing.Size(55, 16);
+            this.label_Callsign.TabIndex = 13;
+            this.label_Callsign.Text = "Callsign";
+            // 
+            // comboBox_Callsign
+            // 
+            this.comboBox_Callsign.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBox_Callsign.Location = new System.Drawing.Point(467, 71);
+            this.comboBox_Callsign.Name = "comboBox_Callsign";
+            this.comboBox_Callsign.Size = new System.Drawing.Size(180, 24);
+            this.comboBox_Callsign.TabIndex = 12;
             // 
             // labelName
             // 
@@ -524,7 +568,7 @@ namespace DCE_Manager
             // checkBoxInactive
             // 
             this.checkBoxInactive.AutoSize = true;
-            this.checkBoxInactive.Location = new System.Drawing.Point(683, 73);
+            this.checkBoxInactive.Location = new System.Drawing.Point(683, 116);
             this.checkBoxInactive.Name = "checkBoxInactive";
             this.checkBoxInactive.Size = new System.Drawing.Size(75, 20);
             this.checkBoxInactive.TabIndex = 11;
@@ -534,7 +578,7 @@ namespace DCE_Manager
             // 
             this.buttonOK.Location = new System.Drawing.Point(940, 1015);
             this.buttonOK.Name = "buttonOK";
-            this.buttonOK.Size = new System.Drawing.Size(120, 36);
+            this.buttonOK.Size = new System.Drawing.Size(100, 36);
             this.buttonOK.TabIndex = 5;
             this.buttonOK.Text = "Save";
             this.buttonOK.Click += new System.EventHandler(this.buttonOK_Click);
@@ -543,34 +587,19 @@ namespace DCE_Manager
             // 
             this.buttonCancel.Location = new System.Drawing.Point(1122, 1018);
             this.buttonCancel.Name = "buttonCancel";
-            this.buttonCancel.Size = new System.Drawing.Size(120, 36);
+            this.buttonCancel.Size = new System.Drawing.Size(100, 36);
             this.buttonCancel.TabIndex = 6;
             this.buttonCancel.Text = "Cancel";
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
-            // groupBox_PanelTables
+            // checkBox_HumainOnly
             // 
-            this.groupBox_PanelTables.Controls.Add(this.flowLayoutPanelTables);
-            this.groupBox_PanelTables.Location = new System.Drawing.Point(611, 576);
-            this.groupBox_PanelTables.Name = "groupBox_PanelTables";
-            this.groupBox_PanelTables.Size = new System.Drawing.Size(631, 182);
-            this.groupBox_PanelTables.TabIndex = 9;
-            this.groupBox_PanelTables.TabStop = false;
-            this.groupBox_PanelTables.Text = "Panel Table";
-            // 
-            // flowLayoutPanelTables
-            // 
-            this.flowLayoutPanelTables.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.flowLayoutPanelTables.AutoScroll = true;
-            this.flowLayoutPanelTables.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
-            this.flowLayoutPanelTables.Location = new System.Drawing.Point(15, 21);
-            this.flowLayoutPanelTables.Name = "flowLayoutPanelTables";
-            this.flowLayoutPanelTables.Size = new System.Drawing.Size(596, 146);
-            this.flowLayoutPanelTables.TabIndex = 0;
-            this.flowLayoutPanelTables.WrapContents = false;
-            this.flowLayoutPanelTables.Visible = true;
-            this.flowLayoutPanelTables.Dock = DockStyle.Fill;
+            this.checkBox_HumainOnly.AutoSize = true;
+            this.checkBox_HumainOnly.Location = new System.Drawing.Point(683, 75);
+            this.checkBox_HumainOnly.Name = "checkBox_HumainOnly";
+            this.checkBox_HumainOnly.Size = new System.Drawing.Size(105, 20);
+            this.checkBox_HumainOnly.TabIndex = 14;
+            this.checkBox_HumainOnly.Text = "Humain Only";
             // 
             // FormSquadEdit
             // 
@@ -583,6 +612,7 @@ namespace DCE_Manager
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Squad Editor";
             this.panelMain.ResumeLayout(false);
+            this.groupBox_PanelTables.ResumeLayout(false);
             this.groupBox_Bases.ResumeLayout(false);
             this.groupBox_Bases.PerformLayout();
             this.groupBox_Livery.ResumeLayout(false);
@@ -598,7 +628,6 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).EndInit();
             this.groupBoxGeneral.ResumeLayout(false);
             this.groupBoxGeneral.PerformLayout();
-            this.groupBox_PanelTables.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -657,5 +686,8 @@ namespace DCE_Manager
         private Button button_RemoveSkin;
         private GroupBox groupBox_PanelTables;
         private FlowLayoutPanel flowLayoutPanelTables;
+        private Label label_Callsign;
+        private ComboBox comboBox_Callsign;
+        private CheckBox checkBox_HumainOnly;
     }
 }

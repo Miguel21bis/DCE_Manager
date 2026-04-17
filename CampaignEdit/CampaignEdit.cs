@@ -246,8 +246,10 @@ namespace DCE_Manager
 
             grid.Columns.Add(new DataGridViewTextBoxColumn()
             {
-                HeaderText = "Name",
-                DataPropertyName = "Name",
+                //HeaderText = "Name",
+                //DataPropertyName = "Name",
+                HeaderText = "DisplayName",
+                DataPropertyName = "DisplayName",
                 Width = 140
             });
             grid.Columns.Add(new DataGridViewTextBoxColumn()
@@ -389,12 +391,12 @@ namespace DCE_Manager
             squadToEdit = isActive ? campaignSquad.Active : campaignSquad.Init;
 
 
-            if (squadToEdit.Name == "73 TFS")
-            {
-                LogRegister("FormSquadEdit START squadToEdit: " + squadToEdit.Name + " isActive: " + isActive);
-                OobAirParser.ShowClassAndProperty(squadToEdit);
-                LogRegister("FormSquadEdit END " + squadToEdit.Name);
-            }
+            //if (squadToEdit.Name == "73 TFS")
+            //{
+            //    LogRegister("FormSquadEdit START squadToEdit: " + squadToEdit.Name + " isActive: " + isActive);
+            //    OobAirParser.ShowClassAndProperty(squadToEdit);
+            //    LogRegister("FormSquadEdit END " + squadToEdit.Name);
+            //}
 
             var editFrm = new FormSquadEdit(squadToEdit, _campaignContext, false, "B Grid_RowHeaderMouseClick");
 
