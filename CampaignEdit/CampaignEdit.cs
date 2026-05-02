@@ -76,6 +76,8 @@ namespace DCE_Manager
         // 4. méthodes d'initialisation
         private void InitializeCampaign()
         {
+            FormUtils.LogRegister("[INIT CAMPAIGN] START");
+
             _form1.UpdateSharedData();
 
             _campaignContext = new CampaignContext();
@@ -147,7 +149,18 @@ namespace DCE_Manager
             // Ancienne liste plate reconstruite pour ne pas casser les grilles.
             CurrentSquads = List_oob_air_Manager.List_oob_air;
 
+            //foreach (var s in CurrentSquads)
+            //{
+            //    if (s.Player)
+            //    {
+            //        FormUtils.LogRegister($"[LIST] {s.Name} | {s.FolderFile} | {s.Type}");
+            //    }
+            //}
+
             _form1.currentSquads = CurrentSquads;
+
+            //FormUtils.LogRegister("[LOAD SQUADS] calling RefreshGrids()");
+
             _form1.RefreshGrids();
         }
 
@@ -258,6 +271,12 @@ namespace DCE_Manager
                 DataPropertyName = "Type",
                 Width = 80
             });
+            //grid.Columns.Add(new DataGridViewTextBoxColumn()
+            //{
+            //    HeaderText = "State",
+            //    DataPropertyName = "FolderFile",
+            //    Width = 60
+            //});
             grid.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 HeaderText = "Base",
@@ -287,6 +306,14 @@ namespace DCE_Manager
                 UseColumnTextForButtonValue = true,
                 Width = 35
             });
+
+            //foreach (var s in filtered)
+            //{
+            //    if (s.Player)
+            //    {
+            //        FormUtils.LogRegister($"[GRID-BEFORE] {s.Name} | {s.FolderFile} | {s.Type}");
+            //    }
+            //}
 
             grid.DataSource = filtered;
 
@@ -318,7 +345,7 @@ namespace DCE_Manager
 
             Squad squadToEdit;
 
-            FormUtils.LogRegister("CLICK Grid_CellMouseDown instance: " + this.GetHashCode());
+            //FormUtils.LogRegister("CLICK Grid_CellMouseDown instance: " + this.GetHashCode());
 
             DataGridView grid = (DataGridView)sender;
 
@@ -483,20 +510,30 @@ namespace DCE_Manager
             if (selectedSquad == null)
                 return;
 
+            //éviter de recalculer quand on décoche
+            if (!selectedSquad.Player)
+                return;
             // si on coche ce squad, on décoche tous les autres
             if (selectedSquad.Player)
             {
+                // 🔥 on récupère le state courant (Init ou Active)
+                string currentState = selectedSquad.FolderFile;
+
                 foreach (var squad in _form1.currentSquads)
                 {
-                    if (!ReferenceEquals(squad, selectedSquad))
+                    // 🔥 IMPORTANT : on ne touche qu'au même state
+                    if (squad.FolderFile == currentState)
                     {
-                        squad.Player = false;
+                        if (!ReferenceEquals(squad, selectedSquad))
+                        {
+                            squad.Player = false;
+                        }
                     }
                 }
 
-                // recharge les 2 grilles
-                LoadGridStatic(_form1.dataGridViewBlue, _form1.currentSquads, "blue", selectedSquad.FolderFile);
-                LoadGridStatic(_form1.dataGridViewRed, _form1.currentSquads, "red", selectedSquad.FolderFile);
+                // recharge uniquement le state courant
+                LoadGridStatic(_form1.dataGridViewBlue, _form1.currentSquads, "blue", currentState);
+                LoadGridStatic(_form1.dataGridViewRed, _form1.currentSquads, "red", currentState);
             }
         }
         //méthode
@@ -508,6 +545,7 @@ namespace DCE_Manager
 
             foreach (DataGridViewRow row in grid.Rows)
             {
+
                 if (row.DataBoundItem is Squad squad)
                 {
                     //bool playable = _playableList.Contains(squad.Type);
@@ -523,6 +561,15 @@ namespace DCE_Manager
                     }
                 }
             }
+
+            //foreach (DataGridViewRow row in grid.Rows)
+            //{
+            //    var squad = row.DataBoundItem as Squad;
+            //    if (squad?.Player == true)
+            //    {
+            //        FormUtils.LogRegister($"[GRID-AFTER] {squad.Name} | {squad.FolderFile} | {squad.Type}");
+            //    }
+            //}
 
             grid.Refresh(); // force le rendu
         }

@@ -222,6 +222,7 @@ namespace DCE_Manager.Parameters
 
         //public object Livery { get; set; }
         public Dictionary<int, string> Livery { get; set; }
+        public Dictionary<int, string> LiveryModex { get; set; }
         public Dictionary<string, bool> Tasks { get; set; }
         public Dictionary<string, double> TasksCoef { get; set; }
 
@@ -230,7 +231,7 @@ namespace DCE_Manager.Parameters
         public int? CallsignId { get; set; }      // 3
         public Dictionary<string, object> ScoreLast { get; set; }
         public Dictionary<string, int> TasksCoefPourcent { get; set; }
-        public Dictionary<int, string> LiveryModex { get; set; }
+
         public List<int> SideNumber { get; set; }
       
         // Nom affiché dans l'UI (différent du Name brut Lua)
@@ -245,27 +246,27 @@ namespace DCE_Manager.Parameters
         }
 
         // Sert pour affichage GRID (Init vs Active)
-        public int DisplayReady
-        {
-            get
-            {
-                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("ready"))
-                    return Convert.ToInt32(Roster["ready"]);
+        //public int DisplayReady
+        //{
+        //    get
+        //    {
+        //        if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("ready"))
+        //            return Convert.ToInt32(Roster["ready"]);
 
-                return Number;
-            }
-        }
+        //        return Number;
+        //    }
+        //}
 
-        public int DisplayReserve
-        {
-            get
-            {
-                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("reserve"))
-                    return Convert.ToInt32(Roster["reserve"]);
+        //public int DisplayReserve
+        //{
+        //    get
+        //    {
+        //        if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("reserve"))
+        //            return Convert.ToInt32(Roster["reserve"]);
 
-                return Reserve;
-            }
-        }
+        //        return Reserve;
+        //    }
+        //}
 
 
         // Dictionnaire pour les propriétés supplémentaires
@@ -329,12 +330,15 @@ namespace DCE_Manager.Parameters
     {
         public HashSet<string> PlayableAircraft { get; set; }
         public HashSet<string> AllPlaneHeli { get; set; }
+        public HashSet<string> TabSquad { get; set; } = new HashSet<string>();
         public Dictionary<string, List<string>> CallsignWest { get; set; }
         public Dictionary<string, Dictionary<string, List<string>>> SpecificCallnames { get; set; }
-        public Dictionary<string, List<string>> Country { get; set; }
+        //public Dictionary<string, List<string>> Country { get; set; }
 
         public Dictionary<string, List<string>> TaskByPlane { get; set; }
         //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
+        // Liste des pays disponibles (venant du Lua)
+        public List<string> Country { get; set; } = new List<string>();
     }
 
     public static class List_oob_air_Manager

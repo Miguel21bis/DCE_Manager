@@ -4,10 +4,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+//using System.Text;
+//using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Windows.Input;
+//using System.Windows.Input;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using static DCE_Manager.Utils.FormUtils;
@@ -16,6 +16,13 @@ namespace DCE_Manager
 {
     internal class OobAirParser
     {
+        private static readonly HashSet<string> ignoredKeys = new HashSet<string>
+        {
+            "displayReady",
+            "displayReserve",
+            "isActive"
+        };
+
         public List<CampaignSquad> LoadCampaignSquads(string campaignName)
         {
             // Ancienne liste conservée pour compatibilité temporaire.
@@ -66,20 +73,20 @@ namespace DCE_Manager
             {
                 ParamCampaign.NameFileParse = pathFileB;
 
-                FormUtils.LogRegister("OobAirParser.cs:LoadFile(): pathFileB: " + pathFileB);
+                //FormUtils.LogRegister("OobAirParser.cs:LoadFile(): pathFileB: " + pathFileB);
 
                 var luaObj = LuaParser.ParseFile(pathFileB, "oob_air");
 
                 //temporaire ?
                 if (luaObj == null)
                 {
-                    FormUtils.LogRegister("luaObj == null");
+                    //FormUtils.LogRegister("luaObj == null");
                     return;
                 }
 
                 if (luaObj.luaobj == null)
                 {
-                    FormUtils.LogRegister("luaObj.luaobj == null");
+                    //FormUtils.LogRegister("luaObj.luaobj == null");
                     return;
                 }
 
@@ -87,11 +94,11 @@ namespace DCE_Manager
                 if (root == null)
                 {
                     FormUtils.LogRegister("OobAirParser.cs:LoadFile(): root == null return ");
-                    MessageBox.Show("root == null return ", "OobAirParser");
+                    //MessageBox.Show("root == null return ", "OobAirParser");
                     return;
                 }
 
-                FormUtils.LogRegister("START Parser campaignName " + campaignName);
+                //FormUtils.LogRegister("START Parser campaignName " + campaignName);
 
 
                 foreach (var entry in root) // side
@@ -124,18 +131,27 @@ namespace DCE_Manager
                         foreach (var entry3 in level2) // propriétés squad
                         {
 
-                            //var key = entry3.Key?.Trim().ToLowerInvariant();
-                            var key = entry3.Key?.Trim();
+                            //var key = entry3.Key?.Trim();
+                            //À faire seulement si tu es sûr que tes clés n'ont pas d'espaces parasites.
+                            var rawKey = entry3.Key;
+                            if (rawKey == null) continue;
+
+                            if (ignoredKeys.Contains(rawKey))
+                                continue;
+
+                            var key = rawKey; // ou Trim si vraiment nécessaire
+
                             var valObj = entry3.Value.luaobj;
 
-                            FormUtils.LogRegister("KEY DETECTED: [" + key + "]"); // 👈 AJOUT
-
-                            // ⚡ SWITCH = beaucoup + rapide que 30 if
+                            //ne pas enregistrer ces key:
+                            //displayReady - displayReserve - isActive
+                            // SWITCH = beaucoup + rapide que 30 if
                             switch (key)
                             {
                                 case "name":
                                     squad.Name = valObj?.ToString();
                                     squad.DisplayName = squad.Name; // valeur par défaut
+                                    //squad.DisplayName = squad.Name + " [" + folderName + "]";
                                     FormUtils.LogRegister("squad.Name: " + squad.Name);
                                     if (squad.Name == "77 TFS")
                                     { }
@@ -179,20 +195,6 @@ namespace DCE_Manager
                                             squad.Tasks[e.Key] = Convert.ToBoolean(e.Value.luaobj);
                                     }
                                     break;
-
-                                //case "tasksCoef":
-                                //    if (valObj is Dictionary<string, LuaObject> tasksCoef)
-                                //    {
-                                //        //squad.TasksCoef = new Dictionary<string, object>(tasksCoef.Count);
-                                //        squad.TasksCoef = new Dictionary<string, double>(tasksCoef.Count);
-                                //        foreach (var e in tasksCoef)
-                                //        {
-                                //            //if (double.TryParse(e.Value.luaobj.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
-                                //            double v = Convert.ToDouble(e.Value.luaobj, CultureInfo.InvariantCulture);
-                                //            squad.TasksCoef[e.Key] = v;
-                                //        }
-                                //    }
-                                //    break;
                                 case "tasksCoef":
                                     if (valObj is Dictionary<string, LuaObject> tasksCoef)
                                     {
@@ -219,6 +221,103 @@ namespace DCE_Manager
                                     }
                                     break;
 
+                                case "sidenumber":
+                                    var dict = valObj as Dictionary<string, LuaObject>;
+                                    if (dict != null)
+                                    {
+                                        squad.SideNumber = new List<int>();
+
+                                        foreach (var kv in dict)
+                                        {
+                                            int v;
+                                            if (int.TryParse(kv.Value.luaobj.ToString(), out v))
+                                                squad.SideNumber.Add(v);
+                                        }
+                                    }
+                                    break;
+
+                                case "livery":
+                                    // Toujours convertir en Dictionary<int,string>
+                                    // Pourquoi : uniformiser le modèle et éviter les cas spéciaux partout
+
+                                    squad.Livery = new Dictionary<int, string>();
+
+                                    // Cas 1 : table Lua
+                                    if (valObj is Dictionary<string, LuaObject> liveryDict)
+                                    {
+                                        foreach (var e in liveryDict)
+                                        {
+                                            if (int.TryParse(e.Key, out int index))
+                                            {
+                                                squad.Livery[index] = e.Value.luaobj?.ToString();
+                                            }
+                                        }
+                                    }
+                                    // Cas 2 : string simple
+                                    else if (valObj != null)
+                                    {
+                                        squad.Livery[1] = valObj.ToString();
+                                    }
+
+                                    break;
+
+
+                                case "liveryModex":
+                                    // Toujours convertir en Dictionary<int,string>
+                                    // Pourquoi : uniformiser le modèle et éviter les cas spéciaux partout
+
+                                    squad.LiveryModex = new Dictionary<int, string>();
+
+                                    // Cas 1 : table Lua
+                                    if (valObj is Dictionary<string, LuaObject> modexDict)
+                                    {
+                                        foreach (var e in modexDict)
+                                        {
+                                            if (int.TryParse(e.Key, out int index))
+                                            {
+                                                squad.LiveryModex[index] = e.Value.luaobj?.ToString();
+                                            }
+                                        }
+                                    }
+                                    // Cas 2 : string simple
+                                    else if (valObj != null)
+                                    {
+                                        squad.LiveryModex[1] = valObj.ToString();
+                                    }
+
+                                    break;
+
+                                case "parking_id":
+                                    if (valObj is Dictionary<string, LuaObject> parkingDict)
+                                    {
+                                        squad.parking_id = new Dictionary<string, object>();
+
+                                        foreach (var e in parkingDict)
+                                        {
+                                            // conversion du sous-niveau
+                                            if (e.Value.luaobj is Dictionary<string, LuaObject> subDict)
+                                            {
+                                                var list = new List<int>();
+
+                                                //FormUtils.LogRegister("CASE parking_id D");
+
+                                                foreach (var _sub in subDict)
+                                                {
+                                                    //FormUtils.LogRegister("CASE parking_id E");
+                                                    if (int.TryParse(_sub.Value.luaobj.ToString(), out int v))
+                                                    {
+                                                        list.Add(v);
+                                                        //FormUtils.LogRegister("CASE parking_id F");
+                                                    }
+
+                                                }
+
+                                                squad.parking_id[e.Key] = list;
+
+                                            }
+                                        }
+                                    }
+                                    break;
 
 
                                 case "inactive":
@@ -293,83 +392,27 @@ namespace DCE_Manager
                                     }
                                     break;
 
-                                case "livery":
-                                    // Toujours convertir en Dictionary<int,string>
-                                    // Pourquoi : uniformiser le modèle et éviter les cas spéciaux partout
-
-                                    squad.Livery = new Dictionary<int, string>();
-
-                                    // Cas 1 : table Lua
-                                    if (valObj is Dictionary<string, LuaObject> liveryDict)
-                                    {
-                                        foreach (var e in liveryDict)
-                                        {
-                                            if (int.TryParse(e.Key, out int index))
-                                            {
-                                                squad.Livery[index] = e.Value.luaobj?.ToString();
-                                            }
-                                        }
-                                    }
-                                    // Cas 2 : string simple
-                                    else if (valObj != null)
-                                    {
-                                        squad.Livery[1] = valObj.ToString();
-                                    }
-
-                                    break;
-
-                                case "parking_id":
-                                    if (valObj is Dictionary<string, LuaObject> parkingDict)
-                                    {
-                                        squad.parking_id = new Dictionary<string, object>();
-
-                                        foreach (var e in parkingDict)
-                                        {
-                                            // conversion du sous-niveau
-                                            if (e.Value.luaobj is Dictionary<string, LuaObject> subDict)
-                                            {
-                                                var list = new List<int>();
-
-                                                //FormUtils.LogRegister("CASE parking_id D");
-
-                                                foreach (var _sub in subDict)
-                                                {
-                                                    //FormUtils.LogRegister("CASE parking_id E");
-                                                    if (int.TryParse(_sub.Value.luaobj.ToString(), out int v))
-                                                    {
-                                                        list.Add(v);
-                                                        //FormUtils.LogRegister("CASE parking_id F");
-                                                    }
-
-                                                }
-
-                                                squad.parking_id[e.Key] = list;
-                                                
-                                            }
-                                        }
-                                    }
-                                    break;
 
                                 default:
                                     // ⚡ ultra important : éviter GetType() (lent)
 
                                     if (valObj is Dictionary<string, LuaObject> sub)
                                     {
-                                         var dict = new Dictionary<string, object>(sub.Count);
+                                         var dictDef = new Dictionary<string, object>(sub.Count);
 
                                         foreach (var e in sub)
                                         {
-                                            dict[e.Key] = ConvertLuaValue(e.Value);
+                                            dictDef[e.Key] = ConvertLuaValue(e.Value);
                                         }
 
-                                        squad.AdditionalProperties[key.Trim().ToLowerInvariant()] = dict;
+                                        squad.AdditionalProperties[key.Trim()] = dictDef;
 
-                                        //squad.AdditionalProperties[key] = dict;
+                                        //squad.AdditionalProperties[key] = dictDef;
                                     }
                                     else
                                     {
                                         //squad.AdditionalProperties[key] = valObj;
-                                        squad.AdditionalProperties[key.Trim().ToLowerInvariant()] = valObj;
+                                        squad.AdditionalProperties[key.Trim()] = valObj;
                                     }
                                     break;
                             }

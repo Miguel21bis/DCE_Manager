@@ -17,88 +17,113 @@ namespace DCE_Manager
 
         public LuaTable TabSquad;
 
-        //static class CloneCampaign
-        //{
-        //    public static string OldNameCamp = "";
-        //    public static string path = "";
-        //    public static string SquadName = "";
-        //}
+        private static CampaignContext _campaignContext;
+
+        private readonly string _campaignName;
 
         public FormClonage(Form1 form1, string path, string OldNameCamp)
         {
 
+            _form1 = form1;
+
             OldNameCamp = OldNameCamp.TrimStart();
             OldNameCamp = OldNameCamp.TrimEnd();
 
+            _campaignContext = new CampaignContext();
+            _campaignContext.CampaignName = _campaignName;
+
             InitializeComponent();
 
-            _form1 = form1;
+            LoadLuaData(OldNameCamp);
+
+            
 
             if (form1 == null)
             {
                 MessageBox.Show("Le Form1 passé au constructeur est NULL !");
             }
 
-            Lua lua = new Lua();
+            //Lua lua = new Lua();
 
-            lua["versionPackageICM"] = "NG";
-            lua["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG"; 
-            lua["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + OldNameCamp;
-            lua["generator"] = "DCE_Manager";
-            lua["pathSavedGames"] = SharedData.textBox_SavedGames;
-            // Crée la table Debug avec la clé "debug" à false
-            var debugTable = new Dictionary<string, object>
+            //lua["versionPackageICM"] = "NG";
+            //lua["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG"; 
+            //lua["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + OldNameCamp;
+            //lua["generator"] = "DCE_Manager";
+            //lua["pathSavedGames"] = SharedData.textBox_SavedGames;
+            //// Crée la table Debug avec la clé "debug" à false
+            //var debugTable = new Dictionary<string, object>
+            //{
+            //    { "debug", false }
+            //};
+            //lua["Debug"] = debugTable;
+
+            //lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
+
+            //var result = lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
+
+            ////LuaTable luaTable = (LuaTable)result[0];
+            ////LuaTable tabSquad = (LuaTable)luaTable["tabSquad"];
+
+            //if (result == null || result.Length == 0 || result[0] == null)
+            //{
+            //    MessageBox.Show("Le script Lua n'a pas retourné de résultat valide.");
+            //    return;
+            //}
+
+            //LuaTable luaTable = result[0] as LuaTable;
+            //if (luaTable == null)
+            //{
+            //    MessageBox.Show("luaTable est NULL !");
+            //    return;
+            //}
+
+            //if (!luaTable.Keys.Cast<object>().Contains("tabSquad"))
+            //{
+            //    MessageBox.Show("tabSquad n'existe pas dans luaTable !");
+            //    return;
+            //}
+
+            //LuaTable tabSquad = luaTable["tabSquad"] as LuaTable;
+            //if (tabSquad == null)
+            //{
+            //    MessageBox.Show("tabSquad est NULL !");
+            //    return;
+            //}
+
+            if (_campaignContext.LuaData.TabSquad.Count == 0)
             {
-                { "debug", false }
-            };
-            lua["Debug"] = debugTable;
+                MessageBox.Show("TabSquad est vide !");
+            }
 
-            lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
-
-            var result = lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
-
-            //LuaTable luaTable = (LuaTable)result[0];
-            //LuaTable tabSquad = (LuaTable)luaTable["tabSquad"];
-
-            if (result == null || result.Length == 0 || result[0] == null)
+            if (_campaignContext != null &&
+                _campaignContext.LuaData != null &&
+                _campaignContext.LuaData.TabSquad != null)
             {
-                MessageBox.Show("Le script Lua n'a pas retourné de résultat valide.");
+                comboPlaneChoice.Items.AddRange(_campaignContext.LuaData.TabSquad.ToArray());
+                //TODO ajouter SelectedItem ici
+            }
+            if (comboPlaneChoice.Items.Count > 0)
+            {
+                comboPlaneChoice.SelectedIndex = 0;
+            }
+
+            //var enumerator = TabSquad.GetEnumerator();
+            //int i = 1;
+            //while (enumerator.MoveNext())
+            //{
+            //    comboPlaneChoice.Items.Add(enumerator.Value.ToString());
+            //    comboPlaneChoice.SelectedItem = enumerator.Value.ToString();
+            //    i++;
+            //}
+
+            string tempTXT = comboPlaneChoice.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(tempTXT))
+            {
+                MessageBox.Show("Aucun avion sélectionné !");
                 return;
             }
 
-            LuaTable luaTable = result[0] as LuaTable;
-            if (luaTable == null)
-            {
-                MessageBox.Show("luaTable est NULL !");
-                return;
-            }
-
-            if (!luaTable.Keys.Cast<object>().Contains("tabSquad"))
-            {
-                MessageBox.Show("tabSquad n'existe pas dans luaTable !");
-                return;
-            }
-
-            LuaTable tabSquad = luaTable["tabSquad"] as LuaTable;
-            if (tabSquad == null)
-            {
-                MessageBox.Show("tabSquad est NULL !");
-                return;
-            }
-
-
-
-
-            var enumerator = tabSquad.GetEnumerator();
-            int i = 1;
-            while (enumerator.MoveNext())
-            {
-                comboPlaneChoice.Items.Add(enumerator.Value.ToString());
-                comboPlaneChoice.SelectedItem = enumerator.Value.ToString();
-                i++;
-            }
-
-            string tempTXT = (string)comboPlaneChoice.SelectedItem;
             string[] words = tempTXT.Split('|');
             planeFIX.Text = words[0].Replace(" ", "");
             SquadName.Text = words[1];
@@ -113,6 +138,12 @@ namespace DCE_Manager
 
             CloneCampaign.path = path;
             CloneCampaign.OldNameCamp = OldNameCamp;
+        }
+
+        public void LoadLuaData(string OldNameCamp)
+        {
+            var loader = new CampaignLuaLoader();
+            _campaignContext.LuaData = loader.Load(OldNameCamp);
         }
 
 
@@ -147,28 +178,36 @@ namespace DCE_Manager
 
             var result = lua.DoFile(Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
 
-            LuaTable luaTable = (LuaTable)result[0];
-            LuaTable taskByPlaneLua = (LuaTable)luaTable["taskByPlane"];
+            //LuaTable luaTable = (LuaTable)result[0];
+            //LuaTable taskByPlaneLua = (LuaTable)luaTable["taskByPlane"];
 
-            // Créer le dictionnaire pour stocker les données
-            var taskByPlane = new Dictionary<string, Dictionary<string, bool>>();
-
-            // Parcourir la table Lua
-            foreach (var key in taskByPlaneLua.Keys)
+            if (_campaignContext != null &&
+            _campaignContext.LuaData != null &&
+            _campaignContext.LuaData.TaskByPlane != null)
             {
-                string planeName = key.ToString();
-                LuaTable taskTable = (LuaTable)taskByPlaneLua[key];
-
-                var taskDictionary = new Dictionary<string, bool>();
-                foreach (var taskKey in taskTable.Keys)
-                {
-                    string taskName = taskKey.ToString();
-                    bool taskValue = (bool)taskTable[taskKey];
-                    taskDictionary[taskName] = taskValue;
-                }
-
-                taskByPlane[planeName] = taskDictionary;
+                comboPlaneChoice.Items.AddRange(_campaignContext.LuaData.TabSquad.ToArray());
+                //TODO ajouter SelectedItem ici
             }
+
+            //// Créer le dictionnaire pour stocker les données
+            //var taskByPlane = new Dictionary<string, Dictionary<string, bool>>();
+
+            //// Parcourir la table Lua
+            //foreach (var key in taskByPlaneLua.Keys)
+            //{
+            //    string planeName = key.ToString();
+            //    LuaTable taskTable = (LuaTable)taskByPlaneLua[key];
+
+            //    var taskDictionary = new Dictionary<string, bool>();
+            //    foreach (var taskKey in taskTable.Keys)
+            //    {
+            //        string taskName = taskKey.ToString();
+            //        bool taskValue = (bool)taskTable[taskKey];
+            //        taskDictionary[taskName] = taskValue;
+            //    }
+
+            //    taskByPlane[planeName] = taskDictionary;
+            //}
 
             //// Charger le tableau playable_m
             //LuaTable playable_mLua = (LuaTable)luaTable["playable_m"];

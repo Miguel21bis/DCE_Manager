@@ -60,6 +60,8 @@ namespace DCE_Manager
         // Cache des images de campagnes (évite rechargement disque)
         private Dictionary<string, Image> campaignImageCache = new Dictionary<string, Image>();
 
+        private bool _isUpdatingState = false;
+
         public static Form1 Instance { get; private set; }
 
         public DataTable dataTable;
@@ -950,6 +952,7 @@ namespace DCE_Manager
                         MessageBox.Show("Error: " + ex.Message);
                     }
                 }
+                return; //  IMPORTANT : stoppe ici
             }
             else if (columnName == "Clone")
             {
@@ -990,6 +993,21 @@ namespace DCE_Manager
             int nbMission = 0;
             int.TryParse(nbMissionText, out nbMission);
 
+            //**//
+            //if (nbMission <= 0)
+            //{
+            //    radioButton_OOB_INIT.Checked = true;
+            //}
+            //else
+            //{
+            //    radioButton_OOB_ACTIVE.Checked = true;
+            //}
+            //**//
+
+            // 1. Charger la campagne AVANT
+            CampaignEdit1(null, null, folderPath + "\\" + name, name);
+
+            // 2. Ensuite seulement appliquer le state UI
             if (nbMission <= 0)
             {
                 radioButton_OOB_INIT.Checked = true;
@@ -997,10 +1015,24 @@ namespace DCE_Manager
             else
             {
                 radioButton_OOB_ACTIVE.Checked = true;
+
             }
 
+            //_isUpdatingState = true;
+
+            //if (nbMission <= 0)
+            //{
+            //    radioButton_OOB_INIT.Checked = true;
+            //}
+            //else
+            //{
+            //    radioButton_OOB_ACTIVE.Checked = true;
+            //}
+
+            //_isUpdatingState = false;
+
             // Pour toutes les colonnes "normales", sélectionner la campagne
-            CampaignEdit1(null, null, folderPath + "\\" + name, name);
+            //CampaignEdit1(null, null, folderPath + "\\" + name, name);
         }
 
         // Charge toutes les campagnes (code existant déplacé ici)
@@ -6786,20 +6818,22 @@ namespace DCE_Manager
 
         public void RefreshGrids()
         {
+            //FormUtils.LogRegister($"[REFRESH] state INIT={radioButton_OOB_INIT.Checked} ACTIVE={radioButton_OOB_ACTIVE.Checked}");
+
             //MessageBox.Show("RefreshGrids called");
-            FormUtils.LogRegister("FormMain.cs: RefreshGrids(): RefreshGrids called ");
-            FormUtils.LogRegister("FormMain.cs: currentState = '" + currentState + "'");
+            //FormUtils.LogRegister("FormMain.cs: RefreshGrids(): RefreshGrids called ");
+            //FormUtils.LogRegister("FormMain.cs: currentState = '" + currentState + "'");
 
             CampaignEdit.LoadGridStatic(dataGridViewBlue, currentSquads, "blue", currentState);
             CampaignEdit.LoadGridStatic(dataGridViewRed, currentSquads, "red", currentState);
-
-            CampaignEdit.LoadGridStatic(dataGridViewBlue, currentSquads, "blue", "Init");
-            CampaignEdit.LoadGridStatic(dataGridViewRed, currentSquads, "red", "Init");
 
         }
 
         public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
         {
+            if (_isUpdatingState)
+                return;
+
             if (!radioButton_OOB_INIT.Checked) return;
 
             currentState = "Init";
@@ -6808,6 +6842,9 @@ namespace DCE_Manager
 
         public void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
         {
+            if (_isUpdatingState)
+                return;
+
             if (!radioButton_OOB_ACTIVE.Checked) return;
 
             currentState = "Active";

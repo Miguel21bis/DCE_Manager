@@ -11,8 +11,12 @@ namespace DCE_Manager
         private static object _cachedLuaResult = null;
         //private static List<string> _playableList = new List<string>();
 
+
+        private static Dictionary<string, object> _cache = new Dictionary<string, object>();
+
         public CampaignLuaData Load(string campaignName)
         {
+
             Lua lua = new Lua();
 
             lua["versionPackageICM"] = "NG";
@@ -28,12 +32,21 @@ namespace DCE_Manager
 
             object[] result;
 
-            if (_cachedLuaResult == null)
+            //if (_cachedLuaResult == null)
+            //{
+            //    _cachedLuaResult = lua.DoFile( SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
+            //}
+
+            //result = (object[])_cachedLuaResult;
+
+            if (!_cache.ContainsKey(campaignName))
             {
-                _cachedLuaResult = lua.DoFile( SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
+                _cache[campaignName] = lua.DoFile(
+                    SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua"
+                );
             }
 
-            result = (object[])_cachedLuaResult;
+            result = (object[])_cache[campaignName];
 
             LuaTable luaTable = (LuaTable)result[0];
 
@@ -43,7 +56,7 @@ namespace DCE_Manager
             //_data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
             _data.CallsignWest = new Dictionary<string, List<string>>();
             _data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
-            _data.Country = new Dictionary<string, List<string>>();
+            //_data.Country = new Dictionary<string, List<string>>();
 
             // -----------------------------------------------------------------
             // Playable aircraft
@@ -177,25 +190,45 @@ namespace DCE_Manager
                 }
             }
 
+
+            // -----------------------------------------------------------------
+            // tabSquad
+            // -----------------------------------------------------------------
+
+            LuaTable TabSquad = luaTable["TabSquad"] as LuaTable;
+
+            if (TabSquad != null)
+            {
+                foreach (object value in TabSquad.Values)
+                {
+                    _data.TabSquad.Add(value.ToString());
+                }
+            }
+
             // -----------------------------------------------------------------
             // Country
             // -----------------------------------------------------------------
 
-            //LuaTable countryLua = luaTable["Country"] as LuaTable;
+            LuaTable countryLua = luaTable["Country"] as LuaTable;
 
-            //if (countryLua != null)
-            //{
-            //    _data.Country = new List<string>();
+            if (countryLua != null)
+            {
+                _data.Country = new List<string>();
 
-            //    foreach (object key in countryLua.Keys)
-            //    {
-            //        object val = countryLua[key];
-            //        if (val != null)
-            //        {
-            //            _data.Country.Add(val.ToString());
-            //        }
-            //    }
-            //}
+                foreach (object value in countryLua.Values)
+                {
+                    if (value != null)
+                    {
+                        string name = value.ToString();
+
+                        // évite les entrées vides
+                        if (!string.IsNullOrWhiteSpace(name))
+                        {
+                            _data.Country.Add(name);
+                        }
+                    }
+                }
+            }
 
 
             //FormUtils.LogRegister("CampaignLuaLoader.cs: PlayableAircraft.Count = " + _data.PlayableAircraft.Count);

@@ -3,6 +3,8 @@
 // Pourquoi : permettre d'afficher et modifier immédiatement toutes les variables connues et futures.
 
 using System;
+using System.Collections;
+
 //using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
@@ -26,6 +28,8 @@ namespace DCE_Manager
         // Déclaration membre de classe
         // Pourquoi : garder une référence sur la ComboBox pour pouvoir la mettre à jour.
         private ComboBox _comboBoxLivery;
+
+        private ComboBox _comboBoxLiveryModex;
 
         // Cette liste mémorise les contrôles dynamiques des tâches.
         // Pourquoi : récupérer facilement les valeurs lors du Save.
@@ -68,10 +72,12 @@ namespace DCE_Manager
             BuildBase();
             BuildBasesAlternative();
             BuildCallSign();
+            BuildParkingId();
             BuildLiveryArea();
+            BuildLiveryModex();
             BuildTasksArea();
             BuildScoreArea();
-            BuildAdditionalArea();
+            //BuildAdditionalArea();
 
 
            
@@ -115,6 +121,9 @@ namespace DCE_Manager
                 Livery = source.Livery != null
                     ? new Dictionary<int, string>(source.Livery)
                     : new Dictionary<int, string>(),
+                LiveryModex = source.LiveryModex != null
+                    ? new Dictionary<int, string>(source.LiveryModex)
+                    : new Dictionary<int, string>(),
             };
 
             return tempSquad;
@@ -125,10 +134,20 @@ namespace DCE_Manager
         // Pourquoi : proposer directement les choix possibles à l'utilisateur.
         private void LoadStaticLists()
         {
-            comboBoxCountry.Items.AddRange(new object[]
+            //comboBoxCountry.Items.AddRange(new object[]
+            //{
+            //    "USA", "Russia", "France", "UK", "Germany", "Israel", "Turkey", "Georgia"
+            //});
+            comboBoxCountry.Items.Clear();
+
+            if (_campaignContext != null &&
+                _campaignContext.LuaData != null &&
+                _campaignContext.LuaData.Country != null)
             {
-                "USA", "Russia", "France", "UK", "Germany", "Israel", "Turkey", "Georgia"
-            });
+                comboBoxCountry.Items.AddRange(
+                    _campaignContext.LuaData.Country.ToArray()
+                );
+            }
 
             comboBoxType.Items.Clear();
 
@@ -208,8 +227,19 @@ namespace DCE_Manager
             numericReserve.Value = EditedSquad.Reserve;
             numericInitReserve.Value = EditedSquad.InitReserve;
 
-            
+            if (EditedSquad.SideNumber != null && EditedSquad.SideNumber.Count >= 2)
+            {
+                textBox_ModexNb_Min.Text = EditedSquad.SideNumber[0].ToString();
+                textBox_ModexNb_Max.Text = EditedSquad.SideNumber[1].ToString();
+            }
+
+
+
+
         }
+
+
+        //***********************BASE ALT START
 
         // Cette fonction remplit la ListBox des bases alternatives.
         // Pourquoi : afficher uniquement les bases de repli (sans la base principale).
@@ -231,89 +261,6 @@ namespace DCE_Manager
                 }
             }
         }
-        private void BuildCallSign()
-        {
-            comboBox_Callsign.Items.Clear();
-
-            // Toujours ajouter "Automatic" en premier
-            comboBox_Callsign.Items.Add("Automatic");
-
-            string selectedCallsign = EditedSquad.Callsign; // string ou null ?
-
-            if (EditedSquad.SideString == "blue")
-            {
-                var aircraft = EditedSquad.Type;
-
-                if (_campaignContext?.LuaData?.SpecificCallnames != null)
-                {
-                    if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
-                    {
-                        var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
-
-                        if (dict.ContainsKey(EditedSquad.Country))
-                        {
-                            comboBox_Callsign.Items.AddRange(dict[EditedSquad.Country].ToArray());
-                        }
-                        else if (dict.ContainsKey("USA")) // fallback
-                        {
-                            comboBox_Callsign.Items.AddRange(dict["USA"].ToArray());
-                        }
-                    }
-                    else
-                    {
-                        string typeFCT = "generic";
-
-                        if (EditedSquad.Tasks != null)
-                        {
-                            foreach (var task in EditedSquad.Tasks)
-                            {
-                                if (task.Key == "AWACS" && task.Value)
-                                {
-                                    typeFCT = "AWACS";
-                                    break;
-                                }
-
-                                if (task.Key == "Refueling" && task.Value)
-                                {
-                                    typeFCT = "tanker";
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
-                        {
-                            comboBox_Callsign.Items.AddRange(_campaignContext.LuaData.CallsignWest[typeFCT].ToArray());
-                        }
-                    }
-                }
-            }
-            else
-            {
-                comboBox_Callsign.Enabled = false;
-                return;
-            }
-
-            // Ajouter le callsign déjà sélectionné s'il n'est pas dans la liste
-            if (!string.IsNullOrEmpty(selectedCallsign) &&
-                !comboBox_Callsign.Items.Contains(selectedCallsign))
-            {
-                comboBox_Callsign.Items.Add(selectedCallsign);
-            }
-
-            // Sélectionner le callsign actuel ou "Automatic"
-            if (!string.IsNullOrEmpty(selectedCallsign) &&
-                comboBox_Callsign.Items.Contains(selectedCallsign))
-            {
-                comboBox_Callsign.SelectedItem = selectedCallsign;
-            }
-            else
-            {
-                comboBox_Callsign.SelectedItem = "Automatic";
-            }
-        }
-
-
         // Ajoute une base alternative depuis la comboBox_All_bases.
         // Pourquoi : permettre d'ajouter une base de repli sans doublon ni incohérence.
         private void button_base_plus_Click(object sender, EventArgs e)
@@ -398,19 +345,263 @@ namespace DCE_Manager
             }
         }
 
+        //***********************
+        //***********************BASE ALT FIN
 
+
+
+        //***********************
+        //***********************ParkingId START
+
+        private void BuildParkingId()
+        {
+            listBox_ParkingId.Items.Clear();
+
+            if (EditedSquad.parking_id == null)
+                return;
+
+            foreach (var kvp in EditedSquad.parking_id)
+            {
+                string key = kvp.Key;
+                List<int> values = ConvertToIntList(kvp.Value);
+
+                listBox_ParkingId.Items.Add(FormatParkingDisplay(key, values));
+            }
+        }
+        private List<int> ConvertToIntList(object value)
+        {
+            var list = new List<int>();
+
+            if (value is IEnumerable<object> objList)
+            {
+                foreach (var v in objList)
+                    list.Add(Convert.ToInt32(v));
+            }
+            else if (value is IEnumerable enumerable)
+            {
+                foreach (var v in enumerable)
+                    list.Add(Convert.ToInt32(v));
+            }
+
+            return list;
+        }
+        private string FormatParkingDisplay(string key, List<int> values)
+        {
+            string prefix = string.IsNullOrEmpty(key) ? "_" : key;
+
+            if (values.Count == 2)
+            {
+                int a = values[0];
+                int b = values[1];
+                return $"{prefix} : {a} to {b}";
+            }
+
+            return $"{prefix} : " + string.Join(",", values);
+        }
+        //private class ParkingIdItem
+        //{
+        //    public string Key { get; }
+        //    public object Value { get; }
+
+        //    public ParkingIdItem(string key, object value)
+        //    {
+        //        Key = key;
+        //        Value = value;
+        //    }
+
+        //    public override string ToString()
+        //    {
+        //        // Ce qui sera affiché dans le ListBox
+        //        return $"{Key} = {FormatValue(Value)}";
+        //    }
+
+        //    private static string FormatValue(object value)
+        //    {
+        //        if (value == null)
+        //            return "null";
+
+        //        // Liste / tableau / IEnumerable
+        //        if (value is System.Collections.IEnumerable enumerable && !(value is string))
+        //        {
+        //            var list = new List<string>();
+        //            foreach (var v in enumerable)
+        //                list.Add(v?.ToString());
+
+        //            return "{" + string.Join(", ", list) + "}";
+        //        }
+
+        //        // Dictionnaire (par ex. [1] = 1, [2] = 12)
+        //        if (value is System.Collections.IDictionary dict)
+        //        {
+        //            var list = new List<string>();
+        //            foreach (System.Collections.DictionaryEntry entry in dict)
+        //                list.Add($"[{entry.Key}] = {entry.Value}");
+
+        //            return "{" + string.Join(", ", list) + "}";
+        //        }
+
+        //        // Fallback
+        //        return value.ToString();
+        //    }
+        //}
+
+        private void button_ParkingId_Add_Click(object sender, EventArgs e)
+        {
+            string prefix = textBox_ParkingId_Prefix.Text.Trim();
+            string intText = textBox_ParkingId_Int.Text.Trim();
+
+            if (string.IsNullOrEmpty(intText))
+                return;
+
+            // Parse les valeurs séparées par virgule
+            List<int> values = intText
+                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(v => Convert.ToInt32(v))
+                .ToList();
+
+            if (EditedSquad.parking_id == null)
+                EditedSquad.parking_id = new Dictionary<string, object>();
+
+            // Si la clé existe déjà → on fusionne
+            if (EditedSquad.parking_id.ContainsKey(prefix))
+            {
+                var existing = ConvertToIntList(EditedSquad.parking_id[prefix]);
+                existing.AddRange(values);
+                existing = existing.Distinct().OrderBy(v => v).ToList();
+                EditedSquad.parking_id[prefix] = existing;
+            }
+            else
+            {
+                EditedSquad.parking_id[prefix] = values;
+            }
+
+            BuildParkingId();
+
+            textBox_ParkingId_Prefix.Clear();
+            textBox_ParkingId_Int.Clear();
+        }
+
+        // Supprime la ParkingId sélectionnée.
+        // Pourquoi : permettre de retirer un ParkingId
+        private void button_ParkingId_Remove_Click(object sender, EventArgs e)
+        {
+            int index = listBox_ParkingId.SelectedIndex;
+            if (index < 0)
+                return;
+
+            string line = listBox_ParkingId.Items[index].ToString();
+
+            string key = line.Split(':')[0].Trim();
+            if (key == "_") key = "";
+
+            if (EditedSquad.parking_id.ContainsKey(key))
+                EditedSquad.parking_id.Remove(key);
+
+            BuildParkingId();
+        }
+
+        //***********************
+        //***********************ParkingId END
+
+
+        private void BuildCallSign()
+        {
+            comboBox_Callsign.Items.Clear();
+
+            // Toujours ajouter "Automatic" en premier
+            comboBox_Callsign.Items.Add("Automatic");
+
+            string selectedCallsign = EditedSquad.Callsign; // string ou null ?
+
+            if (EditedSquad.SideString == "blue")
+            {
+                var aircraft = EditedSquad.Type;
+
+                if (_campaignContext?.LuaData?.SpecificCallnames != null)
+                {
+                    if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
+                    {
+                        var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
+
+                        if (dict.ContainsKey(EditedSquad.Country))
+                        {
+                            comboBox_Callsign.Items.AddRange(dict[EditedSquad.Country].ToArray());
+                        }
+                        else if (dict.ContainsKey("USA")) // fallback
+                        {
+                            comboBox_Callsign.Items.AddRange(dict["USA"].ToArray());
+                        }
+                    }
+                    else
+                    {
+                        string typeFCT = "generic";
+
+                        if (EditedSquad.Tasks != null)
+                        {
+                            foreach (var task in EditedSquad.Tasks)
+                            {
+                                if (task.Key == "AWACS" && task.Value)
+                                {
+                                    typeFCT = "AWACS";
+                                    break;
+                                }
+
+                                if (task.Key == "Refueling" && task.Value)
+                                {
+                                    typeFCT = "tanker";
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
+                        {
+                            comboBox_Callsign.Items.AddRange(_campaignContext.LuaData.CallsignWest[typeFCT].ToArray());
+                        }
+                    }
+                }
+            }
+            else
+            {
+                comboBox_Callsign.Enabled = false;
+                return;
+            }
+
+            // Ajouter le callsign déjà sélectionné s'il n'est pas dans la liste
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                !comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.Items.Add(selectedCallsign);
+            }
+
+            // Sélectionner le callsign actuel ou "Automatic"
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.SelectedItem = selectedCallsign;
+            }
+            else
+            {
+                comboBox_Callsign.SelectedItem = "Automatic";
+            }
+        }
+
+
+ 
 
         // Construit la liste des liveries.
         // Pourquoi : affichage simple + cohérent avec les autres listes.
         private void BuildLiveryArea()
         {
-            listBoxLivery.Items.Clear();
+            listBox_Livery.Items.Clear();
+            comboBox_LiveryM.Items.Clear();
 
             var dict = NormalizeLivery();
 
             foreach (var entry in dict.OrderBy(x => x.Key))
             {
-                listBoxLivery.Items.Add(entry.Value);
+                listBox_Livery.Items.Add(entry.Value);
+                comboBox_LiveryM.Items.Add(entry.Value);
             }
         }
 
@@ -425,33 +616,16 @@ namespace DCE_Manager
 
             return EditedSquad.Livery;
         }
-        // Ajoute une nouvelle skin.
-        // Pourquoi : permettre l'ajout simple sans doublon.
-        //private void button_AddSkin_Click(object sender, EventArgs e)
-        //{
-        //    string newSkin = textBox_AddSkin.Text.Trim();
 
-        //    if (string.IsNullOrEmpty(newSkin))
-        //        return;
 
-        //    foreach (var item in listBoxLivery.Items)
-        //    {
-        //        if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
-        //            return;
-        //    }
-
-        //    listBoxLivery.Items.Add(newSkin);
-
-        //    textBox_AddSkin.Clear();
-        //}
         // Supprime la skin sélectionnée.
         // Pourquoi : permettre la gestion de la liste.
         private void button_RemoveSkin_Click(object sender, EventArgs e)
         {
-            int index = listBoxLivery.SelectedIndex;
+            int index = listBox_Livery.SelectedIndex;
 
             if (index >= 0)
-                listBoxLivery.Items.RemoveAt(index);
+                listBox_Livery.Items.RemoveAt(index);
         }
 
         // Ajoute une nouvelle skin.
@@ -463,17 +637,95 @@ namespace DCE_Manager
             if (string.IsNullOrEmpty(newSkin))
                 return;
 
-            foreach (var item in listBoxLivery.Items)
+            foreach (var item in listBox_Livery.Items)
             {
                 if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
                     return;
             }
 
-            listBoxLivery.Items.Add(newSkin);
+            listBox_Livery.Items.Add(newSkin);
 
             textBox_AddSkin.Clear();
             textBox_AddSkin.Focus();
         }
+
+        // Construit la liste des liveries.
+        // Pourquoi : affichage simple + cohérent avec les autres listes.
+        private void BuildLiveryModex()
+        {
+            listBox_LiveryModex.Items.Clear();
+
+            var dict = NormalizeModex();
+
+            foreach (var entry in dict.OrderBy(x => x.Key))
+            {
+                listBox_LiveryModex.Items.Add(new ModexItem
+                {
+                    Key = entry.Key,
+                    Value = entry.Value
+                });
+            }
+        }
+
+        // Convertit Livery en Dictionary<int,string> sûr.
+        // Pourquoi : garantir un format unique partout.
+        private Dictionary<int, string> NormalizeModex()
+        {
+            if (EditedSquad.LiveryModex == null)
+            {
+                EditedSquad.LiveryModex = new Dictionary<int, string>();
+            }
+            return EditedSquad.LiveryModex;
+        }
+
+        // Supprime la skin sélectionnée.
+        // Pourquoi : permettre la gestion de la liste.
+        private void button_LiveryModex_Moins_Click(object sender, EventArgs e)
+        {
+            int index = listBox_LiveryModex.SelectedIndex;
+            if (index < 0)
+                return;
+
+            if (listBox_LiveryModex.Items[index] is ModexItem item)
+            {
+                // Supprime dans la classe Squad
+                EditedSquad.LiveryModex.Remove(item.Key);
+            }
+
+            // Supprime dans la ListBox
+            listBox_LiveryModex.Items.RemoveAt(index);
+        }
+
+        // Ajoute une nouvelle skin.
+        // Pourquoi : éviter doublons + garder cohérence UI.
+        private void button_LiveryModex_Plus_Click(object sender, EventArgs e)
+        {
+            if (!int.TryParse(textBox_Modex.Text.Trim(), out int modex))
+                return;
+
+            string skin = comboBox_LiveryM.SelectedItem?.ToString();
+            if (string.IsNullOrEmpty(skin))
+                return;
+
+            // Vérifie doublon dans le dictionnaire
+            if (EditedSquad.LiveryModex.ContainsKey(modex))
+                return;
+
+            // Ajoute dans la classe Squad
+            EditedSquad.LiveryModex[modex] = skin;
+
+            // Ajoute dans la ListBox
+            listBox_LiveryModex.Items.Add(new ModexItem
+            {
+                Key = modex,
+                Value = skin
+            });
+
+            textBox_Modex.Clear();
+            textBox_Modex.Focus();
+        }
+
+
 
 
 
@@ -490,21 +742,21 @@ namespace DCE_Manager
             foreach (var task in EditedSquad.Tasks.OrderBy(t => t.Key))
             {
                 System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
-                row.Width = 1350;
+                row.Width = 400;
                 row.Height = 32;
 
                 System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
                 label.Text = task.Key;
                 label.Location = new Point(0, 7);
-                label.Width = 220;
+                label.Width = 75;
 
                 System.Windows.Forms.CheckBox checkBox = new System.Windows.Forms.CheckBox();
                 checkBox.Checked = Convert.ToBoolean(task.Value);
-                checkBox.Location = new Point(240, 5);
+                checkBox.Location = new Point(100, 5);
 
                 System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label ();
                 labelCoef.Text = "Coef";
-                labelCoef.Location = new Point(320, 7);
+                labelCoef.Location = new Point(200, 7);
                 labelCoef.Width = 40;
 
                 NumericUpDown numericCoef = new NumericUpDown();
@@ -651,53 +903,51 @@ namespace DCE_Manager
 
         // Cette fonction construit la zone des propriétés inconnues.
         // Pourquoi : afficher automatiquement toute nouvelle variable Lua future.
-        private void BuildAdditionalArea()
-        {
-            flowLayoutPanelAdditional.Controls.Clear();
-            _additionalRows.Clear();
+        //private void BuildAdditionalArea()
+        //{
+        //    flowLayoutPanelAdditional.Controls.Clear();
+        //    _additionalRows.Clear();
 
-            if (EditedSquad.AdditionalProperties == null)
-                return;
+        //    if (EditedSquad.AdditionalProperties == null)
+        //        return;
 
 
-            foreach (var property in EditedSquad.AdditionalProperties.OrderBy(p => p.Key))
-            {
-                //if (property.Key == "score_last")
-                //    continue;
+        //    foreach (var property in EditedSquad.AdditionalProperties.OrderBy(p => p.Key))
+        //    {
 
-                if (property.Key == "score_last" ||
-                    property.Key == "roster" ||
-                    property.Key == "score")
-                {
-                    continue;
-                }
+        //        if (property.Key == "score_last" ||
+        //            property.Key == "roster" ||
+        //            property.Key == "score")
+        //        {
+        //            continue;
+        //        }
 
-                System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
-                row.Width = 1400;
-                row.Height = 55;
+        //        System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
+        //        row.Width = 1400;
+        //        row.Height = 55;
 
-                System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
-                label.Text = property.Key;
-                label.Location = new Point(0, 18);
-                label.Width = 220;
+        //        System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
+        //        label.Text = property.Key;
+        //        label.Location = new Point(0, 18);
+        //        label.Width = 220;
 
-                System.Windows.Forms.TextBox textBox = new System.Windows.Forms.TextBox();
-                textBox.Location = new Point(230, 15);
-                textBox.Width = 1100;
-                textBox.Text = ConvertPropertyToText(property.Value);
+        //        System.Windows.Forms.TextBox textBox = new System.Windows.Forms.TextBox();
+        //        textBox.Location = new Point(230, 15);
+        //        textBox.Width = 1100;
+        //        textBox.Text = ConvertPropertyToText(property.Value);
 
-                row.Controls.Add(label);
-                row.Controls.Add(textBox);
+        //        row.Controls.Add(label);
+        //        row.Controls.Add(textBox);
 
-                flowLayoutPanelAdditional.Controls.Add(row);
+        //        flowLayoutPanelAdditional.Controls.Add(row);
 
-                _additionalRows.Add(new AdditionalRow
-                {
-                    PropertyName = property.Key,
-                    ValueTextBox = textBox
-                });
-            }
-        }
+        //        _additionalRows.Add(new AdditionalRow
+        //        {
+        //            PropertyName = property.Key,
+        //            ValueTextBox = textBox
+        //        });
+        //    }
+        //}
 
 
         private string ConvertPropertyToText(object value)
@@ -790,7 +1040,7 @@ namespace DCE_Manager
 
             int index = 1;
 
-            foreach (var item in listBoxLivery.Items)
+            foreach (var item in listBox_Livery.Items)
             {
                 EditedSquad.Livery[index] = item.ToString();
                 index++;
@@ -821,6 +1071,19 @@ namespace DCE_Manager
         {
             public string PropertyName { get; set; }
             public System.Windows.Forms.TextBox ValueTextBox { get; set; }
+        }
+
+        // Représente une entrée LiveryModex (clé + valeur)
+        // Pourquoi : conserver le modex tout en affichant proprement dans la UI
+        private class ModexItem
+        {
+            public int Key { get; set; }
+            public string Value { get; set; }
+
+            public override string ToString()
+            {
+                return Key + " - " + Value;
+            }
         }
 
         private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
@@ -922,7 +1185,7 @@ namespace DCE_Manager
            
 
             // Si pas de clé → on désactive le champ key
-            textKey.Enabled = hasKey;
+            //textKey.Enabled = hasKey;
 
             // ---------------------------
             // ➕ ADD
@@ -973,30 +1236,36 @@ namespace DCE_Manager
 
             foreach (var prop in properties)
             {
-                // 🔴 EXCLUSIONS (UI spécifique déjà existante)
-                if (prop.Name == "Livery" ||
-                    prop.Name == "Tasks" ||
-                    prop.Name == "TasksCoef" ||
-                    prop.Name == "Roster" ||
-                    prop.Name == "Score" ||
-                    prop.Name == "BaseAlternative" ||
-                    prop.Name == "ScoreLast" ||
-                    prop.Name == "TasksCoefPourcent" ||
-                    prop.Name == "SideNumber" ||
-                    prop.Name == "Callsign" ||
-                    prop.Name == "CallsignId" ||
-                    
+                if ( prop.Name == "AdditionalProperties")
+                { 
+                }
+                
 
-                    prop.Name == "AdditionalProperties")
+                // 🔴 EXCLUSIONS (UI spécifique déjà existante)
+                if (
+                    prop.Name == "Livery"
+                    || prop.Name == "LiveryModex"
+                    || prop.Name == "Tasks"
+                    || prop.Name == "TasksCoef" 
+                    || prop.Name == "Roster" 
+                    || prop.Name == "Score"
+                    || prop.Name == "BaseAlternative"
+                    || prop.Name == "ScoreLast"
+                    || prop.Name == "TasksCoefPourcent"
+                    || prop.Name == "parking_id"
+                    || prop.Name == "SideNumber"
+                    //|| prop.Name == "Callsign"
+                    //|| prop.Name == "CallsignId"
+                    //|| prop.Name == "displayReserve"
+                    //|| prop.Name == "displayReady"
+                    // ||prop.Name == "AdditionalProperties"
+                    )
+
                 {
                     continue;
                 }
 
                 object value = prop.GetValue(EditedSquad);
-
-                FormUtils.LogRegister($"TABLE CHECK: {prop.Name} = {(value == null ? "NULL" : value.GetType().Name)}");
-
-                //FormUtils.LogRegister($"VALUE parking_id = {value}");
 
 
                 //if (value == null)
@@ -1016,11 +1285,30 @@ namespace DCE_Manager
 
                 if (isDictionary || isList)
                 {
-                    FormUtils.LogRegister($"TABLE ADDED: {prop.Name}");
+                    //FormUtils.LogRegister($"TABLE ADDED: {prop.Name}");
                     AddGenericTable(prop.Name, value);
                 }
             }
         }
 
+        private void label_ModexNb_Min_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void groupBoxAdditional_Enter(object sender, EventArgs e)
+        {
+
+        }
+
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
     }
 }

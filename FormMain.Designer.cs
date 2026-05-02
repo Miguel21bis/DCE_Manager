@@ -619,7 +619,7 @@ namespace DCE_Manager
             this.tabPage16.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage16.Size = new System.Drawing.Size(1080, 541);
             this.tabPage16.TabIndex = 6;
-            this.tabPage16.Text = "CampaignB";
+            this.tabPage16.Text = "Campaigns";
             this.tabPage16.UseVisualStyleBackColor = true;
             // 
             // dataGridViewCampaigns
