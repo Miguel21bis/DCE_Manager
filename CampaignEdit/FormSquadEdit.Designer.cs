@@ -27,6 +27,14 @@ namespace DCE_Manager
             this.panelMain = new System.Windows.Forms.Panel();
             this.tabControl_SquadEditMain = new System.Windows.Forms.TabControl();
             this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.groupBox_ParkingId = new System.Windows.Forms.GroupBox();
+            this.label_parkingId_serial = new System.Windows.Forms.Label();
+            this.label_parkingId_LetterPark = new System.Windows.Forms.Label();
+            this.textBox_ParkingId_Prefix = new System.Windows.Forms.TextBox();
+            this.textBox_ParkingId_Int = new System.Windows.Forms.TextBox();
+            this.button_ParkingId_Remove = new System.Windows.Forms.Button();
+            this.button_ParkingId_Add = new System.Windows.Forms.Button();
+            this.listBox_ParkingId = new System.Windows.Forms.ListBox();
             this.groupBoxGeneral = new System.Windows.Forms.GroupBox();
             this.checkBox_HumainOnly = new System.Windows.Forms.CheckBox();
             this.label_Callsign = new System.Windows.Forms.Label();
@@ -42,7 +50,7 @@ namespace DCE_Manager
             this.labelSkill = new System.Windows.Forms.Label();
             this.comboBoxSkill = new System.Windows.Forms.ComboBox();
             this.checkBoxPlayer = new System.Windows.Forms.CheckBox();
-            this.checkBoxInactive = new System.Windows.Forms.CheckBox();
+            this.checkBoxActive = new System.Windows.Forms.CheckBox();
             this.groupBox_Bases = new System.Windows.Forms.GroupBox();
             this.button_Base_Haut = new System.Windows.Forms.Button();
             this.button_Base_Down = new System.Windows.Forms.Button();
@@ -82,22 +90,13 @@ namespace DCE_Manager
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.groupBoxScore = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanelScore = new System.Windows.Forms.FlowLayoutPanel();
-            this.buttonOK = new System.Windows.Forms.Button();
-            this.buttonCancel = new System.Windows.Forms.Button();
             this.tabPage4 = new System.Windows.Forms.TabPage();
             this.groupBox_PanelTables = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanelTables = new System.Windows.Forms.FlowLayoutPanel();
-            this.groupBox_ParkingId = new System.Windows.Forms.GroupBox();
-            this.listBox_ParkingId = new System.Windows.Forms.ListBox();
-            this.button_ParkingId_Remove = new System.Windows.Forms.Button();
-            this.button_ParkingId_Add = new System.Windows.Forms.Button();
-            this.textBox_ParkingId_Int = new System.Windows.Forms.TextBox();
-            this.textBox_ParkingId_Prefix = new System.Windows.Forms.TextBox();
-            this.label_parkingId_LetterPark = new System.Windows.Forms.Label();
-            this.label_parkingId_serial = new System.Windows.Forms.Label();
             this.panelMain.SuspendLayout();
             this.tabControl_SquadEditMain.SuspendLayout();
             this.tabPage1.SuspendLayout();
+            this.groupBox_ParkingId.SuspendLayout();
             this.groupBoxGeneral.SuspendLayout();
             this.groupBox_Bases.SuspendLayout();
             this.groupBoxAircraft.SuspendLayout();
@@ -114,15 +113,12 @@ namespace DCE_Manager
             this.groupBoxScore.SuspendLayout();
             this.tabPage4.SuspendLayout();
             this.groupBox_PanelTables.SuspendLayout();
-            this.groupBox_ParkingId.SuspendLayout();
             this.SuspendLayout();
             // 
             // panelMain
             // 
             this.panelMain.AutoScroll = true;
             this.panelMain.Controls.Add(this.tabControl_SquadEditMain);
-            this.panelMain.Controls.Add(this.buttonOK);
-            this.panelMain.Controls.Add(this.buttonCancel);
             this.panelMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panelMain.Location = new System.Drawing.Point(0, 0);
             this.panelMain.Name = "panelMain";
@@ -156,6 +152,85 @@ namespace DCE_Manager
             this.tabPage1.Text = "General";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
+            // groupBox_ParkingId
+            // 
+            this.groupBox_ParkingId.Controls.Add(this.label_parkingId_serial);
+            this.groupBox_ParkingId.Controls.Add(this.label_parkingId_LetterPark);
+            this.groupBox_ParkingId.Controls.Add(this.textBox_ParkingId_Prefix);
+            this.groupBox_ParkingId.Controls.Add(this.textBox_ParkingId_Int);
+            this.groupBox_ParkingId.Controls.Add(this.button_ParkingId_Remove);
+            this.groupBox_ParkingId.Controls.Add(this.button_ParkingId_Add);
+            this.groupBox_ParkingId.Controls.Add(this.listBox_ParkingId);
+            this.groupBox_ParkingId.Location = new System.Drawing.Point(624, 374);
+            this.groupBox_ParkingId.Name = "groupBox_ParkingId";
+            this.groupBox_ParkingId.Size = new System.Drawing.Size(616, 130);
+            this.groupBox_ParkingId.TabIndex = 9;
+            this.groupBox_ParkingId.TabStop = false;
+            this.groupBox_ParkingId.Text = "Parking Id";
+            // 
+            // label_parkingId_serial
+            // 
+            this.label_parkingId_serial.AutoSize = true;
+            this.label_parkingId_serial.Location = new System.Drawing.Point(83, 29);
+            this.label_parkingId_serial.Name = "label_parkingId_serial";
+            this.label_parkingId_serial.Size = new System.Drawing.Size(175, 16);
+            this.label_parkingId_serial.TabIndex = 29;
+            this.label_parkingId_serial.Text = "Parking Spot(s)/Spot Range";
+            // 
+            // label_parkingId_LetterPark
+            // 
+            this.label_parkingId_LetterPark.AutoSize = true;
+            this.label_parkingId_LetterPark.Location = new System.Drawing.Point(16, 29);
+            this.label_parkingId_LetterPark.Name = "label_parkingId_LetterPark";
+            this.label_parkingId_LetterPark.Size = new System.Drawing.Size(44, 16);
+            this.label_parkingId_LetterPark.TabIndex = 28;
+            this.label_parkingId_LetterPark.Text = "Ramp";
+            // 
+            // textBox_ParkingId_Prefix
+            // 
+            this.textBox_ParkingId_Prefix.Location = new System.Drawing.Point(16, 51);
+            this.textBox_ParkingId_Prefix.Name = "textBox_ParkingId_Prefix";
+            this.textBox_ParkingId_Prefix.Size = new System.Drawing.Size(49, 22);
+            this.textBox_ParkingId_Prefix.TabIndex = 27;
+            this.textBox_ParkingId_Prefix.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
+            // 
+            // textBox_ParkingId_Int
+            // 
+            this.textBox_ParkingId_Int.Location = new System.Drawing.Point(86, 51);
+            this.textBox_ParkingId_Int.Name = "textBox_ParkingId_Int";
+            this.textBox_ParkingId_Int.Size = new System.Drawing.Size(169, 22);
+            this.textBox_ParkingId_Int.TabIndex = 26;
+            // 
+            // button_ParkingId_Remove
+            // 
+            this.button_ParkingId_Remove.Location = new System.Drawing.Point(261, 47);
+            this.button_ParkingId_Remove.Name = "button_ParkingId_Remove";
+            this.button_ParkingId_Remove.Size = new System.Drawing.Size(33, 30);
+            this.button_ParkingId_Remove.TabIndex = 24;
+            this.button_ParkingId_Remove.Text = "➖";
+            this.button_ParkingId_Remove.UseVisualStyleBackColor = true;
+            this.button_ParkingId_Remove.Click += new System.EventHandler(this.button_ParkingId_Remove_Click);
+            // 
+            // button_ParkingId_Add
+            // 
+            this.button_ParkingId_Add.Location = new System.Drawing.Point(294, 47);
+            this.button_ParkingId_Add.Name = "button_ParkingId_Add";
+            this.button_ParkingId_Add.Size = new System.Drawing.Size(33, 30);
+            this.button_ParkingId_Add.TabIndex = 23;
+            this.button_ParkingId_Add.Text = "➕";
+            this.button_ParkingId_Add.UseVisualStyleBackColor = true;
+            this.button_ParkingId_Add.Click += new System.EventHandler(this.button_ParkingId_Add_Click);
+            // 
+            // listBox_ParkingId
+            // 
+            this.listBox_ParkingId.FormattingEnabled = true;
+            this.listBox_ParkingId.ItemHeight = 16;
+            this.listBox_ParkingId.Location = new System.Drawing.Point(333, 21);
+            this.listBox_ParkingId.Name = "listBox_ParkingId";
+            this.listBox_ParkingId.Size = new System.Drawing.Size(200, 84);
+            this.listBox_ParkingId.TabIndex = 25;
+            this.listBox_ParkingId.SelectedIndexChanged += new System.EventHandler(this.listBox1_SelectedIndexChanged);
+            // 
             // groupBoxGeneral
             // 
             this.groupBoxGeneral.Controls.Add(this.checkBox_HumainOnly);
@@ -172,7 +247,7 @@ namespace DCE_Manager
             this.groupBoxGeneral.Controls.Add(this.labelSkill);
             this.groupBoxGeneral.Controls.Add(this.comboBoxSkill);
             this.groupBoxGeneral.Controls.Add(this.checkBoxPlayer);
-            this.groupBoxGeneral.Controls.Add(this.checkBoxInactive);
+            this.groupBoxGeneral.Controls.Add(this.checkBoxActive);
             this.groupBoxGeneral.Location = new System.Drawing.Point(9, 27);
             this.groupBoxGeneral.Name = "groupBoxGeneral";
             this.groupBoxGeneral.Size = new System.Drawing.Size(811, 180);
@@ -188,6 +263,7 @@ namespace DCE_Manager
             this.checkBox_HumainOnly.Size = new System.Drawing.Size(105, 20);
             this.checkBox_HumainOnly.TabIndex = 14;
             this.checkBox_HumainOnly.Text = "Humain Only";
+            this.checkBox_HumainOnly.CheckedChanged += new System.EventHandler(this.checkBox_HumainOnly_CheckedChanged);
             // 
             // label_Callsign
             // 
@@ -205,6 +281,7 @@ namespace DCE_Manager
             this.comboBox_Callsign.Name = "comboBox_Callsign";
             this.comboBox_Callsign.Size = new System.Drawing.Size(180, 24);
             this.comboBox_Callsign.TabIndex = 12;
+            this.comboBox_Callsign.SelectedIndexChanged += new System.EventHandler(this.comboBox_Callsign_SelectedIndexChanged);
             // 
             // labelName
             // 
@@ -237,6 +314,7 @@ namespace DCE_Manager
             this.comboBoxType.Name = "comboBoxType";
             this.comboBoxType.Size = new System.Drawing.Size(239, 24);
             this.comboBoxType.TabIndex = 3;
+            this.comboBoxType.SelectedIndexChanged += new System.EventHandler(this.comboBoxType_SelectedIndexChanged);
             // 
             // labelCountry
             // 
@@ -253,6 +331,7 @@ namespace DCE_Manager
             this.comboBoxCountry.Name = "comboBoxCountry";
             this.comboBoxCountry.Size = new System.Drawing.Size(239, 24);
             this.comboBoxCountry.TabIndex = 5;
+            this.comboBoxCountry.SelectedIndexChanged += new System.EventHandler(this.comboBoxCountry_SelectedIndexChanged);
             // 
             // labelBase
             // 
@@ -294,6 +373,7 @@ namespace DCE_Manager
             this.comboBoxSkill.Name = "comboBoxSkill";
             this.comboBoxSkill.Size = new System.Drawing.Size(180, 24);
             this.comboBoxSkill.TabIndex = 9;
+            this.comboBoxSkill.SelectedIndexChanged += new System.EventHandler(this.comboBoxSkill_SelectedIndexChanged);
             // 
             // checkBoxPlayer
             // 
@@ -303,15 +383,17 @@ namespace DCE_Manager
             this.checkBoxPlayer.Size = new System.Drawing.Size(109, 20);
             this.checkBoxPlayer.TabIndex = 10;
             this.checkBoxPlayer.Text = "Player squad";
+            this.checkBoxPlayer.CheckedChanged += new System.EventHandler(this.checkBoxPlayer_CheckedChanged);
             // 
-            // checkBoxInactive
+            // checkBoxActive
             // 
-            this.checkBoxInactive.AutoSize = true;
-            this.checkBoxInactive.Location = new System.Drawing.Point(683, 116);
-            this.checkBoxInactive.Name = "checkBoxInactive";
-            this.checkBoxInactive.Size = new System.Drawing.Size(75, 20);
-            this.checkBoxInactive.TabIndex = 11;
-            this.checkBoxInactive.Text = "Inactive";
+            this.checkBoxActive.AutoSize = true;
+            this.checkBoxActive.Location = new System.Drawing.Point(683, 116);
+            this.checkBoxActive.Name = "checkBoxActive";
+            this.checkBoxActive.Size = new System.Drawing.Size(108, 20);
+            this.checkBoxActive.TabIndex = 11;
+            this.checkBoxActive.Text = "Squad active";
+            this.checkBoxActive.CheckedChanged += new System.EventHandler(this.checkBoxActive_CheckedChanged);
             // 
             // groupBox_Bases
             // 
@@ -331,7 +413,7 @@ namespace DCE_Manager
             // 
             // button_Base_Haut
             // 
-            this.button_Base_Haut.Location = new System.Drawing.Point(261, 27);
+            this.button_Base_Haut.Location = new System.Drawing.Point(553, 24);
             this.button_Base_Haut.Name = "button_Base_Haut";
             this.button_Base_Haut.Size = new System.Drawing.Size(33, 30);
             this.button_Base_Haut.TabIndex = 20;
@@ -341,7 +423,7 @@ namespace DCE_Manager
             // 
             // button_Base_Down
             // 
-            this.button_Base_Down.Location = new System.Drawing.Point(261, 94);
+            this.button_Base_Down.Location = new System.Drawing.Point(553, 91);
             this.button_Base_Down.Name = "button_Base_Down";
             this.button_Base_Down.Size = new System.Drawing.Size(33, 30);
             this.button_Base_Down.TabIndex = 19;
@@ -381,9 +463,9 @@ namespace DCE_Manager
             // 
             this.listBoxBasesAlternat.FormattingEnabled = true;
             this.listBoxBasesAlternat.ItemHeight = 16;
-            this.listBoxBasesAlternat.Location = new System.Drawing.Point(380, 40);
+            this.listBoxBasesAlternat.Location = new System.Drawing.Point(333, 21);
             this.listBoxBasesAlternat.Name = "listBoxBasesAlternat";
-            this.listBoxBasesAlternat.Size = new System.Drawing.Size(200, 84);
+            this.listBoxBasesAlternat.Size = new System.Drawing.Size(200, 100);
             this.listBoxBasesAlternat.TabIndex = 21;
             // 
             // labelBasesAdd
@@ -432,6 +514,7 @@ namespace DCE_Manager
             this.numericNumber.Name = "numericNumber";
             this.numericNumber.Size = new System.Drawing.Size(120, 22);
             this.numericNumber.TabIndex = 1;
+            this.numericNumber.ValueChanged += new System.EventHandler(this.numericNumber_ValueChanged);
             // 
             // labelInitNumber
             // 
@@ -453,6 +536,7 @@ namespace DCE_Manager
             this.numericInitNumber.Name = "numericInitNumber";
             this.numericInitNumber.Size = new System.Drawing.Size(120, 22);
             this.numericInitNumber.TabIndex = 3;
+            this.numericInitNumber.ValueChanged += new System.EventHandler(this.numericInitNumber_ValueChanged);
             // 
             // labelReserve
             // 
@@ -474,6 +558,7 @@ namespace DCE_Manager
             this.numericReserve.Name = "numericReserve";
             this.numericReserve.Size = new System.Drawing.Size(120, 22);
             this.numericReserve.TabIndex = 5;
+            this.numericReserve.ValueChanged += new System.EventHandler(this.numericReserve_ValueChanged);
             // 
             // labelInitReserve
             // 
@@ -495,6 +580,7 @@ namespace DCE_Manager
             this.numericInitReserve.Name = "numericInitReserve";
             this.numericInitReserve.Size = new System.Drawing.Size(120, 22);
             this.numericInitReserve.TabIndex = 7;
+            this.numericInitReserve.ValueChanged += new System.EventHandler(this.numericInitReserve_ValueChanged);
             // 
             // groupBoxTasks
             // 
@@ -526,7 +612,7 @@ namespace DCE_Manager
             this.tabPage2.Location = new System.Drawing.Point(4, 25);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(1259, 888);
+            this.tabPage2.Size = new System.Drawing.Size(1259, 805);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "Livery/MODEX";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -568,6 +654,7 @@ namespace DCE_Manager
             this.textBox_ModexNb_Max.Name = "textBox_ModexNb_Max";
             this.textBox_ModexNb_Max.Size = new System.Drawing.Size(49, 22);
             this.textBox_ModexNb_Max.TabIndex = 16;
+            this.textBox_ModexNb_Max.TextChanged += new System.EventHandler(this.textBox_ModexNb_Max_TextChanged);
             // 
             // textBox_ModexNb_Min
             // 
@@ -575,6 +662,7 @@ namespace DCE_Manager
             this.textBox_ModexNb_Min.Name = "textBox_ModexNb_Min";
             this.textBox_ModexNb_Min.Size = new System.Drawing.Size(49, 22);
             this.textBox_ModexNb_Min.TabIndex = 15;
+            this.textBox_ModexNb_Min.TextChanged += new System.EventHandler(this.textBox_ModexNb_Min_TextChanged);
             // 
             // groupBox_Livery
             // 
@@ -689,7 +777,7 @@ namespace DCE_Manager
             this.tabPage3.Location = new System.Drawing.Point(4, 25);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage3.Size = new System.Drawing.Size(1259, 888);
+            this.tabPage3.Size = new System.Drawing.Size(1259, 805);
             this.tabPage3.TabIndex = 2;
             this.tabPage3.Text = "Roster";
             this.tabPage3.UseVisualStyleBackColor = true;
@@ -716,30 +804,12 @@ namespace DCE_Manager
             this.flowLayoutPanelScore.TabIndex = 0;
             this.flowLayoutPanelScore.WrapContents = false;
             // 
-            // buttonOK
-            // 
-            this.buttonOK.Location = new System.Drawing.Point(1045, 856);
-            this.buttonOK.Name = "buttonOK";
-            this.buttonOK.Size = new System.Drawing.Size(100, 36);
-            this.buttonOK.TabIndex = 5;
-            this.buttonOK.Text = "Save";
-            this.buttonOK.Click += new System.EventHandler(this.buttonOK_Click);
-            // 
-            // buttonCancel
-            // 
-            this.buttonCancel.Location = new System.Drawing.Point(1161, 856);
-            this.buttonCancel.Name = "buttonCancel";
-            this.buttonCancel.Size = new System.Drawing.Size(100, 36);
-            this.buttonCancel.TabIndex = 6;
-            this.buttonCancel.Text = "Cancel";
-            this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
-            // 
             // tabPage4
             // 
             this.tabPage4.Controls.Add(this.groupBox_PanelTables);
             this.tabPage4.Location = new System.Drawing.Point(4, 25);
             this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(1259, 888);
+            this.tabPage4.Size = new System.Drawing.Size(1259, 805);
             this.tabPage4.TabIndex = 3;
             this.tabPage4.Text = "Divers";
             this.tabPage4.UseVisualStyleBackColor = true;
@@ -765,85 +835,6 @@ namespace DCE_Manager
             this.flowLayoutPanelTables.TabIndex = 0;
             this.flowLayoutPanelTables.WrapContents = false;
             // 
-            // groupBox_ParkingId
-            // 
-            this.groupBox_ParkingId.Controls.Add(this.label_parkingId_serial);
-            this.groupBox_ParkingId.Controls.Add(this.label_parkingId_LetterPark);
-            this.groupBox_ParkingId.Controls.Add(this.textBox_ParkingId_Prefix);
-            this.groupBox_ParkingId.Controls.Add(this.textBox_ParkingId_Int);
-            this.groupBox_ParkingId.Controls.Add(this.button_ParkingId_Remove);
-            this.groupBox_ParkingId.Controls.Add(this.button_ParkingId_Add);
-            this.groupBox_ParkingId.Controls.Add(this.listBox_ParkingId);
-            this.groupBox_ParkingId.Location = new System.Drawing.Point(624, 374);
-            this.groupBox_ParkingId.Name = "groupBox_ParkingId";
-            this.groupBox_ParkingId.Size = new System.Drawing.Size(616, 130);
-            this.groupBox_ParkingId.TabIndex = 9;
-            this.groupBox_ParkingId.TabStop = false;
-            this.groupBox_ParkingId.Text = "Parking Id";
-            // 
-            // listBox_ParkingId
-            // 
-            this.listBox_ParkingId.FormattingEnabled = true;
-            this.listBox_ParkingId.ItemHeight = 16;
-            this.listBox_ParkingId.Location = new System.Drawing.Point(380, 21);
-            this.listBox_ParkingId.Name = "listBox_ParkingId";
-            this.listBox_ParkingId.Size = new System.Drawing.Size(200, 84);
-            this.listBox_ParkingId.TabIndex = 25;
-            this.listBox_ParkingId.SelectedIndexChanged += new System.EventHandler(this.listBox1_SelectedIndexChanged);
-            // 
-            // button_ParkingId_Remove
-            // 
-            this.button_ParkingId_Remove.Location = new System.Drawing.Point(261, 47);
-            this.button_ParkingId_Remove.Name = "button_ParkingId_Remove";
-            this.button_ParkingId_Remove.Size = new System.Drawing.Size(33, 30);
-            this.button_ParkingId_Remove.TabIndex = 24;
-            this.button_ParkingId_Remove.Text = "➖";
-            this.button_ParkingId_Remove.UseVisualStyleBackColor = true;
-            this.button_ParkingId_Remove.Click += new System.EventHandler(this.button_ParkingId_Remove_Click);
-            // 
-            // button_ParkingId_Add
-            // 
-            this.button_ParkingId_Add.Location = new System.Drawing.Point(294, 47);
-            this.button_ParkingId_Add.Name = "button_ParkingId_Add";
-            this.button_ParkingId_Add.Size = new System.Drawing.Size(33, 30);
-            this.button_ParkingId_Add.TabIndex = 23;
-            this.button_ParkingId_Add.Text = "➕";
-            this.button_ParkingId_Add.UseVisualStyleBackColor = true;
-            this.button_ParkingId_Add.Click += new System.EventHandler(this.button_ParkingId_Add_Click);
-            // 
-            // textBox_ParkingId_Int
-            // 
-            this.textBox_ParkingId_Int.Location = new System.Drawing.Point(86, 51);
-            this.textBox_ParkingId_Int.Name = "textBox_ParkingId_Int";
-            this.textBox_ParkingId_Int.Size = new System.Drawing.Size(169, 22);
-            this.textBox_ParkingId_Int.TabIndex = 26;
-            // 
-            // textBox_ParkingId_Prefix
-            // 
-            this.textBox_ParkingId_Prefix.Location = new System.Drawing.Point(16, 51);
-            this.textBox_ParkingId_Prefix.Name = "textBox_ParkingId_Prefix";
-            this.textBox_ParkingId_Prefix.Size = new System.Drawing.Size(49, 22);
-            this.textBox_ParkingId_Prefix.TabIndex = 27;
-            this.textBox_ParkingId_Prefix.TextChanged += new System.EventHandler(this.textBox2_TextChanged);
-            // 
-            // label_parkingId_LetterPark
-            // 
-            this.label_parkingId_LetterPark.AutoSize = true;
-            this.label_parkingId_LetterPark.Location = new System.Drawing.Point(16, 29);
-            this.label_parkingId_LetterPark.Name = "label_parkingId_LetterPark";
-            this.label_parkingId_LetterPark.Size = new System.Drawing.Size(44, 16);
-            this.label_parkingId_LetterPark.TabIndex = 28;
-            this.label_parkingId_LetterPark.Text = "Ramp";
-            // 
-            // label_parkingId_serial
-            // 
-            this.label_parkingId_serial.AutoSize = true;
-            this.label_parkingId_serial.Location = new System.Drawing.Point(83, 29);
-            this.label_parkingId_serial.Name = "label_parkingId_serial";
-            this.label_parkingId_serial.Size = new System.Drawing.Size(175, 16);
-            this.label_parkingId_serial.TabIndex = 29;
-            this.label_parkingId_serial.Text = "Parking Spot(s)/Spot Range";
-            // 
             // FormSquadEdit
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -857,6 +848,8 @@ namespace DCE_Manager
             this.panelMain.ResumeLayout(false);
             this.tabControl_SquadEditMain.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
+            this.groupBox_ParkingId.ResumeLayout(false);
+            this.groupBox_ParkingId.PerformLayout();
             this.groupBoxGeneral.ResumeLayout(false);
             this.groupBoxGeneral.PerformLayout();
             this.groupBox_Bases.ResumeLayout(false);
@@ -879,8 +872,6 @@ namespace DCE_Manager
             this.groupBoxScore.ResumeLayout(false);
             this.tabPage4.ResumeLayout(false);
             this.groupBox_PanelTables.ResumeLayout(false);
-            this.groupBox_ParkingId.ResumeLayout(false);
-            this.groupBox_ParkingId.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -901,7 +892,7 @@ namespace DCE_Manager
         private System.Windows.Forms.ComboBox comboBoxSkill;
 
         private System.Windows.Forms.CheckBox checkBoxPlayer;
-        private System.Windows.Forms.CheckBox checkBoxInactive;
+        private System.Windows.Forms.CheckBox checkBoxActive;
 
         private System.Windows.Forms.NumericUpDown numericNumber;
         private System.Windows.Forms.NumericUpDown numericInitNumber;
@@ -910,9 +901,6 @@ namespace DCE_Manager
 
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelTasks;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelScore;
-
-        private System.Windows.Forms.Button buttonOK;
-        private System.Windows.Forms.Button buttonCancel;
         private Label labelNumber;
         private Label labelInitNumber;
         private Label labelReserve;

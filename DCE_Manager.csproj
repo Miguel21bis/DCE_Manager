@@ -198,6 +198,7 @@
     </Compile>
     <Compile Include="appsettings.cs" />
     <Compile Include="CampaignEdit\CampaignLuaLoader.cs" />
+    <Compile Include="CampaignEdit\CampaignSaver.cs" />
     <Compile Include="CampaignEdit\db_airbasesParser.cs" />
     <Compile Include="CampaignEdit\triggersParser.cs" />
     <Compile Include="Class_ASTI.cs" />

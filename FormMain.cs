@@ -22,6 +22,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.Design;
+//using DCE_Manager.CampaignEdit;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using Microsoft.VisualBasic.FileIO;
@@ -6491,14 +6492,23 @@ namespace DCE_Manager
             //active l'unité du squad sélectionné
             foreach (var squad in List_oob_air_Manager.List_oob_air)
             {
+
                 if (squad.Player)
                 {
-                    squad.Inactive = false;
+                    squad.Squad_Inactive = false;
                 }
             }
 
-            //ecrit les Class de tous les squad dans le fichier oob_air
-            FormUtils.WriteListClassSquadsToFile(pathFile, folderName);
+            ////ecrit les Class de tous les squad dans le fichier oob_air
+            //FormUtils.WriteListClassSquadsToFile(pathFile, folderName);
+
+            if (!List_oob_air_Manager.List_oob_air.Any())
+            {
+                MessageBox.Show("No squads to save.");
+                return;
+            }
+            // REF: FormMain - remplacer modifiedCampaign
+            CampaignSaver.Save(pathFile, pathFileBackup, folderName);
 
             MessageBox.Show("Changes saved.", "Report");
         }
@@ -6678,10 +6688,32 @@ namespace DCE_Manager
                 }
             }
 
+            ////CampaignEdit.LoadSquads(groupBoxCampEdit.Text);
+            //CampaignEdit.LoadSquads();
+
+            //// Ligne de référence : après File.Copy(...)
+            //foreach (Form form in Application.OpenForms)
+            //{
+            //    if (form is CampaignEdit campaignForm)
+            // Remplacez l'appel statique CampaignEdit.LoadSquads(); par un appel sur l'instance _currentCampaignEdit
+            if (_currentCampaignEdit != null)
+            {
+                _currentCampaignEdit.LoadSquads();
+            }
+            //    {
+
+
+            //        campaignForm.ReloadCampaign();
+            //        break;
+            //    }
+            //}
+
             //string fileIMG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp);
             string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text;
 
-            DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, groupBoxCampEdit.Text);
+
+            //ATTENTION, la ligne plus bas X2 double les forms, DANGEREUX
+            //DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, groupBoxCampEdit.Text);
         }
 
         private void tabPage8_Click(object sender, EventArgs e)
@@ -6818,12 +6850,6 @@ namespace DCE_Manager
 
         public void RefreshGrids()
         {
-            //FormUtils.LogRegister($"[REFRESH] state INIT={radioButton_OOB_INIT.Checked} ACTIVE={radioButton_OOB_ACTIVE.Checked}");
-
-            //MessageBox.Show("RefreshGrids called");
-            //FormUtils.LogRegister("FormMain.cs: RefreshGrids(): RefreshGrids called ");
-            //FormUtils.LogRegister("FormMain.cs: currentState = '" + currentState + "'");
-
             CampaignEdit.LoadGridStatic(dataGridViewBlue, currentSquads, "blue", currentState);
             CampaignEdit.LoadGridStatic(dataGridViewRed, currentSquads, "red", currentState);
 

@@ -37,14 +37,8 @@ namespace DCE_Manager
     {
         private readonly Form1 _form1;
         private readonly string _campaignName;
-
-        private static object _cachedLuaResult = null;
-
         private static CampaignContext _campaignContext;
-
-
         private void ResetUi() { }
-        //private void LoadAirbases() { }
         private void DisplayErrors() { }
 
 
@@ -76,11 +70,12 @@ namespace DCE_Manager
         // 4. méthodes d'initialisation
         private void InitializeCampaign()
         {
-            FormUtils.LogRegister("[INIT CAMPAIGN] START");
+            //FormUtils.LogRegister("[INIT CAMPAIGN] START");
 
             _form1.UpdateSharedData();
 
             _campaignContext = new CampaignContext();
+            _campaignContext.CampaignEditRef = this;
             _campaignContext.CampaignName = _campaignName;
 
             ResetUi();
@@ -106,18 +101,10 @@ namespace DCE_Manager
 
         private void RegisterGrid(DataGridView grid)
         {
-            //grid.CellMouseDown += Grid_CellMouseDown;
-            //grid.RowHeaderMouseClick += Grid_RowHeaderMouseClick;
-            //grid.CellValueChanged += Grid_CellValueChanged;
-            //grid.CurrentCellDirtyStateChanged += Grid_CurrentCellDirtyStateChanged;
-            //grid.DataError += Grid_DataError;
-            //grid.CellFormatting += Grid_CellFormatting;
+
             // 🔧 Ligne à modifier dans RegisterGrid
             grid.CellMouseDown -= Grid_CellMouseDown; // évite doublons
             grid.CellMouseDown += Grid_CellMouseDown;
-
-            grid.RowHeaderMouseClick -= Grid_RowHeaderMouseClick;
-            grid.RowHeaderMouseClick += Grid_RowHeaderMouseClick;
 
             grid.CellValueChanged -= Grid_CellValueChanged;
             grid.CellValueChanged += Grid_CellValueChanged;
@@ -139,7 +126,7 @@ namespace DCE_Manager
             _campaignContext.LuaData = loader.Load(_campaignName);
         }
 
-        private void LoadSquads()
+        public void LoadSquads()
         {
 
             var parser = new OobAirParser();
@@ -149,17 +136,7 @@ namespace DCE_Manager
             // Ancienne liste plate reconstruite pour ne pas casser les grilles.
             CurrentSquads = List_oob_air_Manager.List_oob_air;
 
-            //foreach (var s in CurrentSquads)
-            //{
-            //    if (s.Player)
-            //    {
-            //        FormUtils.LogRegister($"[LIST] {s.Name} | {s.FolderFile} | {s.Type}");
-            //    }
-            //}
-
             _form1.currentSquads = CurrentSquads;
-
-            //FormUtils.LogRegister("[LOAD SQUADS] calling RefreshGrids()");
 
             _form1.RefreshGrids();
         }
@@ -238,11 +215,22 @@ namespace DCE_Manager
             grid.AutoGenerateColumns = false;
             grid.DataSource = null;
             grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+
+            // Colonne Edit
+            grid.Columns.Add(new DataGridViewButtonColumn()
+            {
+                Name = "EditColumn",
+                HeaderText = "",
+                Text = "✏",//🔧
+                UseColumnTextForButtonValue = true,
+                Width = 35
+            });
 
             grid.Columns.Add(new DataGridViewCheckBoxColumn()
             {
                 HeaderText = "Actif",
-                DataPropertyName = "IsActive",
+                DataPropertyName = "Squad_Active",
                 Width = 50,
                 Name = "ActifColumn"
             });
@@ -271,12 +259,7 @@ namespace DCE_Manager
                 DataPropertyName = "Type",
                 Width = 80
             });
-            //grid.Columns.Add(new DataGridViewTextBoxColumn()
-            //{
-            //    HeaderText = "State",
-            //    DataPropertyName = "FolderFile",
-            //    Width = 60
-            //});
+            
             grid.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 HeaderText = "Base",
@@ -307,13 +290,6 @@ namespace DCE_Manager
                 Width = 35
             });
 
-            //foreach (var s in filtered)
-            //{
-            //    if (s.Player)
-            //    {
-            //        FormUtils.LogRegister($"[GRID-BEFORE] {s.Name} | {s.FolderFile} | {s.Type}");
-            //    }
-            //}
 
             grid.DataSource = filtered;
 
@@ -336,7 +312,11 @@ namespace DCE_Manager
         //méthode
         private void Grid_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
         {
+
             if (e.RowIndex < 0)
+                return;
+
+            if (e.ColumnIndex < 0)
                 return;
 
             bool isActive = _form1.radioButton_OOB_ACTIVE.Checked;
@@ -355,13 +335,70 @@ namespace DCE_Manager
             if (squad == null)
                 return;
 
+            if (e.ColumnIndex < 0)
+            {
+                // comportement header (ou return)
+                return;
+            }
+
             string columnName = e.ColumnIndex >= 0
             ? grid.Columns[e.ColumnIndex].Name
             : "";
 
+
+            if (columnName != "EditColumn" &&
+                columnName != "CloneColumn" &&
+                columnName != "DeleteColumn")
+            {
+                return; // ← plus d'ouverture automatique
+            }
+
             // Actif + Player : on laisse juste la checkbox fonctionner
             if (columnName == "PlayerColumn" || columnName == "ActifColumn")
                 return;
+
+            if (columnName == "EditColumn")
+            {
+                string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" + squad.Name.Trim().ToLowerInvariant();
+
+                campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
+
+                squadToEdit = isActive
+                    ? campaignSquad.Active
+                    : campaignSquad.Init;
+
+                var frm = new FormSquadEdit(squadToEdit, _campaignContext, false, "EditColumn");
+
+                frm.SquadUpdated += () =>
+                {
+                    _form1.dataGridViewBlue.Refresh();
+                    _form1.dataGridViewRed.Refresh();
+                };
+
+
+                frm.FormClosed += (s, args) =>
+                {
+                    if (frm.DialogResult == DialogResult.OK)
+                    {
+                        _form1.RefreshGrids();
+                    }
+                };
+
+                frm.SquadUpdated += () =>
+                {
+                    if (frm.EditedSquad.Player)
+                    {
+                        SetSinglePlayerSquad(frm.EditedSquad);
+                    }
+                    else
+                    {
+                        _form1.RefreshGrids();
+                    }
+                };
+
+                frm.Show();
+                return;
+            }
 
 
             // Clone
@@ -408,74 +445,9 @@ namespace DCE_Manager
                 return;
             }
 
-            string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" +
-                    squad.Name.Trim().ToLowerInvariant();
-
-            campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
-
-            //campaignSquad = OobAirParser.FindCampaignSquad( squad.SideString, squad.Name, isActive);
-
-            squadToEdit = isActive ? campaignSquad.Active : campaignSquad.Init;
-
-
-            //if (squadToEdit.Name == "73 TFS")
-            //{
-            //    LogRegister("FormSquadEdit START squadToEdit: " + squadToEdit.Name + " isActive: " + isActive);
-            //    OobAirParser.ShowClassAndProperty(squadToEdit);
-            //    LogRegister("FormSquadEdit END " + squadToEdit.Name);
-            //}
-
-            var editFrm = new FormSquadEdit(squadToEdit, _campaignContext, false, "B Grid_RowHeaderMouseClick");
-
-
-
-            editFrm.FormClosed += (s, args) =>
-            {
-                if (editFrm.DialogResult == DialogResult.OK)
-                {
-                    _form1.RefreshGrids();
-                }
-            };
-
-            editFrm.Show();
         }
        
-        private void Grid_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
-        {
-            if (e.RowIndex < 0)
-                return;
-
-            DataGridView grid = (DataGridView)sender;
-
-            DataGridViewRow row = grid.Rows[e.RowIndex];
-            Squad squad = row.DataBoundItem as Squad;
-
-            if (squad == null)
-                return;
-
-            bool isActive = _form1.radioButton_OOB_ACTIVE.Checked;
-
-            string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" +
-                                squad.Name.Trim().ToLowerInvariant();
-
-            CampaignSquad  campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
-
-            Squad squadToEdit = isActive
-                ? campaignSquad.Active
-                : campaignSquad.Init;
-
-            var frm = new FormSquadEdit(squadToEdit, _campaignContext, false, "C Grid_RowHeaderMouseClick");
-
-            frm.FormClosed += (s, args) =>
-            {
-                if (frm.DialogResult == DialogResult.OK)
-                {
-                    _form1.RefreshGrids();
-                }
-            };
-
-            frm.Show();
-        }
+      
 
         //méthode
         private void Grid_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -487,6 +459,7 @@ namespace DCE_Manager
                 grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
             }
         }
+
         //méthode
         private void Grid_CellValueChanged(object sender, DataGridViewCellEventArgs e)
         {
@@ -496,7 +469,7 @@ namespace DCE_Manager
             var grid = sender as DataGridView;
 
             // colonne "Player"ow.Cells["PlayerColumn"] = new DataGridViewTextBoxCell();
-            if (e.ColumnIndex != 1)
+            if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn")
                 return;
 
             var squadTest = grid.Rows[e.RowIndex].DataBoundItem as Squad;
@@ -514,27 +487,69 @@ namespace DCE_Manager
             if (!selectedSquad.Player)
                 return;
             // si on coche ce squad, on décoche tous les autres
-            if (selectedSquad.Player)
-            {
-                // 🔥 on récupère le state courant (Init ou Active)
-                string currentState = selectedSquad.FolderFile;
+            selectedSquad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
 
-                foreach (var squad in _form1.currentSquads)
+            if (selectedSquad == null)
+                return;
+
+            // 🔒 Empêche suppression du dernier Player
+            if (!selectedSquad.Player)
+            {
+                bool anotherPlayerExists = CurrentCampaignSquads.Any(cs =>
+                    (cs.Active != selectedSquad && cs.Active.Player) ||
+                    (cs.Init != selectedSquad && cs.Init.Player)
+                );
+
+                if (!anotherPlayerExists)
                 {
-                    // 🔥 IMPORTANT : on ne touche qu'au même state
-                    if (squad.FolderFile == currentState)
-                    {
-                        if (!ReferenceEquals(squad, selectedSquad))
-                        {
-                            squad.Player = false;
-                        }
-                    }
+                    MessageBox.Show(
+                        "You must select another Player squad first.",
+                        "Player required",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+
+                    selectedSquad.Player = true;
+                    grid.Refresh();
+                    return;
                 }
 
-                // recharge uniquement le state courant
-                LoadGridStatic(_form1.dataGridViewBlue, _form1.currentSquads, "blue", currentState);
-                LoadGridStatic(_form1.dataGridViewRed, _form1.currentSquads, "red", currentState);
+                return;
             }
+
+            // colonne Player
+            if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn")
+                return;
+
+            selectedSquad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+
+            if (selectedSquad == null)
+                return;
+
+            // uniquement si on coche
+            if (selectedSquad.Player)
+            {
+                SetSinglePlayerSquad(selectedSquad);
+            }
+            else
+            {
+                // protection dernier player (optionnel, tu peux garder ton code actuel)
+                bool anotherPlayerExists = CurrentCampaignSquads.Any(cs =>
+                    (cs.Init != selectedSquad && cs.Init.Player) ||
+                    (cs.Active != selectedSquad && cs.Active.Player)
+                );
+
+                if (!anotherPlayerExists)
+                {
+                    MessageBox.Show("You must select another Player squad first.");
+                    selectedSquad.Player = true;
+                    grid.Refresh();
+                }
+            }
+
+            // refresh
+            _form1.RefreshGrids();
+           
         }
         //méthode
         // ⚡ Méthode pour désactiver la case Player pour les avions non jouables
@@ -562,15 +577,6 @@ namespace DCE_Manager
                 }
             }
 
-            //foreach (DataGridViewRow row in grid.Rows)
-            //{
-            //    var squad = row.DataBoundItem as Squad;
-            //    if (squad?.Player == true)
-            //    {
-            //        FormUtils.LogRegister($"[GRID-AFTER] {squad.Name} | {squad.FolderFile} | {squad.Type}");
-            //    }
-            //}
-
             grid.Refresh(); // force le rendu
         }
 
@@ -584,7 +590,8 @@ namespace DCE_Manager
             var grid = sender as DataGridView;
 
             // colonne Player
-            if (e.ColumnIndex != 1 || e.RowIndex < 0)
+            //if (e.ColumnIndex != 1 || e.RowIndex < 0)
+            if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn" || e.RowIndex < 0)
                 return;
 
             var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
@@ -608,7 +615,7 @@ namespace DCE_Manager
         private void UnregisterGrid(DataGridView grid)
         {
             grid.CellMouseDown -= Grid_CellMouseDown;
-            grid.RowHeaderMouseClick -= Grid_RowHeaderMouseClick;
+            //grid.RowHeaderMouseClick -= Grid_RowHeaderMouseClick;
             grid.CellValueChanged -= Grid_CellValueChanged;
             grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
             grid.DataError -= Grid_DataError;
@@ -635,7 +642,27 @@ namespace DCE_Manager
             base.Dispose(disposing);
         }
 
+        // Garantit qu'il n'y a qu'un seul squad Player dans la campagne
+        // Pourquoi : centraliser toute la logique (Init + Active)
+        public void SetSinglePlayerSquad(Squad selectedSquad)
+        {
+            if (selectedSquad == null)
+                return;
 
+            foreach (var cs in CurrentCampaignSquads)
+            {
+                if (cs.Init != null)
+                    cs.Init.Player = false;
+
+                if (cs.Active != null)
+                    cs.Active.Player = false;
+            }
+
+            // Active uniquement celui sélectionné
+            selectedSquad.Player = true;
+
+            _form1.RefreshGrids();
+        }
 
     }
 }

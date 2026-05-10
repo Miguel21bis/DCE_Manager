@@ -4,12 +4,10 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-//using System.Text;
-//using System.Threading.Tasks;
 using System.Windows.Forms;
-//using System.Windows.Input;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
+using NLua;
 using static DCE_Manager.Utils.FormUtils;
 
 namespace DCE_Manager
@@ -23,6 +21,13 @@ namespace DCE_Manager
             "isActive"
         };
 
+        //private static int _nextSquadId = 1;
+
+        //private static int GetNextSquadId()
+        //{
+        //    return _nextSquadId++;
+        //}
+
         public List<CampaignSquad> LoadCampaignSquads(string campaignName)
         {
             // Ancienne liste conservée pour compatibilité temporaire.
@@ -34,9 +39,52 @@ namespace DCE_Manager
             LoadFile(campaignName, "Init");
             LoadFile(campaignName, "Active");
 
+            FixSquadIds();
+
             DetectDuplicateNames(campaignName);
 
             return List_oob_air_Manager.List_campaignSquads;
+        }
+
+        // Assigne des IdSquad uniques et compacts.
+        // Pourquoi : garantir des IDs cohérents par campagne.
+        private void FixSquadIds()
+        {
+            var usedIds = new HashSet<int>();
+
+            // 1) Récupère tous les IDs existants valides
+            foreach (var squad in List_oob_air_Manager.List_oob_air)
+            {
+                if (squad.IdSquad > 0)
+                {
+                    usedIds.Add(squad.IdSquad);
+                }
+            }
+
+            // 2) Trouve les squads sans ID
+            foreach (var squad in List_oob_air_Manager.List_oob_air)
+            {
+                if (squad.IdSquad > 0)
+                    continue;
+
+                int newId = 1;
+
+                while (usedIds.Contains(newId))
+                {
+                    newId++;
+                }
+
+                squad.IdSquad = newId;
+
+                usedIds.Add(newId);
+
+                FormUtils.LogRegister(
+                    "IdSquad auto assigné : " +
+                    squad.Name +
+                    " -> " +
+                    newId
+                );
+            }
         }
 
         private void LoadFile(string campaignName, string folderName)
@@ -44,17 +92,13 @@ namespace DCE_Manager
            var time_ParseOobAir = Stopwatch.StartNew();
 
             //on compte tous les squads differement, init ou active, sinon ça fout le bordel
-            int idSquad = -1;
-
-
-
+            //int idSquad = -1;
 
             //*************************************************************************
             //PARSE LEs FICHIERs ******************************************************
             //oob_air_init et
             //oob_air
             //*************************************************************************
-
 
             string pathFileB;
 
@@ -73,20 +117,16 @@ namespace DCE_Manager
             {
                 ParamCampaign.NameFileParse = pathFileB;
 
-                //FormUtils.LogRegister("OobAirParser.cs:LoadFile(): pathFileB: " + pathFileB);
-
                 var luaObj = LuaParser.ParseFile(pathFileB, "oob_air");
 
                 //temporaire ?
                 if (luaObj == null)
                 {
-                    //FormUtils.LogRegister("luaObj == null");
                     return;
                 }
 
                 if (luaObj.luaobj == null)
                 {
-                    //FormUtils.LogRegister("luaObj.luaobj == null");
                     return;
                 }
 
@@ -94,16 +134,12 @@ namespace DCE_Manager
                 if (root == null)
                 {
                     FormUtils.LogRegister("OobAirParser.cs:LoadFile(): root == null return ");
-                    //MessageBox.Show("root == null return ", "OobAirParser");
                     return;
                 }
-
-                //FormUtils.LogRegister("START Parser campaignName " + campaignName);
 
 
                 foreach (var entry in root) // side
                 {
-                    //FormUtils.LogRegister("OobAirParser.cs: B foreach  (var entry in root)// side ");
                     string side = entry.Key;
                     int sideInt = side == "blue" ? 1 : 2;
 
@@ -112,18 +148,38 @@ namespace DCE_Manager
 
                     foreach (var entry2 in level1) // squad
                     {
-                       idSquad++;
-
-                        FormUtils.LogRegister("new Squad: " + idSquad );
 
                         var squad = new Squad
                         {
                             SideString = side,
-                            IdSquad = idSquad,
                             FolderFile = folderName,
 
                         };
-                        
+
+
+                        //// REF: OobAirParser - assign squad_id si absent
+                        //if (!root.ContainsKey("IdSquad"))
+                        //{
+                        //    squad.IdSquad = GetNextSquadId();
+                        //}
+                        //else
+                        //{
+                        //    // Correction : on s'assure que root["squad_id"].luaobj est bien un int ou string
+                        //    object squadIdObj = root["IdSquad"].luaobj;
+                        //    if (squadIdObj is int intVal)
+                        //    {
+                        //        squad.IdSquad = intVal;
+                        //    }
+                        //    else if (squadIdObj is string strVal)
+                        //    {
+                        //        squad.IdSquad = Convert.ToInt32(strVal, CultureInfo.InvariantCulture);
+                        //    }
+                        //    else
+                        //    {
+                        //        // fallback sécurisé
+                        //        squad.IdSquad = GetNextSquadId();
+                        //    }
+                        //}
 
                         var level2 = entry2.Value.luaobj as Dictionary<string, LuaObject>;
                         if (level2 == null) continue;
@@ -156,6 +212,9 @@ namespace DCE_Manager
                                     if (squad.Name == "77 TFS")
                                     { }
                                         break;
+                                case "idSquad":
+                                    squad.IdSquad = Convert.ToInt32(valObj);
+                                    break;
 
                                 case "player": squad.Player = Convert.ToBoolean(valObj); break;
                                     
@@ -223,17 +282,32 @@ namespace DCE_Manager
 
                                 case "sidenumber":
                                     var dict = valObj as Dictionary<string, LuaObject>;
+
                                     if (dict != null)
                                     {
-                                        squad.SideNumber = new List<int>();
-
-                                        foreach (var kv in dict)
+                                        // Lua [1]
+                                        if (dict.ContainsKey("1"))
                                         {
-                                            int v;
-                                            if (int.TryParse(kv.Value.luaobj.ToString(), out v))
-                                                squad.SideNumber.Add(v);
+                                            int.TryParse(
+                                                dict["1"].luaobj.ToString(),
+                                                out int min
+                                            );
+
+                                            squad.SideNumberMin = min;
+                                        }
+
+                                        // Lua [2]
+                                        if (dict.ContainsKey("2"))
+                                        {
+                                            int.TryParse(
+                                                dict["2"].luaobj.ToString(),
+                                                out int max
+                                            );
+
+                                            squad.SideNumberMax = max;
                                         }
                                     }
+
                                     break;
 
                                 case "livery":
@@ -321,7 +395,7 @@ namespace DCE_Manager
 
 
                                 case "inactive":
-                                    squad.Inactive = Convert.ToBoolean(valObj);
+                                    squad.Squad_Inactive = Convert.ToBoolean(valObj);
                                     break;
 
                                 case "roster":
@@ -499,21 +573,6 @@ namespace DCE_Manager
 
         }
 
-        // Recherche un squad logique à partir du nom + camp.
-        // Pourquoi : retrouver facilement Init et Active du même squad.
-        //public static CampaignSquad FindCampaignSquad(string side, string squadName)
-        //{
-        //    if (List_oob_air_Manager.List_campaignSquads == null)
-        //        return null;
-
-        //    return List_oob_air_Manager.List_campaignSquads.FirstOrDefault(campaignSquad =>
-        //        campaignSquad != null &&
-        //        campaignSquad.SideString == side &&
-        //        (
-        //            (campaignSquad.Init != null && campaignSquad.Init.Name == squadName) ||
-        //            (campaignSquad.Active != null && campaignSquad.Active.Name == squadName)
-        //        ));
-        //}
 
         // Recherche FIABLE basée sur clé unique
         // Pourquoi : éviter collisions et écrasements silencieux
@@ -650,7 +709,7 @@ namespace DCE_Manager
 
                 messages.Add(detail);
 
-                FormUtils.LogRegister("⚠️ DOUBLON DETECTE: " + detail);
+                FormUtils.LogRegister(" DOUBLON DETECTE: " + detail);
             }
 
             // Popup UNIQUE

@@ -9,13 +9,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
-using System.Runtime.CompilerServices;
 
 //using System.Web.UI.WebControls;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
-using static DCE_Manager.Utils.FormUtils;
 
 namespace DCE_Manager
 {
@@ -23,13 +21,10 @@ namespace DCE_Manager
     {
         public Squad EditedSquad { get; private set; }
 
+        // Event déclenché à chaque modification importante du squad
+        public event Action SquadUpdated;
+
         private readonly CampaignContext _campaignContext;
-
-        // Déclaration membre de classe
-        // Pourquoi : garder une référence sur la ComboBox pour pouvoir la mettre à jour.
-        private ComboBox _comboBoxLivery;
-
-        private ComboBox _comboBoxLiveryModex;
 
         // Cette liste mémorise les contrôles dynamiques des tâches.
         // Pourquoi : récupérer facilement les valeurs lors du Save.
@@ -39,12 +34,21 @@ namespace DCE_Manager
         // Pourquoi : permettre plus tard d'éditer également les nouvelles variables Lua.
         private readonly List<AdditionalRow> _additionalRows = new List<AdditionalRow>();
 
+        private bool _isRefreshingCallsign;
+
+
 
         //CONSTRUCTEUR
         public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false, String txt="")
         {
             InitializeComponent();
 
+            textBoxName.TextChanged += (s, e) =>
+            {
+                EditedSquad.Name = textBoxName.Text.Trim();
+                EditedSquad.DisplayName = textBoxName.Text.Trim();
+                SquadUpdated?.Invoke();
+            };
 
             _campaignContext = campaignContext;
 
@@ -58,28 +62,24 @@ namespace DCE_Manager
             // Pourquoi : l'utilisateur peut encore annuler.
             EditedSquad = cloneMode ? CloneSquad(squad) : squad;
 
-            //Text = cloneMode
-            //    ? "Clone Squad - " + EditedSquad.Name
-            //    : "Edit Squad - " + EditedSquad.Name;
-
             Text = cloneMode
             ? "Clone Squad - " + EditedSquad.DisplayName
             : "Edit Squad - " + EditedSquad.DisplayName;
 
             LoadStaticLists();
             FillControls();
-            BuildGenericTables(); // ← AJOUT ICI
+            BuildGenericTables();
             BuildBase();
             BuildBasesAlternative();
             BuildCallSign();
+            RefreshCallsignList();
+            comboBoxCountry.SelectedIndexChanged += comboBoxCountry_SelectedIndexChanged;
             BuildParkingId();
             BuildLiveryArea();
             BuildLiveryModex();
             BuildTasksArea();
             BuildScoreArea();
-            //BuildAdditionalArea();
-
-
+           
            
         }
 
@@ -93,7 +93,7 @@ namespace DCE_Manager
                 SideString = source.SideString,
                 FolderFile = source.FolderFile,
                 IdSquad = source.IdSquad,
-                Inactive = source.Inactive,
+                Squad_Inactive = source.Squad_Inactive,
                 Player = source.Player,
                 HumainOnly = source.HumainOnly,
                 Type = source.Type,
@@ -134,10 +134,7 @@ namespace DCE_Manager
         // Pourquoi : proposer directement les choix possibles à l'utilisateur.
         private void LoadStaticLists()
         {
-            //comboBoxCountry.Items.AddRange(new object[]
-            //{
-            //    "USA", "Russia", "France", "UK", "Germany", "Israel", "Turkey", "Georgia"
-            //});
+
             comboBoxCountry.Items.Clear();
 
             if (_campaignContext != null &&
@@ -218,20 +215,22 @@ namespace DCE_Manager
 
             checkBoxPlayer.Checked = EditedSquad.Player;
             checkBox_HumainOnly.Checked = EditedSquad.HumainOnly;
-            checkBoxInactive.Checked = EditedSquad.Inactive;
+            //checkBoxInactive.Checked = EditedSquad.Squad_Inactive;
+            checkBoxActive.Checked = EditedSquad.Squad_Active;
 
-            
 
             numericNumber.Value = EditedSquad.Number;
             numericInitNumber.Value = EditedSquad.InitNumber;
             numericReserve.Value = EditedSquad.Reserve;
             numericInitReserve.Value = EditedSquad.InitReserve;
 
-            if (EditedSquad.SideNumber != null && EditedSquad.SideNumber.Count >= 2)
-            {
-                textBox_ModexNb_Min.Text = EditedSquad.SideNumber[0].ToString();
-                textBox_ModexNb_Max.Text = EditedSquad.SideNumber[1].ToString();
-            }
+            //if (EditedSquad.SideNumber != null && EditedSquad.SideNumber.Count >= 2)
+            //{
+                //textBox_ModexNb_Min.Text = EditedSquad.SideNumber[0].ToString();
+                //textBox_ModexNb_Max.Text = EditedSquad.SideNumber[1].ToString();
+                textBox_ModexNb_Min.Text = EditedSquad.SideNumberMin.ToString();
+                textBox_ModexNb_Max.Text = EditedSquad.SideNumberMax.ToString();
+            //}
 
 
 
@@ -343,6 +342,12 @@ namespace DCE_Manager
                     listBoxBasesAlternat.Items.RemoveAt(i);
                 }
             }
+
+            EditedSquad.Base = newBase;
+
+            SquadUpdated?.Invoke();
+
+
         }
 
         //***********************
@@ -398,52 +403,7 @@ namespace DCE_Manager
 
             return $"{prefix} : " + string.Join(",", values);
         }
-        //private class ParkingIdItem
-        //{
-        //    public string Key { get; }
-        //    public object Value { get; }
-
-        //    public ParkingIdItem(string key, object value)
-        //    {
-        //        Key = key;
-        //        Value = value;
-        //    }
-
-        //    public override string ToString()
-        //    {
-        //        // Ce qui sera affiché dans le ListBox
-        //        return $"{Key} = {FormatValue(Value)}";
-        //    }
-
-        //    private static string FormatValue(object value)
-        //    {
-        //        if (value == null)
-        //            return "null";
-
-        //        // Liste / tableau / IEnumerable
-        //        if (value is System.Collections.IEnumerable enumerable && !(value is string))
-        //        {
-        //            var list = new List<string>();
-        //            foreach (var v in enumerable)
-        //                list.Add(v?.ToString());
-
-        //            return "{" + string.Join(", ", list) + "}";
-        //        }
-
-        //        // Dictionnaire (par ex. [1] = 1, [2] = 12)
-        //        if (value is System.Collections.IDictionary dict)
-        //        {
-        //            var list = new List<string>();
-        //            foreach (System.Collections.DictionaryEntry entry in dict)
-        //                list.Add($"[{entry.Key}] = {entry.Value}");
-
-        //            return "{" + string.Join(", ", list) + "}";
-        //        }
-
-        //        // Fallback
-        //        return value.ToString();
-        //    }
-        //}
+       
 
         private void button_ParkingId_Add_Click(object sender, EventArgs e)
         {
@@ -455,7 +415,7 @@ namespace DCE_Manager
 
             // Parse les valeurs séparées par virgule
             List<int> values = intText
-                .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(new[] { '.',',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(v => Convert.ToInt32(v))
                 .ToList();
 
@@ -519,46 +479,67 @@ namespace DCE_Manager
 
                 if (_campaignContext?.LuaData?.SpecificCallnames != null)
                 {
-                    if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
-                    {
-                        var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
+                    bool callsignAdded = false;
 
-                        if (dict.ContainsKey(EditedSquad.Country))
+                    if (_campaignContext?.LuaData?.SpecificCallnames != null)
+                    {
+                        if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
                         {
-                            comboBox_Callsign.Items.AddRange(dict[EditedSquad.Country].ToArray());
+                            var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
+
+                            if (dict.ContainsKey(EditedSquad.Country))
+                            {
+                                comboBox_Callsign.Items.AddRange(
+                                    dict[EditedSquad.Country]
+                                    .OrderBy(k => int.Parse(k.Key))
+                                    .Select(k => k.Value)
+                                    .ToArray()
+                                );
+
+                                callsignAdded = true;
+                            }
                         }
-                        else if (dict.ContainsKey("USA")) // fallback
+
+                        // -------------------------------------------------
+                        // fallback generic
+                        // -------------------------------------------------
+
+                        if (!callsignAdded)
                         {
-                            comboBox_Callsign.Items.AddRange(dict["USA"].ToArray());
+                            string typeFCT = "generic";
+
+                            if (EditedSquad.Tasks != null)
+                            {
+                                foreach (var task in EditedSquad.Tasks)
+                                {
+                                    if (task.Key == "AWACS" && task.Value)
+                                    {
+                                        typeFCT = "AWACS";
+                                        break;
+                                    }
+
+                                    if (task.Key == "Refueling" && task.Value)
+                                    {
+                                        typeFCT = "tanker";
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
+                            {
+                                comboBox_Callsign.Items.AddRange(
+                                    _campaignContext.LuaData.CallsignWest[typeFCT].ToArray()
+                                );
+                            }
                         }
                     }
                     else
                     {
-                        string typeFCT = "generic";
-
-                        if (EditedSquad.Tasks != null)
-                        {
-                            foreach (var task in EditedSquad.Tasks)
-                            {
-                                if (task.Key == "AWACS" && task.Value)
-                                {
-                                    typeFCT = "AWACS";
-                                    break;
-                                }
-
-                                if (task.Key == "Refueling" && task.Value)
-                                {
-                                    typeFCT = "tanker";
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
-                        {
-                            comboBox_Callsign.Items.AddRange(_campaignContext.LuaData.CallsignWest[typeFCT].ToArray());
-                        }
+                        comboBox_Callsign.Enabled = false;
+                        return;
                     }
+                   
                 }
             }
             else
@@ -586,8 +567,23 @@ namespace DCE_Manager
             }
         }
 
+        private void comboBox_Callsign_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_isRefreshingCallsign)
+                return;
 
- 
+            var selected = comboBox_Callsign.SelectedItem as string;
+
+            if (selected == "Automatic")
+            {
+                EditedSquad.Callsign = null;
+            }
+            else
+            {
+                EditedSquad.Callsign = selected;
+            }
+        }
+
 
         // Construit la liste des liveries.
         // Pourquoi : affichage simple + cohérent avec les autres listes.
@@ -624,8 +620,30 @@ namespace DCE_Manager
         {
             int index = listBox_Livery.SelectedIndex;
 
-            if (index >= 0)
-                listBox_Livery.Items.RemoveAt(index);
+            if (index < 0)
+                return;
+
+            var dict = NormalizeLivery();
+
+            // 🔥 On récupère la clé réelle (important)
+            var orderedKeys = dict.OrderBy(k => k.Key).Select(k => k.Key).ToList();
+
+            if (index >= orderedKeys.Count)
+                return;
+
+            int keyToRemove = orderedKeys[index];
+
+            // 🔥 SUPPRESSION DANS LA CLASS
+            dict.Remove(keyToRemove);
+
+            // 🔧 Reindex propre (évite trous 1,3,5)
+            EditedSquad.Livery = dict
+                .OrderBy(k => k.Key)
+                .Select((kvp, i) => new { Key = i + 1, kvp.Value })
+                .ToDictionary(x => x.Key, x => x.Value);
+
+            // 🔄 Refresh UI
+            BuildLiveryArea();
         }
 
         // Ajoute une nouvelle skin.
@@ -637,13 +655,19 @@ namespace DCE_Manager
             if (string.IsNullOrEmpty(newSkin))
                 return;
 
-            foreach (var item in listBox_Livery.Items)
-            {
-                if (string.Equals(item.ToString(), newSkin, StringComparison.OrdinalIgnoreCase))
-                    return;
-            }
+            var dict = NormalizeLivery();
 
-            listBox_Livery.Items.Add(newSkin);
+            // Vérifie doublon
+            if (dict.Values.Any(v => v.Equals(newSkin, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            int newIndex = dict.Count > 0 ? dict.Keys.Max() + 1 : 1;
+
+            // 🔥 AJOUT DANS LA CLASS Squad (IMPORTANT)
+            dict[newIndex] = newSkin;
+
+            // 🔄 Refresh complet UI
+            BuildLiveryArea();
 
             textBox_AddSkin.Clear();
             textBox_AddSkin.Focus();
@@ -729,8 +753,8 @@ namespace DCE_Manager
 
 
 
-        // Cette fonction construit dynamiquement la zone des tâches.
-        // Pourquoi : chaque squad peut avoir des tâches différentes.
+        // Cette fonction construit dynamiquement la zone des Taks.
+        // Pourquoi : chaque squad peut avoir des Tasks différentes.
         private void BuildTasksArea()
         {
             flowLayoutPanelTasks.Controls.Clear();
@@ -754,6 +778,13 @@ namespace DCE_Manager
                 checkBox.Checked = Convert.ToBoolean(task.Value);
                 checkBox.Location = new Point(100, 5);
 
+                // MAJ live du squad quand on coche/décoche
+                checkBox.CheckedChanged += (s, e) =>
+                {
+                    EditedSquad.Tasks[task.Key] = checkBox.Checked;
+                    SquadUpdated?.Invoke();
+                };
+
                 System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label ();
                 labelCoef.Text = "Coef";
                 labelCoef.Location = new Point(200, 7);
@@ -765,6 +796,13 @@ namespace DCE_Manager
                 numericCoef.Minimum = -999;
                 numericCoef.Width = 80;
                 numericCoef.Location = new Point(370, 3);
+
+                // MAJ live du coef
+                numericCoef.ValueChanged += (s, e) =>
+                {
+                    EditedSquad.TasksCoef[task.Key] = (double)numericCoef.Value;
+                    SquadUpdated?.Invoke();
+                };
 
                 if (EditedSquad.TasksCoef != null && EditedSquad.TasksCoef.ContainsKey(task.Key))
                 {
@@ -793,20 +831,17 @@ namespace DCE_Manager
 
             FormUtils.LogRegister("BuildScoreArea() squad.Name " + EditedSquad.Name  );
 
-            //if (EditedSquad.Roster == null)
-            //    return;
-
-            //if ((EditedSquad.Roster == null || EditedSquad.Roster.Count == 0) &&
-            //    EditedSquad.AdditionalProperties != null &&
-            //    EditedSquad.AdditionalProperties.ContainsKey("roster"))
             if (EditedSquad.Roster != null && EditedSquad.Roster.Count > 0)
             {
-                //var rawRoster = EditedSquad.AdditionalProperties["roster"] as System.Collections.IDictionary;
                 var rawRoster = EditedSquad.Roster as System.Collections.IDictionary;
 
                 if (rawRoster != null)
                 {
                     EditedSquad.Roster = new Dictionary<string, object>();
+
+                    // sécurité si null
+                    if (EditedSquad.TasksCoef == null)
+                        EditedSquad.TasksCoef = new Dictionary<string, double>();
 
                     foreach (System.Collections.DictionaryEntry entry in rawRoster)
                     {
@@ -820,12 +855,8 @@ namespace DCE_Manager
                 }
             }
 
-            //if ((EditedSquad.Score == null || EditedSquad.Score.Count == 0) &&
-            //    EditedSquad.AdditionalProperties != null &&
-            //    EditedSquad.AdditionalProperties.ContainsKey("score"))
             if (EditedSquad.Score != null && EditedSquad.Score.Count > 0)
             {
-                //var rawScore = EditedSquad.AdditionalProperties["score"] as System.Collections.IDictionary;
                 var rawScore = EditedSquad.Score as System.Collections.IDictionary;
 
                 if (rawScore != null)
@@ -847,13 +878,6 @@ namespace DCE_Manager
 
             AddDictionarySection("Roster", EditedSquad.Roster);
             AddDictionarySection("Score", EditedSquad.Score);
-
-            //if (EditedSquad.AdditionalProperties != null &&
-            //    EditedSquad.AdditionalProperties.ContainsKey("score_last"))
-            //{
-            //    var dict = EditedSquad.AdditionalProperties["score_last"] as Dictionary<string, object>;
-            //    AddDictionarySection("Score Last Mission", dict);
-            //}
         }
 
 
@@ -901,154 +925,74 @@ namespace DCE_Manager
             flowLayoutPanelScore.Controls.Add(group);
         }
 
-        // Cette fonction construit la zone des propriétés inconnues.
-        // Pourquoi : afficher automatiquement toute nouvelle variable Lua future.
-        //private void BuildAdditionalArea()
+      
+        
+
+        //// Cette fonction sauvegarde les valeurs simples du formulaire.
+        //// Pourquoi : recopier les modifications de l'utilisateur dans le squad.
+        //private void buttonOK_Click(object sender, EventArgs e)
         //{
-        //    flowLayoutPanelAdditional.Controls.Clear();
-        //    _additionalRows.Clear();
+        //    EditedSquad.Name = textBoxName.Text.Trim();
+        //    EditedSquad.Type = comboBoxType.Text;
+        //    EditedSquad.Country = comboBoxCountry.Text;
+        //    EditedSquad.Base = comboBoxBase.Text;
+        //    EditedSquad.Skill = comboBoxSkill.Text;
 
-        //    if (EditedSquad.AdditionalProperties == null)
-        //        return;
+        //    EditedSquad.Player = checkBoxPlayer.Checked;
+        //    EditedSquad.Squad_Inactive = checkBoxInactive.Checked;
 
+        //    EditedSquad.Number = (int)numericNumber.Value;
+        //    EditedSquad.InitNumber = (int)numericInitNumber.Value;
+        //    EditedSquad.Reserve = (int)numericReserve.Value;
+        //    EditedSquad.InitReserve = (int)numericInitReserve.Value;
 
-        //    foreach (var property in EditedSquad.AdditionalProperties.OrderBy(p => p.Key))
+        //    // On sauvegarde les tâches dynamiques.
+        //    // Pourquoi : prendre en compte les checkbox et coefficients modifiés.
+        //    if (EditedSquad.Tasks == null)
         //    {
-
-        //        if (property.Key == "score_last" ||
-        //            property.Key == "roster" ||
-        //            property.Key == "score")
-        //        {
-        //            continue;
-        //        }
-
-        //        System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
-        //        row.Width = 1400;
-        //        row.Height = 55;
-
-        //        System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
-        //        label.Text = property.Key;
-        //        label.Location = new Point(0, 18);
-        //        label.Width = 220;
-
-        //        System.Windows.Forms.TextBox textBox = new System.Windows.Forms.TextBox();
-        //        textBox.Location = new Point(230, 15);
-        //        textBox.Width = 1100;
-        //        textBox.Text = ConvertPropertyToText(property.Value);
-
-        //        row.Controls.Add(label);
-        //        row.Controls.Add(textBox);
-
-        //        flowLayoutPanelAdditional.Controls.Add(row);
-
-        //        _additionalRows.Add(new AdditionalRow
-        //        {
-        //            PropertyName = property.Key,
-        //            ValueTextBox = textBox
-        //        });
+        //        //EditedSquad.Tasks = new Dictionary<string, object>();
+        //        EditedSquad.Tasks = new Dictionary<string, bool>();
         //    }
+
+        //    if (EditedSquad.TasksCoef == null)
+        //    {
+        //        //EditedSquad.TasksCoef = new Dictionary<string, object>();
+        //        EditedSquad.TasksCoef = new Dictionary<string, double>();
+        //    }
+
+        //    foreach (TaskRow row in _taskRows)
+        //    {
+        //        EditedSquad.Tasks[row.TaskName] = row.EnabledCheckBox.Checked;
+        //        EditedSquad.TasksCoef[row.TaskName] = (double)row.CoefNumeric.Value;
+        //    }
+
+        //    // Pour le moment, les AdditionalProperties sont réécrites comme texte.
+        //    // Pourquoi : cela permet déjà de conserver toutes les nouvelles variables visibles.
+        //    if (EditedSquad.AdditionalProperties == null)
+        //    {
+        //        EditedSquad.AdditionalProperties = new Dictionary<string, object>();
+        //    }
+
+        //    foreach (AdditionalRow row in _additionalRows)
+        //    {
+        //        EditedSquad.AdditionalProperties[row.PropertyName] = row.ValueTextBox.Text;
+        //    }
+
+        //    // Reconstruction des liveries depuis la ListBox
+        //    // Pourquoi : synchroniser UI -> données
+        //    EditedSquad.Livery = new Dictionary<int, string>();
+
+        //    int index = 1;
+
+        //    foreach (var item in listBox_Livery.Items)
+        //    {
+        //        EditedSquad.Livery[index] = item.ToString();
+        //        index++;
+        //    }
+
+        //    DialogResult = DialogResult.OK;
+        //    Close();
         //}
-
-
-        private string ConvertPropertyToText(object value)
-        {
-            if (value == null)
-                return "";
-
-            // Table Lua quelconque : Dictionary<string,...>, Dictionary<int,...>, etc.
-            if (value is System.Collections.IDictionary dictionary)
-            {
-                List<string> items = new List<string>();
-
-                foreach (System.Collections.DictionaryEntry entry in dictionary)
-                {
-                    items.Add(entry.Key + "=" + entry.Value);
-                }
-
-                return string.Join(" ; ", items);
-            }
-
-            // Liste
-            if (value is System.Collections.IEnumerable enumerable && !(value is string))
-            {
-                List<string> items = new List<string>();
-
-                foreach (object item in enumerable)
-                {
-                    items.Add(item != null ? item.ToString() : "");
-                }
-
-                return string.Join(" ; ", items);
-            }
-
-            return value.ToString();
-        }
-
-        // Cette fonction sauvegarde les valeurs simples du formulaire.
-        // Pourquoi : recopier les modifications de l'utilisateur dans le squad.
-        private void buttonOK_Click(object sender, EventArgs e)
-        {
-            EditedSquad.Name = textBoxName.Text.Trim();
-            EditedSquad.Type = comboBoxType.Text;
-            EditedSquad.Country = comboBoxCountry.Text;
-            EditedSquad.Base = comboBoxBase.Text;
-            EditedSquad.Skill = comboBoxSkill.Text;
-
-            EditedSquad.Player = checkBoxPlayer.Checked;
-            EditedSquad.Inactive = checkBoxInactive.Checked;
-
-            EditedSquad.Number = (int)numericNumber.Value;
-            EditedSquad.InitNumber = (int)numericInitNumber.Value;
-            EditedSquad.Reserve = (int)numericReserve.Value;
-            EditedSquad.InitReserve = (int)numericInitReserve.Value;
-
-            // On sauvegarde les tâches dynamiques.
-            // Pourquoi : prendre en compte les checkbox et coefficients modifiés.
-            if (EditedSquad.Tasks == null)
-            {
-                //EditedSquad.Tasks = new Dictionary<string, object>();
-                EditedSquad.Tasks = new Dictionary<string, bool>();
-            }
-
-            if (EditedSquad.TasksCoef == null)
-            {
-                //EditedSquad.TasksCoef = new Dictionary<string, object>();
-                EditedSquad.TasksCoef = new Dictionary<string, double>();
-            }
-
-            foreach (TaskRow row in _taskRows)
-            {
-                EditedSquad.Tasks[row.TaskName] = row.EnabledCheckBox.Checked;
-                EditedSquad.TasksCoef[row.TaskName] = (double)row.CoefNumeric.Value;
-            }
-
-            // Pour le moment, les AdditionalProperties sont réécrites comme texte.
-            // Pourquoi : cela permet déjà de conserver toutes les nouvelles variables visibles.
-            if (EditedSquad.AdditionalProperties == null)
-            {
-                EditedSquad.AdditionalProperties = new Dictionary<string, object>();
-            }
-
-            foreach (AdditionalRow row in _additionalRows)
-            {
-                EditedSquad.AdditionalProperties[row.PropertyName] = row.ValueTextBox.Text;
-            }
-
-            // Reconstruction des liveries depuis la ListBox
-            // Pourquoi : synchroniser UI -> données
-            EditedSquad.Livery = new Dictionary<int, string>();
-
-            int index = 1;
-
-            foreach (var item in listBox_Livery.Items)
-            {
-                EditedSquad.Livery[index] = item.ToString();
-                index++;
-            }
-
-            DialogResult = DialogResult.OK;
-            Close();
-        }
 
         // Cette fonction ferme la fenêtre sans rien modifier.
         // Pourquoi : laisser l'utilisateur annuler ses changements.
@@ -1255,7 +1199,7 @@ namespace DCE_Manager
                     || prop.Name == "parking_id"
                     || prop.Name == "SideNumber"
                     //|| prop.Name == "Callsign"
-                    //|| prop.Name == "CallsignId"
+                    || prop.Name == "CallsignId"
                     //|| prop.Name == "displayReserve"
                     //|| prop.Name == "displayReady"
                     // ||prop.Name == "AdditionalProperties"
@@ -1310,5 +1254,262 @@ namespace DCE_Manager
         {
 
         }
+
+
+        //private void comboBoxCountry_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+        //    EditedSquad.Country = comboBoxCountry.Text;
+        //}
+
+        private void comboBoxType_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            EditedSquad.Type = comboBoxType.Text;
+            BuildTasksArea();
+            SquadUpdated?.Invoke();
+        }
+
+        private void comboBoxSkill_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            EditedSquad.Skill = comboBoxSkill.Text;
+        }
+
+        private void checkBoxPlayer_CheckedChanged(object sender, EventArgs e)
+        {
+            //  Empêche de décocher si c'est le dernier Player
+            if (!checkBoxPlayer.Checked)
+            {
+               
+
+                bool anotherPlayerExists = _campaignContext.CampaignEditRef
+                    .CurrentCampaignSquads
+                    .Any(cs =>
+                        (cs.Active != EditedSquad && cs.Active?.Player == true)
+                        ||
+                        (cs.Init != EditedSquad && cs.Init?.Player == true)
+                    );
+
+
+                if (!anotherPlayerExists)
+                {
+                    MessageBox.Show(
+                        "You must select another Player squad first.",
+                        "Player required",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Information
+                    );
+
+                    checkBoxPlayer.Checked = true;
+                    return;
+                }
+            }
+
+            EditedSquad.Player = checkBoxPlayer.Checked;
+
+            // 🔄 Applique règle globale (un seul Player)
+            if (EditedSquad.Player)
+            {
+                EditedSquad.Player = checkBoxPlayer.Checked;
+
+                if (EditedSquad.Player)
+                {
+                    _campaignContext.CampaignEditRef.SetSinglePlayerSquad(EditedSquad);
+                }
+            }
+        }
+
+        private void checkBox_HumainOnly_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox_HumainOnly.Checked)
+            {
+                EditedSquad.HumainOnly = true;
+            }
+            else
+            {
+                EditedSquad.HumainOnly = false;
+            }
+        }
+
+
+        private void checkBoxActive_CheckedChanged(object sender, EventArgs e)
+        {
+            EditedSquad.Squad_Active = checkBoxActive.Checked;
+
+            SquadUpdated?.Invoke();
+        }
+
+        private void numericInitNumber_ValueChanged(object sender, EventArgs e)
+        {           
+            EditedSquad.InitNumber = (int)numericInitNumber.Value;
+        }
+
+        private void numericNumber_ValueChanged(object sender, EventArgs e)
+        {
+            EditedSquad.Number = (int)numericNumber.Value;
+        }
+
+        private void numericInitReserve_ValueChanged(object sender, EventArgs e)
+        {
+            EditedSquad.InitReserve = (int)numericInitReserve.Value;
+        }
+
+        private void numericReserve_ValueChanged(object sender, EventArgs e)
+        {
+            EditedSquad.Reserve = (int)numericReserve.Value;
+        }
+
+
+        private void textBox_ModexNb_Min_TextChanged(object sender, EventArgs e)
+        {
+            if (int.TryParse(textBox_ModexNb_Min.Text, out int value))
+            {
+                EditedSquad.SideNumberMin = value;
+            }
+            else
+            {
+                EditedSquad.SideNumberMin = 0;
+            }
+        }
+
+        private void textBox_ModexNb_Max_TextChanged(object sender, EventArgs e)
+        {
+            if (int.TryParse(textBox_ModexNb_Max.Text, out int value))
+            {
+                EditedSquad.SideNumberMax = value;
+            }
+            else
+            {
+                EditedSquad.SideNumberMax = 0;
+            }
+        }
+
+        // Recharge les callsigns selon avion/pays/tasks
+        // Pourquoi : mettre à jour automatiquement la liste quand le pays change
+        private void RefreshCallsignList()
+        {
+            _isRefreshingCallsign = true;
+
+            comboBox_Callsign.Items.Clear();
+
+            // Toujours proposer Automatic
+            // Pourquoi : permettre retour au mode auto DCE
+            comboBox_Callsign.Items.Add("Automatic");
+
+            string selectedCallsign = EditedSquad.Callsign;
+
+            if (_campaignContext?.LuaData == null)
+            {
+                comboBox_Callsign.Enabled = false;
+                return;
+            }
+
+            string aircraft = EditedSquad.Type;
+
+            bool callsignAdded = false;
+
+            // -------------------------------------------------
+            // SpecificCallnames
+            // -------------------------------------------------
+
+            if (_campaignContext.LuaData.SpecificCallnames != null)
+            {
+                if (_campaignContext.LuaData.SpecificCallnames.ContainsKey(aircraft))
+                {
+                    var dict = _campaignContext.LuaData.SpecificCallnames[aircraft];
+
+                    if (dict.ContainsKey(EditedSquad.Country))
+                    {
+                        //comboBox_Callsign.Items.AddRange(
+                        //    dict[EditedSquad.Country]
+                        //    .OrderBy(k => int.Parse(k.Key))
+                        //    .Select(k => k.Value)
+                        //    .ToArray()
+                        //);
+
+                        comboBox_Callsign.Items.AddRange(
+                             dict[EditedSquad.Country]
+                             .Select(x => x.Value)
+                             .ToArray()
+                         );
+
+                        callsignAdded = true;
+                    }
+                }
+            }
+
+            // -------------------------------------------------
+            // Generic fallback
+            // -------------------------------------------------
+
+            if (!callsignAdded)
+            {
+                string typeFCT = "generic";
+
+                if (EditedSquad.Tasks != null)
+                {
+                    foreach (var task in EditedSquad.Tasks)
+                    {
+                        if (task.Key == "AWACS" && task.Value)
+                        {
+                            typeFCT = "AWACS";
+                            break;
+                        }
+
+                        if (task.Key == "Refueling" && task.Value)
+                        {
+                            typeFCT = "tanker";
+                            break;
+                        }
+                    }
+                }
+
+                if (_campaignContext.LuaData.CallsignWest.ContainsKey(typeFCT))
+                {
+                    comboBox_Callsign.Items.AddRange(
+                        _campaignContext.LuaData.CallsignWest[typeFCT].ToArray()
+                    );
+                }
+            }
+
+            //comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
+
+            comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
+
+            // Ajouter le callsign actuel s'il n'existe pas
+            // Pourquoi : éviter de perdre une valeur exotique/non prévue
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                !comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.Items.Add(selectedCallsign);
+            }
+
+            // Sélection automatique
+            // Pourquoi : garder la cohérence UI après refresh
+            if (!string.IsNullOrEmpty(selectedCallsign) &&
+                comboBox_Callsign.Items.Contains(selectedCallsign))
+            {
+                comboBox_Callsign.SelectedItem = selectedCallsign;
+            }
+            else
+            {
+                comboBox_Callsign.SelectedItem = "Automatic";
+            }
+
+            _isRefreshingCallsign = false;
+        }
+
+        // Recharge les callsigns quand le pays change
+        // Pourquoi : afficher immédiatement les bons callsigns
+        private void comboBoxCountry_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            //EditedSquad.Country = comboBoxCountry.Text;
+
+            if (comboBoxCountry.SelectedItem != null)
+            {
+                EditedSquad.Country = comboBoxCountry.SelectedItem.ToString();
+
+                RefreshCallsignList();
+            }
+        }
+
     }
 }

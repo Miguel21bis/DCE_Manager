@@ -1194,349 +1194,350 @@ namespace DCE_Manager.Utils
             return texteFinal;
         }
 
-        //*******************NEW Write Class *******************
-        public static void WriteListClassSquadsToFile(string path, string folderFile)
-        {
-            // Définir la liste des mots interdits
-            var motInterdit = new HashSet<string> { "SideString", "FolderFile", "Helicopter", "IdSquad" };
-
-            // Liste des caractères interdits
-            char[] forbiddenChars = new char[] { ' ', '-' };
-
-            //string texteFinal = "oob_air = " + "\r\n" +
-            //                    "{ " + "\r\n"; ;
-            var sb = new StringBuilder();
-
-            sb.AppendLine("oob_air = ");
-            sb.AppendLine("{");
-
-            string accKey1 = "";
-            string accKey2 = "";
-
-            string accValue1 = "";
-            string accValue2 = "";
-
-            string arg = "";
-            int nbTab = 0;
-
-            accKey1 = "[\"";
-            accKey2 = "\"]";
-            accValue1 = "\"";
-            accValue2 = "\"";
-
-            // Itérer sur chaque camp
-            foreach (var side in PublicTable.SideList)
-            {
-                sb.Append(
-                 "\t" + "[\"" + side + "\"] = " + "\r\n" +
-                   "\t" + "{" + "\r\n");
-
-                if (List_oob_air_Manager.List_oob_air.Count == 0)
-                {
-                    MessageBox.Show("Le fichier oob_air est vide, rien à sauvegarder.", "WriteChanedSquad Error A");
-                    FormUtils.LogRegister("Le fichier oob_air est vide, rien à sauvegarder.List_oob_air.Count:" + List_oob_air_Manager.List_oob_air.Count);
-
-                    return;
-                }
-
-
-                var filteredSquads = List_oob_air_Manager.List_oob_air
-                    .Where(squad => squad.FolderFile == folderFile && squad.SideString == side);
-
-                // Itérer sur les squads du camp actuel
-                foreach (var squad in filteredSquads)
-                {
-
-                    sb.Append( "\t\t{" + "\r\n");
-
-                    // Obtenir le type de l'objet
-                    Type type = squad.GetType();
-
-                    // Obtenir toutes les propriétés de l'objet
-                    PropertyInfo[] properties = type.GetProperties();
-
-                    // Itérer sur chaque propriété Class Normal
-                    foreach (PropertyInfo property in properties)
-                    {
-                        accKey1 = "[\""; accKey2 = "\"]";
-                        accValue1 = "\""; accValue2 = "\"";
-
-                        if (property.Name != "baseAlternative")
-                        { }
-
-                        // Obtenir la valeur de la propriété
-                        var value = property.GetValue(squad, null);
-
-                        // Si le nom de la propriété est dans la liste des mots interdits, passer à la propriété suivante
-                        if (motInterdit.Contains(property.Name))
-                        {
-                            continue;
-                        }
-                        if(folderFile == "Init" && (property.Name == "InitNumber" || property.Name == "InitReserve"))
-                        {
-                            continue;
-                        }
-
-                        // Si la propriété est un Dictionary
-                        if (value is IDictionary dictionary && property.Name != "AdditionalProperties")
-                        {
-
-                            string dictionaryName = property.Name;
-                            dictionaryName = ToTitleCase(dictionaryName);
-                            if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
-                            { accKey1 = ""; accKey2 = ""; }
-
-                            sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
-
-                            foreach (DictionaryEntry entry in dictionary)
-                            {
-                                accKey1 = "[\""; accKey2 = "\"]";
-
-                                string keyName = entry.Key.ToString();
-                                if (keyName.IndexOfAny(forbiddenChars) == -1)
-                                { accKey1 = ""; accKey2 = ""; }
-
-                                if (int.TryParse(entry.Value.ToString(), out int intValue))
-                                {
-                                    accValue1 = ""; accValue2 = "";
-                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
-                                }
-                                else if (double.TryParse(entry.Value.ToString(), out double doubleValue))
-                                {
-                                    accValue1 = ""; accValue2 = "";
-                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
-                                }
-                                else if (bool.TryParse(entry.Value.ToString(), out bool boolValue))
-                                {
-                                    accValue1 = ""; accValue2 = "";
-                                    sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
-                                }
-
-                            }
-                            sb.Append( "\t\t\t}," + "\r\n");
-                        }
-
-                        // Si la propriété est une List
-                        else if (value is List<string> list)
-                        {
-                            string listName = property.Name;
-                            listName = ToTitleCase(listName);
-                            if (listName.IndexOfAny(forbiddenChars) == -1)
-                            { accKey1 = ""; accKey2 = ""; }
-
-                            sb.Append( "\t\t\t" + accKey1 + listName + accKey2 + " = " + "{" + "\r\n");
-
-                            int i = 1;
-                            foreach (var item in list)
-                            {
-                                accValue1 = "\""; accValue2 = "\"";
-                                accKey1 = "["; accKey2 = "]";
-                                sb.Append( "\t\t\t\t" + accKey1 + i.ToString() + accKey2 + " = " + accValue1 + item + accValue2 + ",\r\n");
-                                i++;
-                            }
-
-                            sb.Append( "\t\t\t}," + "\r\n");
-                        }
-                        else if (value != null && property.Name != "AdditionalProperties")
-                        {
-
-                            string keyName = property.Name;
-                            keyName = ToTitleCase(keyName);
-                            string valueName = value.ToString();
-
-                            if (keyName.IndexOfAny(forbiddenChars) == -1)
-                            { accKey1 = ""; accKey2 = ""; }
-
-
-                            if (int.TryParse(value.ToString(), out int intValue))
-                            {
-                                accValue1 = ""; accValue2 = "";
-                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
-                            }
-                            else if (double.TryParse(value.ToString(), out double doubleValue))
-                            {
-                                accValue1 = ""; accValue2 = "";
-                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
-                            }
-                            else if (bool.TryParse(value.ToString(), out bool boolValue))
-                            {
-                                accValue1 = ""; accValue2 = "";
-                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
-                            }
-                            else
-                            {
-                                sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + valueName + accValue2 + ",\r\n");
-                            }
-                        }
-                    }
-
-                    // Itérer sur chaque propriété de AdditionalProperties
-                    if (squad.AdditionalProperties != null)
-                    {
-                        //texteFinal = texteFinal + "\t\t\t"  + " = " + "{--Y" + "\r\n";
-
-                        foreach (var addProp in squad.AdditionalProperties)
-                        {
-                            accKey1 = "[\"";
-                            accKey2 = "\"]";
-                            accValue1 = "\"";
-                            accValue2 = "\"";
-
-                            if (addProp.Key.ToString().IndexOf("liveryModex") > -1)
-                            { }
-
-                            if (motInterdit.Contains(addProp.Key.ToString()))
-                            {
-                                continue;
-                            }
-
-                            //si la key n'est pas un objet/table
-                            //ps: je n'arrive pas a detecter correctement que c'est un objet, donc je regarde si c'est un int string bool
-                            if (
-                                addProp.Value.GetType() == typeof(int) ||
-                                addProp.Value.GetType() == typeof(string) ||
-                                addProp.Value.GetType() == typeof(bool)
-                                )
-                            {
-                                accKey1 = "[\""; accKey2 = "\"]";
-
-                                string keyName = addProp.Key.ToString();
-                                keyName = ToTitleCase(keyName);
-                                string valueName = addProp.Value.ToString();
-
-                                arg = "-addProp No Objet-";
-                                nbTab = 3;
-                                //texteFinal = ProcessEntries(keyName, valueName, forbiddenChars, texteFinal, nbTab, arg);
-                                ProcessEntries(keyName, valueName, forbiddenChars, sb, nbTab, arg);
-
-                            }
-                            else
-                            {
-                                accKey1 = "[\""; accKey2 = "\"]";
-
-                                string dictionaryName = addProp.Key;
-
-                                if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
-                                { accKey1 = ""; accKey2 = ""; }
-
-                                sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
-
-                                if (addProp.Value is Dictionary<string, object> dict)
-                                {
-
-                                    foreach (var dictEntry in dict)
-                                    {
-                                        //if (dictEntry.Value.ToString().IndexOf("AdA Chasse 1-2 EF") > -1  )
-                                        //{ }
-
-                                        int addA = 0;
-
-                                        if (dict.Keys.First() == "_0" || dict.Keys.First() == "0")
-                                        {
-                                            addA = 1;
-                                        }
-
-                                        var keyA = dictEntry.Key;
-                                        keyA = keyA.Replace("_", "");
-
-                                        if (addA == 1 && int.TryParse(keyA.ToString(), out int intValueA))
-                                        {
-                                            intValueA = intValueA + addA;
-                                            keyA = intValueA.ToString();
-                                        }
-
-
-                                        if (dictEntry.Value is Dictionary<string, LuaObject> luaDict4)
-                                        {
-                                            accKey1 = "[\""; accKey2 = "\"]";
-                                            sb.Append( "\t\t\t\t" + accKey1 + dictEntry.Key + accKey2 + " = " + "{" + "\r\n");
-
-                                            // Obtenir la première clé de luaDict4
-                                            int addB = 0;
-                                            if (luaDict4.Keys.First() == "0")
-                                            {
-                                                addB = 1;
-                                            }
-                                            foreach (var entry4 in luaDict4)
-                                            {
-                                                var keyB = entry4.Key;
-                                                if (addB == 1 && int.TryParse(entry4.Key.ToString(), out int intValue))
-                                                {
-                                                    intValue = intValue + addB;
-                                                    keyB = intValue.ToString();
-                                                }
-
-                                                //  if (entry4.Value.luaobj == "AdA Chasse 1-2 EF")
-                                                //{ }
-                                                arg = "-addProp Obj luaObj 5-";
-                                                nbTab = 5;
-                                                //texteFinal = ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, texteFinal, nbTab, arg);
-                                                ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, sb, nbTab, arg);
-                                            }
-
-                                            sb.Append( "\t\t\t\t}," + "\r\n");
-                                        }
-                                        else
-                                        {
-
-                                            arg = "-addProp Obj else 4-";
-                                            nbTab = 4;
-                                            //texteFinal = ProcessEntries(keyA, dictEntry.Value, forbiddenChars, texteFinal, nbTab, arg);
-                                            ProcessEntries(keyA, dictEntry.Value, forbiddenChars, sb, nbTab, arg);
-                                        }
-                                    }
-                                }
-                                sb.Append("\t\t\t}," + "\r\n");
-
-                            }
-                        }
-                    }
-
-                    sb.Append( "\t\t}," + "\r\n");
-                }
-                sb.Append( "\t}," + "\r\n");
-            }
-
-            sb.Append( "}" + "\r\n");
-
-            //// Attendre que l'utilisateur appuie sur Entrée avant de fermer la console
-            //Console.WriteLine("Appuyez sur Entrée pour fermer la console...");
-            //Console.ReadLine();
-
-
-
-            string texteFinal = sb.ToString();
-
-            // Vérifier si la liste de squads est vide
-            if (!List_oob_air_Manager.List_oob_air.Any())
-            {
-                MessageBox.Show("Aucune donnée détectée. Le fichier ne sera pas écrasé.", "WriteChanedSquad Error B");
-                return;
-            }
-
-            // Vérifier si texteFinal contient au moins un bloc de squad
-            if (!texteFinal.Contains("\t\t{"))
-            {
-                MessageBox.Show("Le fichier généré est vide. Écriture annulée.", "WriteChanedSquad Error C");
-                return;
-            }
-
-            int nbOpen = texteFinal.Count(c => c == '{');
-            int nbClose = texteFinal.Count(c => c == '}');
-
-            FormUtils.LogRegister($"{{={nbOpen} }}={nbClose}");
-
-            if (nbClose != nbOpen)
-            {
-                MessageBox.Show("Nb d'accolades {} différent.", "WriteChanedSquad Error D");
-                return;
-            }
-
-            using (StreamWriter sr2 = new StreamWriter(path))
-            {
-                sr2.Write(texteFinal);
-            }
-        }
+        ////*******************NEW Write Class *******************
+        //public static void WriteListClassSquadsToFile(string path, string folderFile)
+        //{
+        //    // Définir la liste des mots interdits
+        //    //var motInterdit = new HashSet<string> { "SideString", "FolderFile", "Helicopter", "IdSquad" };
+        //    var motInterdit = new HashSet<string> { "SideString", "FolderFile", "Helicopter"};
+
+        //    // Liste des caractères interdits
+        //    char[] forbiddenChars = new char[] { ' ', '-' };
+
+        //    //string texteFinal = "oob_air = " + "\r\n" +
+        //    //                    "{ " + "\r\n"; ;
+        //    var sb = new StringBuilder();
+
+        //    sb.AppendLine("oob_air = ");
+        //    sb.AppendLine("{");
+
+        //    string accKey1 = "";
+        //    string accKey2 = "";
+
+        //    string accValue1 = "";
+        //    string accValue2 = "";
+
+        //    string arg = "";
+        //    int nbTab = 0;
+
+        //    accKey1 = "[\"";
+        //    accKey2 = "\"]";
+        //    accValue1 = "\"";
+        //    accValue2 = "\"";
+
+        //    // Itérer sur chaque camp
+        //    foreach (var side in PublicTable.SideList)
+        //    {
+        //        sb.Append(
+        //         "\t" + "[\"" + side + "\"] = " + "\r\n" +
+        //           "\t" + "{" + "\r\n");
+
+        //        if (List_oob_air_Manager.List_oob_air.Count == 0)
+        //        {
+        //            MessageBox.Show("Le fichier oob_air est vide, rien à sauvegarder.", "WriteChanedSquad Error A");
+        //            FormUtils.LogRegister("Le fichier oob_air est vide, rien à sauvegarder.List_oob_air.Count:" + List_oob_air_Manager.List_oob_air.Count);
+
+        //            return;
+        //        }
+
+
+        //        var filteredSquads = List_oob_air_Manager.List_oob_air
+        //            .Where(squad => squad.FolderFile == folderFile && squad.SideString == side);
+
+        //        // Itérer sur les squads du camp actuel
+        //        foreach (var squad in filteredSquads)
+        //        {
+
+        //            sb.Append( "\t\t{" + "\r\n");
+
+        //            // Obtenir le type de l'objet
+        //            Type type = squad.GetType();
+
+        //            // Obtenir toutes les propriétés de l'objet
+        //            PropertyInfo[] properties = type.GetProperties();
+
+        //            // Itérer sur chaque propriété Class Normal
+        //            foreach (PropertyInfo property in properties)
+        //            {
+        //                accKey1 = "[\""; accKey2 = "\"]";
+        //                accValue1 = "\""; accValue2 = "\"";
+
+        //                if (property.Name != "baseAlternative")
+        //                { }
+
+        //                // Obtenir la valeur de la propriété
+        //                var value = property.GetValue(squad, null);
+
+        //                // Si le nom de la propriété est dans la liste des mots interdits, passer à la propriété suivante
+        //                if (motInterdit.Contains(property.Name))
+        //                {
+        //                    continue;
+        //                }
+        //                if(folderFile == "Init" && (property.Name == "InitNumber" || property.Name == "InitReserve"))
+        //                {
+        //                    continue;
+        //                }
+
+        //                // Si la propriété est un Dictionary
+        //                if (value is IDictionary dictionary && property.Name != "AdditionalProperties")
+        //                {
+
+        //                    string dictionaryName = property.Name;
+        //                    dictionaryName = ToTitleCase(dictionaryName);
+        //                    if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
+        //                    { accKey1 = ""; accKey2 = ""; }
+
+        //                    sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
+
+        //                    foreach (DictionaryEntry entry in dictionary)
+        //                    {
+        //                        accKey1 = "[\""; accKey2 = "\"]";
+
+        //                        string keyName = entry.Key.ToString();
+        //                        if (keyName.IndexOfAny(forbiddenChars) == -1)
+        //                        { accKey1 = ""; accKey2 = ""; }
+
+        //                        if (int.TryParse(entry.Value.ToString(), out int intValue))
+        //                        {
+        //                            accValue1 = ""; accValue2 = "";
+        //                            sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
+        //                        }
+        //                        else if (double.TryParse(entry.Value.ToString(), out double doubleValue))
+        //                        {
+        //                            accValue1 = ""; accValue2 = "";
+        //                            sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
+        //                        }
+        //                        else if (bool.TryParse(entry.Value.ToString(), out bool boolValue))
+        //                        {
+        //                            accValue1 = ""; accValue2 = "";
+        //                            sb.Append( "\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
+        //                        }
+
+        //                    }
+        //                    sb.Append( "\t\t\t}," + "\r\n");
+        //                }
+
+        //                // Si la propriété est une List
+        //                else if (value is List<string> list)
+        //                {
+        //                    string listName = property.Name;
+        //                    listName = ToTitleCase(listName);
+        //                    if (listName.IndexOfAny(forbiddenChars) == -1)
+        //                    { accKey1 = ""; accKey2 = ""; }
+
+        //                    sb.Append( "\t\t\t" + accKey1 + listName + accKey2 + " = " + "{" + "\r\n");
+
+        //                    int i = 1;
+        //                    foreach (var item in list)
+        //                    {
+        //                        accValue1 = "\""; accValue2 = "\"";
+        //                        accKey1 = "["; accKey2 = "]";
+        //                        sb.Append( "\t\t\t\t" + accKey1 + i.ToString() + accKey2 + " = " + accValue1 + item + accValue2 + ",\r\n");
+        //                        i++;
+        //                    }
+
+        //                    sb.Append( "\t\t\t}," + "\r\n");
+        //                }
+        //                else if (value != null && property.Name != "AdditionalProperties")
+        //                {
+
+        //                    string keyName = property.Name;
+        //                    keyName = ToTitleCase(keyName);
+        //                    string valueName = value.ToString();
+
+        //                    if (keyName.IndexOfAny(forbiddenChars) == -1)
+        //                    { accKey1 = ""; accKey2 = ""; }
+
+
+        //                    if (int.TryParse(value.ToString(), out int intValue))
+        //                    {
+        //                        accValue1 = ""; accValue2 = "";
+        //                        sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
+        //                    }
+        //                    else if (double.TryParse(value.ToString(), out double doubleValue))
+        //                    {
+        //                        accValue1 = ""; accValue2 = "";
+        //                        sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleValue + accValue2 + ",\r\n");
+        //                    }
+        //                    else if (bool.TryParse(value.ToString(), out bool boolValue))
+        //                    {
+        //                        accValue1 = ""; accValue2 = "";
+        //                        sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
+        //                    }
+        //                    else
+        //                    {
+        //                        sb.Append( "\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + valueName + accValue2 + ",\r\n");
+        //                    }
+        //                }
+        //            }
+
+        //            // Itérer sur chaque propriété de AdditionalProperties
+        //            if (squad.AdditionalProperties != null)
+        //            {
+        //                //texteFinal = texteFinal + "\t\t\t"  + " = " + "{--Y" + "\r\n";
+
+        //                foreach (var addProp in squad.AdditionalProperties)
+        //                {
+        //                    accKey1 = "[\"";
+        //                    accKey2 = "\"]";
+        //                    accValue1 = "\"";
+        //                    accValue2 = "\"";
+
+        //                    if (addProp.Key.ToString().IndexOf("liveryModex") > -1)
+        //                    { }
+
+        //                    if (motInterdit.Contains(addProp.Key.ToString()))
+        //                    {
+        //                        continue;
+        //                    }
+
+        //                    //si la key n'est pas un objet/table
+        //                    //ps: je n'arrive pas a detecter correctement que c'est un objet, donc je regarde si c'est un int string bool
+        //                    if (
+        //                        addProp.Value.GetType() == typeof(int) ||
+        //                        addProp.Value.GetType() == typeof(string) ||
+        //                        addProp.Value.GetType() == typeof(bool)
+        //                        )
+        //                    {
+        //                        accKey1 = "[\""; accKey2 = "\"]";
+
+        //                        string keyName = addProp.Key.ToString();
+        //                        keyName = ToTitleCase(keyName);
+        //                        string valueName = addProp.Value.ToString();
+
+        //                        arg = "-addProp No Objet-";
+        //                        nbTab = 3;
+        //                        //texteFinal = ProcessEntries(keyName, valueName, forbiddenChars, texteFinal, nbTab, arg);
+        //                        ProcessEntries(keyName, valueName, forbiddenChars, sb, nbTab, arg);
+
+        //                    }
+        //                    else
+        //                    {
+        //                        accKey1 = "[\""; accKey2 = "\"]";
+
+        //                        string dictionaryName = addProp.Key;
+
+        //                        if (dictionaryName.IndexOfAny(forbiddenChars) == -1)
+        //                        { accKey1 = ""; accKey2 = ""; }
+
+        //                        sb.Append( "\t\t\t" + accKey1 + dictionaryName + accKey2 + " = " + "{" + "\r\n");
+
+        //                        if (addProp.Value is Dictionary<string, object> dict)
+        //                        {
+
+        //                            foreach (var dictEntry in dict)
+        //                            {
+        //                                //if (dictEntry.Value.ToString().IndexOf("AdA Chasse 1-2 EF") > -1  )
+        //                                //{ }
+
+        //                                int addA = 0;
+
+        //                                if (dict.Keys.First() == "_0" || dict.Keys.First() == "0")
+        //                                {
+        //                                    addA = 1;
+        //                                }
+
+        //                                var keyA = dictEntry.Key;
+        //                                keyA = keyA.Replace("_", "");
+
+        //                                if (addA == 1 && int.TryParse(keyA.ToString(), out int intValueA))
+        //                                {
+        //                                    intValueA = intValueA + addA;
+        //                                    keyA = intValueA.ToString();
+        //                                }
+
+
+        //                                if (dictEntry.Value is Dictionary<string, LuaObject> luaDict4)
+        //                                {
+        //                                    accKey1 = "[\""; accKey2 = "\"]";
+        //                                    sb.Append( "\t\t\t\t" + accKey1 + dictEntry.Key + accKey2 + " = " + "{" + "\r\n");
+
+        //                                    // Obtenir la première clé de luaDict4
+        //                                    int addB = 0;
+        //                                    if (luaDict4.Keys.First() == "0")
+        //                                    {
+        //                                        addB = 1;
+        //                                    }
+        //                                    foreach (var entry4 in luaDict4)
+        //                                    {
+        //                                        var keyB = entry4.Key;
+        //                                        if (addB == 1 && int.TryParse(entry4.Key.ToString(), out int intValue))
+        //                                        {
+        //                                            intValue = intValue + addB;
+        //                                            keyB = intValue.ToString();
+        //                                        }
+
+        //                                        //  if (entry4.Value.luaobj == "AdA Chasse 1-2 EF")
+        //                                        //{ }
+        //                                        arg = "-addProp Obj luaObj 5-";
+        //                                        nbTab = 5;
+        //                                        //texteFinal = ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, texteFinal, nbTab, arg);
+        //                                        ProcessEntries(keyB, entry4.Value.luaobj, forbiddenChars, sb, nbTab, arg);
+        //                                    }
+
+        //                                    sb.Append( "\t\t\t\t}," + "\r\n");
+        //                                }
+        //                                else
+        //                                {
+
+        //                                    arg = "-addProp Obj else 4-";
+        //                                    nbTab = 4;
+        //                                    //texteFinal = ProcessEntries(keyA, dictEntry.Value, forbiddenChars, texteFinal, nbTab, arg);
+        //                                    ProcessEntries(keyA, dictEntry.Value, forbiddenChars, sb, nbTab, arg);
+        //                                }
+        //                            }
+        //                        }
+        //                        sb.Append("\t\t\t}," + "\r\n");
+
+        //                    }
+        //                }
+        //            }
+
+        //            sb.Append( "\t\t}," + "\r\n");
+        //        }
+        //        sb.Append( "\t}," + "\r\n");
+        //    }
+
+        //    sb.Append( "}" + "\r\n");
+
+        //    //// Attendre que l'utilisateur appuie sur Entrée avant de fermer la console
+        //    //Console.WriteLine("Appuyez sur Entrée pour fermer la console...");
+        //    //Console.ReadLine();
+
+
+
+        //    string texteFinal = sb.ToString();
+
+        //    // Vérifier si la liste de squads est vide
+        //    if (!List_oob_air_Manager.List_oob_air.Any())
+        //    {
+        //        MessageBox.Show("Aucune donnée détectée. Le fichier ne sera pas écrasé.", "WriteChanedSquad Error B");
+        //        return;
+        //    }
+
+        //    // Vérifier si texteFinal contient au moins un bloc de squad
+        //    if (!texteFinal.Contains("\t\t{"))
+        //    {
+        //        MessageBox.Show("Le fichier généré est vide. Écriture annulée.", "WriteChanedSquad Error C");
+        //        return;
+        //    }
+
+        //    int nbOpen = texteFinal.Count(c => c == '{');
+        //    int nbClose = texteFinal.Count(c => c == '}');
+
+        //    FormUtils.LogRegister($"{{={nbOpen} }}={nbClose}");
+
+        //    if (nbClose != nbOpen)
+        //    {
+        //        MessageBox.Show("Nb d'accolades {} différent.", "WriteChanedSquad Error D");
+        //        return;
+        //    }
+
+        //    using (StreamWriter sr2 = new StreamWriter(path))
+        //    {
+        //        sr2.Write(texteFinal);
+        //    }
+        //}
 
 
         public static class LuaParser

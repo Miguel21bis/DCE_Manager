@@ -473,7 +473,7 @@ namespace DCE_Manager
                                     }
                                     else if (entry3.Key == "inactive")
                                     {
-                                        squad.Inactive = Convert.ToBoolean(entry3.Value.luaobj);
+                                        squad.Squad_Inactive = Convert.ToBoolean(entry3.Value.luaobj);
                                     }
                                     else if (entry3.Key == "roster")
                                     {
@@ -662,9 +662,9 @@ namespace DCE_Manager
             {
                  if (squad.Name == CloneCampaign.SquadName)
                 {
-                    // Mettre à jour les propriétés Player et Inactive
+                    // Mettre à jour les propriétés Player et Squad_Inactive
                     squad.Player = true;
-                    squad.Inactive = false;
+                    squad.Squad_Inactive = false;
                     
                 }
                 else
@@ -1409,7 +1409,8 @@ namespace DCE_Manager
                     Modifier_CMD(path + @"\" + NewdNameCamp);
 
                     //ecrit oob_air_init, a partir du DicClassSquad ***
-                    FormUtils.WriteListClassSquadsToFile(path + @"\" + NewdNameCamp + @"\Init\oob_air_init.lua", "Init" );
+                    //CampaignSaver.Save(pathFile, pathFileBackup, folderName);
+                    CampaignSaver.Save(path + @"\" + NewdNameCamp + @"\Init\oob_air_init.lua",null, "Init" );
 
                     //Suppression des fichiers dans Active:
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Active", false);

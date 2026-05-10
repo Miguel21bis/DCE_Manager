@@ -11,6 +11,8 @@ namespace DCE_Manager
 
         public Dictionary<string, AirbaseInfo> Airbases { get; set; }
 
+        public CampaignEdit CampaignEditRef { get; set; }
+
         public CampaignContext()
         {
             Airbases = new Dictionary<string, AirbaseInfo>();

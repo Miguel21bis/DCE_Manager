@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
-using NLua;
 using DCE_Manager.Parameters;
+using DCE_Manager.Utils;
+using NLua;
 
 namespace DCE_Manager
 {
@@ -55,7 +56,11 @@ namespace DCE_Manager
             _data.TaskByPlane = new Dictionary<string, List<string>>();
             //_data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
             _data.CallsignWest = new Dictionary<string, List<string>>();
-            _data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
+            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
+            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, Dictionary<int, string>>>();
+            _data.SpecificCallnames = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
+
+
             //_data.Country = new Dictionary<string, List<string>>();
 
             // -----------------------------------------------------------------
@@ -148,7 +153,7 @@ namespace DCE_Manager
             // SpecificCallnames
             // -----------------------------------------------------------------
 
-            _data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
+            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
 
             LuaTable specificLua = luaTable["SpecificCallnames"] as LuaTable;
 
@@ -162,7 +167,9 @@ namespace DCE_Manager
                     if (countriesTable == null)
                         continue;
 
-                    var countryDict = new Dictionary<string, List<string>>();
+                    //var countryDict = new Dictionary<string, List<string>>();
+                    //var countryDict = new Dictionary<string, Dictionary<int, string>>();
+                    var countryDict = new Dictionary<string, Dictionary<string, string>>();
 
                     foreach (object countryKey in countriesTable.Keys)
                     {
@@ -172,14 +179,37 @@ namespace DCE_Manager
                         if (callSignTable == null)
                             continue;
 
-                        List<string> list = new List<string>();
+                        //List<string> list = new List<string>();
+                        //Dictionary<int, string> list = new Dictionary<int, string>();
+                        Dictionary<string, string> list = new Dictionary<string, string>();
 
+                        //foreach (object subKey in callSignTable.Keys)
+                        //{
+                        //    object val = callSignTable[subKey];
+                        //    if (val != null)
+                        //    {
+                        //        list.Add(val.ToString());
+                        //    }
+                        //}
+                        //foreach (object subKey in callSignTable.Keys)
+                        //{
+                        //    object val = callSignTable[subKey];
+
+                        //    if (val == null)
+                        //        continue;
+
+                        //    if (int.TryParse(subKey.ToString(), out int luaId))
+                        //    {
+                        //        list[luaId] = val.ToString();
+                        //    }
+                        //}
                         foreach (object subKey in callSignTable.Keys)
                         {
                             object val = callSignTable[subKey];
+
                             if (val != null)
                             {
-                                list.Add(val.ToString());
+                                list[subKey.ToString()] = val.ToString();
                             }
                         }
 
@@ -235,11 +265,135 @@ namespace DCE_Manager
 
             //FormUtils.LogRegister("CampaignLuaLoader.cs: TaskByPlane.Count = " +  _data.TaskByPlane.Count);
 
+            // Rend les données accessibles globalement
+            // Pourquoi : utilisées par le save des callsigns
+            CampaignLuaData.Current = _data;
+
             return _data;
+        }
+
+        // Retourne l'ID Lua correspondant à un callsign texte
+        // Pourquoi : DCE stocke un entier dans oob_air.lua
+        public static int FindCallsignId( CampaignLuaData data, string aircraft, string country, string callsign)
+        {
+            if (string.IsNullOrWhiteSpace(callsign))
+                return 0;
+
+            // -------------------------------------------------
+            // SpecificCallnames prioritaires
+            // -------------------------------------------------
+
+            FormUtils.LogRegister(
+                "FindCallsignId | aircraft=" + aircraft +
+                " | country=" + country +
+                " | callsign=" + callsign
+            );
+
+
+
+            if (data.SpecificCallnames.TryGetValue(aircraft, out var countryDict))
+            {
+                foreach (var kv in countryDict)
+                {
+                    FormUtils.LogRegister(
+                            "SpecificCallnames country Lua = |" + kv.Key + "|"
+                        );
+
+                    string luaCountry = kv.Key?.Trim().ToLowerInvariant();
+                    string squadCountry = country?.Trim().ToLowerInvariant();
+
+                    if (luaCountry != squadCountry)
+                        continue;
+
+                    var list = kv.Value;
+
+                    foreach (var k2 in list)
+                    {
+                        int luaId = int.Parse(k2.Key);
+                        string luaCallsign = k2.Value;
+
+                        FormUtils.LogRegister( "Equals? k2.Key| " + k2.Key + " |k2.Value| " + k2.Value );
+
+                        if (string.Equals(luaCallsign, callsign,  System.StringComparison.OrdinalIgnoreCase))
+                        {
+                            FormUtils.LogRegister("return k2.Key| " + k2.Key + " |k2.Value| " + k2.Value);
+                            return luaId;
+                        }
+                    }
+                }
+            }
+
+            // -------------------------------------------------
+            // Generic west callsigns
+            // -------------------------------------------------
+
+            if (data.CallsignWest.TryGetValue("generic", out var genericList))
+            {
+                for (int i = 0; i < genericList.Count; i++)
+                {
+                    if (genericList[i] == callsign)
+                    {
+                        // IDs commencent à 1
+                        return i + 1;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        // Retourne le texte du callsign à partir de son ID Lua
+        // Pourquoi : l'UI travaille avec le texte lisible
+        public static string FindCallsignName(
+            CampaignLuaData data,
+            string aircraft,
+            string country,
+            int callsignId)
+        {
+            // -------------------------------------------------
+            // SpecificCallnames
+            // -------------------------------------------------
+
+            if (callsignId >= 9)
+            {
+                if (data.SpecificCallnames.TryGetValue(aircraft, out var countryDict))
+                {
+                    if (countryDict.TryGetValue(country, out var list))
+                    {
+                        string key = callsignId.ToString();
+
+                        if (list.ContainsKey(key))
+                        {
+                            return list[key];
+                        }
+                    }
+                }
+            }
+
+            // -------------------------------------------------
+            // Generic
+            // -------------------------------------------------
+
+            if (callsignId >= 1)
+            {
+                if (data.CallsignWest.TryGetValue("generic", out var genericList))
+                {
+                    int index = callsignId - 1;
+
+                    if (index >= 0 && index < genericList.Count)
+                    {
+                        return genericList[index];
+                    }
+                }
+            }
+
+            return "Automatic";
         }
 
 
     }
+
+
 
 
 }

@@ -192,7 +192,7 @@ namespace DCE_Manager.Parameters
             campaignSquad.Init.Base = campaignSquad.Active.Base;
             campaignSquad.Init.Type = campaignSquad.Active.Type;
             campaignSquad.Init.Player = campaignSquad.Active.Player;
-            campaignSquad.Init.Inactive = campaignSquad.Active.Inactive;
+            campaignSquad.Init.Squad_Inactive = campaignSquad.Active.Squad_Inactive;
         }
     }
 
@@ -203,7 +203,7 @@ namespace DCE_Manager.Parameters
         public string FolderFile { get; set; }
         public int IdSquad { get; set; }
         public string Name { get; set; }
-        public bool Inactive { get; set; }
+        public bool Squad_Inactive { get; set; }
         public bool Player { get; set; }
         public bool HumainOnly { get; set; }
         
@@ -228,45 +228,28 @@ namespace DCE_Manager.Parameters
 
         public string Side { get; set; }          // "blue"
         public string Callsign { get; set; }      // "Uzi"
-        public int? CallsignId { get; set; }      // 3
+        // ID Lua réel du callsign
+        // Pourquoi : DCE sauvegarde un entier et non le texte affiché
+        public int CallsignId { get; set; }
         public Dictionary<string, object> ScoreLast { get; set; }
         public Dictionary<string, int> TasksCoefPourcent { get; set; }
 
-        public List<int> SideNumber { get; set; }
-      
+        //public List<int> SideNumber { get; set; }
+        // Index 0 = min
+        // Index 1 = max
+        public int SideNumberMin { get; set; }
+        public int SideNumberMax { get; set; }
+
         // Nom affiché dans l'UI (différent du Name brut Lua)
         // Pourquoi : gérer les doublons sans casser le matching
         public string DisplayName { get; set; }
 
-        //public bool IsActive => !Inactive;
-        public bool IsActive
+        //public bool Squad_Active => !Squad_Inactive;
+        public bool Squad_Active
         {
-            get { return !Inactive; }
-            set { Inactive = !value; }
+            get { return !Squad_Inactive; }
+            set { Squad_Inactive = !value; }
         }
-
-        // Sert pour affichage GRID (Init vs Active)
-        //public int DisplayReady
-        //{
-        //    get
-        //    {
-        //        if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("ready"))
-        //            return Convert.ToInt32(Roster["ready"]);
-
-        //        return Number;
-        //    }
-        //}
-
-        //public int DisplayReserve
-        //{
-        //    get
-        //    {
-        //        if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("reserve"))
-        //            return Convert.ToInt32(Roster["reserve"]);
-
-        //        return Reserve;
-        //    }
-        //}
 
 
         // Dictionnaire pour les propriétés supplémentaires
@@ -324,20 +307,23 @@ namespace DCE_Manager.Parameters
         public bool ReservedSAR { get; set; }
         public bool Occupied { get; set; }
     }
-    
+
 
     public class CampaignLuaData
     {
+        public static CampaignLuaData Current { get; set; }
+
         public HashSet<string> PlayableAircraft { get; set; }
         public HashSet<string> AllPlaneHeli { get; set; }
         public HashSet<string> TabSquad { get; set; } = new HashSet<string>();
+
         public Dictionary<string, List<string>> CallsignWest { get; set; }
-        public Dictionary<string, Dictionary<string, List<string>>> SpecificCallnames { get; set; }
-        //public Dictionary<string, List<string>> Country { get; set; }
+
+        //public Dictionary<string, Dictionary<string, Dictionary<int, string>>> SpecificCallnames { get; set; }
+        public Dictionary<string, Dictionary<string, Dictionary<string, string>>> SpecificCallnames { get; set; }
 
         public Dictionary<string, List<string>> TaskByPlane { get; set; }
-        //public Dictionary<string, Dictionary<string, bool>> TaskByPlane { get; set; }
-        // Liste des pays disponibles (venant du Lua)
+
         public List<string> Country { get; set; } = new List<string>();
     }
 
