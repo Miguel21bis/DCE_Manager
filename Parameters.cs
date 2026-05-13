@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 //using System.Linq;
 //using System.Text;
 //using System.Threading.Tasks;
@@ -198,6 +199,48 @@ namespace DCE_Manager.Parameters
 
     public class Squad
     {
+        // Retourne une copie superficielle du squad
+        // Pourquoi : simplifier le clonage sans recopier chaque propriété
+        public Squad Clone()
+        {
+            return (Squad)this.MemberwiseClone();
+        }
+
+        // Génère automatiquement un nouveau nom et un nouvel IdSquad
+        // Pourquoi : éviter conflits lors du clonage
+        public void GenerateCloneIdentity(List<Squad> existingSquads)
+        {
+            // -------------------------------------------------
+            // Nouveau nom
+            // -------------------------------------------------
+
+            string baseName = Name;
+
+            int index = 1;
+
+            string newName;
+
+            do
+            {
+                newName = baseName + "-" + index;
+                index++;
+            }
+            while (existingSquads.Any(s =>
+                s.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)));
+
+            Name = newName;
+            DisplayName = newName;
+
+            // -------------------------------------------------
+            // Nouvel ID
+            // -------------------------------------------------
+
+            int maxId = existingSquads.Count > 0
+                ? existingSquads.Max(s => s.IdSquad)
+                : 0;
+
+            IdSquad = maxId + 1;
+        }
 
         public string SideString { get; set; }
         public string FolderFile { get; set; }
@@ -251,6 +294,27 @@ namespace DCE_Manager.Parameters
             set { Squad_Inactive = !value; }
         }
 
+        // Valeur affichée dans la grille colonne "Ready"
+        // Pourquoi : en Active on veut afficher roster.ready dynamiquement
+        public int DisplayReady
+        {
+            get
+            {
+                if (Roster == null)
+                    return Number;
+
+                if (Roster.TryGetValue("ready", out object value))
+                {
+                    if (value is int intValue)
+                        return intValue;
+
+                    if (int.TryParse(value.ToString(), out int parsed))
+                        return parsed;
+                }
+
+                return Number;
+            }
+        }
 
         // Dictionnaire pour les propriétés supplémentaires
         public Dictionary<string, object> AdditionalProperties { get; set; }

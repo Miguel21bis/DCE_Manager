@@ -62,12 +62,8 @@ namespace DCE_Manager
             this.groupBoxAircraft = new System.Windows.Forms.GroupBox();
             this.labelNumber = new System.Windows.Forms.Label();
             this.numericNumber = new System.Windows.Forms.NumericUpDown();
-            this.labelInitNumber = new System.Windows.Forms.Label();
-            this.numericInitNumber = new System.Windows.Forms.NumericUpDown();
             this.labelReserve = new System.Windows.Forms.Label();
             this.numericReserve = new System.Windows.Forms.NumericUpDown();
-            this.labelInitReserve = new System.Windows.Forms.Label();
-            this.numericInitReserve = new System.Windows.Forms.NumericUpDown();
             this.groupBoxTasks = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanelTasks = new System.Windows.Forms.FlowLayoutPanel();
             this.tabPage2 = new System.Windows.Forms.TabPage();
@@ -101,9 +97,7 @@ namespace DCE_Manager
             this.groupBox_Bases.SuspendLayout();
             this.groupBoxAircraft.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericNumber)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericInitNumber)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericReserve)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).BeginInit();
             this.groupBoxTasks.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.groupBox_sidenumber.SuspendLayout();
@@ -481,12 +475,8 @@ namespace DCE_Manager
             // 
             this.groupBoxAircraft.Controls.Add(this.labelNumber);
             this.groupBoxAircraft.Controls.Add(this.numericNumber);
-            this.groupBoxAircraft.Controls.Add(this.labelInitNumber);
-            this.groupBoxAircraft.Controls.Add(this.numericInitNumber);
             this.groupBoxAircraft.Controls.Add(this.labelReserve);
             this.groupBoxAircraft.Controls.Add(this.numericReserve);
-            this.groupBoxAircraft.Controls.Add(this.labelInitReserve);
-            this.groupBoxAircraft.Controls.Add(this.numericInitReserve);
             this.groupBoxAircraft.Location = new System.Drawing.Point(9, 226);
             this.groupBoxAircraft.Name = "groupBoxAircraft";
             this.groupBoxAircraft.Size = new System.Drawing.Size(588, 130);
@@ -497,7 +487,7 @@ namespace DCE_Manager
             // labelNumber
             // 
             this.labelNumber.AutoSize = true;
-            this.labelNumber.Location = new System.Drawing.Point(20, 78);
+            this.labelNumber.Location = new System.Drawing.Point(20, 67);
             this.labelNumber.Name = "labelNumber";
             this.labelNumber.Size = new System.Drawing.Size(55, 16);
             this.labelNumber.TabIndex = 0;
@@ -505,7 +495,7 @@ namespace DCE_Manager
             // 
             // numericNumber
             // 
-            this.numericNumber.Location = new System.Drawing.Point(140, 72);
+            this.numericNumber.Location = new System.Drawing.Point(140, 61);
             this.numericNumber.Maximum = new decimal(new int[] {
             9999,
             0,
@@ -516,32 +506,10 @@ namespace DCE_Manager
             this.numericNumber.TabIndex = 1;
             this.numericNumber.ValueChanged += new System.EventHandler(this.numericNumber_ValueChanged);
             // 
-            // labelInitNumber
-            // 
-            this.labelInitNumber.AutoSize = true;
-            this.labelInitNumber.Location = new System.Drawing.Point(20, 35);
-            this.labelInitNumber.Name = "labelInitNumber";
-            this.labelInitNumber.Size = new System.Drawing.Size(74, 16);
-            this.labelInitNumber.TabIndex = 2;
-            this.labelInitNumber.Text = "Init Number";
-            // 
-            // numericInitNumber
-            // 
-            this.numericInitNumber.Location = new System.Drawing.Point(140, 32);
-            this.numericInitNumber.Maximum = new decimal(new int[] {
-            9999,
-            0,
-            0,
-            0});
-            this.numericInitNumber.Name = "numericInitNumber";
-            this.numericInitNumber.Size = new System.Drawing.Size(120, 22);
-            this.numericInitNumber.TabIndex = 3;
-            this.numericInitNumber.ValueChanged += new System.EventHandler(this.numericInitNumber_ValueChanged);
-            // 
             // labelReserve
             // 
             this.labelReserve.AutoSize = true;
-            this.labelReserve.Location = new System.Drawing.Point(341, 78);
+            this.labelReserve.Location = new System.Drawing.Point(341, 67);
             this.labelReserve.Name = "labelReserve";
             this.labelReserve.Size = new System.Drawing.Size(59, 16);
             this.labelReserve.TabIndex = 4;
@@ -549,7 +517,7 @@ namespace DCE_Manager
             // 
             // numericReserve
             // 
-            this.numericReserve.Location = new System.Drawing.Point(435, 76);
+            this.numericReserve.Location = new System.Drawing.Point(435, 65);
             this.numericReserve.Maximum = new decimal(new int[] {
             9999,
             0,
@@ -559,28 +527,6 @@ namespace DCE_Manager
             this.numericReserve.Size = new System.Drawing.Size(120, 22);
             this.numericReserve.TabIndex = 5;
             this.numericReserve.ValueChanged += new System.EventHandler(this.numericReserve_ValueChanged);
-            // 
-            // labelInitReserve
-            // 
-            this.labelInitReserve.AutoSize = true;
-            this.labelInitReserve.Location = new System.Drawing.Point(341, 38);
-            this.labelInitReserve.Name = "labelInitReserve";
-            this.labelInitReserve.Size = new System.Drawing.Size(78, 16);
-            this.labelInitReserve.TabIndex = 6;
-            this.labelInitReserve.Text = "Init Reserve";
-            // 
-            // numericInitReserve
-            // 
-            this.numericInitReserve.Location = new System.Drawing.Point(435, 32);
-            this.numericInitReserve.Maximum = new decimal(new int[] {
-            9999,
-            0,
-            0,
-            0});
-            this.numericInitReserve.Name = "numericInitReserve";
-            this.numericInitReserve.Size = new System.Drawing.Size(120, 22);
-            this.numericInitReserve.TabIndex = 7;
-            this.numericInitReserve.ValueChanged += new System.EventHandler(this.numericInitReserve_ValueChanged);
             // 
             // groupBoxTasks
             // 
@@ -857,9 +803,7 @@ namespace DCE_Manager
             this.groupBoxAircraft.ResumeLayout(false);
             this.groupBoxAircraft.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numericNumber)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericInitNumber)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numericReserve)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.numericInitReserve)).EndInit();
             this.groupBoxTasks.ResumeLayout(false);
             this.tabPage2.ResumeLayout(false);
             this.groupBox_sidenumber.ResumeLayout(false);
@@ -895,16 +839,12 @@ namespace DCE_Manager
         private System.Windows.Forms.CheckBox checkBoxActive;
 
         private System.Windows.Forms.NumericUpDown numericNumber;
-        private System.Windows.Forms.NumericUpDown numericInitNumber;
         private System.Windows.Forms.NumericUpDown numericReserve;
-        private System.Windows.Forms.NumericUpDown numericInitReserve;
 
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelTasks;
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelScore;
         private Label labelNumber;
-        private Label labelInitNumber;
         private Label labelReserve;
-        private Label labelInitReserve;
         private Label labelName;
         private Label labelType;
         private Label labelCountry;

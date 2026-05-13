@@ -221,10 +221,27 @@ namespace DCE_Manager
             grid.Columns.Add(new DataGridViewButtonColumn()
             {
                 Name = "EditColumn",
-                HeaderText = "",
+                HeaderText = "Edit",
                 Text = "✏",//🔧
                 UseColumnTextForButtonValue = true,
-                Width = 35
+                Width = 30
+            });
+
+            grid.Columns.Add(new DataGridViewButtonColumn()
+            {
+                Name = "CloneColumn",
+                HeaderText = "Clone",
+                Text = "+",
+                UseColumnTextForButtonValue = true,
+                Width = 30
+            });
+            grid.Columns.Add(new DataGridViewButtonColumn()
+            {
+                Name = "DeleteColumn",
+                HeaderText = "Delete",
+                Text = "X",
+                UseColumnTextForButtonValue = true,
+                Width = 30
             });
 
             grid.Columns.Add(new DataGridViewCheckBoxColumn()
@@ -269,27 +286,10 @@ namespace DCE_Manager
             grid.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 HeaderText = "Ready",
+                //DataPropertyName = "DisplayReady",
                 DataPropertyName = "DisplayReady",
                 Width = 60
             });
-
-            grid.Columns.Add(new DataGridViewButtonColumn()
-            {
-                Name = "CloneColumn",
-                HeaderText = "Clone(+)",
-                Text = "+",
-                UseColumnTextForButtonValue = true,
-                Width = 35
-            });
-            grid.Columns.Add(new DataGridViewButtonColumn()
-            {
-                Name = "DeleteColumn",
-                HeaderText = "Delete(X)",
-                Text = "X",
-                UseColumnTextForButtonValue = true,
-                Width = 35
-            });
-
 
             grid.DataSource = filtered;
 
@@ -359,9 +359,16 @@ namespace DCE_Manager
 
             if (columnName == "EditColumn")
             {
-                string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" + squad.Name.Trim().ToLowerInvariant();
+                //string squadKey = squad.SideString.Trim().ToLowerInvariant() + "|" + squad.Name.Trim().ToLowerInvariant();
 
-                campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
+                //campaignSquad = OobAirParser.FindCampaignSquad(squadKey);
+
+                campaignSquad = CurrentCampaignSquads
+                .FirstOrDefault(cs =>
+                    (cs.Init != null && cs.Init.IdSquad == squad.IdSquad)
+                    ||
+                    (cs.Active != null && cs.Active.IdSquad == squad.IdSquad)
+                );
 
                 squadToEdit = isActive
                     ? campaignSquad.Active
@@ -405,28 +412,122 @@ namespace DCE_Manager
             if (columnName == "CloneColumn")
             {
 
-                string squadKey_A = squad.SideString.Trim().ToLowerInvariant() + "|" +
-                    squad.Name.Trim().ToLowerInvariant();
+                //string squadKey_A = squad.SideString.Trim().ToLowerInvariant() + "|" +
+                //    squad.Name.Trim().ToLowerInvariant();
 
-                campaignSquad = OobAirParser.FindCampaignSquad(squadKey_A);
+                //campaignSquad = OobAirParser.FindCampaignSquad(squadKey_A);
 
-                squadToEdit = isActive
-                    ? campaignSquad.Active
-                    : campaignSquad.Init;
+                //squadToEdit = isActive
+                //    ? campaignSquad.Active
+                //    : campaignSquad.Init;
 
-                var frm = new FormSquadEdit(squadToEdit, _campaignContext, true, "A Grid_RowHeaderMouseClick");
+                //var frm = new FormSquadEdit(squadToEdit, _campaignContext, true, "A Grid_RowHeaderMouseClick");
 
-                frm.FormClosed += (s, args) =>
+                //frm.FormClosed += (s, args) =>
+                //{
+                //    if (frm.DialogResult == DialogResult.OK)
+                //    {
+                //        _form1.currentSquads.Add(frm.EditedSquad);
+                //        _form1.RefreshGrids();
+                //    }
+                //};
+                // Clone
+                if (columnName == "CloneColumn")
                 {
-                    if (frm.DialogResult == DialogResult.OK)
-                    {
-                        _form1.currentSquads.Add(frm.EditedSquad);
-                        _form1.RefreshGrids();
-                    }
-                };
+                    //string squadKey_A =
+                    //    squad.SideString.Trim().ToLowerInvariant() + "|" +
+                    //    squad.Name.Trim().ToLowerInvariant();
 
-                frm.Show();
-                return;
+                    //campaignSquad = OobAirParser.FindCampaignSquad(squadKey_A);
+
+                    campaignSquad = CurrentCampaignSquads
+                    .FirstOrDefault(cs =>
+                        (cs.Init != null && cs.Init.IdSquad == squad.IdSquad)
+                        ||
+                        (cs.Active != null && cs.Active.IdSquad == squad.IdSquad)
+                    );
+
+                    squadToEdit = isActive
+                        ? campaignSquad.Active
+                        : campaignSquad.Init;
+
+                    // -------------------------------------------------
+                    // Création clone DIRECTE
+                    // -------------------------------------------------
+
+                    Squad clonedSquad = squadToEdit.Clone();
+
+                    clonedSquad.GenerateCloneIdentity(CurrentSquads);
+
+                    // -------------------------------------------------
+                    // Création CampaignSquad complet
+                    // -------------------------------------------------
+
+                    CampaignSquad newCampaignSquad = new CampaignSquad();
+
+                    if (isActive)
+                    {
+                        newCampaignSquad.Active = clonedSquad;
+
+                        Squad initClone = clonedSquad.Clone();
+                        initClone.FolderFile = "Init";
+
+                        newCampaignSquad.Init = initClone;
+                    }
+                    else
+                    {
+                        newCampaignSquad.Init = clonedSquad;
+
+                        Squad activeClone = clonedSquad.Clone();
+                        activeClone.FolderFile = "Active";
+
+                        newCampaignSquad.Active = activeClone;
+                    }
+
+                    // -------------------------------------------------
+                    // Ajout IMMÉDIAT
+                    // -------------------------------------------------
+
+                    CurrentCampaignSquads.Add(newCampaignSquad);
+
+                    if (newCampaignSquad.Init != null)
+                        CurrentSquads.Add(newCampaignSquad.Init);
+
+                    if (newCampaignSquad.Active != null)
+                        CurrentSquads.Add(newCampaignSquad.Active);
+
+                    _form1.currentSquads = CurrentSquads;
+
+                    // -------------------------------------------------
+                    // REFRESH IMMÉDIAT
+                    // -------------------------------------------------
+
+                    _form1.RefreshGrids();
+
+                    // -------------------------------------------------
+                    // OUVERTURE ÉDITION SUR LE CLONE
+                    // -------------------------------------------------
+
+                    var frm = new FormSquadEdit(
+                        clonedSquad,
+                        _campaignContext,
+                        false,
+                        "CloneLive"
+                    );
+
+                    frm.SquadUpdated += () =>
+                    {
+                        _form1.dataGridViewBlue.Refresh();
+                        _form1.dataGridViewRed.Refresh();
+                    };
+
+                    frm.Show();
+
+                    return;
+                }
+
+                //frm.Show();
+                //return;
             }
 
             // Delete

@@ -21,9 +21,6 @@ namespace DCE_Manager
     {
         public Squad EditedSquad { get; private set; }
 
-        // Event déclenché à chaque modification importante du squad
-        public event Action SquadUpdated;
-
         private readonly CampaignContext _campaignContext;
 
         // Cette liste mémorise les contrôles dynamiques des tâches.
@@ -36,6 +33,11 @@ namespace DCE_Manager
 
         private bool _isRefreshingCallsign;
 
+        private readonly bool _isActiveVersion;
+
+
+        // Event déclenché à chaque modification importante du squad
+        public event Action SquadUpdated;
 
 
         //CONSTRUCTEUR
@@ -51,6 +53,8 @@ namespace DCE_Manager
             };
 
             _campaignContext = campaignContext;
+
+            _isActiveVersion = squad.FolderFile == "Active";
 
             if (squad == null)
             {
@@ -87,47 +91,113 @@ namespace DCE_Manager
         // Pourquoi : éviter que le mode clone modifie le squad original.
         private Squad CloneSquad(Squad source)
         {
-            Squad tempSquad = new Squad
+            // Clone de base automatique
+            // Pourquoi : éviter de recopier chaque propriété manuellement
+            Squad clone = source.Clone();
+
+            // -------------------------------------------------
+            // Copie profonde des collections
+            // Pourquoi : éviter que clone et original partagent les mêmes références
+            // -------------------------------------------------
+
+            clone.BaseAlternative = source.BaseAlternative != null
+                ? new List<string>(source.BaseAlternative)
+                : new List<string>();
+
+            clone.Tasks = source.Tasks != null
+                ? new Dictionary<string, bool>(source.Tasks)
+                : new Dictionary<string, bool>();
+
+            clone.TasksCoef = source.TasksCoef != null
+                ? new Dictionary<string, double>(source.TasksCoef)
+                : new Dictionary<string, double>();
+
+            clone.Roster = source.Roster != null
+                ? new Dictionary<string, object>(source.Roster)
+                : new Dictionary<string, object>();
+
+            clone.Score = source.Score != null
+                ? new Dictionary<string, object>(source.Score)
+                : new Dictionary<string, object>();
+
+            clone.AdditionalProperties = source.AdditionalProperties != null
+                ? new Dictionary<string, object>(source.AdditionalProperties)
+                : new Dictionary<string, object>();
+
+            clone.parking_id = source.parking_id != null
+                ? new Dictionary<string, object>(source.parking_id)
+                : new Dictionary<string, object>();
+
+            clone.Livery = source.Livery != null
+                ? new Dictionary<int, string>(source.Livery)
+                : new Dictionary<int, string>();
+
+            clone.LiveryModex = source.LiveryModex != null
+                ? new Dictionary<int, string>(source.LiveryModex)
+                : new Dictionary<int, string>();
+
+            // -------------------------------------------------
+            // Nouveau nom unique
+            // Pourquoi : éviter conflits Lua/DCE
+            // -------------------------------------------------
+
+            clone.Name = GenerateCloneName(source.Name);
+            clone.DisplayName = clone.Name;
+
+            // -------------------------------------------------
+            // Nouvel ID unique
+            // Pourquoi : DCE utilise IdSquad comme identifiant interne
+            // -------------------------------------------------
+
+            clone.IdSquad = GenerateNewSquadId();
+
+            // -------------------------------------------------
+            // Le clone ne doit pas être Player par défaut
+            // Pourquoi : éviter plusieurs Player squads
+            // -------------------------------------------------
+
+            clone.Player = false;
+
+            return clone;
+        }
+
+        // Génère un nom de clone unique
+        // Pourquoi : éviter les doublons dans la campagne
+        private string GenerateCloneName(string baseName)
+        {
+            string candidate = baseName + "_Copy";
+            int index = 1;
+
+            var existingNames = _campaignContext.CampaignEditRef
+                .CurrentCampaignSquads
+                .SelectMany(s => new[] { s.Active, s.Init })
+                .Where(s => s != null)
+                .Select(s => s.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            while (existingNames.Contains(candidate))
             {
-                Name = source.Name + "_Copy",
-                SideString = source.SideString,
-                FolderFile = source.FolderFile,
-                IdSquad = source.IdSquad,
-                Squad_Inactive = source.Squad_Inactive,
-                Player = source.Player,
-                HumainOnly = source.HumainOnly,
-                Type = source.Type,
-                Country = source.Country,
-                Callsign = source.Callsign,
-                CallsignId = source.CallsignId,
-                Base = source.Base,
-                Skill = source.Skill,
-                Number = source.Number,
-                InitNumber = source.InitNumber,
-                Reserve = source.Reserve,
-                InitReserve = source.InitReserve,
-                BaseAlternative = source.BaseAlternative != null ? new List<string>(source.BaseAlternative) : new List<string>(),
-                Tasks = source.Tasks != null ? new Dictionary<string, bool>(source.Tasks) : new Dictionary<string, bool>(),
-                TasksCoef = source.TasksCoef != null ? new Dictionary<string, double>(source.TasksCoef) : new Dictionary<string, double>(),
-                Roster = source.Roster != null ? new Dictionary<string, object>(source.Roster) : new Dictionary<string, object>(),
-                Score = source.Score != null ? new Dictionary<string, object>(source.Score) : new Dictionary<string, object>(),
-                //Livery = source.Livery,
-                AdditionalProperties = source.AdditionalProperties != null
-                    ? new Dictionary<string, object>(source.AdditionalProperties)
-                    : new Dictionary<string, object>(),
-                parking_id = source.parking_id != null
-                    ? new Dictionary<string, object>(source.parking_id)
-                    : new Dictionary<string, object>(),
-                Livery = source.Livery != null
-                    ? new Dictionary<int, string>(source.Livery)
-                    : new Dictionary<int, string>(),
-                LiveryModex = source.LiveryModex != null
-                    ? new Dictionary<int, string>(source.LiveryModex)
-                    : new Dictionary<int, string>(),
-            };
+                candidate = baseName + "_Copy" + index;
+                index++;
+            }
 
-            return tempSquad;
+            return candidate;
+        }
 
+        // Génère un nouvel IdSquad unique
+        // Pourquoi : éviter collisions entre squads
+        private int GenerateNewSquadId()
+        {
+            var usedIds = _campaignContext.CampaignEditRef
+                .CurrentCampaignSquads
+                .SelectMany(s => new[] { s.Active, s.Init })
+                .Where(s => s != null)
+                .Select(s => s.IdSquad);
+
+            if (!usedIds.Any())
+                return 1;
+
+            return usedIds.Max() + 1;
         }
 
         // Cette fonction remplit les listes connues des ComboBox.
@@ -218,23 +288,13 @@ namespace DCE_Manager
             //checkBoxInactive.Checked = EditedSquad.Squad_Inactive;
             checkBoxActive.Checked = EditedSquad.Squad_Active;
 
-
             numericNumber.Value = EditedSquad.Number;
-            numericInitNumber.Value = EditedSquad.InitNumber;
+            //numericInitNumber.Value = EditedSquad.InitNumber;
             numericReserve.Value = EditedSquad.Reserve;
-            numericInitReserve.Value = EditedSquad.InitReserve;
+            //numericInitReserve.Value = EditedSquad.InitReserve;
 
-            //if (EditedSquad.SideNumber != null && EditedSquad.SideNumber.Count >= 2)
-            //{
-                //textBox_ModexNb_Min.Text = EditedSquad.SideNumber[0].ToString();
-                //textBox_ModexNb_Max.Text = EditedSquad.SideNumber[1].ToString();
-                textBox_ModexNb_Min.Text = EditedSquad.SideNumberMin.ToString();
-                textBox_ModexNb_Max.Text = EditedSquad.SideNumberMax.ToString();
-            //}
-
-
-
-
+            textBox_ModexNb_Min.Text = EditedSquad.SideNumberMin.ToString();
+            textBox_ModexNb_Max.Text = EditedSquad.SideNumberMax.ToString();
         }
 
 
@@ -402,8 +462,7 @@ namespace DCE_Manager
             }
 
             return $"{prefix} : " + string.Join(",", values);
-        }
-       
+        }      
 
         private void button_ParkingId_Add_Click(object sender, EventArgs e)
         {
@@ -625,7 +684,7 @@ namespace DCE_Manager
 
             var dict = NormalizeLivery();
 
-            // 🔥 On récupère la clé réelle (important)
+            // On récupère la clé réelle (important)
             var orderedKeys = dict.OrderBy(k => k.Key).Select(k => k.Key).ToList();
 
             if (index >= orderedKeys.Count)
@@ -633,16 +692,16 @@ namespace DCE_Manager
 
             int keyToRemove = orderedKeys[index];
 
-            // 🔥 SUPPRESSION DANS LA CLASS
+            // SUPPRESSION DANS LA CLASS
             dict.Remove(keyToRemove);
 
-            // 🔧 Reindex propre (évite trous 1,3,5)
+            // Reindex propre (évite trous 1,3,5)
             EditedSquad.Livery = dict
                 .OrderBy(k => k.Key)
                 .Select((kvp, i) => new { Key = i + 1, kvp.Value })
                 .ToDictionary(x => x.Key, x => x.Value);
 
-            // 🔄 Refresh UI
+            // Refresh UI
             BuildLiveryArea();
         }
 
@@ -663,10 +722,10 @@ namespace DCE_Manager
 
             int newIndex = dict.Count > 0 ? dict.Keys.Max() + 1 : 1;
 
-            // 🔥 AJOUT DANS LA CLASS Squad (IMPORTANT)
+            // AJOUT DANS LA CLASS Squad (IMPORTANT)
             dict[newIndex] = newSkin;
 
-            // 🔄 Refresh complet UI
+            // Refresh complet UI
             BuildLiveryArea();
 
             textBox_AddSkin.Clear();
@@ -749,10 +808,6 @@ namespace DCE_Manager
             textBox_Modex.Focus();
         }
 
-
-
-
-
         // Cette fonction construit dynamiquement la zone des Taks.
         // Pourquoi : chaque squad peut avoir des Tasks différentes.
         private void BuildTasksArea()
@@ -776,7 +831,7 @@ namespace DCE_Manager
 
                 System.Windows.Forms.CheckBox checkBox = new System.Windows.Forms.CheckBox();
                 checkBox.Checked = Convert.ToBoolean(task.Value);
-                checkBox.Location = new Point(100, 5);
+                checkBox.Location = new Point(75, 5);
 
                 // MAJ live du squad quand on coche/décoche
                 checkBox.CheckedChanged += (s, e) =>
@@ -787,15 +842,15 @@ namespace DCE_Manager
 
                 System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label ();
                 labelCoef.Text = "Coef";
-                labelCoef.Location = new Point(200, 7);
-                labelCoef.Width = 40;
+                labelCoef.Location = new Point(100, 7);
+                labelCoef.Width = 50;
 
                 NumericUpDown numericCoef = new NumericUpDown();
                 numericCoef.DecimalPlaces = 2;
                 numericCoef.Maximum = 999;
                 numericCoef.Minimum = -999;
                 numericCoef.Width = 80;
-                numericCoef.Location = new Point(370, 3);
+                numericCoef.Location = new Point(300, 3);
 
                 // MAJ live du coef
                 numericCoef.ValueChanged += (s, e) =>
@@ -829,7 +884,7 @@ namespace DCE_Manager
         {
             flowLayoutPanelScore.Controls.Clear();
 
-            FormUtils.LogRegister("BuildScoreArea() squad.Name " + EditedSquad.Name  );
+            //FormUtils.LogRegister("BuildScoreArea() squad.Name " + EditedSquad.Name  );
 
             if (EditedSquad.Roster != null && EditedSquad.Roster.Count > 0)
             {
@@ -876,8 +931,12 @@ namespace DCE_Manager
             }
 
 
-            AddDictionarySection("Roster", EditedSquad.Roster);
-            AddDictionarySection("Score", EditedSquad.Score);
+            if (_isActiveVersion)
+            {
+                AddDictionarySection("Roster", EditedSquad.Roster);
+                AddDictionarySection("Score", EditedSquad.Score);
+            }
+
         }
 
 
@@ -916,6 +975,15 @@ namespace DCE_Manager
                 int.TryParse(item.Value?.ToString(), out value);
                 numeric.Value = value;
 
+                // Sauvegarde live dans le dictionnaire
+                // Pourquoi : permettre au CampaignSaver d'écrire les nouvelles valeurs
+                numeric.ValueChanged += (s, e) =>
+                {
+                    dict[item.Key] = (int)numeric.Value;
+
+                    SquadUpdated?.Invoke();
+                };
+
                 group.Controls.Add(label);
                 group.Controls.Add(numeric);
 
@@ -925,74 +993,6 @@ namespace DCE_Manager
             flowLayoutPanelScore.Controls.Add(group);
         }
 
-      
-        
-
-        //// Cette fonction sauvegarde les valeurs simples du formulaire.
-        //// Pourquoi : recopier les modifications de l'utilisateur dans le squad.
-        //private void buttonOK_Click(object sender, EventArgs e)
-        //{
-        //    EditedSquad.Name = textBoxName.Text.Trim();
-        //    EditedSquad.Type = comboBoxType.Text;
-        //    EditedSquad.Country = comboBoxCountry.Text;
-        //    EditedSquad.Base = comboBoxBase.Text;
-        //    EditedSquad.Skill = comboBoxSkill.Text;
-
-        //    EditedSquad.Player = checkBoxPlayer.Checked;
-        //    EditedSquad.Squad_Inactive = checkBoxInactive.Checked;
-
-        //    EditedSquad.Number = (int)numericNumber.Value;
-        //    EditedSquad.InitNumber = (int)numericInitNumber.Value;
-        //    EditedSquad.Reserve = (int)numericReserve.Value;
-        //    EditedSquad.InitReserve = (int)numericInitReserve.Value;
-
-        //    // On sauvegarde les tâches dynamiques.
-        //    // Pourquoi : prendre en compte les checkbox et coefficients modifiés.
-        //    if (EditedSquad.Tasks == null)
-        //    {
-        //        //EditedSquad.Tasks = new Dictionary<string, object>();
-        //        EditedSquad.Tasks = new Dictionary<string, bool>();
-        //    }
-
-        //    if (EditedSquad.TasksCoef == null)
-        //    {
-        //        //EditedSquad.TasksCoef = new Dictionary<string, object>();
-        //        EditedSquad.TasksCoef = new Dictionary<string, double>();
-        //    }
-
-        //    foreach (TaskRow row in _taskRows)
-        //    {
-        //        EditedSquad.Tasks[row.TaskName] = row.EnabledCheckBox.Checked;
-        //        EditedSquad.TasksCoef[row.TaskName] = (double)row.CoefNumeric.Value;
-        //    }
-
-        //    // Pour le moment, les AdditionalProperties sont réécrites comme texte.
-        //    // Pourquoi : cela permet déjà de conserver toutes les nouvelles variables visibles.
-        //    if (EditedSquad.AdditionalProperties == null)
-        //    {
-        //        EditedSquad.AdditionalProperties = new Dictionary<string, object>();
-        //    }
-
-        //    foreach (AdditionalRow row in _additionalRows)
-        //    {
-        //        EditedSquad.AdditionalProperties[row.PropertyName] = row.ValueTextBox.Text;
-        //    }
-
-        //    // Reconstruction des liveries depuis la ListBox
-        //    // Pourquoi : synchroniser UI -> données
-        //    EditedSquad.Livery = new Dictionary<int, string>();
-
-        //    int index = 1;
-
-        //    foreach (var item in listBox_Livery.Items)
-        //    {
-        //        EditedSquad.Livery[index] = item.ToString();
-        //        index++;
-        //    }
-
-        //    DialogResult = DialogResult.OK;
-        //    Close();
-        //}
 
         // Cette fonction ferme la fenêtre sans rien modifier.
         // Pourquoi : laisser l'utilisateur annuler ses changements.
@@ -1107,7 +1107,7 @@ namespace DCE_Manager
                             values.Add(v != null ? v.ToString() : "null");
                         }
 
-                        // 👉 affichage simple demandé
+                        // affichage simple demandé
                         list.Items.Add($"{key} = {string.Join(",", values)}");
                     }
                     else
@@ -1185,7 +1185,7 @@ namespace DCE_Manager
                 }
                 
 
-                // 🔴 EXCLUSIONS (UI spécifique déjà existante)
+                // EXCLUSIONS (UI spécifique déjà existante)
                 if (
                     prop.Name == "Livery"
                     || prop.Name == "LiveryModex"
@@ -1198,10 +1198,10 @@ namespace DCE_Manager
                     || prop.Name == "TasksCoefPourcent"
                     || prop.Name == "parking_id"
                     || prop.Name == "SideNumber"
-                    //|| prop.Name == "Callsign"
+                    || prop.Name == "score_last"
                     || prop.Name == "CallsignId"
-                    //|| prop.Name == "displayReserve"
-                    //|| prop.Name == "displayReady"
+                    || prop.Name == "InitNumber"
+                    || prop.Name == "InitReserve"
                     // ||prop.Name == "AdditionalProperties"
                     )
 
@@ -1211,8 +1211,6 @@ namespace DCE_Manager
 
                 object value = prop.GetValue(EditedSquad);
 
-
-                //if (value == null)
                 //    continue;
                 if (value == null)
                 {
@@ -1222,8 +1220,7 @@ namespace DCE_Manager
                     continue;
                 }
 
-
-                // 🧠 Détection automatique table
+                // Détection automatique table
                 bool isDictionary = value is System.Collections.IDictionary;
                 bool isList = value is System.Collections.IEnumerable && !(value is string);
 
@@ -1254,12 +1251,6 @@ namespace DCE_Manager
         {
 
         }
-
-
-        //private void comboBoxCountry_SelectedIndexChanged(object sender, EventArgs e)
-        //{
-        //    EditedSquad.Country = comboBoxCountry.Text;
-        //}
 
         private void comboBoxType_SelectedIndexChanged(object sender, EventArgs e)
         {
@@ -1305,7 +1296,7 @@ namespace DCE_Manager
 
             EditedSquad.Player = checkBoxPlayer.Checked;
 
-            // 🔄 Applique règle globale (un seul Player)
+            // Applique règle globale (un seul Player)
             if (EditedSquad.Player)
             {
                 EditedSquad.Player = checkBoxPlayer.Checked;
@@ -1337,24 +1328,45 @@ namespace DCE_Manager
             SquadUpdated?.Invoke();
         }
 
-        private void numericInitNumber_ValueChanged(object sender, EventArgs e)
-        {           
-            EditedSquad.InitNumber = (int)numericInitNumber.Value;
-        }
-
         private void numericNumber_ValueChanged(object sender, EventArgs e)
         {
             EditedSquad.Number = (int)numericNumber.Value;
+            EditedSquad.InitNumber = (int)numericNumber.Value;
+
+            if (checkBoxActive.Checked)
+            {
+                if (EditedSquad.Roster == null)
+                {
+                    EditedSquad.Roster = new Dictionary<string, object>();
+                }
+
+                EditedSquad.Roster["ready"] = (int)numericNumber.Value;
+
+                // Refresh UI live du roster
+                // Pourquoi : afficher immédiatement la nouvelle valeur
+                BuildScoreArea();
+            }
         }
 
-        private void numericInitReserve_ValueChanged(object sender, EventArgs e)
-        {
-            EditedSquad.InitReserve = (int)numericInitReserve.Value;
-        }
 
         private void numericReserve_ValueChanged(object sender, EventArgs e)
         {
             EditedSquad.Reserve = (int)numericReserve.Value;
+            EditedSquad.InitReserve = (int)numericReserve.Value;
+
+            if (checkBoxActive.Checked)
+            {
+                if (EditedSquad.Roster == null)
+                {
+                    EditedSquad.Roster = new Dictionary<string, object>();
+                }
+
+                EditedSquad.Roster["reserve"] = (int)numericReserve.Value;
+
+                // Refresh UI live du roster
+                // Pourquoi : afficher immédiatement la nouvelle valeur
+                BuildScoreArea();
+            }
         }
 
 
@@ -1418,13 +1430,6 @@ namespace DCE_Manager
 
                     if (dict.ContainsKey(EditedSquad.Country))
                     {
-                        //comboBox_Callsign.Items.AddRange(
-                        //    dict[EditedSquad.Country]
-                        //    .OrderBy(k => int.Parse(k.Key))
-                        //    .Select(k => k.Value)
-                        //    .ToArray()
-                        //);
-
                         comboBox_Callsign.Items.AddRange(
                              dict[EditedSquad.Country]
                              .Select(x => x.Value)
@@ -1472,27 +1477,48 @@ namespace DCE_Manager
 
             //comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
 
-            comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
+            //comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
 
-            // Ajouter le callsign actuel s'il n'existe pas
-            // Pourquoi : éviter de perdre une valeur exotique/non prévue
-            if (!string.IsNullOrEmpty(selectedCallsign) &&
-                !comboBox_Callsign.Items.Contains(selectedCallsign))
-            {
-                comboBox_Callsign.Items.Add(selectedCallsign);
-            }
+            // Toujours ajouter "Automatic" en premier
+            comboBox_Callsign.Items.Insert(0, "Automatic");
 
-            // Sélection automatique
-            // Pourquoi : garder la cohérence UI après refresh
-            if (!string.IsNullOrEmpty(selectedCallsign) &&
-                comboBox_Callsign.Items.Contains(selectedCallsign))
+            // Vérifie si le callsign actuel existe encore
+            string currentCallsign = EditedSquad.Callsign;
+
+            if (!string.IsNullOrEmpty(currentCallsign)
+                && comboBox_Callsign.Items.Contains(currentCallsign))
             {
-                comboBox_Callsign.SelectedItem = selectedCallsign;
+                // On garde le callsign actuel
+                comboBox_Callsign.SelectedItem = currentCallsign;
             }
             else
             {
+                // Callsign invalide pour ce pays → retour automatique
+                EditedSquad.Callsign = null;
                 comboBox_Callsign.SelectedItem = "Automatic";
             }
+
+            comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
+
+            //// Ajouter le callsign actuel s'il n'existe pas
+            //// Pourquoi : éviter de perdre une valeur exotique/non prévue
+            //if (!string.IsNullOrEmpty(selectedCallsign) &&
+            //    !comboBox_Callsign.Items.Contains(selectedCallsign))
+            //{
+            //    comboBox_Callsign.Items.Add(selectedCallsign);
+            //}
+
+            //// Sélection automatique
+            //// Pourquoi : garder la cohérence UI après refresh
+            //if (!string.IsNullOrEmpty(selectedCallsign) &&
+            //    comboBox_Callsign.Items.Contains(selectedCallsign))
+            //{
+            //    comboBox_Callsign.SelectedItem = selectedCallsign;
+            //}
+            //else
+            //{
+            //    comboBox_Callsign.SelectedItem = "Automatic";
+            //}
 
             _isRefreshingCallsign = false;
         }

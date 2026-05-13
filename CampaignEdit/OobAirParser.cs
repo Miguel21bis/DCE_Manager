@@ -18,7 +18,9 @@ namespace DCE_Manager
         {
             "displayReady",
             "displayReserve",
-            "isActive"
+            "isActive",
+            "taskscoefpourcent",
+            "side"
         };
 
         //private static int _nextSquadId = 1;

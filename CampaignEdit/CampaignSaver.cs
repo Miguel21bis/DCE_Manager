@@ -63,6 +63,7 @@ namespace DCE_Manager
                 "Squad_Active",
                 "SideNumberMax",
                 "SideNumberMin",
+                "displayName"
             };
 
             // Liste des caractères interdits
