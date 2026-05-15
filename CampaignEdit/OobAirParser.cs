@@ -236,9 +236,11 @@ namespace DCE_Manager
                                 case "baseAlternative":
                                     if (valObj is Dictionary<string, LuaObject> baseAlt)
                                     {
-                                        squad.BaseAlternative = new List<string>(baseAlt.Count);
-                                        foreach (var e in baseAlt)
-                                            squad.BaseAlternative.Add(e.Value.luaobj.ToString().Trim('"'));
+                                        squad.BaseAlternative = baseAlt
+                                            .Where(e => int.TryParse(e.Key, out _))
+                                            .OrderBy(e => int.Parse(e.Key))
+                                            .Select(e => e.Value.luaobj.ToString().Trim('"'))
+                                            .ToList();
                                     }
                                     break;
 

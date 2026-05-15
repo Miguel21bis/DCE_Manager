@@ -300,25 +300,83 @@ namespace DCE_Manager
 
         //***********************BASE ALT START
 
+        // Synchronise Base + BaseAlternative depuis la ListBox
+        // Pourquoi : garder une logique unique et cohérente partout
+        private void SyncBases()
+        {
+            List<string> bases = listBoxBasesAlternat.Items
+                .Cast<object>()
+                .Select(x => x.ToString())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            // -------------------------------------------------
+            // Base principale
+            // -------------------------------------------------
+
+            if (bases.Count > 0)
+            {
+                EditedSquad.Base = bases[0];
+            }
+            else
+            {
+                EditedSquad.Base = null;
+            }
+
+            // -------------------------------------------------
+            // BaseAlternative
+            // -------------------------------------------------
+
+            if (bases.Count <= 1)
+            {
+                EditedSquad.BaseAlternative = new List<string>();
+            }
+            else
+            {
+                EditedSquad.BaseAlternative = new List<string>(bases);
+            }
+
+            // -------------------------------------------------
+            // Refresh combo base
+            // -------------------------------------------------
+
+            comboBoxBase.SelectedItem = EditedSquad.Base;
+
+            SquadUpdated?.Invoke();
+        }
+
         // Cette fonction remplit la ListBox des bases alternatives.
         // Pourquoi : afficher uniquement les bases de repli (sans la base principale).
+        // Cette fonction remplit la ListBox des bases possibles.
+        // Pourquoi : afficher la vraie liste priorisée des bases.
         private void BuildBasesAlternative()
         {
             listBoxBasesAlternat.Items.Clear();
 
-            var baseAlterList = EditedSquad.BaseAlternative;
+            // -------------------------------------------------
+            // Cas multi-bases
+            // -------------------------------------------------
 
-            if (baseAlterList == null)
-                return;
-
-            foreach (var entry in baseAlterList)
+            if (EditedSquad.BaseAlternative != null
+                && EditedSquad.BaseAlternative.Count > 0)
             {
-                // Sécurité : ne jamais afficher la base principale
-                if (!string.Equals(entry, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
+                foreach (string airbase in EditedSquad.BaseAlternative)
                 {
-                    listBoxBasesAlternat.Items.Add(entry);
+                    listBoxBasesAlternat.Items.Add(airbase);
                 }
+
+                return;
             }
+
+            //// -------------------------------------------------
+            //// Cas base unique
+            //// -------------------------------------------------
+
+            //if (!string.IsNullOrWhiteSpace(EditedSquad.Base))
+            //{
+            //    listBoxBasesAlternat.Items.Add(EditedSquad.Base);
+            //}
         }
         // Ajoute une base alternative depuis la comboBox_All_bases.
         // Pourquoi : permettre d'ajouter une base de repli sans doublon ni incohérence.
@@ -329,9 +387,9 @@ namespace DCE_Manager
             if (string.IsNullOrEmpty(selectedBase))
                 return;
 
-            // Interdit : identique à la base principale
-            if (string.Equals(selectedBase, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
-                return;
+            //// Interdit : identique à la base principale
+            //if (string.Equals(selectedBase, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
+            //    return;
 
             // Interdit : doublon
             foreach (var item in listBoxBasesAlternat.Items)
@@ -340,10 +398,25 @@ namespace DCE_Manager
                     return;
             }
 
+            // -------------------------------------------------
+            // Transition mono-base -> multi-bases
+            // -------------------------------------------------
+
+            if (listBoxBasesAlternat.Items.Count == 0
+                && !string.IsNullOrWhiteSpace(EditedSquad.Base))
+            {
+                listBoxBasesAlternat.Items.Add(EditedSquad.Base);
+            }
+
             listBoxBasesAlternat.Items.Add(selectedBase);
+
+            SyncBases();
+
         }
         // Supprime la base alternative sélectionnée.
         // Pourquoi : permettre de retirer une base de repli.
+        // Supprime la base sélectionnée.
+        // Pourquoi : maintenir automatiquement les priorités cohérentes.
         private void buttonBaseMoins_Click(object sender, EventArgs e)
         {
             int index = listBoxBasesAlternat.SelectedIndex;
@@ -351,6 +424,8 @@ namespace DCE_Manager
             if (index >= 0)
             {
                 listBoxBasesAlternat.Items.RemoveAt(index);
+
+                SyncBases();
             }
         }
         // Remonte la base sélectionnée d'un cran.
@@ -368,6 +443,7 @@ namespace DCE_Manager
 
                 listBoxBasesAlternat.SelectedIndex = index - 1;
             }
+            SyncBases();
         }
         // Descend la base sélectionnée d'un cran.
         // Pourquoi : modifier la priorité des bases de repli.
@@ -384,30 +460,54 @@ namespace DCE_Manager
 
                 listBoxBasesAlternat.SelectedIndex = index + 1;
             }
+            SyncBases();
         }
         // Quand la base principale change.
-        // Pourquoi : éviter qu'une base alternative soit identique à la base actuelle.
+        // Pourquoi : déplacer cette base en priorité 0.
         private void comboBoxBase_SelectedIndexChanged(object sender, EventArgs e)
         {
             string newBase = comboBoxBase.SelectedItem as string;
 
-            if (string.IsNullOrEmpty(newBase))
+            if (string.IsNullOrWhiteSpace(newBase))
                 return;
 
-            // Supprime si présente dans les alternatives
+            // -------------------------------------------------
+            // Cas mono-base
+            // -------------------------------------------------
+
+            if (listBoxBasesAlternat.Items.Count == 0)
+            {
+                EditedSquad.Base = newBase;
+
+                SquadUpdated?.Invoke();
+
+                return;
+            }
+
+            // -------------------------------------------------
+            // Retire ancienne occurrence
+            // -------------------------------------------------
+
             for (int i = listBoxBasesAlternat.Items.Count - 1; i >= 0; i--)
             {
-                if (string.Equals(listBoxBasesAlternat.Items[i].ToString(), newBase, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(
+                    listBoxBasesAlternat.Items[i].ToString(),
+                    newBase,
+                    StringComparison.OrdinalIgnoreCase))
                 {
                     listBoxBasesAlternat.Items.RemoveAt(i);
                 }
             }
 
-            EditedSquad.Base = newBase;
+            // -------------------------------------------------
+            // Insère en priorité 0
+            // -------------------------------------------------
 
-            SquadUpdated?.Invoke();
+            listBoxBasesAlternat.Items.Insert(0, newBase);
 
+            listBoxBasesAlternat.SelectedIndex = 0;
 
+            SyncBases();
         }
 
         //***********************

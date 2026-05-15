@@ -403,7 +403,7 @@ namespace DCE_Manager
             this.groupBox_Bases.Size = new System.Drawing.Size(616, 130);
             this.groupBox_Bases.TabIndex = 8;
             this.groupBox_Bases.TabStop = false;
-            this.groupBox_Bases.Text = "Alternatives AirBases";
+            this.groupBox_Bases.Text = "Base Priority List";
             // 
             // button_Base_Haut
             // 
