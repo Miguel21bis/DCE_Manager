@@ -7,7 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
-using NLua;
+//using NLua;
 using static DCE_Manager.Utils.FormUtils;
 
 namespace DCE_Manager
@@ -20,15 +20,10 @@ namespace DCE_Manager
             "displayReserve",
             "isActive",
             "taskscoefpourcent",
-            "side"
+            "tasksCoefPourcent",
+            "side",
+            "helicopter"
         };
-
-        //private static int _nextSquadId = 1;
-
-        //private static int GetNextSquadId()
-        //{
-        //    return _nextSquadId++;
-        //}
 
         public List<CampaignSquad> LoadCampaignSquads(string campaignName)
         {
@@ -472,7 +467,7 @@ namespace DCE_Manager
 
 
                                 default:
-                                    // ⚡ ultra important : éviter GetType() (lent)
+                                    //  ultra important : éviter GetType() (lent)
 
                                     if (valObj is Dictionary<string, LuaObject> sub)
                                     {
@@ -485,11 +480,9 @@ namespace DCE_Manager
 
                                         squad.AdditionalProperties[key.Trim()] = dictDef;
 
-                                        //squad.AdditionalProperties[key] = dictDef;
                                     }
                                     else
                                     {
-                                        //squad.AdditionalProperties[key] = valObj;
                                         squad.AdditionalProperties[key.Trim()] = valObj;
                                     }
                                     break;
@@ -519,7 +512,7 @@ namespace DCE_Manager
                         {
                             if (campaignSquad.Init != null)
                             {
-                                FormUtils.LogRegister("⚠️ INIT ECRASÉ: " + squadKey);
+                                FormUtils.LogRegister(" INIT ECRASÉ: " + squadKey);
                             }
 
                             campaignSquad.Init = squad;
@@ -528,7 +521,7 @@ namespace DCE_Manager
                         {
                             if (campaignSquad.Active != null)
                             {
-                                FormUtils.LogRegister("⚠️ ACTIVE ECRASÉ: " + squadKey);
+                                FormUtils.LogRegister(" ACTIVE ECRASÉ: " + squadKey);
                             }
 
                             campaignSquad.Active = squad;
@@ -537,13 +530,11 @@ namespace DCE_Manager
                         if (folderName == "Init")
                         {
                             campaignSquad.Init = squad;
-                            //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Init = squad ");
                         }
                         else
                         {
                             campaignSquad.Active = squad;
-                            //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): campaignSquad.Active = squad ");
-                        }
+                         }
 
 
                         // Ancienne liste conservée pour compatibilité temporaire.
@@ -552,19 +543,16 @@ namespace DCE_Manager
                         LogRegister("squad.Name |" + squad.Name+"|");
                         LogRegister("squadNameKey |" + squadNameKey + "|");
 
-                        if (squad.Name == "77 TFS")
-                        {
-                            LogRegister("ShowClassAndProperty START " + squad.Name);
+                        //if (squad.Name == "77 TFS")
+                        //{
+                        //    LogRegister("ShowClassAndProperty START " + squad.Name);
 
-                            ShowClassAndProperty(squad);
+                        //    ShowClassAndProperty(squad);
 
-                            LogRegister("ShowClassAndProperty END " + squad.Name);
+                        //    LogRegister("ShowClassAndProperty END " + squad.Name);
 
-                        }
+                        //}
 
-
-
-                        //FormUtils.LogRegister("OobAirParser.cs:LoadCampaignSquads(): List_oob_air.Count: " + List_oob_air_Manager.List_oob_air.Count);
                     }
                 }
 

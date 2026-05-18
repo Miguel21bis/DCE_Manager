@@ -40,10 +40,22 @@ namespace DCE_Manager
         public event Action SquadUpdated;
 
 
+
         //CONSTRUCTEUR
         public FormSquadEdit(Squad squad, CampaignContext campaignContext, bool cloneMode = false, String txt="")
         {
             InitializeComponent();
+
+            // Affichage barré des bases inactives
+            // Pourquoi : rendre visuellement cohérentes toutes les listes de bases
+            comboBoxBase.DrawMode = DrawMode.OwnerDrawFixed;
+            comboBoxBase.DrawItem += ComboBoxBase_DrawItem;
+
+            comboBox_All_bases.DrawMode = DrawMode.OwnerDrawFixed;
+            comboBox_All_bases.DrawItem += ComboBoxBase_DrawItem;
+
+            listBoxBasesAlternat.DrawMode = DrawMode.OwnerDrawFixed;
+            listBoxBasesAlternat.DrawItem += ListBoxBasesAlternat_DrawItem;
 
             textBoxName.TextChanged += (s, e) =>
             {
@@ -275,7 +287,6 @@ namespace DCE_Manager
         // Pourquoi : préremplir immédiatement la fenêtre d'édition.
         private void FillControls()
         {
-            //textBoxName.Text = EditedSquad.Name;
             textBoxName.Text = EditedSquad.DisplayName;
 
             comboBoxType.Text = EditedSquad.Type;
@@ -285,14 +296,11 @@ namespace DCE_Manager
 
             checkBoxPlayer.Checked = EditedSquad.Player;
             checkBox_HumainOnly.Checked = EditedSquad.HumainOnly;
-            //checkBoxInactive.Checked = EditedSquad.Squad_Inactive;
             checkBoxActive.Checked = EditedSquad.Squad_Active;
 
             numericNumber.Value = EditedSquad.Number;
-            //numericInitNumber.Value = EditedSquad.InitNumber;
             numericReserve.Value = EditedSquad.Reserve;
-            //numericInitReserve.Value = EditedSquad.InitReserve;
-
+            
             textBox_ModexNb_Min.Text = EditedSquad.SideNumberMin.ToString();
             textBox_ModexNb_Max.Text = EditedSquad.SideNumberMax.ToString();
         }
@@ -312,17 +320,13 @@ namespace DCE_Manager
                 .ToList();
 
             // -------------------------------------------------
-            // Base principale
+            // Base principale = première base ACTIVE
             // -------------------------------------------------
 
-            if (bases.Count > 0)
-            {
-                EditedSquad.Base = bases[0];
-            }
-            else
-            {
-                EditedSquad.Base = null;
-            }
+            string activeBase = bases
+                .FirstOrDefault(b => !IsAirbaseInactive(b));
+
+            EditedSquad.Base = activeBase;
 
             // -------------------------------------------------
             // BaseAlternative
@@ -369,14 +373,7 @@ namespace DCE_Manager
                 return;
             }
 
-            //// -------------------------------------------------
-            //// Cas base unique
-            //// -------------------------------------------------
-
-            //if (!string.IsNullOrWhiteSpace(EditedSquad.Base))
-            //{
-            //    listBoxBasesAlternat.Items.Add(EditedSquad.Base);
-            //}
+           
         }
         // Ajoute une base alternative depuis la comboBox_All_bases.
         // Pourquoi : permettre d'ajouter une base de repli sans doublon ni incohérence.
@@ -386,10 +383,6 @@ namespace DCE_Manager
 
             if (string.IsNullOrEmpty(selectedBase))
                 return;
-
-            //// Interdit : identique à la base principale
-            //if (string.Equals(selectedBase, EditedSquad.Base, StringComparison.OrdinalIgnoreCase))
-            //    return;
 
             // Interdit : doublon
             foreach (var item in listBoxBasesAlternat.Items)
@@ -1634,6 +1627,158 @@ namespace DCE_Manager
                 EditedSquad.Country = comboBoxCountry.SelectedItem.ToString();
 
                 RefreshCallsignList();
+            }
+        }
+
+        // Retourne true si la base est inactive
+        // Pourquoi : centraliser la logique de détection
+        //private bool IsAirbaseInactive(string airbaseName)
+        //{
+        //    if (string.IsNullOrWhiteSpace(airbaseName))
+        //        return false;
+
+        //    if (_campaignContext?.Airbases == null)
+        //        return false;
+
+        //    foreach (var airbase in _campaignContext.Airbases.Values)
+        //    {
+        //        if (string.Equals(
+        //            airbase.Name,
+        //            airbaseName,
+        //            StringComparison.OrdinalIgnoreCase))
+        //        {
+        //            return airbase.Inactive;
+        //        }
+        //    }
+
+        //    return false;
+        //}
+
+        // Vérifie si une base est inactive
+        // Pourquoi : centraliser la logique de détection
+        private bool IsAirbaseInactive(string airbaseName)
+        {
+            if (string.IsNullOrWhiteSpace(airbaseName))
+                return false;
+
+            if (_campaignContext?.Airbases == null)
+                return false;
+
+            foreach (var airbase in _campaignContext.Airbases.Values)
+            {
+                if (string.Equals(
+                    airbase.Name,
+                    airbaseName,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    return airbase.Inactive;
+                }
+            }
+
+            return false;
+        }
+
+        // Dessine les bases alternatives
+        // Pourquoi : afficher les bases inactives en barré
+        //private void listBoxBasesAlternat_DrawItem(object sender, DrawItemEventArgs e)
+        //{
+        //    if (e.Index < 0)
+        //        return;
+
+        //    string text = listBoxBasesAlternat.Items[e.Index].ToString();
+
+        //    e.DrawBackground();
+
+        //    bool inactive = IsAirbaseInactive(text);
+
+        //    Font font = inactive
+        //        ? new Font(e.Font, FontStyle.Strikeout)
+        //        : e.Font;
+
+        //    TextRenderer.DrawText(
+        //        e.Graphics,
+        //        text,
+        //        font,
+        //        e.Bounds,
+        //        e.ForeColor,
+        //        TextFormatFlags.Left);
+
+        //    e.DrawFocusRectangle();
+
+        //    // Important
+        //    if (inactive)
+        //    {
+        //        font.Dispose();
+        //    }
+        //}
+
+        // Dessine les bases alternatives
+        // Pourquoi : barrer les bases inactives
+        private void ListBoxBasesAlternat_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0)
+                return;
+
+            string text = listBoxBasesAlternat.Items[e.Index]?.ToString() ?? "";
+
+            bool inactive = IsAirbaseInactive(text);
+
+            e.DrawBackground();
+
+            Font font = inactive
+                ? new Font(e.Font, FontStyle.Strikeout)
+                : e.Font;
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                text,
+                font,
+                e.Bounds,
+                e.ForeColor,
+                TextFormatFlags.Left);
+
+            e.DrawFocusRectangle();
+
+            if (inactive)
+            {
+                font.Dispose();
+            }
+        }
+
+        // Dessine les bases inactives en barré
+        // Pourquoi : rendre immédiatement visibles les bases inutilisables
+        private void ComboBoxBase_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            if (e.Index < 0)
+                return;
+
+            ComboBox combo = sender as ComboBox;
+
+            string text = combo.Items[e.Index]?.ToString() ?? "";
+
+            bool inactive = IsAirbaseInactive(text);
+
+            e.DrawBackground();
+
+            Font font = inactive
+                ? new Font(e.Font, FontStyle.Strikeout)
+                : e.Font;
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                text,
+                font,
+                e.Bounds,
+                e.ForeColor,
+                TextFormatFlags.Left);
+
+            e.DrawFocusRectangle();
+
+            // IMPORTANT
+            // Pourquoi : éviter fuite GDI
+            if (inactive)
+            {
+                font.Dispose();
             }
         }
 

@@ -10,8 +10,6 @@ namespace DCE_Manager
         private CampaignLuaData _data = new CampaignLuaData();
 
         private static object _cachedLuaResult = null;
-        //private static List<string> _playableList = new List<string>();
-
 
         private static Dictionary<string, object> _cache = new Dictionary<string, object>();
 
@@ -33,13 +31,6 @@ namespace DCE_Manager
 
             object[] result;
 
-            //if (_cachedLuaResult == null)
-            //{
-            //    _cachedLuaResult = lua.DoFile( SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
-            //}
-
-            //result = (object[])_cachedLuaResult;
-
             if (!_cache.ContainsKey(campaignName))
             {
                 _cache[campaignName] = lua.DoFile(
@@ -54,14 +45,9 @@ namespace DCE_Manager
             _data.PlayableAircraft = new HashSet<string>();
             _data.AllPlaneHeli = new HashSet<string>();
             _data.TaskByPlane = new Dictionary<string, List<string>>();
-            //_data.TaskByPlane = new Dictionary<string, Dictionary<string, bool>>();
             _data.CallsignWest = new Dictionary<string, List<string>>();
-            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
-            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, Dictionary<int, string>>>();
             _data.SpecificCallnames = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
 
-
-            //_data.Country = new Dictionary<string, List<string>>();
 
             // -----------------------------------------------------------------
             // Playable aircraft
@@ -153,8 +139,6 @@ namespace DCE_Manager
             // SpecificCallnames
             // -----------------------------------------------------------------
 
-            //_data.SpecificCallnames = new Dictionary<string, Dictionary<string, List<string>>>();
-
             LuaTable specificLua = luaTable["SpecificCallnames"] as LuaTable;
 
             if (specificLua != null)
@@ -167,8 +151,6 @@ namespace DCE_Manager
                     if (countriesTable == null)
                         continue;
 
-                    //var countryDict = new Dictionary<string, List<string>>();
-                    //var countryDict = new Dictionary<string, Dictionary<int, string>>();
                     var countryDict = new Dictionary<string, Dictionary<string, string>>();
 
                     foreach (object countryKey in countriesTable.Keys)
@@ -179,31 +161,9 @@ namespace DCE_Manager
                         if (callSignTable == null)
                             continue;
 
-                        //List<string> list = new List<string>();
-                        //Dictionary<int, string> list = new Dictionary<int, string>();
                         Dictionary<string, string> list = new Dictionary<string, string>();
 
-                        //foreach (object subKey in callSignTable.Keys)
-                        //{
-                        //    object val = callSignTable[subKey];
-                        //    if (val != null)
-                        //    {
-                        //        list.Add(val.ToString());
-                        //    }
-                        //}
-                        //foreach (object subKey in callSignTable.Keys)
-                        //{
-                        //    object val = callSignTable[subKey];
-
-                        //    if (val == null)
-                        //        continue;
-
-                        //    if (int.TryParse(subKey.ToString(), out int luaId))
-                        //    {
-                        //        list[luaId] = val.ToString();
-                        //    }
-                        //}
-                        foreach (object subKey in callSignTable.Keys)
+                         foreach (object subKey in callSignTable.Keys)
                         {
                             object val = callSignTable[subKey];
 
@@ -260,10 +220,6 @@ namespace DCE_Manager
                 }
             }
 
-
-            //FormUtils.LogRegister("CampaignLuaLoader.cs: PlayableAircraft.Count = " + _data.PlayableAircraft.Count);
-
-            //FormUtils.LogRegister("CampaignLuaLoader.cs: TaskByPlane.Count = " +  _data.TaskByPlane.Count);
 
             // Rend les données accessibles globalement
             // Pourquoi : utilisées par le save des callsigns
@@ -390,10 +346,6 @@ namespace DCE_Manager
             return "Automatic";
         }
 
-
     }
-
-
-
 
 }
