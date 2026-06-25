@@ -473,6 +473,8 @@ namespace DCE_Manager
             // 
             // tabControl
             // 
+            this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
             this.tabControl.Controls.Add(this.tabPage1);
             this.tabControl.Controls.Add(this.tabPage16);
             this.tabControl.Controls.Add(this.tabPage3);
@@ -624,9 +626,11 @@ namespace DCE_Manager
             // 
             // dataGridViewCampaigns
             // 
+            this.dataGridViewCampaigns.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewCampaigns.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dataGridViewCampaigns.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewCampaigns.Dock = System.Windows.Forms.DockStyle.Fill;
             this.dataGridViewCampaigns.Location = new System.Drawing.Point(3, 3);
             this.dataGridViewCampaigns.MultiSelect = false;
             this.dataGridViewCampaigns.Name = "dataGridViewCampaigns";
@@ -747,6 +751,7 @@ namespace DCE_Manager
             this.label10.Size = new System.Drawing.Size(97, 16);
             this.label10.TabIndex = 23;
             this.label10.Text = "Select a server";
+            this.label10.Visible = false;
             // 
             // comboBox_Server
             // 
@@ -756,6 +761,7 @@ namespace DCE_Manager
             this.comboBox_Server.Name = "comboBox_Server";
             this.comboBox_Server.Size = new System.Drawing.Size(181, 24);
             this.comboBox_Server.TabIndex = 22;
+            this.comboBox_Server.Visible = false;
             this.comboBox_Server.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
             // 
             // button_Log
@@ -957,7 +963,7 @@ namespace DCE_Manager
             this.ScriptsModUpdateButton.Text = "Update available";
             this.ScriptsModUpdateButton.UseVisualStyleBackColor = true;
             this.ScriptsModUpdateButton.Visible = false;
-            this.ScriptsModUpdateButton.Click += new System.EventHandler(this.CheckUpdate_Click);
+            this.ScriptsModUpdateButton.Click += new System.EventHandler(this.ScriptsModUpdateButton_Click);
             // 
             // ScriptsModAvailableVersion
             // 

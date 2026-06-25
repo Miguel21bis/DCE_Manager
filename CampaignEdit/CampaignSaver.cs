@@ -97,7 +97,7 @@ namespace DCE_Manager
 
                 if (List_oob_air_Manager.List_oob_air.Count == 0)
                 {
-                    MessageBox.Show("Le fichier oob_air est vide, rien à sauvegarder.", "WriteChanedSquad Error A");
+                    MessageBox.Show("Le fichier oob_air est vide, rien à sauvegarder.", "WriteCloneSquad Error A");
                     FormUtils.LogRegister("Le fichier oob_air est vide, rien à sauvegarder.List_oob_air.Count:" + List_oob_air_Manager.List_oob_air.Count);
 
                     return;
@@ -451,7 +451,10 @@ namespace DCE_Manager
                                 if (addProp.Value is Dictionary<string, object> dict)
                                 {
                                     if (dict.Count == 0)
+                                    {
+                                        sb.Append("\t\t\t}," + "\r\n");
                                         continue;
+                                    }
 
                                     foreach (var dictEntry in dict)
                                     {
@@ -530,25 +533,40 @@ namespace DCE_Manager
             // Vérifier si la liste de squads est vide
             if (!List_oob_air_Manager.List_oob_air.Any())
             {
-                MessageBox.Show("Aucune donnée détectée. Le fichier ne sera pas écrasé.", "WriteChanedSquad Error B");
+                MessageBox.Show("Aucune donnée détectée. Le fichier ne sera pas écrasé.", "WriteCloneSquad Error B");
                 return;
             }
 
             // Vérifier si texteFinal contient au moins un bloc de squad
             if (!texteFinal.Contains("\t\t{"))
             {
-                MessageBox.Show("Le fichier généré est vide. Écriture annulée.", "WriteChanedSquad Error C");
+                MessageBox.Show("Le fichier généré est vide. Écriture annulée.", "WriteCloneSquad Error C");
                 return;
             }
 
-            int nbOpen = texteFinal.Count(c => c == '{');
-            int nbClose = texteFinal.Count(c => c == '}');
+            string texteSansCommentaires = string.Join(
+                "\n",
+                texteFinal.Split('\n')
+                  .Select(l =>
+                  {
+                      int pos = l.IndexOf("--");
+                      return pos >= 0 ? l.Substring(0, pos) : l;
+                  })
+                );
+
+            int nbOpen = texteSansCommentaires.Count(c => c == '{');
+            int nbClose = texteSansCommentaires.Count(c => c == '}');
+
+            //int nbOpen = texteFinal.Count(c => c == '{');
+            //int nbClose = texteFinal.Count(c => c == '}');
+
+           
 
             FormUtils.LogRegister($"{{={nbOpen} }}={nbClose}");
 
             if (nbClose != nbOpen)
             {
-                MessageBox.Show("Nb d'accolades {} différent.", "WriteChanedSquad Error D");
+                MessageBox.Show("Nb d'accolades {} différent.nbOpen: " + nbOpen + " nbClose: "+ nbClose + " path " + path, "WriteCloneSquad Error D");
                 return;
             }
 

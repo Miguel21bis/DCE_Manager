@@ -75,12 +75,12 @@ namespace DCE_Manager
 
                 usedIds.Add(newId);
 
-                FormUtils.LogRegister(
-                    "IdSquad auto assigné : " +
-                    squad.Name +
-                    " -> " +
-                    newId
-                );
+                //FormUtils.LogRegister(
+                //    "IdSquad auto assigné : " +
+                //    squad.Name +
+                //    " -> " +
+                //    newId
+                //);
             }
         }
 
@@ -205,9 +205,9 @@ namespace DCE_Manager
                                     squad.Name = valObj?.ToString();
                                     squad.DisplayName = squad.Name; // valeur par défaut
                                     //squad.DisplayName = squad.Name + " [" + folderName + "]";
-                                    FormUtils.LogRegister("squad.Name: " + squad.Name);
-                                    if (squad.Name == "77 TFS")
-                                    { }
+                                    //FormUtils.LogRegister("squad.Name: " + squad.Name);
+                                    //if (squad.Name == "77 TFS")
+                                    //{ }
                                         break;
                                 case "idSquad":
                                     squad.IdSquad = Convert.ToInt32(valObj);

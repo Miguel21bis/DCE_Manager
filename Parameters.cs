@@ -125,6 +125,13 @@ namespace DCE_Manager.Parameters
         public static string FileServDgUpgradeTXT = "";
     }
 
+    public static class ParamUpdate
+    {
+        public static int NbUpdateAvailable = 0;
+    }
+
+
+
     public static class ParamManager
     {
         public static string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
@@ -144,6 +151,21 @@ namespace DCE_Manager.Parameters
     public static class ParamScriptsMod
     {
         public static string verScriptsMod = "0.0.0";
+    }
+
+    public static class ParamGithub
+    {
+        // Dernière version détectée sur GitHub.
+        // Pourquoi : éviter plusieurs appels API inutiles.
+        public static string LastVersion = "";
+
+        // URL de téléchargement de l'asset ScriptsMod.
+        // Pourquoi : réutilisée lors du clic sur Update.
+        public static string DownloadUrl = "";
+
+        // Nom du fichier ZIP.
+        // Pourquoi : utilisé lors du téléchargement.
+        public static string AssetName = "";
     }
 
     public class CampaignSquad

@@ -1418,7 +1418,9 @@ namespace DCE_Manager
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debriefing", false);
                     //Suppression des fichiers dans Debug:
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debug", false);
-                    
+
+                    _form1.LoadCampaigns();
+
                     this.Close();
                 }              
             }
