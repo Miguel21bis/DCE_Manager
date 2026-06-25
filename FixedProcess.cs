@@ -3,8 +3,9 @@ using System.Collections;
 using System.IO;
 using System.Text;
 using System.Threading;
+using System.Diagnostics;
 
-namespace System.Diagnostics
+namespace DCE_Manager
 {
     internal delegate void UserCallBack(string data);
     public delegate void DataReceivedEventHandler(object sender, DataReceivedEventArgs e);
@@ -13,8 +14,9 @@ namespace System.Diagnostics
     {
         internal AsyncStreamReader output;
         internal AsyncStreamReader error;
-        public event DataReceivedEventHandler OutputDataReceived;
-        public event DataReceivedEventHandler ErrorDataReceived;
+
+        public new event DataReceivedEventHandler OutputDataReceived;
+        public new event DataReceivedEventHandler ErrorDataReceived;
 
         public new void BeginOutputReadLine()
         {
@@ -23,7 +25,7 @@ namespace System.Diagnostics
             this.output.BeginReadLine();
         }
 
-        public void BeginErrorReadLine()
+        public new void BeginErrorReadLine()
         {
             Stream baseStream = StandardError.BaseStream;
             this.error = new AsyncStreamReader(this, baseStream, new UserCallBack(this.FixedErrorReadNotifyUser), StandardError.CurrentEncoding);
@@ -288,7 +290,6 @@ namespace System.Diagnostics
                     }
                     continue;
                 }
-                break;
             }
         }
         internal void WaitUtilEOF()

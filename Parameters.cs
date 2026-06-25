@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+//using System.Linq;
+//using System.Text;
+//using System.Threading.Tasks;
 
 namespace DCE_Manager.Parameters
 {
@@ -124,6 +125,13 @@ namespace DCE_Manager.Parameters
         public static string FileServDgUpgradeTXT = "";
     }
 
+    public static class ParamUpdate
+    {
+        public static int NbUpdateAvailable = 0;
+    }
+
+
+
     public static class ParamManager
     {
         public static string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
@@ -144,55 +152,191 @@ namespace DCE_Manager.Parameters
     {
         public static string verScriptsMod = "0.0.0";
     }
+
+    public static class ParamGithub
+    {
+        // Dernière version détectée sur GitHub.
+        // Pourquoi : éviter plusieurs appels API inutiles.
+        public static string LastVersion = "";
+
+        // URL de téléchargement de l'asset ScriptsMod.
+        // Pourquoi : réutilisée lors du clic sur Update.
+        public static string DownloadUrl = "";
+
+        // Nom du fichier ZIP.
+        // Pourquoi : utilisé lors du téléchargement.
+        public static string AssetName = "";
+    }
+
+    public class CampaignSquad
+    {
+        // Identifiant unique du squad dans la campagne.
+        // Pourquoi : un même nom peut exister côté blue et red.
+        public string Key { get; set; }
+
+        public string SideString { get; set; }
+
+        // Données provenant de Init\oob_air_init.lua
+        public Squad Init { get; set; }
+
+        // Données provenant de Active\oob_air.lua
+        public Squad Active { get; set; }
+
+    }
+
+    public static class CampaignSquadTools
+    {
+        // Copie les informations utiles du Active vers Init.
+        // Pourquoi : permettre plus tard "sauver la campagne courante comme nouveau départ".
+        public static void CopyActiveToInit(CampaignSquad campaignSquad)
+        {
+            if (campaignSquad == null ||
+                campaignSquad.Active == null ||
+                campaignSquad.Init == null)
+            {
+                return;
+            }
+
+            if (campaignSquad.Active.Roster != null)
+            {
+                if (campaignSquad.Active.Roster.ContainsKey("ready"))
+                {
+                    campaignSquad.Init.Number =
+                        Convert.ToInt32(campaignSquad.Active.Roster["ready"]);
+                }
+
+                if (campaignSquad.Active.Roster.ContainsKey("reserve"))
+                {
+                    campaignSquad.Init.Reserve =
+                        Convert.ToInt32(campaignSquad.Active.Roster["reserve"]);
+                }
+            }
+
+            campaignSquad.Init.Base = campaignSquad.Active.Base;
+            campaignSquad.Init.Type = campaignSquad.Active.Type;
+            campaignSquad.Init.Player = campaignSquad.Active.Player;
+            campaignSquad.Init.Squad_Inactive = campaignSquad.Active.Squad_Inactive;
+        }
+    }
+
     public class Squad
     {
+        // Retourne une copie superficielle du squad
+        // Pourquoi : simplifier le clonage sans recopier chaque propriété
+        public Squad Clone()
+        {
+            return (Squad)this.MemberwiseClone();
+        }
+
+        // Génère automatiquement un nouveau nom et un nouvel IdSquad
+        // Pourquoi : éviter conflits lors du clonage
+        public void GenerateCloneIdentity(List<Squad> existingSquads)
+        {
+            // -------------------------------------------------
+            // Nouveau nom
+            // -------------------------------------------------
+
+            string baseName = Name;
+
+            int index = 1;
+
+            string newName;
+
+            do
+            {
+                newName = baseName + "-" + index;
+                index++;
+            }
+            while (existingSquads.Any(s =>
+                s.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)));
+
+            Name = newName;
+            DisplayName = newName;
+
+            // -------------------------------------------------
+            // Nouvel ID
+            // -------------------------------------------------
+
+            int maxId = existingSquads.Count > 0
+                ? existingSquads.Max(s => s.IdSquad)
+                : 0;
+
+            IdSquad = maxId + 1;
+        }
 
         public string SideString { get; set; }
         public string FolderFile { get; set; }
         public int IdSquad { get; set; }
         public string Name { get; set; }
-        public bool Inactive { get; set; }
+        public bool Squad_Inactive { get; set; }
         public bool Player { get; set; }
+        public bool HumainOnly { get; set; }
+        
         public string Type { get; set; }
         public string Country { get; set; }
-        public Dictionary<string, object> Livery { get; set; }
         public string Base { get; set; }
         public List<string> BaseAlternative { get; set; }
         public string Skill { get; set; }
-        public Dictionary<string, object> Tasks { get; set; }
-        public Dictionary<string, object> TasksCoef { get; set; }
         public int InitNumber { get; set; }
         public int InitReserve { get; set; }
         public int Number { get; set; }
         public int Reserve { get; set; }
         public Dictionary<string, object> Roster { get; set; }
         public Dictionary<string, object> Score { get; set; }
+        public Dictionary<string, object> parking_id { get; set; }
 
-        public bool IsActive => !Inactive;
+        //public object Livery { get; set; }
+        public Dictionary<int, string> Livery { get; set; }
+        public Dictionary<int, string> LiveryModex { get; set; }
+        public Dictionary<string, bool> Tasks { get; set; }
+        public Dictionary<string, double> TasksCoef { get; set; }
 
-        // Sert pour affichage GRID (Init vs Active)
+        public string Side { get; set; }          // "blue"
+        public string Callsign { get; set; }      // "Uzi"
+        // ID Lua réel du callsign
+        // Pourquoi : DCE sauvegarde un entier et non le texte affiché
+        public int CallsignId { get; set; }
+        public Dictionary<string, object> ScoreLast { get; set; }
+        public Dictionary<string, int> TasksCoefPourcent { get; set; }
+
+        //public List<int> SideNumber { get; set; }
+        // Index 0 = min
+        // Index 1 = max
+        public int SideNumberMin { get; set; }
+        public int SideNumberMax { get; set; }
+
+        // Nom affiché dans l'UI (différent du Name brut Lua)
+        // Pourquoi : gérer les doublons sans casser le matching
+        public string DisplayName { get; set; }
+
+        //public bool Squad_Active => !Squad_Inactive;
+        public bool Squad_Active
+        {
+            get { return !Squad_Inactive; }
+            set { Squad_Inactive = !value; }
+        }
+
+        // Valeur affichée dans la grille colonne "Ready"
+        // Pourquoi : en Active on veut afficher roster.ready dynamiquement
         public int DisplayReady
         {
             get
             {
-                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("ready"))
-                    return Convert.ToInt32(Roster["ready"]);
+                if (Roster == null)
+                    return Number;
+
+                if (Roster.TryGetValue("ready", out object value))
+                {
+                    if (value is int intValue)
+                        return intValue;
+
+                    if (int.TryParse(value.ToString(), out int parsed))
+                        return parsed;
+                }
 
                 return Number;
             }
         }
-
-        public int DisplayReserve
-        {
-            get
-            {
-                if (FolderFile == "Active" && Roster != null && Roster.ContainsKey("reserve"))
-                    return Convert.ToInt32(Roster["reserve"]);
-
-                return Reserve;
-            }
-        }
-
 
         // Dictionnaire pour les propriétés supplémentaires
         public Dictionary<string, object> AdditionalProperties { get; set; }
@@ -203,10 +347,81 @@ namespace DCE_Manager.Parameters
         }
     }
 
+    public class AirbaseInfo
+    {
+        public string Name { get; set; }
+        public string AliasName { get; set; }
+        public string Side { get; set; }
+        public int Elevation { get; set; }
+        public int AirdromeId { get; set; }
+        public bool Divert { get; set; }
+        public bool Inactive { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+
+        public List<RunwayInfo> Runways { get; set; }
+        public List<ParkSpot> ParkAlertSAR { get; set; }
+
+        public Dictionary<string, string> Code { get; set; }
+        public List<double> ATCFrequencies { get; set; }
+
+        public AirbaseInfo()
+        {
+            Runways = new List<RunwayInfo>();
+            ParkAlertSAR = new List<ParkSpot>();
+            Code = new Dictionary<string, string>();
+            ATCFrequencies = new List<double>();
+        }
+    }
+
+
+    public class RunwayInfo
+    {
+        public string Name { get; set; }
+        public double Hdg { get; set; }
+        public bool TrueHdg { get; set; }
+        public int Length { get; set; }
+        public double X { get; set; }
+        public double Y { get; set; }
+    }
+
+    public class ParkSpot
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public bool ReservedAR { get; set; }
+        public bool ReservedSAR { get; set; }
+        public bool Occupied { get; set; }
+    }
+
+
+    public class CampaignLuaData
+    {
+        public static CampaignLuaData Current { get; set; }
+
+        public HashSet<string> PlayableAircraft { get; set; }
+        public HashSet<string> AllPlaneHeli { get; set; }
+        public HashSet<string> TabSquad { get; set; } = new HashSet<string>();
+
+        public Dictionary<string, List<string>> CallsignWest { get; set; }
+
+        //public Dictionary<string, Dictionary<string, Dictionary<int, string>>> SpecificCallnames { get; set; }
+        public Dictionary<string, Dictionary<string, Dictionary<string, string>>> SpecificCallnames { get; set; }
+
+        public Dictionary<string, List<string>> TaskByPlane { get; set; }
+
+        public List<string> Country { get; set; } = new List<string>();
+    }
+
     public static class List_oob_air_Manager
     {
         // Liste publique et statique de squads
         public static List<Squad> List_oob_air { get; set; } = new List<Squad>();
+
+        // Nouvelle liste logique regroupant Init + Active.
+        // Pourquoi : manipuler un seul squad par nom.
+        public static List<CampaignSquad> List_campaignSquads = new List<CampaignSquad>();
+
     }
 
     public static class PublicTable

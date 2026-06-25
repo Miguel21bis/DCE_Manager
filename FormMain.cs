@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Data;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -20,379 +21,59 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Windows.Forms.Design;
+//using DCE_Manager.CampaignEdit;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using Microsoft.VisualBasic.FileIO;
 using NLua;
 using Ookii.Dialogs.WinForms;
 using SearchOption = System.IO.SearchOption;
+using Newtonsoft.Json.Linq;
+using System.Net.Http;
+using Newtonsoft.Json.Linq;
+
+
+//namespace DCE_Manager
+//{
+//    public partial class Form1 : Form
+//    {
+//        // 1. champs privés
+
+//        // 2. propriétés publiques
+
+//        // 3. constructeur
+
+//        // 4. méthodes d'initialisation
+
+//        // 5. méthodes de chargement des données
+
+//        // 6. méthodes DataGridView
+
+//        // 7. méthodes utilitaires
+//    }
+//}
+
 
 namespace DCE_Manager
 {
-
     public partial class Form1 : Form
     {
-        public static Form1 Instance { get; private set; }
-
-        public DataTable dataTable;
-
 
         // Cache des images de campagnes (évite rechargement disque)
         private Dictionary<string, Image> campaignImageCache = new Dictionary<string, Image>();
 
-        private void dataGridViewCampaigns_CellClick(object sender, DataGridViewCellEventArgs e)
-        {
-            // Ignore header
-            if (e.RowIndex < 0 || e.ColumnIndex < 0)
-                return;
+        private bool _isUpdatingState = false;
 
-            if (e.ColumnIndex >= dataGridViewCampaigns.Columns.Count)
-                return;
+        public static Form1 Instance { get; private set; }
 
-            string columnName = dataGridViewCampaigns.Columns[e.ColumnIndex].Name;
+        public DataTable dataTable;
 
-            // Récupérer les infos de la ligne
-            string name = dataGridViewCampaigns.Rows[e.RowIndex].Cells["Name"].Value?.ToString();
+        public string currentState = "Init";
+        public List<Squad> currentSquads = new List<Squad>();
 
-            if (string.IsNullOrEmpty(name))
-                return;
+        private CampaignEdit _currentCampaignEdit;
 
-            string basePath = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\";
-            string folderPath = Path.Combine(basePath, name);
-
-            // 🔥 Actions selon bouton
-            if (columnName == "Image")
-            {
-                CampaignEdit1(null, null, folderPath + "\\" + name, name);
-                return;
-            }
-            else if (columnName == "First")
-            {
-                string batPath = Path.Combine(folderPath, "FirstMission.bat");
-
-                if (File.Exists(batPath))
-                {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = batPath,
-                        WorkingDirectory = folderPath,
-                        UseShellExecute = true
-                    });
-                }
-            }
-            else if (columnName == "Skip")
-            {
-                string batPath = Path.Combine(folderPath, "SkipMission.bat");
-
-                if (File.Exists(batPath))
-                {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = batPath,
-                        WorkingDirectory = folderPath,
-                        UseShellExecute = true
-                    });
-                }
-            }
-            else if (columnName == "Config")
-            {
-                string filePath = Path.Combine(folderPath, @"Init\conf_mod.lua");
-
-                if (File.Exists(filePath))
-                {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = filePath,
-                        UseShellExecute = true
-                    });
-                }
-            }
-            else if (columnName == "Delete")
-            {
-                var confirm = MessageBox.Show(
-                    "Delete campaign " + name + " ?",
-                    "Confirm",
-                    MessageBoxButtons.YesNo
-                );
-
-                if (confirm == DialogResult.Yes)
-                {
-                    try
-                    {
-                        Directory.Delete(folderPath, true);
-
-                        // Recharge la liste
-                        LoadCampaigns();
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("Error: " + ex.Message);
-                    }
-                }
-            }
-            else if (columnName == "Clone")
-            {
-                //string basePath = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns";
-
-                CampaignPlusClickOneEvent(null, null, basePath, name);
-            }
-        }
-
-        // Charge toutes les campagnes (code existant déplacé ici)
-        private void LoadCampaigns()
-        {
-            dataGridViewCampaigns.Rows.Clear();
-
-            var LoadCampaigns = Stopwatch.StartNew();
-
-            int nbCampaign = 0;
-            int A = 0;
-
-            bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-
-            if (folderCampExists)
-            {
-                foreach (string subFolder in Directory.GetDirectories(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns"))
-                {
-
-                    // 🔥 cache local des fichiers (1 lecture max)
-                    string campInitContent = null;
-                    string campStatusContent = null;
-                    string oobAirContent = null;
-
-                    string pathCampInitFile = subFolder + @"\Init\camp_init.lua";
-                    if (File.Exists(pathCampInitFile))
-                        campInitContent = File.ReadAllText(pathCampInitFile);
-
-                    string pathCampstatusFile = subFolder + @"\Active\camp_status.lua";
-                    if (File.Exists(pathCampstatusFile))
-                        campStatusContent = File.ReadAllText(pathCampstatusFile);
-
-                    string path_oob_air;
-
-
-                    // 👉 COPIE ICI TOUT TON CODE ACTUEL DE LA BOUCLE
-                    string[] NameCampTab = subFolder.Split('\\');
-                    string NameCamp = NameCampTab[NameCampTab.Count() - 1];
-
-                    bool folderLocExists = System.IO.Directory.Exists(subFolder);
-
-                    //string VerScriptsMod = "unknown ";
-
-                    bool erreurPath = false;
-                    //string CheckPath_SG = "";
-                    //string CheckPath_DCS = "";
-                    string erreurPathString = "Error path.bat: ";
-
-                    //cherche la version inscrite dans path.bat
-                    string PathBatFile = subFolder + @"\Init\path.bat";
-                    bool fileExistPathBat = File.Exists(PathBatFile);
-
-                    if (fileExistPathBat)
-                    {
-                        if (textBox_DCS.Text != "" & textBox_SavedGames.Text != "")
-                        {
-
-                            string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
-                           "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
-                           "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
-                           "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
-                           "\r\n" +
-                           "\r\n" +
-                           "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
-
-                            System.IO.File.WriteAllText(PathBatFile, textPathBat);
-                        }
-
-
-
-                        nbCampaign++;
-
-                        //Cherche la version de la campagne
-                        //bool CampaignOriginal = false;
-                        string VerCamp = "";
-                        if (campInitContent != null)
-                        {
-                            var match = Regex.Match(campInitContent, @"version\s*=\s*""([^""]+)""");
-                            if (match.Success)
-                                VerCamp = match.Groups[1].Value;
-                        }
-                    
-
-                        //Cherche le nombre de mission joué
-                        //['mission'] = 1,
-                        string NbMission = "0";
-                        if (campStatusContent != null)
-                        {
-                            var match = Regex.Match(campStatusContent, @"mission[""']?\]\s*=\s*(\d+)");
-                            if (match.Success)
-                                NbMission = (Int32.Parse(match.Groups[1].Value) - 1).ToString();
-                        }
-                       
-
-                        //cherche si une campagne doit etre reset a la suite d'un update
-                        var campaignNameTab = new Dictionary<string, string>();
-
-                        string colorFM = "";
-                        string colorSM = "";
-                        if (folderLocExists)
-                        {
-
-                            //string path_oob_air = "";
-                            if (Int32.Parse(NbMission) >= 1)
-                                path_oob_air = subFolder + @"\Active\oob_air.lua";
-                            else
-                                path_oob_air = subFolder + @"\Init\oob_air_init.lua";
-
-                            if (File.Exists(path_oob_air))
-                                oobAirContent = File.ReadAllText(path_oob_air);
-
-
-
-                            string type = "default";
-
-                            if (oobAirContent != null && oobAirContent.Contains("player = true"))
-                            {
-                                var match = Regex.Match(oobAirContent, @"type\s*=\s*""([^""]+)""");
-                                if (match.Success)
-                                    type = match.Groups[1].Value;
-                            }
-                          
-
-                            //check si plusieurs images par type d'avion existe dans le dossier image
-                            string filePNGbyePlane = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + @"\Images\planescreen_" + type + ".png");
-                            string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
-                            string fileBMP = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".bmp";
-
-                            if (File.Exists(filePNGbyePlane))
-                            {
-                                //File.Copy(filePNGbyePlane, filePNG, true);
-                                using (var source = new FileStream(filePNGbyePlane, FileMode.Open, FileAccess.Read))
-                                using (var dest = new FileStream(filePNG, FileMode.Create, FileAccess.Write))
-                                {
-                                    source.CopyTo(dest);
-                                }
-
-                                if (File.Exists(fileBMP))
-                                {
-                                    File.Delete(fileBMP);
-                                }
-
-                            }
-
-
-                            // ✅ Image (avec cache)
-                            Image img = null;
-
-                            string imagePath = filePNG;
-
-                            if (campaignImageCache.ContainsKey(imagePath))
-                            {
-                                img = campaignImageCache[imagePath];
-                            }
-                            else if (File.Exists(imagePath))
-                            {
-                                using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read))
-                                {
-                                    img = Image.FromStream(fs);
-                                }
-                                campaignImageCache[imagePath] = img;
-                            }
-
-                            // ✅ Ajout dans le DataGridView
-
-                            dataGridViewCampaigns.Rows.Add(
-                                null,       // Clone (bouton)
-                                img,        // Image
-                                NameCamp,   // Name
-                                VerCamp,    // Version
-                                NbMission,  // Missions
-                                type,       // Aircraft
-                                null,       // First
-                                null,       // Skip
-                                null,       // Config
-                                null        // Delete
-                            );
-
-                            //dataGridViewCampaigns.Rows.Add(
-                            //    iconClone,
-                            //    img,
-                            //    NameCamp,
-                            //    VerCamp,
-                            //    NbMission,
-                            //    type,
-                            //    iconPlay,
-                            //    iconSkip,
-                            //    iconConfig,
-                            //    iconDelete
-                            //);
-
-                            int rowIndex = dataGridViewCampaigns.Rows.Count - 1;
-
-                            // Exemple : bouton Skip rouge si besoin
-                            if (colorSM == "red")
-                            {
-                                dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
-                            }
-
-                            // Exemple : bouton First rouge
-                            if (colorFM == "red")
-                            {
-                                dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
-                            }
-
-                            A = A + 1;
-
-                        }
-                    }
-                }
-
-            }
-
-            //tabPage2.ResumeLayout();
-
-            LoadCampaigns.Stop();
-            FormUtils.LogRegister($"LoadCampaigns : {LoadCampaigns.ElapsedMilliseconds} ms");
-        }
-
-
-        public string SavedGamesPath
-        {
-            get { return textBox_SavedGames.Text; }
-        }
-
-        private void AjusterLargeurTextBox(TextBox tb)
-        {
-            using (Graphics g = tb.CreateGraphics())
-            {
-                SizeF size = g.MeasureString(tb.Text, tb.Font);
-                tb.Width = (int)size.Width + 10; // marge de 10 pixels
-            }
-        }
-
-        // Méthode qui met à jour la valeur partagée
-        public void UpdateSharedData()
-        {
-            SharedData.comboBox_Config = comboBox_Config.Text;
-            SharedData.textBox_Campaign = textBox_Campaign.Text;
-            SharedData.textBox_DCS = textBox_DCS.Text;
-            SharedData.textBox_SavedGames = textBox_SavedGames.Text;
-            SharedData.textBox_OvGME = textBox_OvGME.Text;
-            SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
-            SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
-
-        }
-
-        //1. CONSTRUCTEUR → uniquement setup UI
-        //public Form1()
-        //{
-        //    InitializeComponent();
-        //    InitGrid();
-        //    InitStyle();
-        //    InitEvents();
-        //}
 
         //constructeur :
         public Form1()
@@ -401,30 +82,8 @@ namespace DCE_Manager
 
             InitializeComponent();
 
-            //############# InitGrid START
-
-            InitGrid();
-            InitStyle();
-
-            dataGridViewCampaigns.CellClick += dataGridViewCampaigns_CellClick;
-
-            dataGridViewCampaigns.RowTemplate.Height = 70;
-
-            dataGridViewCampaigns.DefaultCellStyle.Font = new Font("Segoe UI", 9);
-            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
-
-            dataGridViewCampaigns.EnableHeadersVisualStyles = false;
-            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = SystemColors.Control;
-            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
-
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(45, 45, 48);
-            //dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-
-            dataGridViewCampaigns.GridColor = Color.LightGray;
-
-            dataGridViewCampaigns.BorderStyle = BorderStyle.None;
-
-
+            //*************************
+            InitializeCampaignGrid();
             //*************************
 
             Instance = this;  // Initialiser l'instance statique dans le constructeur
@@ -440,7 +99,6 @@ namespace DCE_Manager
             but_ASTI_Process.Click += (sender, e) => ASTI.but_ASTI_Process_Click(this);
 
             but_GPS_LL.Click += (sender, e) => ASTI.GPS_LL_Click(this);
-
 
 
             tabControl.Selected += new TabControlEventHandler(TabControl1_Selected);
@@ -490,10 +148,7 @@ namespace DCE_Manager
                         while ((line = sr.ReadLine()) != null)
                         {
 
-                            //    // Lire toutes les lignes du fichier
-                            //    foreach (var line in File.ReadLines(pathOptionInstaller))
-                            //{
-                            // Vérifier si la ligne contient une clé-valeur
+                             // Vérifier si la ligne contient une clé-valeur
                             if (!string.IsNullOrWhiteSpace(line) && line.Contains("="))
                             {
                                 // Diviser la ligne à la première occurrence de '=' pour obtenir la clé et la valeur
@@ -556,8 +211,8 @@ namespace DCE_Manager
                             but_ASTI_Open_templateFolder.Visible = true;
                         }
 
-                        
-                        if (entry.Key.StartsWith("config_") && entry.Key.EndsWith("_"))
+
+                       if (entry.Key.StartsWith("config_") && entry.Key.EndsWith("_"))
                         {
                             // Exemple config_2_=toto2
                             // Extraire la partie entre "config_" et "_"
@@ -610,14 +265,6 @@ namespace DCE_Manager
 
                     var dictionaryCopy = new Dictionary<string, string>(ParamConf.configDictionary);
 
-                    //string txt = "";
-                    //foreach (var entry in ParamConf.configMap)
-                    //{
-                    //    txt = txt + entry.Key + " = " + entry.Value + "\r\n";
-                    //}
-                    //MessageBox.Show(txt, "ParamConf.configMap");
-
-
                     foreach (var entry in dictionaryCopy)
                     {
                         
@@ -662,6 +309,8 @@ namespace DCE_Manager
                 }
             }
 
+            _ = CheckGithubScriptsModVersionAsync();
+
             ParamManager.NbLancement++;
 
             //EnvoiStats();
@@ -700,8 +349,9 @@ namespace DCE_Manager
                 comboBox_Server.SelectedItem = "Server 2";
             }
 
-            
 
+            comboBox_Server.Visible = false;
+            //label_Server.Visible = false;
 
             ToolTip toolTip1 = new ToolTip();
             toolTip1.ShowAlways = true;
@@ -990,63 +640,6 @@ namespace DCE_Manager
 
                 sr.Close();
 
-                //string line;
-                //StreamReader sr = new StreamReader(NewsFile);
-
-                //while ((line = sr.ReadLine()) != null)
-                //{
-                //    if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionNews"))
-                //    {
-                //        if (newsRegBox & !System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-                //        {
-                //            NewsBox = NewsBox + line + "\r\n";
-                //        }
-                //        if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStart"))
-                //        {
-                //            newsRegBox = true;
-                //        }
-                //        else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-                //        {
-                //            newsRegBox = false;
-                //        }
-                //        else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsAffiche"))
-                //        {
-                //            //string[] words = line.Split('=');
-                //            //if (words[1].Contains("true"))
-                //            //textBox_NewsAffiche = true;
-                //        }
-                //        else if (newsRegBox == false)
-                //        {
-                //            if (System.Text.RegularExpressions.Regex.IsMatch(line, "="))
-                //            {
-                //                string[] words = line.Split('=');
-                //                string txtLink = words[0];
-                //                string linkFull = words[1];
-
-                //                // Créer et configurer le LinkLabel
-                //                LinkLabel linkLabel = new LinkLabel();
-                //                linkLabel.Text = txtLink;
-                //                linkLabel.LinkArea = new LinkArea(0, 10); // Rendre tout le texte cliquable
-                //                linkLabel.AutoSize = true;
-                //                //linkLabel.Location = new Point(10, 10); // Définir l'emplacement sur le formulaire
-                //                linkLabel.LinkClicked += new LinkLabelLinkClickedEventHandler(FormUtils.LinkLabel_LinkClicked);
-
-                //                // Ajouter le LinkLabel au formulaire
-                //                this.Controls.Add(linkLabel);
-
-
-
-                //                textBox_News.Text = textBox_News.Text + txtLink + "\r\n";
-                //            }
-                //            else
-                //            {
-                //                textBox_News.Text = textBox_News.Text + line + "\r\n";
-                //            }
-
-                //        }
-                //    }
-                //}
-                //sr.Close();
             }
        
         }//public Form1()
@@ -1064,15 +657,6 @@ namespace DCE_Manager
 
             // ===== COLONNE CLONE =====
             AddButtonColumn("Clone", "＋", 40);
-            //var colClone = new DataGridViewButtonColumn()
-            //{
-            //    Name = "Clone",
-            //    Text = "＋",
-            //    UseColumnTextForButtonValue = true,
-            //    Width = 30,
-            //    FlatStyle = FlatStyle.Flat
-            //};
-            //dataGridViewCampaigns.Columns.Add(colClone);
 
             // ===== IMAGE =====
             var colImg = new DataGridViewImageColumn()
@@ -1092,16 +676,24 @@ namespace DCE_Manager
                 AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
             });
 
+            // Colonne pour ouvrir le dossier
+            AddButtonColumn("Folder", "📂", 55);
+
+
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 Name = "Version",
-                Width = 60
+                Width = 60,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+
             });
 
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
                 Name = "Missions",
-                Width = 50
+                Width = 50,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+
             });
 
             dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
@@ -1178,6 +770,28 @@ namespace DCE_Manager
 
             //############# InitGrid END
         }
+
+        // Initialise entièrement le DataGridView des campagnes.
+        // Pourquoi : allège le constructeur et regroupe toute la configuration du grid au même endroit.
+        private void InitializeCampaignGrid()
+        {
+            InitGrid();
+            InitStyle();
+
+            dataGridViewCampaigns.CellClick += dataGridViewCampaigns_CellClick;
+
+            dataGridViewCampaigns.RowTemplate.Height = 70;
+
+            dataGridViewCampaigns.DefaultCellStyle.Font = new Font("Segoe UI", 9);
+            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.Font = new Font("Segoe UI", 9, FontStyle.Bold);
+
+            dataGridViewCampaigns.EnableHeadersVisualStyles = false;
+            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.BackColor = SystemColors.Control;
+            dataGridViewCampaigns.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
+
+            dataGridViewCampaigns.GridColor = Color.LightGray;
+            dataGridViewCampaigns.BorderStyle = BorderStyle.None;
+        }
         private void AddButtonColumn(string name, string text, int width)
         {
             dataGridViewCampaigns.Columns.Add(new DataGridViewButtonColumn()
@@ -1189,15 +803,487 @@ namespace DCE_Manager
                 FlatStyle = FlatStyle.Flat
             });
         }
-        //private void AddImageColumn(string name, int width)
-        //{
-        //    dataGridViewCampaigns.Columns.Add(new DataGridViewImageColumn()
-        //    {
-        //        Name = name,
-        //        Width = width,
-        //        ImageLayout = DataGridViewImageCellLayout.Zoom
-        //    });
-        //}
+
+        private void dataGridViewCampaigns_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            // Ignore header
+            if (e.RowIndex < 0 || e.ColumnIndex < 0)
+                return;
+
+            if (e.ColumnIndex >= dataGridViewCampaigns.Columns.Count)
+                return;
+
+            string columnName = dataGridViewCampaigns.Columns[e.ColumnIndex].Name;
+
+            // Récupérer les infos de la ligne
+            string name = dataGridViewCampaigns.Rows[e.RowIndex].Cells["Name"].Value?.ToString();
+
+            if (string.IsNullOrEmpty(name))
+                return;
+
+            string basePath = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\";
+            string folderPath = Path.Combine(basePath, name);
+
+            if (columnName == "First")
+            {
+                string batPath = Path.Combine(folderPath, "FirstMission.bat");
+
+                if (File.Exists(batPath))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = batPath,
+                        WorkingDirectory = folderPath,
+                        UseShellExecute = true
+                    });
+                }
+
+                return;
+            }
+            else if (columnName == "Skip")
+            {
+                string batPath = Path.Combine(folderPath, "SkipMission.bat");
+
+                if (File.Exists(batPath))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = batPath,
+                        WorkingDirectory = folderPath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            else if (columnName == "Config")
+            {
+                string filePath = Path.Combine(folderPath, @"Init\conf_mod.lua");
+
+                if (File.Exists(filePath))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            else if (columnName == "Delete")
+            {
+                var confirm = MessageBox.Show(
+                    "Delete campaign " + name + " ?",
+                    "Confirm",
+                    MessageBoxButtons.YesNo
+                );
+
+                if (confirm == DialogResult.Yes)
+                {
+                    try
+                    {
+                        Directory.Delete(folderPath, true);
+
+                        // Recharge la liste
+                        LoadCampaigns();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show("Error: " + ex.Message);
+                    }
+                }
+                return; //  IMPORTANT : stoppe ici
+            }
+            else if (columnName == "Clone")
+            {
+                CampaignPlusClickOneEvent(null, null, basePath, name);
+                return;
+            }
+            // Si on clique sur la colonne "Folder"
+            // Ouvre le dossier de la campagne dans l'explorateur Windows
+            else if (columnName == "Folder")
+            {
+                if (Directory.Exists(folderPath))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo()
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = "\"" + folderPath + "\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Campaign folder not found:\r\n" + folderPath,
+                        "Folder",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                }
+            }
+
+            dataGridViewCampaigns.ClearSelection();
+            dataGridViewCampaigns.Rows[e.RowIndex].Selected = true;
+
+            // Coche automatiquement Init ou Active selon le nombre de missions jouées
+            string nbMissionText = dataGridViewCampaigns.Rows[e.RowIndex].Cells["Missions"].Value?.ToString();
+
+            int nbMission = 0;
+            int.TryParse(nbMissionText, out nbMission);
+
+
+            // 1. Charger la campagne AVANT
+            CampaignEdit1(null, null, folderPath + "\\" + name, name);
+
+            // 2. Ensuite seulement appliquer le state UI
+            if (nbMission <= 0)
+            {
+                radioButton_OOB_INIT.Checked = true;
+            }
+            else
+            {
+                radioButton_OOB_ACTIVE.Checked = true;
+
+            }
+
+        }
+
+        // Charge toutes les campagnes (code existant déplacé ici)
+        public void LoadCampaigns()
+        {
+            dataGridViewCampaigns.Rows.Clear();
+
+            var LoadCampaigns = Stopwatch.StartNew();
+
+            int nbCampaign = 0;
+            int A = 0;
+
+            bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
+
+            if (folderCampExists)
+            {
+                foreach (string subFolder in Directory.GetDirectories(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns"))
+                {
+
+                    // 🔥 cache local des fichiers (1 lecture max)
+                    string campInitContent = null;
+                    string campStatusContent = null;
+                    string oobAirContent = null;
+
+                    string pathCampInitFile = subFolder + @"\Init\camp_init.lua";
+                    if (File.Exists(pathCampInitFile))
+                        campInitContent = File.ReadAllText(pathCampInitFile);
+
+                    string pathCampstatusFile = subFolder + @"\Active\camp_status.lua";
+                    if (File.Exists(pathCampstatusFile))
+                        campStatusContent = File.ReadAllText(pathCampstatusFile);
+
+                    string path_oob_air;
+
+
+                    //  COPIE ICI TOUT TON CODE ACTUEL DE LA BOUCLE
+                    string[] NameCampTab = subFolder.Split('\\');
+                    string NameCamp = NameCampTab[NameCampTab.Count() - 1];
+
+                    bool folderLocExists = System.IO.Directory.Exists(subFolder);
+
+                    //cherche la version inscrite dans path.bat
+                    string PathBatFile = subFolder + @"\Init\path.bat";
+                    bool fileExistPathBat = File.Exists(PathBatFile);
+
+                    if (fileExistPathBat)
+                    {
+                        if (textBox_DCS.Text != "" & textBox_SavedGames.Text != "")
+                        {
+
+                            string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                           "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
+                           "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                           "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
+                           "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
+                           "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
+                           "\r\n" +
+                           "\r\n" +
+                           "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
+
+                            System.IO.File.WriteAllText(PathBatFile, textPathBat);
+                        }
+
+
+
+                        nbCampaign++;
+
+                        //Cherche la version de la campagne
+                        //bool CampaignOriginal = false;
+                        string VerCamp = "";
+                        if (campInitContent != null)
+                        {
+                            var match = Regex.Match(campInitContent, @"version\s*=\s*""([^""]+)""");
+                            if (match.Success)
+                                VerCamp = match.Groups[1].Value;
+                        }
+
+
+                        //Cherche le nombre de mission joué
+                        //['mission'] = 1,
+                        string NbMission = "0";
+                        if (campStatusContent != null)
+                        {
+                            var match = Regex.Match(campStatusContent, @"mission[""']?\]\s*=\s*(\d+)");
+                            if (match.Success)
+                                NbMission = (Int32.Parse(match.Groups[1].Value) - 1).ToString();
+                        }
+
+
+                        //cherche si une campagne doit etre reset a la suite d'un update 
+                        //TODO ? non, il faudra sortir "reset si upadate fait"
+                        var campaignNameTab = new Dictionary<string, string>();
+
+                        string colorFM = "";
+                        string colorSM = "";
+                        if (folderLocExists)
+                        {
+
+                            //string path_oob_air = "";
+                            if (Int32.Parse(NbMission) >= 1)
+                                path_oob_air = subFolder + @"\Active\oob_air.lua";
+                            else
+                                path_oob_air = subFolder + @"\Init\oob_air_init.lua";
+
+                            if (File.Exists(path_oob_air))
+                                oobAirContent = File.ReadAllText(path_oob_air);
+
+
+                            string type = "default";
+
+                            if (!string.IsNullOrEmpty(oobAirContent))
+                            {
+                                string content = oobAirContent;
+
+                                // Supprime les commentaires Lua
+                                content = Regex.Replace(content, @"--\[\[.*?\]\]", "", RegexOptions.Singleline);
+                                content = Regex.Replace(content, @"--.*?$", "", RegexOptions.Multiline);
+
+                                // Trouve player = true ou ["player"] = true
+                                Match playerMatch = Regex.Match(
+                                    content,
+                                    @"(?:\[\s*""player""\s*\]|player)\s*=\s*true",
+                                    RegexOptions.IgnoreCase);
+
+                                if (playerMatch.Success)
+                                {
+                                    int playerPos = playerMatch.Index;
+
+                                    // Remonte jusqu'au { du bloc contenant ce player
+                                    int level = 0;
+                                    int blockStart = -1;
+
+                                    for (int i = playerPos; i >= 0; i--)
+                                    {
+                                        if (content[i] == '}')
+                                        {
+                                            level++;
+                                        }
+                                        else if (content[i] == '{')
+                                        {
+                                            if (level == 0)
+                                            {
+                                                blockStart = i;
+                                                break;
+                                            }
+
+                                            level--;
+                                        }
+                                    }
+
+                                    if (blockStart >= 0)
+                                    {
+                                        // Redescend jusqu'à la } correspondante
+                                        level = 1;
+                                        int blockEnd = -1;
+
+                                        for (int i = blockStart + 1; i < content.Length; i++)
+                                        {
+                                            if (content[i] == '{')
+                                                level++;
+                                            else if (content[i] == '}')
+                                                level--;
+
+                                            if (level == 0)
+                                            {
+                                                blockEnd = i;
+                                                break;
+                                            }
+                                        }
+
+                                        if (blockEnd > blockStart)
+                                        {
+                                            string block = content.Substring(blockStart, blockEnd - blockStart + 1);
+
+                                            Match typeMatch = Regex.Match(
+                                                block,
+                                                @"(?:\[\s*""type""\s*\]|type)\s*=\s*""([^""]+)""",
+                                                RegexOptions.IgnoreCase);
+
+                                            if (typeMatch.Success)
+                                                type = typeMatch.Groups[1].Value;
+                                        }
+                                    }
+                                }
+                            }
+
+
+                            //check si plusieurs images par type d'avion existe dans le dossier image
+                            string filePNGbyePlane = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + @"\Images\planescreen_" + type + ".png");
+                            string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
+                            string fileBMP = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".bmp";
+
+                            // Copie l'image spécifique à l'avion vers l'image principale de la campagne.
+                            // Pourquoi : File.Copy utilise l'API native Windows et consomme moins de CPU que CopyTo.
+                            if (File.Exists(filePNGbyePlane))
+                            {
+                                //File.Copy(filePNGbyePlane, filePNG, true);
+                                try
+                                {
+                                    File.Copy(filePNGbyePlane, filePNG, true);
+                                }
+                                catch (IOException)
+                                {
+                                    // ignore si en cours d'utilisation
+                                }
+
+                                if (File.Exists(fileBMP))
+                                {
+                                    File.Delete(fileBMP);
+                                }
+                            }
+
+
+                            // Image (avec cache)
+                            Image img = null;
+                            string imagePath = filePNG;
+
+                            if (campaignImageCache.ContainsKey(imagePath))
+                            {
+                                img = campaignImageCache[imagePath];
+                            }
+                            else if (File.Exists(imagePath))
+                            {
+                                try
+                                {
+                                    var fileInfo = new FileInfo(imagePath);
+                                    if (fileInfo.Length < 100) // seuil sécurité
+                                    {
+                                        throw new Exception("Image corrompue ou vide : " + imagePath);
+                                    }
+
+                                    // 🔵 BONUS → À PLACER ICI (voir explication plus bas)
+                                    //var fileInfo = new FileInfo(imagePath);
+                                    if (fileInfo.Length < 100)
+                                    {
+                                        throw new Exception("Image corrompue ou vide : " + imagePath);
+                                    }
+
+                                    for (int i = 0; i < 3; i++)
+                                    {
+                                        try
+                                        {
+                                            using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                            using (var temp = Image.FromStream(fs))
+                                            {
+                                                img = new Bitmap(temp);
+                                            }
+                                            break;
+                                        }
+                                        catch (IOException)
+                                        {
+                                            System.Threading.Thread.Sleep(50);
+                                        }
+                                    }
+
+                                    // 🔴 sécurité : si après retry img toujours null
+                                    if (img == null)
+                                    {
+                                        throw new Exception("Impossible de charger l'image après plusieurs tentatives : " + imagePath);
+                                    }
+
+                                    campaignImageCache[imagePath] = img;
+                                }
+                                catch (Exception ex)
+                                {
+                                    throw new Exception("Erreur lors du chargement de l'image : " + imagePath, ex);
+                                }
+                            }
+
+                            // Ajout dans le DataGridView
+
+                            dataGridViewCampaigns.Rows.Add(
+                                null,       // Clone (bouton)
+                                img,        // Image
+                                NameCamp,   // Name
+                                null,       // Folder
+                                VerCamp,    // Version
+                                NbMission,  // Missions
+                                type,       // Aircraft
+                                null,       // First
+                                null,       // Skip
+                                null,       // Config
+                                null        // Delete
+                            );
+
+                            int rowIndex = dataGridViewCampaigns.Rows.Count - 1;
+
+                            // Exemple : bouton Skip rouge si besoin
+                            if (colorSM == "red")
+                            {
+                                dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
+                            }
+
+                            // Exemple : bouton First rouge
+                            if (colorFM == "red")
+                            {
+                                dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
+                            }
+
+                            //A = A + 1;
+
+                        }
+                    }
+                }
+
+            }
+
+            //tabPage2.ResumeLayout();
+
+            LoadCampaigns.Stop();
+            FormUtils.LogRegister($"LoadCampaigns : {LoadCampaigns.ElapsedMilliseconds} ms");
+        }
+
+
+        public string SavedGamesPath
+        {
+            get { return textBox_SavedGames.Text; }
+        }
+
+        private void AjusterLargeurTextBox(TextBox tb)
+        {
+            using (Graphics g = tb.CreateGraphics())
+            {
+                SizeF size = g.MeasureString(tb.Text, tb.Font);
+                tb.Width = (int)size.Width + 10; // marge de 10 pixels
+            }
+        }
+
+        // Méthode qui met à jour la valeur partagée
+        public void UpdateSharedData()
+        {
+            SharedData.comboBox_Config = comboBox_Config.Text;
+            SharedData.textBox_Campaign = textBox_Campaign.Text;
+            SharedData.textBox_DCS = textBox_DCS.Text;
+            SharedData.textBox_SavedGames = textBox_SavedGames.Text;
+            SharedData.textBox_OvGME = textBox_OvGME.Text;
+            SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
+            SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
+
+        }
 
         private async Task EnvoiStatsAsync()
         {
@@ -1493,6 +1579,313 @@ namespace DCE_Manager
             }
         }
 
+        // Lit la version locale du ScriptsMod depuis UTIL_Changelog.lua.
+        // Pourquoi : cette version servira de référence pour comparer avec la dernière release GitHub.
+        public string GetLocalScriptsModVersion()
+        {
+            try
+            {
+                string changelogFile =
+                    textBox_SavedGames.Text +
+                    @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
+
+                if (!File.Exists(changelogFile))
+                {
+                    FormUtils.LogRegister(
+                        "UTIL_Changelog.lua introuvable : " +
+                        changelogFile);
+
+                    return "";
+                }
+
+                foreach (string line in File.ReadLines(changelogFile))
+                {
+                    FormUtils.LogRegister("SCAN : " + line);
+
+                    Match match = Regex.Match(
+                        line,
+                        @"versionDCE\[""UTIL_Changelog\.lua""\]\s*=\s*""([^""]+)""");
+
+                    if (match.Success)
+                    {
+                        FormUtils.LogRegister(
+                            "VERSION TROUVEE : " +
+                            match.Groups[1].Value);
+
+                        return match.Groups[1].Value;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(
+                    ex,
+                    "GetLocalScriptsModVersion",
+                    "",
+                    false,
+                    true);
+            }
+
+            return "";
+        }
+
+        // Lit la dernière version publiée sur GitHub.
+        // Pourquoi : déterminer si une mise à jour ScriptsMod est disponible.
+        public async Task<string> GetGithubScriptsModVersion()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add(
+                        "User-Agent",
+                        "DCE_Manager");
+
+                    string json =
+                        await client.GetStringAsync(
+                            "https://api.github.com/repos/Miguel21bis/DCE/releases/latest");
+
+                    JObject release = JObject.Parse(json);
+
+                    string tagName =
+                        release["tag_name"]?.ToString();
+
+                    if (string.IsNullOrWhiteSpace(tagName))
+                        return "";
+
+                    return tagName.TrimStart('v', 'V');
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(
+                    ex,
+                    "GetGithubScriptsModVersion",
+                    "",
+                    false,
+                    true);
+            }
+
+            return "";
+        }
+
+        // Lit la dernière release GitHub et récupère les informations du ZIP.
+        // Pourquoi : préparer le téléchargement automatique du ScriptsMod.
+        public async Task<bool> GetLatestGithubRelease()
+        {
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    client.DefaultRequestHeaders.Add(
+                        "User-Agent",
+                        "DCE_Manager");
+
+                    string json =
+                        await client.GetStringAsync(
+                            "https://api.github.com/repos/Miguel21bis/DCE/releases/latest");
+
+                    JObject release = JObject.Parse(json);
+
+                    ParamGithub.LastVersion = "";
+                    ParamGithub.AssetName = "";
+                    ParamGithub.DownloadUrl = "";
+
+                    ParamGithub.LastVersion =
+                        release["tag_name"]
+                        ?.ToString()
+                        .Replace("v", "");
+
+                    JArray assets =
+                        (JArray)release["assets"];
+
+                    if (assets != null && assets.Count > 0)
+                    {
+                        foreach (JToken asset in assets)
+                        {
+                            string assetName =
+                                asset["name"]?.ToString();
+
+                            if (!string.IsNullOrEmpty(assetName) &&
+                                assetName.Contains("DCE_scriptsMod_") &&
+                                assetName.EndsWith(".zip"))
+                            {
+                                ParamGithub.AssetName = assetName;
+
+                                ParamGithub.DownloadUrl =
+                                    asset["browser_download_url"]?.ToString();
+
+                                break;
+                            }
+                        }
+                    }
+
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.ErrorGeneral_BoxOrLog(
+                    ex,
+                    "GetLatestGithubRelease",
+                    "",
+                    false,
+                    true);
+            }
+
+            return false;
+        }
+
+        // Télécharge la dernière release ScriptsMod.
+        // Pourquoi : récupérer automatiquement le ZIP de la dernière release GitHub.
+        public async Task DownloadLatestScriptsMod()
+        {
+            bool success =
+                await GetLatestGithubRelease();
+
+            if (!success)
+                return;
+
+            if (string.IsNullOrWhiteSpace(ParamGithub.DownloadUrl))
+            {
+                MessageBox.Show(
+                    "Impossible de trouver un ZIP ScriptsMod dans la dernière release.",
+                    "ScriptsMod");
+
+                return;
+            }
+
+            string destinationFile =
+                Path.Combine(
+                    ParamManager.pathManager,
+                    ParamGithub.AssetName);
+
+            using (HttpClient client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Add(
+                    "User-Agent",
+                    "DCE_Manager");
+
+                byte[] data =
+                    await client.GetByteArrayAsync(
+                        ParamGithub.DownloadUrl);
+
+                File.WriteAllBytes(
+                    destinationFile,
+                    data);
+            }
+
+            MessageBox.Show(
+                "Téléchargement terminé :\r\n" +
+                destinationFile,
+                "ScriptsMod");
+        }
+
+        // Compare deux versions DCE.
+        // Pourquoi : déterminer si GitHub propose une version plus récente.
+        public bool IsVersionNewer(string githubVersion, string localVersion)
+        {
+            try
+            {
+                Version github =
+                    new Version(githubVersion);
+
+                Version local =
+                    new Version(localVersion);
+
+                return github > local;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Compare la version locale et GitHub et met à jour les labels.
+        // Pourquoi : afficher immédiatement à l'utilisateur si une mise à jour existe.
+        public async Task CheckGithubScriptsModVersionAsync()
+        {
+            string localVersion = GetLocalScriptsModVersion();
+
+            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod Local Version : " + localVersion); 
+
+            string githubVersion =  await GetGithubScriptsModVersion();
+
+            //ScriptsModVersion.Text = localVersion;
+            ScriptModInstalledVersion.Text = localVersion;
+
+            ScriptsModAvailableVersion.Text = githubVersion;
+
+            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod GitHub Version : " + githubVersion);
+
+
+            bool updateAvailable =
+                IsVersionNewer(githubVersion, localVersion);
+
+            ScriptsModUpdateButton.Visible =
+                updateAvailable;
+
+            FormUtils.LogRegister(
+                "ScriptsMod Update Available : " +
+                updateAvailable);
+
+            FormUtils.LogRegister(
+                "Comparaison : local=" +
+                localVersion +
+                " github=" +
+                githubVersion +
+                " resultat=" +
+                IsVersionNewer(githubVersion, localVersion));
+
+            ParamUpdate.NbUpdateAvailable = 0;
+
+            if (IsVersionNewer(githubVersion, localVersion))
+            {
+                ParamUpdate.NbUpdateAvailable++;
+            }
+
+            if (ParamUpdate.NbUpdateAvailable > 0)
+            {
+                tabControl.TabPages[2].Text =
+                    "Update (" +
+                    ParamUpdate.NbUpdateAvailable +
+                    ")";
+            }
+            else
+            {
+                tabControl.TabPages[2].Text =
+                    "Update";
+            }
+
+        }
+
+
+
+        // Vérifie les versions locale et GitHub.
+        // Pourquoi : préparer le nouveau système de mise à jour.
+        public async Task CheckGithubVersionAsync()
+        {
+            string localVersion =
+                GetLocalScriptsModVersion();
+
+            string githubVersion =
+                await GetGithubScriptsModVersion();
+
+            FormUtils.LogRegister(
+                "ScriptsMod Local Version : " +
+                localVersion);
+
+            FormUtils.LogRegister(
+                "ScriptsMod GitHub Version : " +
+                githubVersion);
+
+            MessageBox.Show(
+                "Local : " + localVersion +
+                "\r\nGitHub : " + githubVersion,
+                "Test Versions");
+        }
+       
+
         void client_DownloadFileCompleted(object se, System.ComponentModel.AsyncCompletedEventArgs ea)
         {
             string contentState = "DownLoad Success!!!";
@@ -1503,631 +1896,635 @@ namespace DCE_Manager
             }
             else
             {
-                CheckVersionScriptsModLocal();
+                //CheckVersionScriptsModLocal();
             }
         }
 
         //presence upgrade.txt, sinon, il le telecharge
-        public void CheckPresenceUpgadeTxtFile()
-        {
-            string upgradelocFile = "upgrade.txt";
-            string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-            bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-            if (!pathManagerExists)
-                try
-                {
-                    System.IO.Directory.CreateDirectory(pathManager);
-                }
-                catch (Exception ex)
-                {
-                    //MessageBox.Show(e.ToString(), "The process failed");
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckPresenceUpgadeTxtFile", pathManager, true, true);
-                }
+        //public void CheckPresenceUpgadeTxtFile()
+        //{
+        //    return; // Ancien système upgrade.txt désactivé
+
+        //    string upgradelocFile = "upgrade.txt";
+        //    string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
+        //    bool pathManagerExists = System.IO.Directory.Exists(pathManager);
+        //    if (!pathManagerExists)
+        //        try
+        //        {
+        //            System.IO.Directory.CreateDirectory(pathManager);
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            //MessageBox.Show(e.ToString(), "The process failed");
+        //            FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckPresenceUpgadeTxtFile", pathManager, true, true);
+        //        }
             
 
-            bool RequisOK = false;
-            bool fileUpdateExists = File.Exists(pathManager + upgradelocFile);
-            FileInfo upgradeInitFileInfo = new FileInfo(pathManager + upgradelocFile);
+        //    bool RequisOK = false;
+        //    bool fileUpdateExists = File.Exists(pathManager + upgradelocFile);
+        //    FileInfo upgradeInitFileInfo = new FileInfo(pathManager + upgradelocFile);
 
-            if (fileUpdateExists && !FormUtils.IsFileLocked(upgradeInitFileInfo))
-            {
-                FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
-                //int size = fInfo.Length;//taille en octets 
-                //MessageBox.Show(fInfo.Length.ToString(), "Info Taille, ce n'est pas la taille qui compte...");
-                if (fInfo.Length < 5000)
-                {
-                    //TODO regarder les droits avant de tenter une suppression
-                    File.Delete(pathManager + upgradelocFile);
-                    fileUpdateExists = false;
-                }
-            }
+        //    if (fileUpdateExists && !FormUtils.IsFileLocked(upgradeInitFileInfo))
+        //    {
+        //        FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
+        //        //int size = fInfo.Length;//taille en octets 
+        //        //MessageBox.Show(fInfo.Length.ToString(), "Info Taille, ce n'est pas la taille qui compte...");
+        //        if (fInfo.Length < 5000)
+        //        {
+        //            //TODO regarder les droits avant de tenter une suppression
+        //            File.Delete(pathManager + upgradelocFile);
+        //            fileUpdateExists = false;
+        //        }
+        //    }
 
-            if (fileUpdateExists)
-            {
-                //DateTime fInfo = DateTime.Now;
-                FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
-                int size = unchecked((int)fInfo.Length);                                    //taille en octets  
-                                                                                            //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(2))      //debug
-                                                                                            //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(60))
-                if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddDays(1))
-                {
-                    //FormUtils.LogRegister("LogRegister 313 Check RequisOK size: "
-                    //        + size.ToString() + " Now? >= "
-                    //        + DateTime.Now.ToString()
-                    //        + fInfo.LastWriteTime.ToString() + " AddDays(1)? "
-                    //        + fInfo.LastWriteTime.AddDays(1));
-                    RequisOK = true;
-                }
-            }
+        //    if (fileUpdateExists)
+        //    {
+        //        //DateTime fInfo = DateTime.Now;
+        //        FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
+        //        int size = unchecked((int)fInfo.Length);                                    //taille en octets  
+        //                                                                                    //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(2))      //debug
+        //                                                                                    //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(60))
+        //        if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddDays(1))
+        //        {
+        //            //FormUtils.LogRegister("LogRegister 313 Check RequisOK size: "
+        //            //        + size.ToString() + " Now? >= "
+        //            //        + DateTime.Now.ToString()
+        //            //        + fInfo.LastWriteTime.ToString() + " AddDays(1)? "
+        //            //        + fInfo.LastWriteTime.AddDays(1));
+        //            RequisOK = true;
+        //        }
+        //    }
             
-            if (!fileUpdateExists | RequisOK)
-            {
-                //telecharge le fichier contenant les mises à jour possible
-                using (WebClient client = new WebClient())
-                {
-                    try
-                    {
-                        //client.DownloadFile(ParamServ.FileServDgUpgradeTXT, pathManager + upgradelocFile);
-
-                        //client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
-                        client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(client_DownloadFileCompleted);
-                        client.DownloadFileAsync(new Uri(ParamServ.FileServDgUpgradeTXT), pathManager + upgradelocFile);
-
-                        FormUtils.LogRegister("Download upgrade.txt ");
-
-                    }
-                    catch (Exception ex)
-                    {                   
-
-                        //string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, FileServDgUpgradeTXT: {ParamServ.FileServDgUpgradeTXT}";
-                        //FormUtils.LogRegister("Error in LogRegister: " + errorDetails);
-
-                        //MessageBox.Show("Failed to download upgrade.txt ", "Report");
-                        //MessageBox.Show("Failed to download upgrade.txt " +"\r\n" +
-                        //                errorDetails, "Error");
-
-                        FormUtils.ErrorGeneral_BoxOrLog(ex, "Failed to download upgrade.txt", ParamServ.FileServDgUpgradeTXT, true, true);
-
-                        return;
-                    }
-                    client.Dispose();
-                }
-            }
-            //else
-            //{
-                CheckVersionScriptsModLocal();
-            //}
-        }
-
-        public void CheckVersionScriptsModLocal()
-        {
-            string upgradelocFile = "upgrade.txt";
-            string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-
-
-            if (string.IsNullOrWhiteSpace(pathManager))
-            {
-                #if DEBUG
-                    throw new ArgumentException("Le chemin pathManager est NULL ou vide !");
-                #else
-                  FormUtils.LogRegister("Le chemin pathManager est NULL ou vide " + pathManager);
-                #endif
-            }
-
-            if (string.IsNullOrWhiteSpace(upgradelocFile))
-            {
-                #if DEBUG
-                    throw new ArgumentException("Le nom du fichier upgradelocFile est NULL ou vide !");
-                #else
-                     FormUtils.LogRegister("Le nom du fichier upgradelocFile est NULL ou vide " + upgradelocFile);
-                #endif
-            }
-
-
-
-            bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-
-            //string str = "1.1.1";
-            //Version DceManagerVer = new Version(str);
-
-            Version DceManagerVer = Assembly.GetExecutingAssembly().GetName().Version;
-            String.Format("{0}.{1}.{2}", DceManagerVer.Major, DceManagerVer.Minor, DceManagerVer.Build);
-
-            int AvailableMajor = 0;
-            int AvailableMinor = 0;
-            int AvailableBuild = 0;
-
-            int FileServer_major = 0;
-            int FileServer_minor = 0;
-            int FileServer_build = 0;
-
-            string pathManagerPlusFile = pathManager + upgradelocFile;
-
-
-            if (pathManagerPlusFile.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-            {
-#if DEBUG
-                     throw new ArgumentException($"Le chemin pathManager contient des caractères interdits : {pathManagerPlusFile}");
-#else
-                   FormUtils.LogRegister($"Le chemin pathManagerPlusFile contient des caractères interdits : {pathManagerPlusFile}");
-#endif
-            }
-
-
-            bool upgradeFileExists = File.Exists(pathManagerPlusFile);
-
-            FileInfo upgradeFileInfo = new FileInfo(pathManagerPlusFile);
-
-            bool upToDate = true;
-            bool DcemanagUpToDate = true;
-
-            // parse le fichier upgrade pour connaitre la version DCE
-            //if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
-            if (upgradeFileExists)
-            {
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathManagerPlusFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            string lineClean = line.Replace(" ", "");
-                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                  //ne prend pas en compte les lignes commençant par --
-                            {
-                                //DEVversionDCE.ScriptsMod = "20.44.71"
-                                if (lineClean.Contains("versionDCE.ScriptsMod="))
-                                {
-                                    //recherche la version de DCE
-                                    lineClean = lineClean.Replace("\"", "");
-                                    lineClean = lineClean.Replace("versionDCE.ScriptsMod=", "");
-
-                                    string[] words = lineClean.Split('.');
-                                    AvailableMajor = Int32.Parse(words[0]);
-                                    AvailableMinor = Int32.Parse(words[1]);
-                                    AvailableBuild = Int32.Parse(words[2]);
-                                }
-                                else if (lineClean.Contains("versionManager="))
-                                {
-                                    //recherche la version de DCE
-                                    lineClean = lineClean.Replace(" ", "");
-                                    lineClean = lineClean.Replace("versionManager=", "");
-                                    lineClean = lineClean.Replace("\"", "");
-
-                                    string[] words = lineClean.Split('.');
-                                    FileServer_major = Int32.Parse(words[0]);
-                                    FileServer_minor = Int32.Parse(words[1]);
-                                    FileServer_build = Int32.Parse(words[2]);
-                                }
-                            }
-                        }
-                        ScriptsModAvailableVersion.Text = AvailableMajor + "." + AvailableMinor + "." + AvailableBuild;
-                        ScriptsModAvailableVersion.Update();
-                        DceManagerAvailableVersion.Text = FileServer_major + "." + FileServer_minor + "." + FileServer_build;
-                        DceManagerAvailableVersion.Update();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
-                }
-            }
-
-            string folderLoc ;
-            string TypeClient = "NG";
-
-            folderLoc = textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod." + TypeClient + @"\";
-
-            if (string.IsNullOrWhiteSpace(folderLoc))
-            {
-#if DEBUG
-                    throw new ArgumentException("Le chemin folderLoc est NULL ou vide !");
-#else
-                  FormUtils.LogRegister("Le chemin folderLoc est NULL ou vide " + folderLoc);
-#endif
-            }
-
-             bool folderLocExists = System.IO.Directory.Exists(folderLoc);
-
-
-            if (!folderLocExists)
-            {
-                //System.IO.Directory.CreateDirectory(folderLoc);
-                try
-                {
-                    System.IO.Directory.CreateDirectory(folderLoc);
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-                }
-            }
-
-            ////test la presence du dossier "db_loadouts"
-            //if (!System.IO.Directory.Exists(folderLoc + @"\db_loadouts")) 
-            //{
-            //    try
-            //    {
-            //        System.IO.Directory.CreateDirectory(folderLoc + @"\db_loadouts");
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-            //    }
-            //}
-
-            //test la presence du dossier "Mission Scripts"
-            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts"))
-            {
-               try
-                {
-                    System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-                }
-            }
-
-
-            //compare les versions de tous les fichiers
-            if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
-            {
-
-                int nbFileToUpdat = 0;
-                ParamDownload.NbFileOutToDate = 0;
-
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-
-                            //string lineClean = line.Replace(" ", "");
-                            string lineClean = line;
-                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
-                            {
-
-                                //Ne traite que les fichiers versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                                //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-
-                                string fileName = "";
-                                string FileRefDate = "";
-                                int[] FileRefVersion = new int[3];
-
-                                if (lineClean.Contains("versionDCE[\""))
-                                {
-                                    //versionDCE.ScriptsMod = "20.43.70"
-                                    //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-                                    //recherche les fichiers à mettre à jour
-
-                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
-                                    //lineClean = lineClean.Replace("/view?usp=sharing", "");
-
-                                    if (lineClean.IndexOf("/view?") > -1)
-                                    {
-                                        string[] partView = lineClean.Split('/');
-                                        lineClean = partView[0];
-                                    }
-
-                                    lineClean = lineClean.Replace("\"", "");
-                                    string[] part = lineClean.Split('=');
-                                    part[1] = part[1].TrimEnd();
-                                    part[1] = part[1].TrimStart();
-
-                                    if (part.Length >= 3)
-                                    {
-                                        part[2] = part[2].TrimEnd();
-                                        part[2] = part[2].TrimStart();
-                                    }
-
-
-                                    string[] pre = part[0].Split('[');
-                                    string[] post = pre[1].Split(']');
-                                    fileName = post[0];
-                                    fileName = fileName.TrimEnd();
-                                    fileName = fileName.TrimStart();
-
-                                    //remet le caractere \ a la place du | pour tous
-                                    fileName = fileName.Replace("|", "\\");
-
-                                    //remet l'espace du path "Mission Scripts" préalablement supprimé
-                                    if (fileName.Contains("MissionScripts"))
-                                    {
-                                        fileName = fileName.Replace("MissionScripts", "Mission Scripts");
-                                        //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-                                        //fileName = fileName.Replace("|", "\\");
-                                    }
-                                    ////remet l'espace du path "Mission Scripts" préalablement supprimé
-                                    //if (fileName.Contains("db_loadouts"))
-                                    //{
-                                    //    //remet le caractere \ a la place du | pour les  "db_loadouts" 
-                                    //    fileName = fileName.Replace("|", "\\");
-                                    //}
-                                    //else if (fileName.Contains("Mission Scripts"))
-                                    //{
-                                    //    //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-                                    //    fileName = fileName.Replace("|", "\\");
-                                    //}
-
-                                    if (part[1].Contains("."))
-                                    {
-                                        string[] tempRefVersion = part[1].Split('.');
-
-                                        FileRefVersion[0] = Int32.Parse(tempRefVersion[0]);
-                                        FileRefVersion[1] = Int32.Parse(tempRefVersion[1]);
-                                        FileRefVersion[2] = Int32.Parse(tempRefVersion[2]);
-
-                                    }
-                                    else if (part[1].Contains(":") & part[1].Contains("/"))
-                                    {
-                                        //31/03/2021 09:37:31
-                                        //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
-
-                                        FileRefDate = part[1];
-                                    }
-                                }
-
-                                if (!String.IsNullOrEmpty(fileName))
-                                {
-
-                                    bool fichierSain = true;
-                                    bool fileLocExists = File.Exists(folderLoc + fileName);
-                                    string ext = "";
-
-                                    int FileLoc_major = 0;
-                                    int FileLoc_minor = 0;
-                                    int FileLoc_build = 0;
-
-                                    Boolean fileLocDateNeedUpdate = false;
-                                    Boolean isLuaTxtFile = false;
-
-                                    //FormUtils.LogRegister("DEBUG filename raw |" + fileName + "|");
-
-                                    //foreach (char c in fileName)
-                                    //{
-                                    //    if (Path.GetInvalidFileNameChars().Contains(c))
-                                    //        FormUtils.LogRegister("INVALID CHAR : " + (int)c);
-                                    //}
-
-                                    FileInfo fInfo = new FileInfo(folderLoc + fileName);
-                                    //int size = fInfo.Length;//taille en octets 
-
-                                    if (fileLocExists)
-                                    {
-                                        if (fInfo.Length < 1)
-                                            fichierSain = false;
-
-                                        ext = Path.GetExtension(folderLoc + fileName);
-
-                                    }
-
-                                    if (ext == ".lua" | ext == ".txt")
-                                    {
-                                        isLuaTxtFile = true;
-
-                                        if (fileLocExists && fichierSain)
-                                        {
-                                            string FileToRead = folderLoc + fileName;
-                                            using (StreamReader ReaderObject = new StreamReader(FileToRead))
-                                            {
-
-                                                string Line;
-                                                while ((Line = ReaderObject.ReadLine()) != null)
-                                                {
-                                                    Line = Line.Replace(" ", "");
-                                                    //versionDCE.ATO_FlightPlan = "1.38.107"
-                                                    if (Line.Contains("versionDCE["))
-                                                    {
-                                                        //placer ici le code pour virer le commentaire : --48CEF tout ça
-                                                        if (Line.IndexOf("--") > -1)
-                                                        {
-                                                            Line = Line.Substring(0, Line.IndexOf("--"));
-                                                        }
-
-                                                        Line = Line.Replace("\"", "");
-                                                        string[] part = Line.Split('=');
-                                                        string[] tempVersion = part[1].Split('.');
-
-                                                        FileLoc_major = Int32.Parse(tempVersion[0]);
-                                                        FileLoc_minor = Int32.Parse(tempVersion[1]);
-                                                        FileLoc_build = Int32.Parse(tempVersion[2]);
-
-                                                        //FormUtils.LogRegister("LogRegister 1351 folderLoc, |"+ fileToRead + "| " + FileLoc_major + "| " + FileLoc_minor + "| " + FileLoc_build + "| ");
-
-
-                                                        break;
-                                                    }
-                                                    //else
-                                                    //{
-                                                    //    ExistVersion = false;
-                                                    //}
-                                                }
-                                            }
-                                        }
-
-                                    }
-                                    else
-                                    //autres fichiers de type ogg png
-                                    {
-                                        DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + fileName);
-
-                                        if (FileRefDate != "")
-                                        {
-                                            //FormUtils.LogRegister("fileUpdateArray[nbFileToUpdat, 5]?  |" + fileUpdateArray[nbFileToUpdat, 5].ToString() + "| ");
-
-                                            //31/03/2021 09:37:31
-                                            DateTime dt_RefFile = DateTime.ParseExact(FileRefDate, "dd/MM/yyyy HH:mm:ss",
-                                                System.Globalization.CultureInfo.InvariantCulture);
-
-                                            if (dt_RefFile > dtFileLoc)
-                                            {
-                                                fileLocDateNeedUpdate = true;
-                                            }
-                                            else
-                                            {
-                                                fileLocDateNeedUpdate = false;
-                                            }
-                                        }
-                                    }
-
-
-                                    if (FileRefVersion[0] > FileLoc_major || FileRefVersion[1] > FileLoc_minor || FileRefVersion[2] > FileLoc_build || (!isLuaTxtFile && fileLocDateNeedUpdate) || !fileLocExists)
-                                    {
-
-                                        FormUtils.LogRegister("LogRegister 1394 this file is not up to date, or is missing  |" + fileName + "| ");
-
-                                        nbFileToUpdat++;
-                                    }
-
-                                    //if (fileDate)
-                                    //{
-
-                                    //}
-
-                                }
-                                //else
-                                //{
-                                //    FormUtils.LogRegister("LogRegister 1479 this file is not up to date, or is missing  |" + fileName + "| ");
-
-                                //    nbFileToUpdat++;
-                                //}
-
-                                //**********************************
-                                //check la version de DCE_Manager
-                                //*********************************
-
-                                //versionManager = "3.7.5"
-                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
-                                //if (lineClean.Contains("versionDCE[\""))
-                                if (lineClean.Contains("versionManager") && !lineClean.Contains("versionManagerGoogleDrive"))
-                                {
-                                    //recherche la version de DCE
-                                    lineClean = lineClean.Replace(" ", "");
-                                    lineClean = lineClean.Replace("versionManager=", "");
-                                    lineClean = lineClean.Replace("\"", "");
-
-                                    string[] words = lineClean.Split('.');
-                                    FileServer_major = Int32.Parse(words[0]);
-                                    FileServer_minor = Int32.Parse(words[1]);
-                                    FileServer_build = Int32.Parse(words[2]);
-
-                                    if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
-                                    {
-                                        FormUtils.LogRegister("LogRegister 1426 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
-
-
-                                        DcemanagUpToDate = false;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (nbFileToUpdat > 0)
-                    {
-                        FormUtils.LogRegister("LogRegister 1438 Number of out-of-date files:   |" + nbFileToUpdat + "| ");
-                        upToDate = false;
-                        ParamDownload.NbFileOutToDate = nbFileToUpdat;
-                    }
-                    if (DcemanagUpToDate == false)
-                    {
-                        ParamDownload.NbFileOutToDate = ParamDownload.NbFileOutToDate + 1;
-                    }
-                }
-
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
-                }
-            }
-
-            int major = 0;
-            int minor = 0;
-            int build = 0;
-            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
-
-            if (File.Exists((textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua")))
-            {
-                using (StreamReader reader = new StreamReader(textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua"))
-                {
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-
-                        string lineClean = line.Replace(" ", "");
-                        if (!String.IsNullOrEmpty(lineClean))              //&& lineClean.Substring(0, 2) != "--"                                                 //ne prend pas en compte les lignes commençant par --
-                        {
-                            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
-                            if (lineClean.Contains("versionDCE["))
-                            {
-                                //recherche la version de DCE
-                                lineClean = lineClean.Replace("\"", "");
-                                if (lineClean.Contains("versionDCE[UTIL_Changelog.txt"))
-                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.txt]=", "");
-
-                                if (lineClean.Contains("versionDCE[UTIL_Changelog.lua"))
-                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.lua]=", "");
-
-                                string[] words = lineClean.Split('.');
-                                major = Int32.Parse(words[0]);
-                                minor = Int32.Parse(words[1]);
-                                build = Int32.Parse(words[2]);
-                            }
-                        }
-                    }
-                    reader.Close();
-                }
-            }
-
-            string tempLocVersion = major.ToString() + "." + minor.ToString() + "." + build.ToString();
-
-            ParamScriptsMod.verScriptsMod = tempLocVersion;
+        //    if (!fileUpdateExists | RequisOK)
+        //    {
+        //        //telecharge le fichier contenant les mises à jour possible
+        //        using (WebClient client = new WebClient())
+        //        {
+        //            try
+        //            {
+        //                //client.DownloadFile(ParamServ.FileServDgUpgradeTXT, pathManager + upgradelocFile);
+
+        //                //client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
+        //                client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(client_DownloadFileCompleted);
+        //                client.DownloadFileAsync(new Uri(ParamServ.FileServDgUpgradeTXT), pathManager + upgradelocFile);
+
+        //                FormUtils.LogRegister("Download upgrade.txt ");
+
+        //            }
+        //            catch (Exception ex)
+        //            {                   
+
+        //                //string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, FileServDgUpgradeTXT: {ParamServ.FileServDgUpgradeTXT}";
+        //                //FormUtils.LogRegister("Error in LogRegister: " + errorDetails);
+
+        //                //MessageBox.Show("Failed to download upgrade.txt ", "Report");
+        //                //MessageBox.Show("Failed to download upgrade.txt " +"\r\n" +
+        //                //                errorDetails, "Error");
+
+        //                FormUtils.ErrorGeneral_BoxOrLog(ex, "Failed to download upgrade.txt", ParamServ.FileServDgUpgradeTXT, true, true);
+
+        //                return;
+        //            }
+        //            client.Dispose();
+        //        }
+        //    }
+        //    //else
+        //    //{
+        //        CheckVersionScriptsModLocal();
+        //    //}
+        //}
+
+//        public void CheckVersionScriptsModLocal()
+//        {
+//            return; // Ancien système version fichier par fichier désactivé
+
+//            string upgradelocFile = "upgrade.txt";
+//            string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
+
+
+//            if (string.IsNullOrWhiteSpace(pathManager))
+//            {
+//                #if DEBUG
+//                    throw new ArgumentException("Le chemin pathManager est NULL ou vide !");
+//                #else
+//                  FormUtils.LogRegister("Le chemin pathManager est NULL ou vide " + pathManager);
+//                #endif
+//            }
+
+//            if (string.IsNullOrWhiteSpace(upgradelocFile))
+//            {
+//                #if DEBUG
+//                    throw new ArgumentException("Le nom du fichier upgradelocFile est NULL ou vide !");
+//                #else
+//                     FormUtils.LogRegister("Le nom du fichier upgradelocFile est NULL ou vide " + upgradelocFile);
+//                #endif
+//            }
+
+
+
+//            bool pathManagerExists = System.IO.Directory.Exists(pathManager);
+
+//            //string str = "1.1.1";
+//            //Version DceManagerVer = new Version(str);
+
+//            Version DceManagerVer = Assembly.GetExecutingAssembly().GetName().Version;
+//            String.Format("{0}.{1}.{2}", DceManagerVer.Major, DceManagerVer.Minor, DceManagerVer.Build);
+
+//            int AvailableMajor = 0;
+//            int AvailableMinor = 0;
+//            int AvailableBuild = 0;
+
+//            int FileServer_major = 0;
+//            int FileServer_minor = 0;
+//            int FileServer_build = 0;
+
+//            string pathManagerPlusFile = pathManager + upgradelocFile;
+
+
+//            if (pathManagerPlusFile.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
+//            {
+//#if DEBUG
+//                     throw new ArgumentException($"Le chemin pathManager contient des caractères interdits : {pathManagerPlusFile}");
+//#else
+//                   FormUtils.LogRegister($"Le chemin pathManagerPlusFile contient des caractères interdits : {pathManagerPlusFile}");
+//#endif
+//            }
+
+
+//            bool upgradeFileExists = File.Exists(pathManagerPlusFile);
+
+//            FileInfo upgradeFileInfo = new FileInfo(pathManagerPlusFile);
+
+//            bool upToDate = true;
+//            bool DcemanagUpToDate = true;
+
+//            // parse le fichier upgrade pour connaitre la version DCE
+//            //if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
+//            if (upgradeFileExists)
+//            {
+//                try
+//                {
+//                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+//                    using (FileStream fs = new FileStream(pathManagerPlusFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+//                    using (StreamReader sr = new StreamReader(fs))
+//                    {
+
+//                        string line;
+//                        while ((line = sr.ReadLine()) != null)
+//                        {
+//                            string lineClean = line.Replace(" ", "");
+//                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                  //ne prend pas en compte les lignes commençant par --
+//                            {
+//                                //DEVversionDCE.ScriptsMod = "20.44.71"
+//                                if (lineClean.Contains("versionDCE.ScriptsMod="))
+//                                {
+//                                    //recherche la version de DCE
+//                                    lineClean = lineClean.Replace("\"", "");
+//                                    lineClean = lineClean.Replace("versionDCE.ScriptsMod=", "");
+
+//                                    string[] words = lineClean.Split('.');
+//                                    AvailableMajor = Int32.Parse(words[0]);
+//                                    AvailableMinor = Int32.Parse(words[1]);
+//                                    AvailableBuild = Int32.Parse(words[2]);
+//                                }
+//                                else if (lineClean.Contains("versionManager="))
+//                                {
+//                                    //recherche la version de DCE
+//                                    lineClean = lineClean.Replace(" ", "");
+//                                    lineClean = lineClean.Replace("versionManager=", "");
+//                                    lineClean = lineClean.Replace("\"", "");
+
+//                                    string[] words = lineClean.Split('.');
+//                                    FileServer_major = Int32.Parse(words[0]);
+//                                    FileServer_minor = Int32.Parse(words[1]);
+//                                    FileServer_build = Int32.Parse(words[2]);
+//                                }
+//                            }
+//                        }
+//                        ScriptsModAvailableVersion.Text = AvailableMajor + "." + AvailableMinor + "." + AvailableBuild;
+//                        ScriptsModAvailableVersion.Update();
+//                        DceManagerAvailableVersion.Text = FileServer_major + "." + FileServer_minor + "." + FileServer_build;
+//                        DceManagerAvailableVersion.Update();
+//                    }
+//                }
+//                catch (Exception ex)
+//                {
+//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
+//                }
+//            }
+
+//            string folderLoc ;
+//            string TypeClient = "NG";
+
+//            folderLoc = textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod." + TypeClient + @"\";
+
+//            if (string.IsNullOrWhiteSpace(folderLoc))
+//            {
+//#if DEBUG
+//                    throw new ArgumentException("Le chemin folderLoc est NULL ou vide !");
+//#else
+//                  FormUtils.LogRegister("Le chemin folderLoc est NULL ou vide " + folderLoc);
+//#endif
+//            }
+
+//             bool folderLocExists = System.IO.Directory.Exists(folderLoc);
+
+
+//            if (!folderLocExists)
+//            {
+//                //System.IO.Directory.CreateDirectory(folderLoc);
+//                try
+//                {
+//                    System.IO.Directory.CreateDirectory(folderLoc);
+//                }
+//                catch (Exception ex)
+//                {
+//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
+//                }
+//            }
+
+//            ////test la presence du dossier "db_loadouts"
+//            //if (!System.IO.Directory.Exists(folderLoc + @"\db_loadouts")) 
+//            //{
+//            //    try
+//            //    {
+//            //        System.IO.Directory.CreateDirectory(folderLoc + @"\db_loadouts");
+//            //    }
+//            //    catch (Exception ex)
+//            //    {
+//            //        FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
+//            //    }
+//            //}
+
+//            //test la presence du dossier "Mission Scripts"
+//            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts"))
+//            {
+//               try
+//                {
+//                    System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
+//                }
+//                catch (Exception ex)
+//                {
+//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
+//                }
+//            }
+
+
+//            //compare les versions de tous les fichiers
+//            if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
+//            {
+
+//                int nbFileToUpdat = 0;
+//                ParamDownload.NbFileOutToDate = 0;
+
+//                try
+//                {
+//                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+//                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+//                    using (StreamReader sr = new StreamReader(fs))
+//                    {
+//                        string line;
+//                        while ((line = sr.ReadLine()) != null)
+//                        {
+
+//                            //string lineClean = line.Replace(" ", "");
+//                            string lineClean = line;
+//                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+//                            {
+
+//                                //Ne traite que les fichiers versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+//                                //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
+
+//                                string fileName = "";
+//                                string FileRefDate = "";
+//                                int[] FileRefVersion = new int[3];
+
+//                                if (lineClean.Contains("versionDCE[\""))
+//                                {
+//                                    //versionDCE.ScriptsMod = "20.43.70"
+//                                    //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
+//                                    //recherche les fichiers à mettre à jour
+
+//                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
+//                                    //lineClean = lineClean.Replace("/view?usp=sharing", "");
+
+//                                    if (lineClean.IndexOf("/view?") > -1)
+//                                    {
+//                                        string[] partView = lineClean.Split('/');
+//                                        lineClean = partView[0];
+//                                    }
+
+//                                    lineClean = lineClean.Replace("\"", "");
+//                                    string[] part = lineClean.Split('=');
+//                                    part[1] = part[1].TrimEnd();
+//                                    part[1] = part[1].TrimStart();
+
+//                                    if (part.Length >= 3)
+//                                    {
+//                                        part[2] = part[2].TrimEnd();
+//                                        part[2] = part[2].TrimStart();
+//                                    }
+
+
+//                                    string[] pre = part[0].Split('[');
+//                                    string[] post = pre[1].Split(']');
+//                                    fileName = post[0];
+//                                    fileName = fileName.TrimEnd();
+//                                    fileName = fileName.TrimStart();
+
+//                                    //remet le caractere \ a la place du | pour tous
+//                                    fileName = fileName.Replace("|", "\\");
+
+//                                    //remet l'espace du path "Mission Scripts" préalablement supprimé
+//                                    if (fileName.Contains("MissionScripts"))
+//                                    {
+//                                        fileName = fileName.Replace("MissionScripts", "Mission Scripts");
+//                                        //remet le caractere \ a la place du | pour les  "Mission Scripts" 
+//                                        //fileName = fileName.Replace("|", "\\");
+//                                    }
+//                                    ////remet l'espace du path "Mission Scripts" préalablement supprimé
+//                                    //if (fileName.Contains("db_loadouts"))
+//                                    //{
+//                                    //    //remet le caractere \ a la place du | pour les  "db_loadouts" 
+//                                    //    fileName = fileName.Replace("|", "\\");
+//                                    //}
+//                                    //else if (fileName.Contains("Mission Scripts"))
+//                                    //{
+//                                    //    //remet le caractere \ a la place du | pour les  "Mission Scripts" 
+//                                    //    fileName = fileName.Replace("|", "\\");
+//                                    //}
+
+//                                    if (part[1].Contains("."))
+//                                    {
+//                                        string[] tempRefVersion = part[1].Split('.');
+
+//                                        FileRefVersion[0] = Int32.Parse(tempRefVersion[0]);
+//                                        FileRefVersion[1] = Int32.Parse(tempRefVersion[1]);
+//                                        FileRefVersion[2] = Int32.Parse(tempRefVersion[2]);
+
+//                                    }
+//                                    else if (part[1].Contains(":") & part[1].Contains("/"))
+//                                    {
+//                                        //31/03/2021 09:37:31
+//                                        //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
+
+//                                        FileRefDate = part[1];
+//                                    }
+//                                }
+
+//                                if (!String.IsNullOrEmpty(fileName))
+//                                {
+
+//                                    bool fichierSain = true;
+//                                    bool fileLocExists = File.Exists(folderLoc + fileName);
+//                                    string ext = "";
+
+//                                    int FileLoc_major = 0;
+//                                    int FileLoc_minor = 0;
+//                                    int FileLoc_build = 0;
+
+//                                    Boolean fileLocDateNeedUpdate = false;
+//                                    Boolean isLuaTxtFile = false;
+
+//                                    //FormUtils.LogRegister("DEBUG filename raw |" + fileName + "|");
+
+//                                    //foreach (char c in fileName)
+//                                    //{
+//                                    //    if (Path.GetInvalidFileNameChars().Contains(c))
+//                                    //        FormUtils.LogRegister("INVALID CHAR : " + (int)c);
+//                                    //}
+
+//                                    FileInfo fInfo = new FileInfo(folderLoc + fileName);
+//                                    //int size = fInfo.Length;//taille en octets 
+
+//                                    if (fileLocExists)
+//                                    {
+//                                        if (fInfo.Length < 1)
+//                                            fichierSain = false;
+
+//                                        ext = Path.GetExtension(folderLoc + fileName);
+
+//                                    }
+
+//                                    if (ext == ".lua" | ext == ".txt")
+//                                    {
+//                                        isLuaTxtFile = true;
+
+//                                        if (fileLocExists && fichierSain)
+//                                        {
+//                                            string FileToRead = folderLoc + fileName;
+//                                            using (StreamReader ReaderObject = new StreamReader(FileToRead))
+//                                            {
+
+//                                                string Line;
+//                                                while ((Line = ReaderObject.ReadLine()) != null)
+//                                                {
+//                                                    Line = Line.Replace(" ", "");
+//                                                    //versionDCE.ATO_FlightPlan = "1.38.107"
+//                                                    if (Line.Contains("versionDCE["))
+//                                                    {
+//                                                        //placer ici le code pour virer le commentaire : --48CEF tout ça
+//                                                        if (Line.IndexOf("--") > -1)
+//                                                        {
+//                                                            Line = Line.Substring(0, Line.IndexOf("--"));
+//                                                        }
+
+//                                                        Line = Line.Replace("\"", "");
+//                                                        string[] part = Line.Split('=');
+//                                                        string[] tempVersion = part[1].Split('.');
+
+//                                                        FileLoc_major = Int32.Parse(tempVersion[0]);
+//                                                        FileLoc_minor = Int32.Parse(tempVersion[1]);
+//                                                        FileLoc_build = Int32.Parse(tempVersion[2]);
+
+//                                                        //FormUtils.LogRegister("LogRegister 1351 folderLoc, |"+ fileToRead + "| " + FileLoc_major + "| " + FileLoc_minor + "| " + FileLoc_build + "| ");
+
+
+//                                                        break;
+//                                                    }
+//                                                    //else
+//                                                    //{
+//                                                    //    ExistVersion = false;
+//                                                    //}
+//                                                }
+//                                            }
+//                                        }
+
+//                                    }
+//                                    else
+//                                    //autres fichiers de type ogg png
+//                                    {
+//                                        DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + fileName);
+
+//                                        if (FileRefDate != "")
+//                                        {
+//                                            //FormUtils.LogRegister("fileUpdateArray[nbFileToUpdat, 5]?  |" + fileUpdateArray[nbFileToUpdat, 5].ToString() + "| ");
+
+//                                            //31/03/2021 09:37:31
+//                                            DateTime dt_RefFile = DateTime.ParseExact(FileRefDate, "dd/MM/yyyy HH:mm:ss",
+//                                                System.Globalization.CultureInfo.InvariantCulture);
+
+//                                            if (dt_RefFile > dtFileLoc)
+//                                            {
+//                                                fileLocDateNeedUpdate = true;
+//                                            }
+//                                            else
+//                                            {
+//                                                fileLocDateNeedUpdate = false;
+//                                            }
+//                                        }
+//                                    }
+
+
+//                                    if (FileRefVersion[0] > FileLoc_major || FileRefVersion[1] > FileLoc_minor || FileRefVersion[2] > FileLoc_build || (!isLuaTxtFile && fileLocDateNeedUpdate) || !fileLocExists)
+//                                    {
+
+//                                        FormUtils.LogRegister("LogRegister 1394 this file is not up to date, or is missing  |" + fileName + "| ");
+
+//                                        nbFileToUpdat++;
+//                                    }
+
+//                                    //if (fileDate)
+//                                    //{
+
+//                                    //}
+
+//                                }
+//                                //else
+//                                //{
+//                                //    FormUtils.LogRegister("LogRegister 1479 this file is not up to date, or is missing  |" + fileName + "| ");
+
+//                                //    nbFileToUpdat++;
+//                                //}
+
+//                                //**********************************
+//                                //check la version de DCE_Manager
+//                                //*********************************
+
+//                                //versionManager = "3.7.5"
+//                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
+//                                //if (lineClean.Contains("versionDCE[\""))
+//                                if (lineClean.Contains("versionManager") && !lineClean.Contains("versionManagerGoogleDrive"))
+//                                {
+//                                    //recherche la version de DCE
+//                                    lineClean = lineClean.Replace(" ", "");
+//                                    lineClean = lineClean.Replace("versionManager=", "");
+//                                    lineClean = lineClean.Replace("\"", "");
+
+//                                    string[] words = lineClean.Split('.');
+//                                    FileServer_major = Int32.Parse(words[0]);
+//                                    FileServer_minor = Int32.Parse(words[1]);
+//                                    FileServer_build = Int32.Parse(words[2]);
+
+//                                    if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
+//                                    {
+//                                        FormUtils.LogRegister("LogRegister 1426 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
+
+
+//                                        DcemanagUpToDate = false;
+//                                    }
+//                                }
+//                            }
+//                        }
+//                    }
+
+//                    if (nbFileToUpdat > 0)
+//                    {
+//                        FormUtils.LogRegister("LogRegister 1438 Number of out-of-date files:   |" + nbFileToUpdat + "| ");
+//                        upToDate = false;
+//                        ParamDownload.NbFileOutToDate = nbFileToUpdat;
+//                    }
+//                    if (DcemanagUpToDate == false)
+//                    {
+//                        ParamDownload.NbFileOutToDate = ParamDownload.NbFileOutToDate + 1;
+//                    }
+//                }
+
+//                catch (Exception ex)
+//                {
+//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
+//                }
+//            }
+
+//            int major = 0;
+//            int minor = 0;
+//            int build = 0;
+//            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
+
+//            if (File.Exists((textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua")))
+//            {
+//                using (StreamReader reader = new StreamReader(textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua"))
+//                {
+//                    string line;
+//                    while ((line = reader.ReadLine()) != null)
+//                    {
+
+//                        string lineClean = line.Replace(" ", "");
+//                        if (!String.IsNullOrEmpty(lineClean))              //&& lineClean.Substring(0, 2) != "--"                                                 //ne prend pas en compte les lignes commençant par --
+//                        {
+//                            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
+//                            if (lineClean.Contains("versionDCE["))
+//                            {
+//                                //recherche la version de DCE
+//                                lineClean = lineClean.Replace("\"", "");
+//                                if (lineClean.Contains("versionDCE[UTIL_Changelog.txt"))
+//                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.txt]=", "");
+
+//                                if (lineClean.Contains("versionDCE[UTIL_Changelog.lua"))
+//                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.lua]=", "");
+
+//                                string[] words = lineClean.Split('.');
+//                                major = Int32.Parse(words[0]);
+//                                minor = Int32.Parse(words[1]);
+//                                build = Int32.Parse(words[2]);
+//                            }
+//                        }
+//                    }
+//                    reader.Close();
+//                }
+//            }
+
+//            string tempLocVersion = major.ToString() + "." + minor.ToString() + "." + build.ToString();
+
+//            ParamScriptsMod.verScriptsMod = tempLocVersion;
             
-            if (!upToDate)
-            {
-                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Strikeout);
-            }
-            else
-            {
-                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Regular);
-            }
+//            if (!upToDate)
+//            {
+//                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Strikeout);
+//            }
+//            else
+//            {
+//                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Regular);
+//            }
 
-            ScriptModInstalledVersion.Text = tempLocVersion;
+//            ScriptModInstalledVersion.Text = tempLocVersion;
 
-            //compare si la version est supérieur pour afficher/ou non/ le boutton download
-            //ou si des fichiers ne sont pas à jour
-            if ((AvailableMajor > major) | (AvailableMinor > minor) | (AvailableBuild > build) | !upToDate | !DcemanagUpToDate)
-            {
-                if(!upToDate)
-                {
-                    ScriptsModUpdateButton.Visible = true;
-                }
-                if (!DcemanagUpToDate)
-                {
-                    button_UpdateManager.Visible = true;
-                }
-                tabPage3.Text = "Update " + ParamDownload.NbFileOutToDate.ToString() + " File(s)";
-                tabPage3.Refresh();
-            }
-            else
-            {
-                ScriptsModUpdateButton.Visible = false;
-                tabPage3.Text = "Update";
-                tabPage3.Refresh();
-            }
+//            //compare si la version est supérieur pour afficher/ou non/ le boutton download
+//            //ou si des fichiers ne sont pas à jour
+//            if ((AvailableMajor > major) | (AvailableMinor > minor) | (AvailableBuild > build) | !upToDate | !DcemanagUpToDate)
+//            {
+//                if(!upToDate)
+//                {
+//                    ScriptsModUpdateButton.Visible = true;
+//                }
+//                if (!DcemanagUpToDate)
+//                {
+//                    button_UpdateManager.Visible = true;
+//                }
+//                tabPage3.Text = "Update " + ParamDownload.NbFileOutToDate.ToString() + " File(s)";
+//                tabPage3.Refresh();
+//            }
+//            else
+//            {
+//                ScriptsModUpdateButton.Visible = false;
+//                tabPage3.Text = "Update";
+//                tabPage3.Refresh();
+//            }
 
-            DceManagerInstalledVersion.Text = VersionDceManager.Text;
-            //ParamManager.verDceManager = VersionDceManager.Text;
+//            DceManagerInstalledVersion.Text = VersionDceManager.Text;
+//            //ParamManager.verDceManager = VersionDceManager.Text;
 
-        }//CheckVersionScriptsModLocal
+//        }//CheckVersionScriptsModLocal
 
 
         public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
@@ -2531,24 +2928,6 @@ namespace DCE_Manager
                 set { base.SelectedTab = value; }
             }
         }
-
-        //// Source: https://prograide.com/pregunta/76591/comparez-les-numeros-de-version-sans-utiliser-la-fonction-de-division
-        //static bool CompareVersion(string v1, string v2)
-        //{
-        //    //string v1 = "1.23.56.1487";
-        //    //string v2 = "1.24.55.487";
-        //    var version1 = new Version(v1);
-        //    var version2 = new Version(v2);
-        //    var result = version1.CompareTo(version2);
-
-        //    if (result > 0)
-        //        return true;
-        //    else if (result <= 0)
-        //        return false;
-        //    else
-        //        return false;
-        //}
-
 
         public void UpdateScriptsMod()
         {
@@ -3100,7 +3479,7 @@ namespace DCE_Manager
 
                         tf.progressBarA.Visible = false;
 
-                        CheckVersionScriptsModLocal();
+                        //CheckVersionScriptsModLocal();
 
                     }
                     else
@@ -3859,9 +4238,20 @@ namespace DCE_Manager
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
         // Update du ScriptsMod
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-        private void CheckUpdate_Click(object sender, EventArgs e)
+        private async void ScriptsModUpdateButton_Click(object sender, EventArgs e)
         {
-            UpdateScriptsMod();
+            //UpdateScriptsMod();
+
+            //await DownloadLatestScriptsMod();
+            bool success = await GetLatestGithubRelease();
+
+            await DownloadLatestScriptsMod();
+
+            FormUtils.LogRegister(
+                 "Test GitHub Version : " + ParamGithub.LastVersion +
+                "\r\nAsset : " + ParamGithub.AssetName +
+                "\r\nURL : " + ParamGithub.DownloadUrl
+                );
 
         }
 
@@ -4376,324 +4766,13 @@ namespace DCE_Manager
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
 
 
-        private readonly int hLigne = 44; //hauteur des lignes du tableau        //24 initialement
-        private readonly int decalLargeur = 30;      //decalle tout à droite de x points
-
-
-        //ajoute le + pour cloner une campagne
-        public System.Windows.Forms.PictureBox DrawIconPlus(string NameCamp, string path, int A)
-        {
-            System.Windows.Forms.PictureBox pictureBox0 = new System.Windows.Forms.PictureBox
-            {
-                Location = new Point(5, ((A + 1) * hLigne) - 20), //+20 largeur         
-                Size = new System.Drawing.Size(20, 20),
-                SizeMode = PictureBoxSizeMode.StretchImage
-            };
-            tabPage2.Controls.Add(pictureBox0);
-            tabPage2.Controls.SetChildIndex(pictureBox0, 1);
-            pictureBox0.Image = DCE_Manager.Properties.Resources.iconePlus;
-            toolTip1.SetToolTip(pictureBox0, "Clone this Campaign");
-            pictureBox0.Cursor = System.Windows.Forms.Cursors.Hand;
-            pictureBox0.Click += new EventHandler((sender, e) => CampaignPlusClickOneEvent(sender, e, path, NameCamp));
-
-            return pictureBox0;
-        }
-
-
-        //// Affiche une icône de campagne dans un PictureBox
-        //public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string campaignPath, int A)
-        //{
-        //    var pictureBox2 = new System.Windows.Forms.PictureBox
-        //    {
-        //        Size = new System.Drawing.Size(60, 30),
-        //        Location = new Point(42, ((A) * hLigne) + 20),
-        //        SizeMode = PictureBoxSizeMode.StretchImage,
-        //        Cursor = System.Windows.Forms.Cursors.Hand
-        //    };
-
-        //    tabPage2.Controls.Add(pictureBox2);
-
-        //    // Vérifie si l'image existe en format .bmp, sinon la crée
-        //    string bitmapPath = campaignPath + ".bmp";
-        //    if (!File.Exists(bitmapPath))
-        //    {
-        //        FormUtils.ConvertToBitmap(campaignPath);
-        //    }
-
-        //    // Charger l'image BMP sans verrouiller le fichier
-        //    try
-        //    {
-        //        using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-        //        {
-        //            pictureBox2.Image?.Dispose(); // Libère l'ancienne image si elle existe
-        //            pictureBox2.Image = new Bitmap(bmpStream); // Charge l'image dans le PictureBox
-        //        }
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du chargement de l'image BMP", bitmapPath, true, true);
-        //    }
-
-        //    // Assignation de l'événement clic
-        //    pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, campaignPath, nameCamp);
-
-        //    return pictureBox2;
-        //}
-
-        // Affiche une icône de campagne dans un PictureBox (optimisé avec cache)
-        public System.Windows.Forms.PictureBox DrawIconeCampaign(string nameCamp, string campaignPath, int A)
-        {
-            var pictureBox2 = new System.Windows.Forms.PictureBox
-            {
-                Size = new System.Drawing.Size(60, 30),
-                Location = new Point(42, ((A) * hLigne) + 20),
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Cursor = System.Windows.Forms.Cursors.Hand
-            };
-
-            tabPage2.Controls.Add(pictureBox2);
-
-            string bitmapPath = campaignPath + ".bmp";
-
-            try
-            {
-                // 🔥 1. Vérifie si l’image est déjà en cache
-                if (!campaignImageCache.ContainsKey(bitmapPath))
-                {
-                    // 🔧 Conversion UNIQUEMENT si nécessaire
-                    if (!File.Exists(bitmapPath))
-                    {
-                        FormUtils.ConvertToBitmap(campaignPath);
-                    }
-
-                    // 🔥 Chargement UNE SEULE FOIS
-                    using (FileStream bmpStream = new FileStream(bitmapPath, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    {
-                        campaignImageCache[bitmapPath] = new Bitmap(bmpStream);
-                    }
-                }
-
-                // 🔥 2. Réutilise l’image en mémoire
-                pictureBox2.Image = campaignImageCache[bitmapPath];
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du chargement de l'image BMP", bitmapPath, true, true);
-            }
-
-            // Assignation de l'événement clic
-            pictureBox2.Click += (sender, e) => CampaignEdit1(sender, e, campaignPath, nameCamp);
-
-            return pictureBox2;
-        }
-
-
-
-        //dessine une icone en cas de pb de path
-        public System.Windows.Forms.PictureBox DrawIconeError(int Width, int Height, string str, int A)
-        {
-            Icon newIcon = SystemIcons.Warning;
-            Image bmp = newIcon.ToBitmap();
-
-            System.Windows.Forms.PictureBox pictureBox1 = new System.Windows.Forms.PictureBox
-            {
-                Location = new Point(52 + decalLargeur, ((A) * hLigne) - 20), //+20 largeur
-                SizeMode = PictureBoxSizeMode.StretchImage,
-                Size = new System.Drawing.Size(20, 20)
-            };
-
-            tabPage2.Controls.Add(pictureBox1);
-            tabPage2.Controls.SetChildIndex(pictureBox1, 1);
-
-            pictureBox1.Image = bmp;
-
-            toolTip1.SetToolTip(pictureBox1, str);
-
-            return pictureBox1;
-        }
-
-        //ajoute le label nom de campaign
-        public System.Windows.Forms.Label Label_NameCampaign(string NameCamp, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
-
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 30;
-            txt.Left = 72 + decalLargeur;
-            txt.AutoSize = true;
-            txt.Size = new System.Drawing.Size(170, 20);    // txt.Size = new System.Drawing.Size(170, 20);
-            txt.Text = NameCamp;
-            //A = A + 1;
-            //txt.Click += new EventHandler(ButtonClickOneEvent);
-            txt.Cursor = System.Windows.Forms.Cursors.Hand;
-            txt.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, NameCamp));
-
-            return txt;
-        }
-
-        //ajoute le label version de campagne
-        private System.Windows.Forms.Label Label_VerCampaign(string VerCamp, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
-
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 30;
-            txt.Left = 350 + decalLargeur;
-            //txt.AutoSize = true;
-            txt.AutoSize = false;
-            txt.Size = new System.Drawing.Size(40, 20);
-            txt.Text = VerCamp;
-            txt.TextAlign = ContentAlignment.MiddleCenter;
-            //A = A + 1;
-            return txt;
-        }
-
-        //int B = 1;
-        //ajoute le boutton FirstMission
-        private System.Windows.Forms.Button Button_FirstMission(string NameCamp, string color, int A) //ajoute le boutton FirstMission
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 395 + decalLargeur;
-            but.Tag = NameCamp;
-            but.Size = new System.Drawing.Size(80, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "Start\r\nCampaign";
-            //but.TextAlign = ContentAlignment.BottomRight;
-
-            but.UseVisualStyleBackColor = true;
-            but.BackColor = SystemColors.Control;
-            //control.ForeColor = SystemColors.ControlText;
-
-            toolTip1.SetToolTip(but, "Be careful, this will erase all the history of your campaign...");
-
-            //but.Click += new EventHandler(ButtonClickOneEvent);
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "FirstMission.bat"));
-
-            //B = B + 1;
-            return but;
-        }
-
-        //int C = 1;
-        //ajoute le boutton SkipMission
-        public System.Windows.Forms.Button Button_SkipMission(string NameCamp, string color, int A) //ajoute le boutton SkipMission
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 480 + decalLargeur;
-            but.Tag = NameCamp;
-            but.Size = new System.Drawing.Size(80, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "SkipMission";
-            but.UseVisualStyleBackColor = true;
-            if (color != null && color == "red")
-            {
-                but.BackColor = Color.Red;
-            }
-            else
-            {
-                but.BackColor = SystemColors.Control;
-            }
-
-
-
-            //but.Click += new EventHandler(ButtonClickOneEvent);
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "SkipMission.bat"));
-
-            //myTimer.Elapsed += new ElapsedEventHandler((sender, e) => PlayMusicEvent(sender, e, musicNote));
-
-            return but;
-        }
-
-        //ajoute le boutton Configuration
-        public System.Windows.Forms.Button Button_Configuration(string NameCamp, string color, int A) //ajoute le boutton Configuration
-        {
-            System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-            //tabPage2.Controls.Add(but);
-
-            tabPage2.Controls.Add(but);
-            but.Top = A * hLigne + 20;
-            but.Left = 570 + decalLargeur;
-            but.Tag = NameCamp + @"\Init\";
-            but.Size = new System.Drawing.Size(85, hLigne - 10);
-            but.Font = new Font("Georgia", 7);
-            but.Text = "Configuration";
-            but.UseVisualStyleBackColor = true;
-            if (color != null && color == "red")
-            {
-                but.BackColor = Color.Red;
-                toolTip1.SetToolTip(but, "After an update, the mission must be generated");
-            }
-            else
-            {
-                but.BackColor = SystemColors.Control;
-            }
-
-            //but.Click += new EventHandler(ButtonClickOneEvent( NameCamp + @"\Init\conf_mod.lua"));
-            but.Cursor = System.Windows.Forms.Cursors.Hand;
-            but.Click += new EventHandler((sender, e) => ButtonClickOneEvent(sender, e, "conf_mod.lua"));
-
-            toolTip1.SetToolTip(but, "After modification, you must restart a SkipMission");
-
-            //D = D + 1;
-            return but;
-        }
-
-        //ajoute le label NbMission
-        private System.Windows.Forms.Label NbMissionPlayed(string NbMission, int A)
-        {
-            System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
-
-            tabPage2.Controls.Add(txt);
-            txt.Top = A * hLigne + 26;
-            txt.Left = 650 + decalLargeur;
-            //txt.AutoSize = true;
-            txt.AutoSize = false;
-            txt.Size = new System.Drawing.Size(90, 20);
-            if (NbMission == "0")
-            {
-                txt.Text = " ";
-            }
-            else
-            {
-                txt.Text = "Nb: " + NbMission;
-            }
-            
-            txt.TextAlign = ContentAlignment.MiddleCenter;
-
-            return txt;
-        }
+        //private readonly int hLigne = 44; //hauteur des lignes du tableau        //24 initialement
+       
 
         // Créer une liste pour garder une référence à toutes les CheckBox associées aux campagnes
-        private List<Tuple<CheckBox, string>> checkBoxCampaigns = new List<Tuple<CheckBox, string>>();
+        //private List<Tuple<CheckBox, string>> checkBoxCampaigns = new List<Tuple<CheckBox, string>>();
 
-        public System.Windows.Forms.CheckBox CheckboxDel(string NameCamp, int A)
-        {
-            // Créer une instance de CheckBox
-            System.Windows.Forms.CheckBox checkBoxDelete = new System.Windows.Forms.CheckBox
-            {
-                // Positionnement de la case à cocher
-                Location = new Point(730 + decalLargeur, (A * hLigne) + 30),
-                Size = new System.Drawing.Size(20, 20),
-                //Text = NameCamp,  // Ajoute le nom de la campagne à la CheckBox
-            };
-
-            // Ajouter la case à cocher au tabPage
-            tabPage2.Controls.Add(checkBoxDelete);
-            tabPage2.Controls.SetChildIndex(checkBoxDelete, 1);
-
-            // Ajouter la CheckBox et son nom de campagne dans une liste pour plus tard
-            checkBoxCampaigns.Add(new Tuple<CheckBox, string>(checkBoxDelete, NameCamp));
-
-            // Retourner la case à cocher
-            return checkBoxDelete;
-        }
+       
 
 
         public void CampaignPlusClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
@@ -4704,10 +4783,10 @@ namespace DCE_Manager
 
             //Test.Form3_Clonage CloneForm = new Test.Form3_Clonage(this, path, OldNameCamp);
             DCE_Manager.FormClonage CloneForm = new DCE_Manager.FormClonage(this, path, OldNameCamp);
-            CloneForm.ShowDialog();
+            CloneForm.Show();
 
-            tabControl.SelectedIndex = 3;
-            tabControl.SelectedIndex = 1;
+            //tabControl.SelectedIndex = 3;
+            //tabControl.SelectedIndex = 1;
 
         }
 
@@ -4715,248 +4794,24 @@ namespace DCE_Manager
         {
             var time_CampaignEdit1 = Stopwatch.StartNew();
 
-            DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, NameCamp);
-            //EditCampaignForm.ShowDialog();
+            // 🔧 Nettoyage de l'ancienne instance
+            if (_currentCampaignEdit != null)
+            {
+                _currentCampaignEdit.Dispose(); // 🔥 IMPORTANT
+            }
+
+            // 🔧 Nouvelle instance
+            _currentCampaignEdit = new CampaignEdit(this, NameCamp);
 
             time_CampaignEdit1.Stop();
-            FormUtils.LogRegister($"time_CampaignEdit1 : {time_CampaignEdit1.ElapsedMilliseconds} ms");
-        }
-        private void But_delete_campaign_Click(object sender, EventArgs e)
-        {
-            // Lister les campagnes à supprimer
-            List<string> campaignsToDelete = new List<string>();
-
-            // Parcourir toutes les cases à cocher et vérifier celles qui sont cochées
-            foreach (var checkBoxCampaign in checkBoxCampaigns)
-            {
-                CheckBox checkBox = checkBoxCampaign.Item1;
-                string campaignName = checkBoxCampaign.Item2;
-
-                if (checkBox.Checked)
-                {
-                    // Ajouter le nom de la campagne à la liste des campagnes à supprimer
-                    campaignsToDelete.Add(campaignName);
-                }
-            }
-
-            // Si aucune campagne n'est sélectionnée, afficher un message et sortir de la fonction
-            if (campaignsToDelete.Count == 0)
-            {
-                MessageBox.Show("No campaign selected for suppression.", "Information");
-                return;
-            }
-
-            // Construire un message avec les noms des campagnes à supprimer
-            string campaignsToDeleteMessage = string.Join("\r\n", campaignsToDelete);
-            string confirmationMessage = "The following campaigns will be deleted :\r\n\r\n" + campaignsToDeleteMessage + "\r\n\r\nAre you sure ?";
-
-            // Afficher une fenêtre de confirmation avec la liste des campagnes
-            DialogResult dialogResult = MessageBox.Show(confirmationMessage, "Delete confirmation", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-            // Si l'utilisateur confirme la suppression
-            if (dialogResult == DialogResult.Yes)
-            {
-                // Supprimer les campagnes sélectionnées
-                foreach (string campaign in campaignsToDelete)
-                {
-                    // Appel à la fonction de suppression pour chaque campagne
-                    DeleteCampaign(campaign);
-                }
-
-                // Rafraîchir la page après suppression
-                tabControl.SelectedIndex = 3;
-                tabControl.SelectedIndex = 1;
-            }
-            else if (dialogResult == DialogResult.No)
-            {
-                // Si l'utilisateur annule la suppression, ne fais rien
-                MessageBox.Show("Deletion cancelled.", "Cancellation");
-            }
-        }
-
-        public void DeleteCampaign(string OldNameCamp)
-        {
-            // Afficher le curseur en cercle tournant
-            Cursor.Current = Cursors.WaitCursor;
-
-            string path = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
-            string folderLoc = Path.Combine(path, OldNameCamp);
-
-            // Vérifier si le dossier de la campagne existe
-            if (Directory.Exists(folderLoc))
-            {
-                DirectoryInfo di = new DirectoryInfo(folderLoc);
-
-                // Supprimer les fichiers du dossier
-                foreach (FileInfo file in di.EnumerateFiles())
-                {
-                    try
-                    {
-                        // Vérifier et fermer le fichier s'il est ouvert, puis le supprimer
-                        file.IsReadOnly = false; // S'assurer que le fichier est en écriture
-                        FileSystem.DeleteFile(file.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                    }
-                    catch (IOException ioEx)
-                    {
-                        FormUtils.LogRegister($"Error deleting file {file.FullName}: {ioEx.Message}");
-                    }
-                }
-
-                // Supprimer les sous-dossiers
-                foreach (DirectoryInfo dir in di.EnumerateDirectories())
-                {
-                    try
-                    {
-                        dir.Delete(true);
-                    }
-                    catch (IOException ioEx)
-                    {
-                        FormUtils.LogRegister($"Error deleting subfolder {dir.FullName}: {ioEx.Message}");
-                    }
-                }
-
-                // Supprimer le dossier de la campagne
-                try
-                {
-                    di.Delete(true);
-                }
-                catch (IOException ioEx)
-                {
-                    FormUtils.LogRegister($"Error deleting folder {di.FullName}: {ioEx.Message}");
-                }
-            }
-
-            // Supprimer les fichiers .cmp et .png associés à la campagne
-            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".cmp"));
-            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_first.miz"));
-            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + "_ongoing.miz"));
-            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".png"));
-            DeleteFileToRecycleBin(Path.Combine(path, OldNameCamp + ".bmp"));
-
-            ScriptModInstalledVersion.Text = "";
-
-            // Remettre le curseur par défaut à la fin de la tâche
-            Cursor.Current = Cursors.Default;
-        }
-
-        private void DeleteFileToRecycleBin(string filePath)
-        {
-            if (File.Exists(filePath))
-            {
-                try
-                {
-                    File.SetAttributes(filePath, FileAttributes.Normal); // Retirer le verrouillage en lecture seule
-                    FileSystem.DeleteFile(filePath, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-                }
-                catch (IOException ioEx)
-                {
-                    FormUtils.LogRegister($"Erreur lors de la suppression du fichier {filePath}: {ioEx.Message}");
-                }
-            }
         }
 
 
-        public void ButtonClickOneEvent(object sender, EventArgs e, string path)
-        {
-            if (sender is Button button)
-            {
-                //// verif du fichier requiredModules
-                string ModRequiredFile = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\Init\requiredModules.lua");
-                string msg = "";
-
-                if (File.Exists(ModRequiredFile))
-                {
-
-                    try
-                    {
-                        // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                        using (FileStream fs = new FileStream(ModRequiredFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                        using (StreamReader sr = new StreamReader(fs))
-                        {
-                            string line;
-                            while ((line = sr.ReadLine()) != null)
-                            {
-                                if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
-                                {
-                                    msg = msg + line + "\r\n";
-                                }
-                            }
-                            MessageBox.Show(msg, "Module required:");
-                        }
-                    }
-
-                    catch (Exception ex)
-                    {
-                        //FormUtils.LogRegister($"Error: {ex.Message}, StackTrace: {ex.StackTrace}, Line: {lineNumber}, File: {fileName}");
-                        FormUtils.ErrorGeneral_BoxOrLog(ex, "ButtonClickOneEvent", ModRequiredFile, false, true);
-                    }
-                }
-
-
-                //if (LabelStatut.Text == "DEV")
-                if (ParamManager.userLevel == 5)
-                {
-
-                    string missionName = "Test Mission";
-
-                    // Passez des arguments au formulaire
-                    FormMissionGenerator MissGene = new FormMissionGenerator(missionName, this);
-
-                    // Utilisez ShowDialog pour afficher le formulaire de manière modale
-                    MissGene.ShowDialog();
-
-                }
-                else
-                {
-                    Process process = new Process();
-                    // Configure the process using the StartInfo properties.
-                    process.StartInfo.FileName = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\" + path;
-                    process.StartInfo.Arguments = " ";
-                    process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                    process.StartInfo.WorkingDirectory = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + button.Tag + @"\";
-
-                    process.Start();
-
-                }
-
-            }
-
-            if (sender is Label label)
-            {
-                Process process = new Process();
-                // Configure the process using the StartInfo properties.
-                process.StartInfo.FileName = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + label.Text;
-                process.StartInfo.Arguments = " ";
-                process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                //process.StartInfo.WorkingDirectory = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" ;
-
-                process.Start();
-
-            }
-
-            if (sender is PictureBox)
-            {
-                Process process = new Process();
-                // Configure the process using the StartInfo properties.
-                process.StartInfo.FileName = path;
-                process.StartInfo.Arguments = " ";
-                process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-
-                process.Start();
-
-            }
-        }
 
         void TabControl1_Selected(object sender, TabControlEventArgs e)
         {
-            //MessageBox.Show(e.TabPage.ToString(), "info");
 
-            tabPage2.Controls.Clear();
-            //A = 0;
-            //B = 1;
-            //C = 1;
-            //D = 1;
-            //E = 1;
+            //tabPage2.Controls.Clear();
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage1       +++++++++++++++++++++++++
@@ -4965,431 +4820,14 @@ namespace DCE_Manager
             if (e.TabPage == tabPage1)
             {
                 checkBoxMod();
-                //button_InstallCampaign.Visible = true;
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
+                
 
-                //string pathFile = textBox_DCS.Text + @"\Scripts\MissionScripting.lua";
-
-                //Boolean find_OS = false;
-                //Boolean find_IO = false;
-
-                //if (File.Exists(pathFile))
-                //{
-                //    checkBoxSanitize.Enabled = true;
-                //    using (StreamReader reader = new StreamReader(pathFile))
-                //    {
-                //        string line;
-
-
-                //        while ((line = reader.ReadLine()) != null)
-                //        {
-                //            int nbcaractereOS = line.IndexOf("sanitizeModule('os");
-                //            if (nbcaractereOS > -1)
-                //            {
-
-                //                //MessageBox.Show("passe _o_",  nbcaractere.ToString());
-                //                int nbCaractTiret = line.IndexOf("--");
-                //                if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereOS )
-                //                {
-                //                    find_OS = true;
-                //                }
-                //            }
-                //            int nbcaractereIO = line.IndexOf("sanitizeModule('io");
-                //            if (nbcaractereIO > -1)
-                //            {
-                //                int nbCaractTiret = line.IndexOf("--");
-                //                if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereIO)
-                //                {
-                //                    find_IO = true;
-                //                }
-                //            }
-                //        }
-                //    }
-
-                //    if (find_OS && find_IO)
-                //    {
-                //        checkBoxSanitize.Checked = true;
-                //    }
-                //    else
-                //    {
-                //        checkBoxSanitize.Checked = false;
-                //    }
-                //}
-                //else
-                //{
-                //    checkBoxSanitize.Enabled = false;
-                //}
-
-            }
-            //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            //+++++++++++++++++++++++++++++++++  tabPage2       +++++++++++++++++++++++++
-            //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-            else if (e.TabPage == tabPage2)
-            {
-
-               //Cursor.Current = Cursors.WaitCursor;
-
-
-               //LoadCampaigns();
-
-
-               //Cursor.Current = Cursors.Default;
-
-                //var tabPage2Campaign = Stopwatch.StartNew();
-
-                //// Afficher le curseur en cercle tournant
-                //Cursor.Current = Cursors.WaitCursor;
-
-                //groupBoxDroiteAccueil.Visible = false;
-                //groupBoxCampEdit.Visible = true;
-                //groupBox_staticTemplate.Visible = false;
-                //tabPage7.Controls.Clear();
-                //tabPage8.Controls.Clear();
-                //tabPage9.Controls.Clear();
-                //tabPage10.Controls.Clear();
-                //groupBoxCampEdit.Text = "";
-                //int nbCampaign = 0;
-                //int A = 0;
-
-                //bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-                //if (false && folderCampExists)
-                //{
-                //    foreach (string subFolder in Directory.GetDirectories(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns"))
-                //    {
-                //        string[] NameCampTab = subFolder.Split('\\');
-                //        string NameCamp = NameCampTab[NameCampTab.Count() - 1];
-
-                //        bool folderLocExists = System.IO.Directory.Exists(subFolder);
-
-                //        //string VerScriptsMod = "unknown ";
-
-                //        bool erreurPath = false;
-                //        //string CheckPath_SG = "";
-                //        //string CheckPath_DCS = "";
-                //        string erreurPathString = "Error path.bat: ";
-
-                //        //cherche la version inscrite dans path.bat
-                //        string PathBatFile = subFolder + @"\Init\path.bat";
-                //        bool fileExistPathBat = File.Exists(PathBatFile);
-
-                //        if (fileExistPathBat)
-                //        {
-                //            if (textBox_DCS.Text != "" & textBox_SavedGames.Text != "")
-                //            {
-
-                //                string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                //               "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
-                //               "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                //               "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
-                //               "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
-                //               "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
-                //               "\r\n" +
-                //               "\r\n" +
-                //               "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
-
-                //                System.IO.File.WriteAllText(PathBatFile, textPathBat);
-                //            }
-
-
-
-                //            nbCampaign++;
-
-                //            //Cherche la version de la campagne
-                //            bool CampaignOriginal = false;
-                //            string VerCamp = "";
-                //            string PathCampInitFile = subFolder + @"\Init\camp_init.lua";
-                //            bool fileExistPathCampInitFile = File.Exists(PathCampInitFile);
-                //            if (fileExistPathCampInitFile)
-                //            {
-                //                string FileToRead2 = PathCampInitFile;
-                //                using (StreamReader ReaderObject = new StreamReader(FileToRead2))
-                //                {
-                //                    string Line = "";
-                //                    while ((Line = ReaderObject.ReadLine()) != null)
-                //                    {
-                //                        if (Line.IndexOf("version") > -1)   //version = "V18-gc",
-                //                        {
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            VerCamp = wordDeuz[0];
-                //                            VerCamp = VerCamp.Replace("\"", "");
-
-                //                            VerCamp = VerCamp.TrimStart().TrimEnd();
-
-                //                        }
-                //                        if (Line.IndexOf("CampaignOriginal") > -1)
-                //                        {
-
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            //wordDeuz[0] = wordDeuz[0].Replace(" ", "");
-                //                            wordDeuz[0] = wordDeuz[0].TrimStart().TrimEnd();
-                //                            CampaignOriginal = Convert.ToBoolean(wordDeuz[0]);
-                //                        }
-                //                    }
-                //                }
-                //            }
-
-
-                //            DrawIconPlus(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns", A);
-
-
-                //            //Cherche le nombre de mission joué
-                //            //['mission'] = 1,
-                //            string NbMission = "0";
-                //            string PathCampstatusFile = subFolder + @"\Active\camp_status.lua";
-                //            bool fileExistPathCampstatusFile = File.Exists(PathCampstatusFile);
-                //            if (fileExistPathCampstatusFile)
-                //            {
-                //                string FileToRead2 = PathCampstatusFile;
-                //                using (StreamReader ReaderObject = new StreamReader(FileToRead2))
-                //                {
-                //                    string Line = "";
-                //                    while ((Line = ReaderObject.ReadLine()) != null)
-                //                    {
-                //                        if (Line.IndexOf("['mission']") > -1 || Line.IndexOf("[\"mission\"]") > -1)
-                //                        {
-                //                            string[] wordUno = Line.Split('=');
-                //                            string[] wordDeuz = wordUno[1].Split(',');
-                //                            NbMission = wordDeuz[0].Replace(" ", "");
-                //                            NbMission = (Int32.Parse(NbMission) - 1).ToString();
-                //                            break;
-                //                        }
-                //                    }
-                //                }
-                //            }
-
-                //            //cherche si une campagne doit etre reset a la suite d'un update
-                //            var campaignNameTab = new Dictionary<string, string>();
-
-                //            string colorFM = "";
-                //            string colorSM = "";
-                //            if (folderLocExists)
-                //            {
-
-                //                //DrawIconeCampaign
-
-                //                //cherche la couleur pour le bouton resetCampagn
-                //                if (campaignNameTab.ContainsKey(NameCamp))
-                //                {
-                //                    if (campaignNameTab[NameCamp] == "firstmission")
-                //                    {
-                //                        //cherche la date de creation/modif du fichier FirstMission.miz ou ongoing.miz
-                //                        //pour detecter si la generation de mission a été faite, et ainsi enlever la couleur rouge du button
-
-                //                        //TF-71-Hornet-GC22_first.miz
-                //                        //TF-71-Hornet-GC22_ongoing.miz
-
-                //                        DateTime dtNow = DateTime.Now;
-                //                        dtNow.ToString("MM/dd/yyyy HH:mm:ss");
-
-                //                        string PathFirstFile = subFolder + "_first.miz";
-                //                        if (File.Exists(PathFirstFile))
-                //                        {
-                //                            DateTime dtFileLoc = File.GetLastWriteTime(PathFirstFile);
-
-
-                //                            if (dtFileLoc < dtNow)
-                //                            {
-
-                //                            }
-                //                        }
-                //                        colorFM = "red";
-                //                    }
-                //                    else if (campaignNameTab[NameCamp] == "skipmission")
-                //                    {
-                //                        colorSM = "red";
-                //                    }
-                //                }
-
-                //                string path_oob_air = "";
-                //                if (Int32.Parse((string)NbMission) >= 1)
-                //                {
-                //                    path_oob_air = subFolder + @"\Active\oob_air.lua";
-                //                }
-                //                else
-                //                {
-                //                    path_oob_air = subFolder + @"\Init\oob_air_init.lua";
-                //                }
-
-
-                //                LuaParse C_db_oob_air = new LuaParse();
-
-                //                ParamCampaign.NameFileParse = path_oob_air;
-
-                //                C_db_oob_air.Parse(File.ReadAllText(path_oob_air));
-
-                //                string type = "default";
-                //                string type_temp = "default";
-                //                bool tag_break = false;
-
-                //                foreach (KeyValuePair<string, LuaObject> entry in C_db_oob_air.Val)
-                //                {
-                //                    foreach (KeyValuePair<string, LuaObject> entry2 in entry.Value)
-                //                    {
-                //                        bool tagPlayer = false;
-                //                        bool tagType = false;
-                //                        foreach (KeyValuePair<string, LuaObject> entry3 in entry2.Value)
-                //                        {
-
-                //                            //type = "A-10C_2",
-                //                            if (entry3.Key == "type")
-                //                            {
-                //                                type_temp = entry3.Value.luaobj.ToString();
-                //                                tagType = true;
-                //                            }
-                //                            //player = false,
-                //                            if (entry3.Key == "player" && entry3.Value.luaobj.ToString() == "true")
-                //                            {
-                //                                tagPlayer = true;
-                //                            }
-
-                //                        }
-
-                //                        if (tagPlayer && tagType)
-                //                        {
-                //                            tag_break = true;
-                //                            type = type_temp;
-                //                            break;
-                //                        }
-                //                    }
-                //                    if (tag_break)
-                //                        break;
-                //                }
-
-
-                //                //check si plusieurs images par type d'avion existe dans le dossier image
-                //                string filePNGbyePlane = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + @"\Images\planescreen_" + type + ".png");
-                //                string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
-                //                string fileBMP = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".bmp";
-
-                //                //FormUtils.LogRegister("LogRegister 4825 filePNGbyePlane  |" + filePNGbyePlane + "| ");
-
-                //                if (File.Exists(filePNGbyePlane))
-                //                {
-                //                    //File.Delete(fileIMG);
-                //                    File.Copy(filePNGbyePlane, filePNG, true);
-
-                //                    if (File.Exists(fileBMP))
-                //                    {
-                //                        //Image image2 = Image.FromFile(fileBMP);
-                //                        //image2.Dispose();
-                //                        File.Delete(fileBMP);
-                //                    }
-
-                //                    //FormUtils.LogRegister("LogRegister 4839 filePNGbyePlane exist");
-
-                //                }
-
-                //                //ajoute l'image de la campagne
-                //                //string filePNG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp + ".png");
-                //                string fileIMG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp);
-                //                bool ExistsfilePNG = File.Exists(filePNG);
-                //                if (ExistsfilePNG)
-                //                {
-                //                    DrawIconeCampaign(NameCamp, fileIMG, A);
-                //                }
-                //                else
-                //                {
-
-                //                    string[] fileNames = Assembly.GetExecutingAssembly().GetManifestResourceNames();
-                //                    foreach (String fileName in fileNames)
-                //                    {
-                //                        if (fileName.IndexOf("etiquetteLogo.png") > -1)
-                //                        {
-                //                            using (FileStream fileStream = File.Create(filePNG))
-                //                            {
-                //                                Assembly.GetExecutingAssembly().GetManifestResourceStream(fileName).CopyTo(fileStream);
-                //                            }
-                //                            DrawIconeCampaign(NameCamp, fileIMG, A);
-                //                        }
-                //                    }
-
-
-
-                //                }
-
-                //                Label_NameCampaign(NameCamp, A);                                                           //ajoute le nom et chemin des campaign
-                //                Label_VerCampaign(VerCamp, A);                                                 //ajoute la version de la campagne
-                //                //NbMissionPlayed(NameCamp, NbMission);                                               //ajoute la version de la campagne
-                //                Button_FirstMission(NameCamp, colorFM, A);                                                //ajoute le boutton FirstMission
-                //                Button_SkipMission(NameCamp, colorSM, A);                                                //ajoute le bouton Nextmission
-
-                //                bool confModFile = File.Exists(subFolder + @"\Init\conf_mod.lua");
-                //                if (confModFile)
-                //                {
-                //                    Button_Configuration(NameCamp, null, A);
-                //                }
-                //                else
-                //                {
-                //                    //D = D + 1;
-                //                }
-                //                //addNewLabelE(NameCamp, VerScriptsMod);
-                //                NbMissionPlayed(NbMission, A);//ajoute le label nb de mission joué
-
-                //                if (erreurPath)
-                //                {
-                //                    //addNewLabelErrorPath( erreurPathString);                            //affiche les erreurs trouvé sur le path
-                //                    DrawIconeError(10, 10, erreurPathString, A);                            //affiche les erreurs trouvé sur le path
-                //                }
-
-                //                //DrawIconDel(NameCamp, textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
-                //                CheckboxDel(NameCamp, A);
-
-                //                A = A + 1;
-
-                //            }
-                //        }
-
-                //    }
-
-
-                //    //ajoute ici le bouton Delete
-                //    System.Windows.Forms.Button but = new System.Windows.Forms.Button();
-
-                //    //pictureBox3.Location = new Point(730 + decalLargeur, ((A) * hLigne) - 20); //+20 largeur
-
-                //    if(nbCampaign > 0)
-                //    {
-                //        tabPage2.Controls.Add(but);
-                //        but.Top = A * hLigne + 20;
-                //        but.Left = 690;// + decalLargeur;
-                //        but.Size = new System.Drawing.Size(80, hLigne - 10);
-                //        but.Font = new Font("Georgia", 7);
-                //        but.Text = "Delete";
-
-                //        but.UseVisualStyleBackColor = true;
-                //        but.BackColor = SystemColors.Control;
-
-                //        but.Cursor = System.Windows.Forms.Cursors.Hand;
-                //        but.Click += new EventHandler(this.But_delete_campaign_Click);
-                //    }
-
-                //}
-                //else
-                //{
-                //    //MessageBox.Show("\"DCS Saved Game Folder\" path must be filled in the Instal tab ", "Report");
-                //}
-
-                // Remettre le curseur par défaut à la fin de la tâche
-                //Cursor.Current = Cursors.Default;
-
-                //tabPage2Campaign.Stop();
-                //FormUtils.LogRegister($"tabPage2Campaign : {tabPage2Campaign.ElapsedMilliseconds} ms");
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5401,19 +4839,12 @@ namespace DCE_Manager
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
 
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
 
                 panel1.Controls.Clear();
-                ScriptsModUpdateButton.Visible = false;
+                //ScriptsModUpdateButton.Visible = false;
                 //button_UpdateManager.Visible = false;
                 DceManagerInstalledVersion.Text = VersionDceManager.Text;
                 if (String.IsNullOrEmpty(textBox_SavedGames.Text))
@@ -5441,7 +4872,7 @@ namespace DCE_Manager
 
                 //met à jour immediatement la version des fichiers présent sur le serveur
                 //et propose (ou pas) l'affichage du bouton update
-                CheckPresenceUpgadeTxtFile();
+                //CheckPresenceUpgadeTxtFile();
 
 
             }
@@ -5450,17 +4881,8 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
-
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
 
                 if (textBox_ChangelogScriptsMod.Text == "")
                 {
@@ -5498,18 +4920,9 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
                 groupBox_staticTemplate.Visible = false;
-
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
-
                 groupBoxCampEdit.Text = "";
-
                 CampaignTab.Visible = false;
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
+
             }
             else if (e.TabPage == tabPage16)
             {
@@ -5518,16 +4931,21 @@ namespace DCE_Manager
                 groupBoxDroiteAccueil.Visible = false;
                 groupBoxCampEdit.Visible = true;
                 groupBox_staticTemplate.Visible = false;
-                tabPage7.Controls.Clear();
-                tabPage8.Controls.Clear();
-                tabPage9.Controls.Clear();
-                tabPage10.Controls.Clear();
                 groupBoxCampEdit.Text = "";
 
                 LoadCampaigns();
 
-
                 Cursor.Current = Cursors.Default;
+
+                UpdateCampaignButtonsVisibility();
+            }
+            else
+            {
+                // On quitte l’onglet CampaignTab → on cache tout
+                buttonSaveChgtCampaign.Visible = false;
+                buttonResetBackup.Visible = false;
+                radioButton_OOB_INIT.Visible = false;
+                radioButton_OOB_ACTIVE.Visible = false;
             }
         }
 
@@ -5619,7 +5037,7 @@ namespace DCE_Manager
 
             textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
             
-            CheckVersionScriptsModLocal();
+            //CheckVersionScriptsModLocal();
 
             //MessageBox.Show("ParamConf.NumSelectConfig "+ ParamConf.NumSelectConfig.ToString(), textBox_Campaign.Text);
 
@@ -5825,9 +5243,6 @@ namespace DCE_Manager
                 }
                 //*********************************************
             }
-
-
-            string NameServer = "";
             
             // parse le fichier upgrade pour connaitre la version DCE
             //string pathUpgradeFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\";
@@ -6070,7 +5485,7 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer01;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT01;
 
-                CheckPresenceUpgadeTxtFile();
+                //CheckPresenceUpgadeTxtFile();
             }
             //ServerNickName02 = "GoogleDrive";
             else if (NameServer == ParamServ.ServerNickName02 && ParamServ.Server02Exit)
@@ -6081,7 +5496,7 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer02;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT02;
 
-                CheckPresenceUpgadeTxtFile();
+                //CheckPresenceUpgadeTxtFile();
             }
             else if (NameServer == ParamServ.ServerNickName03 && ParamServ.Server03Exit)
             {
@@ -6090,7 +5505,7 @@ namespace DCE_Manager
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer03;
                 ParamServ.FileServDgUpgradeTXT = ParamServ.FileServDgUpgradeTXT03;
 
-                CheckPresenceUpgadeTxtFile();
+                //CheckPresenceUpgadeTxtFile();
             }
 
         }
@@ -6489,17 +5904,17 @@ namespace DCE_Manager
 
         }
 
-        static Color GetPixel(Point position)
-        {
-            using (var bitmap = new Bitmap(1, 1))
-            {
-                using (var graphics = Graphics.FromImage(bitmap))
-                {
-                    graphics.CopyFromScreen(position, new Point(0, 0), new Size(1, 1));
-                }
-                return bitmap.GetPixel(0, 0);
-            }
-        }
+        //static Color GetPixel(Point position)
+        //{
+        //    using (var bitmap = new Bitmap(1, 1))
+        //    {
+        //        using (var graphics = Graphics.FromImage(bitmap))
+        //        {
+        //            graphics.CopyFromScreen(position, new Point(0, 0), new Size(1, 1));
+        //        }
+        //        return bitmap.GetPixel(0, 0);
+        //    }
+        //}
 
         public static bool PointIsWithinCircle(double circleRadius, double circleCenterPointX, double circleCenterPointY, double pointToCheckX, double pointToCheckY)
         {
@@ -7228,38 +6643,23 @@ namespace DCE_Manager
 
         }
 
-
-        //if (tabControl1.SelectedTab == someTabPage)
-        //{
-        //// Do stuff here...
-        //}
-
         void CampaignTab_Selected(object sender, TabControlEventArgs e)
         {
-             if (e.TabPage == tabPage6 || groupBoxCampEdit.Text == "")
-             {
-                buttonSaveChgtCampaign.Visible = false;
-                buttonSaveActive.Visible = false;
-                buttonResetBackup.Visible = false;
-             }
-            if (groupBoxCampEdit.Text != "")
-            {
-                if (e.TabPage == tabPage7 || e.TabPage == tabPage8)
-                {
-                    buttonSaveChgtCampaign.Visible = true;
-                    buttonSaveActive.Visible = false;
-                    buttonResetBackup.Visible = true;
-                }
-                else if (e.TabPage == tabPage9 || e.TabPage == tabPage10 )
-                {
-                    buttonSaveChgtCampaign.Visible = false;
-                    buttonSaveActive.Visible = true;
-                    buttonResetBackup.Visible = false;
-                }
-            }
+            UpdateCampaignButtonsVisibility();
+        }
+        private void UpdateCampaignButtonsVisibility()
+        {
+            bool show =
+                groupBoxCampEdit.Text != "" &&
+                (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
+
+            buttonSaveChgtCampaign.Visible = show;
+            buttonResetBackup.Visible = show;
+            radioButton_OOB_INIT.Visible = show;
+            radioButton_OOB_ACTIVE.Visible = show;
         }
 
-        public void modifiedCampaign(string pathFile, string pathFileBackup, string initActive)
+        public void modifiedCampaign(string pathFile, string pathFileBackup, string folderName)
         {
             //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
             if (pathFileBackup != null && !File.Exists(pathFileBackup))
@@ -7280,187 +6680,159 @@ namespace DCE_Manager
 
             TEMPtableOobAirBBB = PublicTable.tableOobAiriNIT;
 
-            foreach (TabPage tbp in CampaignTab.TabPages)
-            {
-                
-                if (tbp.Name == "tabPage7" | tbp.Name == "tabPage8" | tbp.Name == "tabPage9" | tbp.Name == "tabPage10")
-                {
-                    int idCamp = 0;
-                    if (tbp.Name == "tabPage7" | tbp.Name == "tabPage9")
-                    {
-                        idCamp = 1;
-                    }
-                    else if (tbp.Name == "tabPage8" | tbp.Name == "tabPage10")
-                    {
-                        idCamp = 2;
-                    }
-
-                    foreach (Control c in tbp.Controls)
-                    {
-                        if (c is CheckBox || c is RadioButton)
-                        {
-                            if (c.Name != "")
-                            {
-                                string[] words = c.Name.Split('|');
-
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
-                                //int nbVariable = Int32.Parse((string)c.Tag);
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
-
-                                string ValueChecked = "";
-
-                                if (c is RadioButton)
-                                {
-                                    ValueChecked = ((RadioButton)c).Checked.ToString().ToLower();
-                                }
-                                else if (c is CheckBox)
-                                {
-                                    ValueChecked = ((CheckBox)c).Checked.ToString().ToLower();
-                                }
-                                
-                                //if (keyName == "Active" || keyName == "Inactive")
-                                if (keyName == "Active")
-                                {
-                                    keyName = "Inactive";
-                                    if (ValueChecked == "false")
-                                    {
-                                        ValueChecked = "true";
-                                    }
-                                    else
-                                    {
-                                        ValueChecked = "false";
-                                    }
-                                }
-
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    //var squad = List_oob_air_Manager.List_oob_air.Where(s => s.IdSquad == idSquad);
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
-
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }                              
-                            }
-                        }
-                        else if (c is ComboBox)
-                        {
-                            //MessageBox.Show("else if (c is ComboBox)");
-
-                            if (c.Name != "")
-                            {
-                                //nameArg3 = args["item"].ToString();
-                                //label1.Name = nameArg1 + "_" + nameArg2 + "_" + nameArg3;
-                                //label1.Name = args["idSquad"].ToString() + "_" + Name + "_" + argsString["tablSup"];
-                                string[] words = c.Name.Split('|');
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
-
-                                
-                                //label1.Tag = args["idElement"].ToString() + "_" + argsString["key"];
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
-
-                                string ValueChecked = "";
-
-
-                                if (((ComboBox)c).SelectedItem != null)
-                                {
-                                    ValueChecked = ((ComboBox)c).SelectedItem.ToString();
-                                }
-                                else
-                                {
-                                    //ValueChecked = varName.Replace(" ", "");
-                                    //ValueChecked = varName;
-                                }
-
-                                if (keyName == "BaseAlternative")
-                                { }
-
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
-
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }
-                             }
-                        }
-
-                        //NumericUpDown control = new NumericUpDown();
-                        else if (c is NumericUpDown)
-                        {
-                            if (c.Name != "")
-                            {
-                                string[] words = c.Name.Split('|');
-
-                                int idSquad = Int32.Parse((string)words[0]);
-                                string varName = words[1];
-                                string tableName = words[2];
-                                //int nbVariable = Int32.Parse((string)c.Tag);
-                                string[] wordsB = c.Tag.ToString().Split('|');
-                                int nbVariable = Int32.Parse((string)wordsB[0]);
-                                string keyName = wordsB[1];
-
-                                string ValueChecked = "";
-
-                                ValueChecked = ((NumericUpDown)c).Value.ToString();
-                                
-                                if (ParamDivers.NewParseOobAir)
-                                {
-                                    var squad = List_oob_air_Manager.List_oob_air.FirstOrDefault(s => s.IdSquad == idSquad);
-
-                                    if (squad != null)
-                                    {
-                                        UpdateProperty(squad, keyName, tableName, ValueChecked);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
            
             //active l'unité du squad sélectionné
             foreach (var squad in List_oob_air_Manager.List_oob_air)
             {
+
                 if (squad.Player)
                 {
-                    squad.Inactive = false;
+                    squad.Squad_Inactive = false;
                 }
             }
 
-            //ecrit les Class de tous les squad dans le fichier oob_air
-            FormUtils.WriteListClassSquadsToFile(pathFile, initActive);
+            ////ecrit les Class de tous les squad dans le fichier oob_air
+            //FormUtils.WriteListClassSquadsToFile(pathFile, folderName);
+
+            if (!List_oob_air_Manager.List_oob_air.Any())
+            {
+                MessageBox.Show("No squads to save.");
+                return;
+            }
+            // REF: FormMain - remplacer modifiedCampaign
+            CampaignSaver.Save(pathFile, pathFileBackup, folderName);
 
             MessageBox.Show("Changes saved.", "Report");
         }
 
+        //public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
+        //{
+        //    string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
+
+        //    string pathFile = "";
+        //    string FolderName = "";
+
+        //    if (radioButton_OOB_INIT.Checked)
+        //    {
+        //        pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
+        //        FolderName = "Init";
+        //    }
+        //    else if (radioButton_OOB_ACTIVE.Checked)
+        //    {
+        //        pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+
+        //        FolderName = "Active";
+        //    }
+
+
+        //    modifiedCampaign(pathFile, pathFileBackup, FolderName);
+
+        //    // Met à jour la colonne Aircraft de la campagne actuellement affichée
+        //    for (int i = 0; i < dataGridViewCampaigns.Rows.Count; i++)
+        //    {
+        //        string rowName = dataGridViewCampaigns.Rows[i].Cells["Name"].Value?.ToString();
+
+        //        if (rowName == groupBoxCampEdit.Text)   // nom de la campagne en cours
+        //        {
+        //            dataGridViewCampaigns.Rows[i].Cells["Aircraft"].Value = newType;
+
+        //            // Si tu affiches aussi une image dépendant du type
+        //            string imagePath = Path.Combine(
+        //                textBox_SavedGames.Text,
+        //                "Mods", "tech", "DCE", "Missions", "Campaigns",
+        //                groupBoxCampEdit.Text,
+        //                "Images",
+        //                "planescreen_" + newType + ".png");
+
+        //            if (File.Exists(imagePath))
+        //            {
+        //                using (var temp = Image.FromFile(imagePath))
+        //                {
+        //                    dataGridViewCampaigns.Rows[i].Cells["Image"].Value = new Bitmap(temp);
+        //                }
+        //            }
+
+        //            break;
+        //        }
+        //    }
+
+
+        //    PublicTable.errorTable.Clear();
+        //    textBox_Bugs.Text = "";
+        //    tabPage12.Text = "Bugs";
+
+        //}
+
+
         public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
         {
             string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
-            string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
 
-            modifiedCampaign(pathFile, pathFileBackup, "Init");
+            string pathFile = "";
+            string FolderName = "";
 
-            tabPage7.Controls.Clear();
-            tabPage8.Controls.Clear();
+            if (radioButton_OOB_INIT.Checked)
+            {
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
+                FolderName = "Init";
+            }
+            else if (radioButton_OOB_ACTIVE.Checked)
+            {
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+
+                FolderName = "Active";
+            }
+
+            modifiedCampaign(pathFile, pathFileBackup, FolderName);
+
+            // Recherche le squad actuellement marqué Player = true
+            string newType = null;
+
+            foreach (var squad in currentSquads)
+            {
+                if (squad.Player)
+                {
+                    newType = squad.Type;
+                    break;
+                }
+            }
+
+            // Si aucun squad player trouvé, on ne fait rien
+            if (!string.IsNullOrEmpty(newType))
+            {
+                for (int i = 0; i < dataGridViewCampaigns.Rows.Count; i++)
+                {
+                    string rowName = dataGridViewCampaigns.Rows[i].Cells["Name"].Value?.ToString();
+
+                    if (rowName == groupBoxCampEdit.Text)
+                    {
+                        // Met à jour la colonne Aircraft
+                        dataGridViewCampaigns.Rows[i].Cells["Aircraft"].Value = newType;
+
+                        // Met à jour aussi l'image si elle dépend du type
+                        string imagePath = Path.Combine(
+                            textBox_SavedGames.Text,
+                            "Mods", "tech", "DCE", "Missions", "Campaigns",
+                            groupBoxCampEdit.Text,
+                            "Images",
+                            "planescreen_" + newType + ".png");
+
+                        if (File.Exists(imagePath))
+                        {
+                            using (var temp = Image.FromFile(imagePath))
+                            {
+                                dataGridViewCampaigns.Rows[i].Cells["Image"].Value = new Bitmap(temp);
+                            }
+                        }
+
+                        break;
+                    }
+                }
+            }
 
             PublicTable.errorTable.Clear();
             textBox_Bugs.Text = "";
             tabPage12.Text = "Bugs";
-
-            CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
 
         }
 
@@ -7470,14 +6842,11 @@ namespace DCE_Manager
            
             modifiedCampaign(pathFile, null, "Active");
 
-            tabPage9.Controls.Clear();
-            tabPage10.Controls.Clear();
-
             PublicTable.errorTable.Clear();
             textBox_Bugs.Text = "";
             tabPage12.Text = "Bugs";
 
-            CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
+            //CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
         }
 
         private void buttonResetBackup_Click(object sender, EventArgs e)
@@ -7511,10 +6880,32 @@ namespace DCE_Manager
                 }
             }
 
+            ////CampaignEdit.LoadSquads(groupBoxCampEdit.Text);
+            //CampaignEdit.LoadSquads();
+
+            //// Ligne de référence : après File.Copy(...)
+            //foreach (Form form in Application.OpenForms)
+            //{
+            //    if (form is CampaignEdit campaignForm)
+            // Remplacez l'appel statique CampaignEdit.LoadSquads(); par un appel sur l'instance _currentCampaignEdit
+            if (_currentCampaignEdit != null)
+            {
+                _currentCampaignEdit.LoadSquads();
+            }
+            //    {
+
+
+            //        campaignForm.ReloadCampaign();
+            //        break;
+            //    }
+            //}
+
             //string fileIMG = (textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + NameCamp);
             string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text;
 
-            DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, groupBoxCampEdit.Text);
+
+            //ATTENTION, la ligne plus bas X2 double les forms, DANGEREUX
+            //DCE_Manager.CampaignEdit EditCampaignForm = new DCE_Manager.CampaignEdit(this, groupBoxCampEdit.Text);
         }
 
         private void tabPage8_Click(object sender, EventArgs e)
@@ -7565,7 +6956,7 @@ namespace DCE_Manager
             textBoxCreateFileUpdate.Visible = false;
             butCreateUpdateBrowse.Visible = false;
             butCreaUpdate.Visible = false;
-            ScriptsModUpdateButton.Visible = false;
+            //ScriptsModUpdateButton.Visible = false;
             CampUpdateButton.Visible = false;
             C_DataMap.Visible = false;
             C_DataMapCity.Visible = false;
@@ -7592,7 +6983,7 @@ namespace DCE_Manager
             textBoxCreateFileUpdate.Visible = false;
             butCreateUpdateBrowse.Visible = false;
             butCreaUpdate.Visible = false;
-            ScriptsModUpdateButton.Visible = false;
+            //ScriptsModUpdateButton.Visible = false;
             CampUpdateButton.Visible = false;
             C_DataMap.Visible = false;
             C_DataMapCity.Visible = false;
@@ -7615,7 +7006,7 @@ namespace DCE_Manager
                 textBoxCreateFileUpdate.Visible = true;
                 butCreateUpdateBrowse.Visible = true;
                 butCreaUpdate.Visible = true;
-                ScriptsModUpdateButton.Visible = true;
+                //ScriptsModUpdateButton.Visible = true;
                 CampUpdateButton.Visible = true;
                 C_DataMap.Visible = true;
                 C_DataMapCity.Visible = true;
@@ -7631,7 +7022,8 @@ namespace DCE_Manager
 
         private void butCheckVersion_Click(object sender, EventArgs e)
         {
-            CheckVersionScriptsModLocal();
+            //CheckVersionScriptsModLocal();
+            _ = CheckGithubVersionAsync();
         }
 
         private void textBox_id_client_TextChanged(object sender, EventArgs e)
@@ -7649,15 +7041,36 @@ namespace DCE_Manager
 
         }
 
-        private void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
+        public void RefreshGrids()
         {
+            CampaignEdit.LoadGridStatic(dataGridViewBlue, currentSquads, "blue", currentState);
+            CampaignEdit.LoadGridStatic(dataGridViewRed, currentSquads, "red", currentState);
 
         }
 
-        private void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
+        public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
         {
+            if (_isUpdatingState)
+                return;
 
+            if (!radioButton_OOB_INIT.Checked) return;
+
+            currentState = "Init";
+            RefreshGrids();
         }
+
+        public void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_isUpdatingState)
+                return;
+
+            if (!radioButton_OOB_ACTIVE.Checked) return;
+
+            currentState = "Active";
+            RefreshGrids();
+        }
+
+
     }
 
 }
