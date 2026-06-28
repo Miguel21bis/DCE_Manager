@@ -30,8 +30,7 @@ using NLua;
 using Ookii.Dialogs.WinForms;
 using SearchOption = System.IO.SearchOption;
 using Newtonsoft.Json.Linq;
-using System.Net.Http;
-using Newtonsoft.Json.Linq;
+
 
 
 //namespace DCE_Manager
@@ -74,6 +73,8 @@ namespace DCE_Manager
 
         private CampaignEdit _currentCampaignEdit;
 
+        private ScriptsModUpdater scriptsModUpdater;
+
 
         //constructeur :
         public Form1()
@@ -82,11 +83,14 @@ namespace DCE_Manager
 
             InitializeComponent();
 
+            scriptsModUpdater = new ScriptsModUpdater(this);
+
             //*************************
             InitializeCampaignGrid();
             //*************************
 
             Instance = this;  // Initialiser l'instance statique dans le constructeur
+
             
             // Abonnement aux événements de boutons avec les méthodes de la classe ASTI
             but_ASTI.Click += (sender, e) => ASTI.but_ASTI_Click(this);
@@ -109,7 +113,10 @@ namespace DCE_Manager
 
             //this.tabControl1.SelectedTab = tabPage2;
 
-            VersionDceManager.Text = VersionLongDceManager();
+            //VersionDceManager.Text = VersionLongDceManager();
+            VersionDceManager.Text = GetVersionDceManager();
+
+            ScriptsModStatusLabel.Text = "Status : Checking...";
 
             textBox_id_client.Text = CreateIdClient();
             AjusterLargeurTextBox(textBox_id_client);
@@ -309,11 +316,12 @@ namespace DCE_Manager
                 }
             }
 
-            _ = CheckGithubScriptsModVersionAsync();
+         
+            _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
+
+            _ = scriptsModUpdater.CheckGithubDCEManagerVersionAsync();
 
             ParamManager.NbLancement++;
-
-            //EnvoiStats();
 
             _ = EnvoiStatsAsync();
 
@@ -327,7 +335,6 @@ namespace DCE_Manager
             }
             //ServerNickName02 = "GoogleDrive";
             else if (ParamServ.ServerNickNameSelected == ParamServ.ServerNickName02 && ParamServ.Server02Exit)
-            //if (ParamServ.ServerNickNameSelected == ParamServ.ServerNickName02)
             {
                 ParamServ.ServerSelected = ParamServ.FileServerName02;
                 ParamServ.fileTypeServer = ParamServ.fileTypeServer02;
@@ -518,12 +525,6 @@ namespace DCE_Manager
                         {
                             newsRegBox0 = false;
                         }
-                        //else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsAffiche"))
-                        //{
-                        //    string[] words = line.Split('=');
-                        //    if (words[1].Contains("true"))
-                        //        textBox_NewsAffiche0 = true;
-                        //}
                         else if (newsRegBox0 == false)
                         {
                             //textBox_News.Text = textBox_News.Text + line + "\r\n";
@@ -556,7 +557,7 @@ namespace DCE_Manager
                 {
                     //MessageBox.Show(NewsBox0, "News");
 
-                    tabPage5.Text = "News (1)";
+                    tabPageLeftNews.Text = "News (1)";
                     //tabPage5.Refresh();
 
                     FormUtils.ModifierLigneBis(NewsFile0, "lastNewsAffiche=true", "lastNewsAffiche=false");
@@ -954,7 +955,6 @@ namespace DCE_Manager
             var LoadCampaigns = Stopwatch.StartNew();
 
             int nbCampaign = 0;
-            int A = 0;
 
             bool folderCampExists = System.IO.Directory.Exists(textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns");
 
@@ -1579,952 +1579,6 @@ namespace DCE_Manager
             }
         }
 
-        // Lit la version locale du ScriptsMod depuis UTIL_Changelog.lua.
-        // Pourquoi : cette version servira de référence pour comparer avec la dernière release GitHub.
-        public string GetLocalScriptsModVersion()
-        {
-            try
-            {
-                string changelogFile =
-                    textBox_SavedGames.Text +
-                    @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
-
-                if (!File.Exists(changelogFile))
-                {
-                    FormUtils.LogRegister(
-                        "UTIL_Changelog.lua introuvable : " +
-                        changelogFile);
-
-                    return "";
-                }
-
-                foreach (string line in File.ReadLines(changelogFile))
-                {
-                    FormUtils.LogRegister("SCAN : " + line);
-
-                    Match match = Regex.Match(
-                        line,
-                        @"versionDCE\[""UTIL_Changelog\.lua""\]\s*=\s*""([^""]+)""");
-
-                    if (match.Success)
-                    {
-                        FormUtils.LogRegister(
-                            "VERSION TROUVEE : " +
-                            match.Groups[1].Value);
-
-                        return match.Groups[1].Value;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(
-                    ex,
-                    "GetLocalScriptsModVersion",
-                    "",
-                    false,
-                    true);
-            }
-
-            return "";
-        }
-
-        // Lit la dernière version publiée sur GitHub.
-        // Pourquoi : déterminer si une mise à jour ScriptsMod est disponible.
-        public async Task<string> GetGithubScriptsModVersion()
-        {
-            try
-            {
-                using (HttpClient client = new HttpClient())
-                {
-                    client.DefaultRequestHeaders.Add(
-                        "User-Agent",
-                        "DCE_Manager");
-
-                    string json =
-                        await client.GetStringAsync(
-                            "https://api.github.com/repos/Miguel21bis/DCE/releases/latest");
-
-                    JObject release = JObject.Parse(json);
-
-                    string tagName =
-                        release["tag_name"]?.ToString();
-
-                    if (string.IsNullOrWhiteSpace(tagName))
-                        return "";
-
-                    return tagName.TrimStart('v', 'V');
-                }
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(
-                    ex,
-                    "GetGithubScriptsModVersion",
-                    "",
-                    false,
-                    true);
-            }
-
-            return "";
-        }
-
-        // Lit la dernière release GitHub et récupère les informations du ZIP.
-        // Pourquoi : préparer le téléchargement automatique du ScriptsMod.
-        public async Task<bool> GetLatestGithubRelease()
-        {
-            try
-            {
-                using (HttpClient client = new HttpClient())
-                {
-                    client.DefaultRequestHeaders.Add(
-                        "User-Agent",
-                        "DCE_Manager");
-
-                    string json =
-                        await client.GetStringAsync(
-                            "https://api.github.com/repos/Miguel21bis/DCE/releases/latest");
-
-                    JObject release = JObject.Parse(json);
-
-                    ParamGithub.LastVersion = "";
-                    ParamGithub.AssetName = "";
-                    ParamGithub.DownloadUrl = "";
-
-                    ParamGithub.LastVersion =
-                        release["tag_name"]
-                        ?.ToString()
-                        .Replace("v", "");
-
-                    JArray assets =
-                        (JArray)release["assets"];
-
-                    if (assets != null && assets.Count > 0)
-                    {
-                        foreach (JToken asset in assets)
-                        {
-                            string assetName =
-                                asset["name"]?.ToString();
-
-                            if (!string.IsNullOrEmpty(assetName) &&
-                                assetName.Contains("DCE_scriptsMod_") &&
-                                assetName.EndsWith(".zip"))
-                            {
-                                ParamGithub.AssetName = assetName;
-
-                                ParamGithub.DownloadUrl =
-                                    asset["browser_download_url"]?.ToString();
-
-                                break;
-                            }
-                        }
-                    }
-
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(
-                    ex,
-                    "GetLatestGithubRelease",
-                    "",
-                    false,
-                    true);
-            }
-
-            return false;
-        }
-
-        // Télécharge la dernière release ScriptsMod.
-        // Pourquoi : récupérer automatiquement le ZIP de la dernière release GitHub.
-        public async Task DownloadLatestScriptsMod()
-        {
-            bool success =
-                await GetLatestGithubRelease();
-
-            if (!success)
-                return;
-
-            if (string.IsNullOrWhiteSpace(ParamGithub.DownloadUrl))
-            {
-                MessageBox.Show(
-                    "Impossible de trouver un ZIP ScriptsMod dans la dernière release.",
-                    "ScriptsMod");
-
-                return;
-            }
-
-            string destinationFile =
-                Path.Combine(
-                    ParamManager.pathManager,
-                    ParamGithub.AssetName);
-
-            using (HttpClient client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.Add(
-                    "User-Agent",
-                    "DCE_Manager");
-
-                byte[] data =
-                    await client.GetByteArrayAsync(
-                        ParamGithub.DownloadUrl);
-
-                File.WriteAllBytes(
-                    destinationFile,
-                    data);
-            }
-
-            MessageBox.Show(
-                "Téléchargement terminé :\r\n" +
-                destinationFile,
-                "ScriptsMod");
-        }
-
-        // Compare deux versions DCE.
-        // Pourquoi : déterminer si GitHub propose une version plus récente.
-        public bool IsVersionNewer(string githubVersion, string localVersion)
-        {
-            try
-            {
-                Version github =
-                    new Version(githubVersion);
-
-                Version local =
-                    new Version(localVersion);
-
-                return github > local;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        // Compare la version locale et GitHub et met à jour les labels.
-        // Pourquoi : afficher immédiatement à l'utilisateur si une mise à jour existe.
-        public async Task CheckGithubScriptsModVersionAsync()
-        {
-            string localVersion = GetLocalScriptsModVersion();
-
-            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod Local Version : " + localVersion); 
-
-            string githubVersion =  await GetGithubScriptsModVersion();
-
-            //ScriptsModVersion.Text = localVersion;
-            ScriptModInstalledVersion.Text = localVersion;
-
-            ScriptsModAvailableVersion.Text = githubVersion;
-
-            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod GitHub Version : " + githubVersion);
-
-
-            bool updateAvailable =
-                IsVersionNewer(githubVersion, localVersion);
-
-            ScriptsModUpdateButton.Visible =
-                updateAvailable;
-
-            FormUtils.LogRegister(
-                "ScriptsMod Update Available : " +
-                updateAvailable);
-
-            FormUtils.LogRegister(
-                "Comparaison : local=" +
-                localVersion +
-                " github=" +
-                githubVersion +
-                " resultat=" +
-                IsVersionNewer(githubVersion, localVersion));
-
-            ParamUpdate.NbUpdateAvailable = 0;
-
-            if (IsVersionNewer(githubVersion, localVersion))
-            {
-                ParamUpdate.NbUpdateAvailable++;
-            }
-
-            if (ParamUpdate.NbUpdateAvailable > 0)
-            {
-                tabControl.TabPages[2].Text =
-                    "Update (" +
-                    ParamUpdate.NbUpdateAvailable +
-                    ")";
-            }
-            else
-            {
-                tabControl.TabPages[2].Text =
-                    "Update";
-            }
-
-        }
-
-
-
-        // Vérifie les versions locale et GitHub.
-        // Pourquoi : préparer le nouveau système de mise à jour.
-        public async Task CheckGithubVersionAsync()
-        {
-            string localVersion =
-                GetLocalScriptsModVersion();
-
-            string githubVersion =
-                await GetGithubScriptsModVersion();
-
-            FormUtils.LogRegister(
-                "ScriptsMod Local Version : " +
-                localVersion);
-
-            FormUtils.LogRegister(
-                "ScriptsMod GitHub Version : " +
-                githubVersion);
-
-            MessageBox.Show(
-                "Local : " + localVersion +
-                "\r\nGitHub : " + githubVersion,
-                "Test Versions");
-        }
-       
-
-        void client_DownloadFileCompleted(object se, System.ComponentModel.AsyncCompletedEventArgs ea)
-        {
-            string contentState = "DownLoad Success!!!";
-            
-            if (ea.Error != null)
-            {
-                contentState = ea.Error.Message;
-            }
-            else
-            {
-                //CheckVersionScriptsModLocal();
-            }
-        }
-
-        //presence upgrade.txt, sinon, il le telecharge
-        //public void CheckPresenceUpgadeTxtFile()
-        //{
-        //    return; // Ancien système upgrade.txt désactivé
-
-        //    string upgradelocFile = "upgrade.txt";
-        //    string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-        //    bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-        //    if (!pathManagerExists)
-        //        try
-        //        {
-        //            System.IO.Directory.CreateDirectory(pathManager);
-        //        }
-        //        catch (Exception ex)
-        //        {
-        //            //MessageBox.Show(e.ToString(), "The process failed");
-        //            FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckPresenceUpgadeTxtFile", pathManager, true, true);
-        //        }
-            
-
-        //    bool RequisOK = false;
-        //    bool fileUpdateExists = File.Exists(pathManager + upgradelocFile);
-        //    FileInfo upgradeInitFileInfo = new FileInfo(pathManager + upgradelocFile);
-
-        //    if (fileUpdateExists && !FormUtils.IsFileLocked(upgradeInitFileInfo))
-        //    {
-        //        FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
-        //        //int size = fInfo.Length;//taille en octets 
-        //        //MessageBox.Show(fInfo.Length.ToString(), "Info Taille, ce n'est pas la taille qui compte...");
-        //        if (fInfo.Length < 5000)
-        //        {
-        //            //TODO regarder les droits avant de tenter une suppression
-        //            File.Delete(pathManager + upgradelocFile);
-        //            fileUpdateExists = false;
-        //        }
-        //    }
-
-        //    if (fileUpdateExists)
-        //    {
-        //        //DateTime fInfo = DateTime.Now;
-        //        FileInfo fInfo = new FileInfo(pathManager + upgradelocFile);
-        //        int size = unchecked((int)fInfo.Length);                                    //taille en octets  
-        //                                                                                    //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(2))      //debug
-        //                                                                                    //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(60))
-        //        if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddDays(1))
-        //        {
-        //            //FormUtils.LogRegister("LogRegister 313 Check RequisOK size: "
-        //            //        + size.ToString() + " Now? >= "
-        //            //        + DateTime.Now.ToString()
-        //            //        + fInfo.LastWriteTime.ToString() + " AddDays(1)? "
-        //            //        + fInfo.LastWriteTime.AddDays(1));
-        //            RequisOK = true;
-        //        }
-        //    }
-            
-        //    if (!fileUpdateExists | RequisOK)
-        //    {
-        //        //telecharge le fichier contenant les mises à jour possible
-        //        using (WebClient client = new WebClient())
-        //        {
-        //            try
-        //            {
-        //                //client.DownloadFile(ParamServ.FileServDgUpgradeTXT, pathManager + upgradelocFile);
-
-        //                //client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
-        //                client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(client_DownloadFileCompleted);
-        //                client.DownloadFileAsync(new Uri(ParamServ.FileServDgUpgradeTXT), pathManager + upgradelocFile);
-
-        //                FormUtils.LogRegister("Download upgrade.txt ");
-
-        //            }
-        //            catch (Exception ex)
-        //            {                   
-
-        //                //string errorDetails = $"Error: {ex.Message}, StackTrace: {ex.StackTrace}, FileServDgUpgradeTXT: {ParamServ.FileServDgUpgradeTXT}";
-        //                //FormUtils.LogRegister("Error in LogRegister: " + errorDetails);
-
-        //                //MessageBox.Show("Failed to download upgrade.txt ", "Report");
-        //                //MessageBox.Show("Failed to download upgrade.txt " +"\r\n" +
-        //                //                errorDetails, "Error");
-
-        //                FormUtils.ErrorGeneral_BoxOrLog(ex, "Failed to download upgrade.txt", ParamServ.FileServDgUpgradeTXT, true, true);
-
-        //                return;
-        //            }
-        //            client.Dispose();
-        //        }
-        //    }
-        //    //else
-        //    //{
-        //        CheckVersionScriptsModLocal();
-        //    //}
-        //}
-
-//        public void CheckVersionScriptsModLocal()
-//        {
-//            return; // Ancien système version fichier par fichier désactivé
-
-//            string upgradelocFile = "upgrade.txt";
-//            string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-
-
-//            if (string.IsNullOrWhiteSpace(pathManager))
-//            {
-//                #if DEBUG
-//                    throw new ArgumentException("Le chemin pathManager est NULL ou vide !");
-//                #else
-//                  FormUtils.LogRegister("Le chemin pathManager est NULL ou vide " + pathManager);
-//                #endif
-//            }
-
-//            if (string.IsNullOrWhiteSpace(upgradelocFile))
-//            {
-//                #if DEBUG
-//                    throw new ArgumentException("Le nom du fichier upgradelocFile est NULL ou vide !");
-//                #else
-//                     FormUtils.LogRegister("Le nom du fichier upgradelocFile est NULL ou vide " + upgradelocFile);
-//                #endif
-//            }
-
-
-
-//            bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-
-//            //string str = "1.1.1";
-//            //Version DceManagerVer = new Version(str);
-
-//            Version DceManagerVer = Assembly.GetExecutingAssembly().GetName().Version;
-//            String.Format("{0}.{1}.{2}", DceManagerVer.Major, DceManagerVer.Minor, DceManagerVer.Build);
-
-//            int AvailableMajor = 0;
-//            int AvailableMinor = 0;
-//            int AvailableBuild = 0;
-
-//            int FileServer_major = 0;
-//            int FileServer_minor = 0;
-//            int FileServer_build = 0;
-
-//            string pathManagerPlusFile = pathManager + upgradelocFile;
-
-
-//            if (pathManagerPlusFile.IndexOfAny(Path.GetInvalidPathChars()) >= 0)
-//            {
-//#if DEBUG
-//                     throw new ArgumentException($"Le chemin pathManager contient des caractères interdits : {pathManagerPlusFile}");
-//#else
-//                   FormUtils.LogRegister($"Le chemin pathManagerPlusFile contient des caractères interdits : {pathManagerPlusFile}");
-//#endif
-//            }
-
-
-//            bool upgradeFileExists = File.Exists(pathManagerPlusFile);
-
-//            FileInfo upgradeFileInfo = new FileInfo(pathManagerPlusFile);
-
-//            bool upToDate = true;
-//            bool DcemanagUpToDate = true;
-
-//            // parse le fichier upgrade pour connaitre la version DCE
-//            //if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
-//            if (upgradeFileExists)
-//            {
-//                try
-//                {
-//                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-//                    using (FileStream fs = new FileStream(pathManagerPlusFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-//                    using (StreamReader sr = new StreamReader(fs))
-//                    {
-
-//                        string line;
-//                        while ((line = sr.ReadLine()) != null)
-//                        {
-//                            string lineClean = line.Replace(" ", "");
-//                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                  //ne prend pas en compte les lignes commençant par --
-//                            {
-//                                //DEVversionDCE.ScriptsMod = "20.44.71"
-//                                if (lineClean.Contains("versionDCE.ScriptsMod="))
-//                                {
-//                                    //recherche la version de DCE
-//                                    lineClean = lineClean.Replace("\"", "");
-//                                    lineClean = lineClean.Replace("versionDCE.ScriptsMod=", "");
-
-//                                    string[] words = lineClean.Split('.');
-//                                    AvailableMajor = Int32.Parse(words[0]);
-//                                    AvailableMinor = Int32.Parse(words[1]);
-//                                    AvailableBuild = Int32.Parse(words[2]);
-//                                }
-//                                else if (lineClean.Contains("versionManager="))
-//                                {
-//                                    //recherche la version de DCE
-//                                    lineClean = lineClean.Replace(" ", "");
-//                                    lineClean = lineClean.Replace("versionManager=", "");
-//                                    lineClean = lineClean.Replace("\"", "");
-
-//                                    string[] words = lineClean.Split('.');
-//                                    FileServer_major = Int32.Parse(words[0]);
-//                                    FileServer_minor = Int32.Parse(words[1]);
-//                                    FileServer_build = Int32.Parse(words[2]);
-//                                }
-//                            }
-//                        }
-//                        ScriptsModAvailableVersion.Text = AvailableMajor + "." + AvailableMinor + "." + AvailableBuild;
-//                        ScriptsModAvailableVersion.Update();
-//                        DceManagerAvailableVersion.Text = FileServer_major + "." + FileServer_minor + "." + FileServer_build;
-//                        DceManagerAvailableVersion.Update();
-//                    }
-//                }
-//                catch (Exception ex)
-//                {
-//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
-//                }
-//            }
-
-//            string folderLoc ;
-//            string TypeClient = "NG";
-
-//            folderLoc = textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod." + TypeClient + @"\";
-
-//            if (string.IsNullOrWhiteSpace(folderLoc))
-//            {
-//#if DEBUG
-//                    throw new ArgumentException("Le chemin folderLoc est NULL ou vide !");
-//#else
-//                  FormUtils.LogRegister("Le chemin folderLoc est NULL ou vide " + folderLoc);
-//#endif
-//            }
-
-//             bool folderLocExists = System.IO.Directory.Exists(folderLoc);
-
-
-//            if (!folderLocExists)
-//            {
-//                //System.IO.Directory.CreateDirectory(folderLoc);
-//                try
-//                {
-//                    System.IO.Directory.CreateDirectory(folderLoc);
-//                }
-//                catch (Exception ex)
-//                {
-//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-//                }
-//            }
-
-//            ////test la presence du dossier "db_loadouts"
-//            //if (!System.IO.Directory.Exists(folderLoc + @"\db_loadouts")) 
-//            //{
-//            //    try
-//            //    {
-//            //        System.IO.Directory.CreateDirectory(folderLoc + @"\db_loadouts");
-//            //    }
-//            //    catch (Exception ex)
-//            //    {
-//            //        FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-//            //    }
-//            //}
-
-//            //test la presence du dossier "Mission Scripts"
-//            if (!System.IO.Directory.Exists(folderLoc + @"\Mission Scripts"))
-//            {
-//               try
-//                {
-//                    System.IO.Directory.CreateDirectory(folderLoc + @"\Mission Scripts");
-//                }
-//                catch (Exception ex)
-//                {
-//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", pathManager + upgradelocFile, true, true);
-//                }
-//            }
-
-
-//            //compare les versions de tous les fichiers
-//            if (upgradeFileExists && !FormUtils.IsFileLocked(upgradeFileInfo))
-//            {
-
-//                int nbFileToUpdat = 0;
-//                ParamDownload.NbFileOutToDate = 0;
-
-//                try
-//                {
-//                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-//                    using (FileStream fs = new FileStream(pathManager + upgradelocFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-//                    using (StreamReader sr = new StreamReader(fs))
-//                    {
-//                        string line;
-//                        while ((line = sr.ReadLine()) != null)
-//                        {
-
-//                            //string lineClean = line.Replace(" ", "");
-//                            string lineClean = line;
-//                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
-//                            {
-
-//                                //Ne traite que les fichiers versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-//                                //DEVversionDCE["ATO_FlightPlan.lua"] = "1.38.107" = 1HOjcQ1eBvYLIm114wt-Ojx_mCJ7prrds
-
-//                                string fileName = "";
-//                                string FileRefDate = "";
-//                                int[] FileRefVersion = new int[3];
-
-//                                if (lineClean.Contains("versionDCE[\""))
-//                                {
-//                                    //versionDCE.ScriptsMod = "20.43.70"
-//                                    //versionDCE["ATO_FlightPlan.lua"] = "1.38.107"
-//                                    //recherche les fichiers à mettre à jour
-
-//                                    lineClean = lineClean.Replace("https://drive.google.com/file/d/", "");
-//                                    //lineClean = lineClean.Replace("/view?usp=sharing", "");
-
-//                                    if (lineClean.IndexOf("/view?") > -1)
-//                                    {
-//                                        string[] partView = lineClean.Split('/');
-//                                        lineClean = partView[0];
-//                                    }
-
-//                                    lineClean = lineClean.Replace("\"", "");
-//                                    string[] part = lineClean.Split('=');
-//                                    part[1] = part[1].TrimEnd();
-//                                    part[1] = part[1].TrimStart();
-
-//                                    if (part.Length >= 3)
-//                                    {
-//                                        part[2] = part[2].TrimEnd();
-//                                        part[2] = part[2].TrimStart();
-//                                    }
-
-
-//                                    string[] pre = part[0].Split('[');
-//                                    string[] post = pre[1].Split(']');
-//                                    fileName = post[0];
-//                                    fileName = fileName.TrimEnd();
-//                                    fileName = fileName.TrimStart();
-
-//                                    //remet le caractere \ a la place du | pour tous
-//                                    fileName = fileName.Replace("|", "\\");
-
-//                                    //remet l'espace du path "Mission Scripts" préalablement supprimé
-//                                    if (fileName.Contains("MissionScripts"))
-//                                    {
-//                                        fileName = fileName.Replace("MissionScripts", "Mission Scripts");
-//                                        //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-//                                        //fileName = fileName.Replace("|", "\\");
-//                                    }
-//                                    ////remet l'espace du path "Mission Scripts" préalablement supprimé
-//                                    //if (fileName.Contains("db_loadouts"))
-//                                    //{
-//                                    //    //remet le caractere \ a la place du | pour les  "db_loadouts" 
-//                                    //    fileName = fileName.Replace("|", "\\");
-//                                    //}
-//                                    //else if (fileName.Contains("Mission Scripts"))
-//                                    //{
-//                                    //    //remet le caractere \ a la place du | pour les  "Mission Scripts" 
-//                                    //    fileName = fileName.Replace("|", "\\");
-//                                    //}
-
-//                                    if (part[1].Contains("."))
-//                                    {
-//                                        string[] tempRefVersion = part[1].Split('.');
-
-//                                        FileRefVersion[0] = Int32.Parse(tempRefVersion[0]);
-//                                        FileRefVersion[1] = Int32.Parse(tempRefVersion[1]);
-//                                        FileRefVersion[2] = Int32.Parse(tempRefVersion[2]);
-
-//                                    }
-//                                    else if (part[1].Contains(":") & part[1].Contains("/"))
-//                                    {
-//                                        //31/03/2021 09:37:31
-//                                        //versionDCE["Mission Scripts\beacon.oog"] = "24/04/2022 12:34:45" = https://drive.google.com/file/d/1lPkuy5u8eTqtw2gcaQYmUfH_RKuhTphC/view?usp=sharing
-
-//                                        FileRefDate = part[1];
-//                                    }
-//                                }
-
-//                                if (!String.IsNullOrEmpty(fileName))
-//                                {
-
-//                                    bool fichierSain = true;
-//                                    bool fileLocExists = File.Exists(folderLoc + fileName);
-//                                    string ext = "";
-
-//                                    int FileLoc_major = 0;
-//                                    int FileLoc_minor = 0;
-//                                    int FileLoc_build = 0;
-
-//                                    Boolean fileLocDateNeedUpdate = false;
-//                                    Boolean isLuaTxtFile = false;
-
-//                                    //FormUtils.LogRegister("DEBUG filename raw |" + fileName + "|");
-
-//                                    //foreach (char c in fileName)
-//                                    //{
-//                                    //    if (Path.GetInvalidFileNameChars().Contains(c))
-//                                    //        FormUtils.LogRegister("INVALID CHAR : " + (int)c);
-//                                    //}
-
-//                                    FileInfo fInfo = new FileInfo(folderLoc + fileName);
-//                                    //int size = fInfo.Length;//taille en octets 
-
-//                                    if (fileLocExists)
-//                                    {
-//                                        if (fInfo.Length < 1)
-//                                            fichierSain = false;
-
-//                                        ext = Path.GetExtension(folderLoc + fileName);
-
-//                                    }
-
-//                                    if (ext == ".lua" | ext == ".txt")
-//                                    {
-//                                        isLuaTxtFile = true;
-
-//                                        if (fileLocExists && fichierSain)
-//                                        {
-//                                            string FileToRead = folderLoc + fileName;
-//                                            using (StreamReader ReaderObject = new StreamReader(FileToRead))
-//                                            {
-
-//                                                string Line;
-//                                                while ((Line = ReaderObject.ReadLine()) != null)
-//                                                {
-//                                                    Line = Line.Replace(" ", "");
-//                                                    //versionDCE.ATO_FlightPlan = "1.38.107"
-//                                                    if (Line.Contains("versionDCE["))
-//                                                    {
-//                                                        //placer ici le code pour virer le commentaire : --48CEF tout ça
-//                                                        if (Line.IndexOf("--") > -1)
-//                                                        {
-//                                                            Line = Line.Substring(0, Line.IndexOf("--"));
-//                                                        }
-
-//                                                        Line = Line.Replace("\"", "");
-//                                                        string[] part = Line.Split('=');
-//                                                        string[] tempVersion = part[1].Split('.');
-
-//                                                        FileLoc_major = Int32.Parse(tempVersion[0]);
-//                                                        FileLoc_minor = Int32.Parse(tempVersion[1]);
-//                                                        FileLoc_build = Int32.Parse(tempVersion[2]);
-
-//                                                        //FormUtils.LogRegister("LogRegister 1351 folderLoc, |"+ fileToRead + "| " + FileLoc_major + "| " + FileLoc_minor + "| " + FileLoc_build + "| ");
-
-
-//                                                        break;
-//                                                    }
-//                                                    //else
-//                                                    //{
-//                                                    //    ExistVersion = false;
-//                                                    //}
-//                                                }
-//                                            }
-//                                        }
-
-//                                    }
-//                                    else
-//                                    //autres fichiers de type ogg png
-//                                    {
-//                                        DateTime dtFileLoc = File.GetLastWriteTime(folderLoc + fileName);
-
-//                                        if (FileRefDate != "")
-//                                        {
-//                                            //FormUtils.LogRegister("fileUpdateArray[nbFileToUpdat, 5]?  |" + fileUpdateArray[nbFileToUpdat, 5].ToString() + "| ");
-
-//                                            //31/03/2021 09:37:31
-//                                            DateTime dt_RefFile = DateTime.ParseExact(FileRefDate, "dd/MM/yyyy HH:mm:ss",
-//                                                System.Globalization.CultureInfo.InvariantCulture);
-
-//                                            if (dt_RefFile > dtFileLoc)
-//                                            {
-//                                                fileLocDateNeedUpdate = true;
-//                                            }
-//                                            else
-//                                            {
-//                                                fileLocDateNeedUpdate = false;
-//                                            }
-//                                        }
-//                                    }
-
-
-//                                    if (FileRefVersion[0] > FileLoc_major || FileRefVersion[1] > FileLoc_minor || FileRefVersion[2] > FileLoc_build || (!isLuaTxtFile && fileLocDateNeedUpdate) || !fileLocExists)
-//                                    {
-
-//                                        FormUtils.LogRegister("LogRegister 1394 this file is not up to date, or is missing  |" + fileName + "| ");
-
-//                                        nbFileToUpdat++;
-//                                    }
-
-//                                    //if (fileDate)
-//                                    //{
-
-//                                    //}
-
-//                                }
-//                                //else
-//                                //{
-//                                //    FormUtils.LogRegister("LogRegister 1479 this file is not up to date, or is missing  |" + fileName + "| ");
-
-//                                //    nbFileToUpdat++;
-//                                //}
-
-//                                //**********************************
-//                                //check la version de DCE_Manager
-//                                //*********************************
-
-//                                //versionManager = "3.7.5"
-//                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
-//                                //if (lineClean.Contains("versionDCE[\""))
-//                                if (lineClean.Contains("versionManager") && !lineClean.Contains("versionManagerGoogleDrive"))
-//                                {
-//                                    //recherche la version de DCE
-//                                    lineClean = lineClean.Replace(" ", "");
-//                                    lineClean = lineClean.Replace("versionManager=", "");
-//                                    lineClean = lineClean.Replace("\"", "");
-
-//                                    string[] words = lineClean.Split('.');
-//                                    FileServer_major = Int32.Parse(words[0]);
-//                                    FileServer_minor = Int32.Parse(words[1]);
-//                                    FileServer_build = Int32.Parse(words[2]);
-
-//                                    if ((FileServer_major > DceManagerVer.Major) | (FileServer_minor > DceManagerVer.Minor) | (FileServer_build > DceManagerVer.Build))
-//                                    {
-//                                        FormUtils.LogRegister("LogRegister 1426 DCE_Manager is not up to date,  |" + DceManagerVer.Major + "| " + DceManagerVer.Minor + "| " + DceManagerVer.Build + "| ");
-
-
-//                                        DcemanagUpToDate = false;
-//                                    }
-//                                }
-//                            }
-//                        }
-//                    }
-
-//                    if (nbFileToUpdat > 0)
-//                    {
-//                        FormUtils.LogRegister("LogRegister 1438 Number of out-of-date files:   |" + nbFileToUpdat + "| ");
-//                        upToDate = false;
-//                        ParamDownload.NbFileOutToDate = nbFileToUpdat;
-//                    }
-//                    if (DcemanagUpToDate == false)
-//                    {
-//                        ParamDownload.NbFileOutToDate = ParamDownload.NbFileOutToDate + 1;
-//                    }
-//                }
-
-//                catch (Exception ex)
-//                {
-//                    FormUtils.ErrorGeneral_BoxOrLog(ex, "CheckVersionScriptsModLocal", pathManager + upgradelocFile, false, true);
-//                }
-//            }
-
-//            int major = 0;
-//            int minor = 0;
-//            int build = 0;
-//            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
-
-//            if (File.Exists((textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua")))
-//            {
-//                using (StreamReader reader = new StreamReader(textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua"))
-//                {
-//                    string line;
-//                    while ((line = reader.ReadLine()) != null)
-//                    {
-
-//                        string lineClean = line.Replace(" ", "");
-//                        if (!String.IsNullOrEmpty(lineClean))              //&& lineClean.Substring(0, 2) != "--"                                                 //ne prend pas en compte les lignes commençant par --
-//                        {
-//                            //versionDCE["UTIL_Changelog.lua"] = "20.58.205"
-//                            if (lineClean.Contains("versionDCE["))
-//                            {
-//                                //recherche la version de DCE
-//                                lineClean = lineClean.Replace("\"", "");
-//                                if (lineClean.Contains("versionDCE[UTIL_Changelog.txt"))
-//                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.txt]=", "");
-
-//                                if (lineClean.Contains("versionDCE[UTIL_Changelog.lua"))
-//                                    lineClean = lineClean.Replace("versionDCE[UTIL_Changelog.lua]=", "");
-
-//                                string[] words = lineClean.Split('.');
-//                                major = Int32.Parse(words[0]);
-//                                minor = Int32.Parse(words[1]);
-//                                build = Int32.Parse(words[2]);
-//                            }
-//                        }
-//                    }
-//                    reader.Close();
-//                }
-//            }
-
-//            string tempLocVersion = major.ToString() + "." + minor.ToString() + "." + build.ToString();
-
-//            ParamScriptsMod.verScriptsMod = tempLocVersion;
-            
-//            if (!upToDate)
-//            {
-//                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Strikeout);
-//            }
-//            else
-//            {
-//                ScriptModInstalledVersion.Font = new Font(ScriptModInstalledVersion.Font, FontStyle.Regular);
-//            }
-
-//            ScriptModInstalledVersion.Text = tempLocVersion;
-
-//            //compare si la version est supérieur pour afficher/ou non/ le boutton download
-//            //ou si des fichiers ne sont pas à jour
-//            if ((AvailableMajor > major) | (AvailableMinor > minor) | (AvailableBuild > build) | !upToDate | !DcemanagUpToDate)
-//            {
-//                if(!upToDate)
-//                {
-//                    ScriptsModUpdateButton.Visible = true;
-//                }
-//                if (!DcemanagUpToDate)
-//                {
-//                    button_UpdateManager.Visible = true;
-//                }
-//                tabPage3.Text = "Update " + ParamDownload.NbFileOutToDate.ToString() + " File(s)";
-//                tabPage3.Refresh();
-//            }
-//            else
-//            {
-//                ScriptsModUpdateButton.Visible = false;
-//                tabPage3.Text = "Update";
-//                tabPage3.Refresh();
-//            }
-
-//            DceManagerInstalledVersion.Text = VersionDceManager.Text;
-//            //ParamManager.verDceManager = VersionDceManager.Text;
-
-//        }//CheckVersionScriptsModLocal
 
 
         public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
@@ -4238,21 +3292,18 @@ namespace DCE_Manager
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
         // Update du ScriptsMod
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
-        private async void ScriptsModUpdateButton_Click(object sender, EventArgs e)
+
+        private async void ScriptsModUpdateButton_Click( object sender, EventArgs e)
         {
-            //UpdateScriptsMod();
-
-            //await DownloadLatestScriptsMod();
-            bool success = await GetLatestGithubRelease();
-
-            await DownloadLatestScriptsMod();
+            await scriptsModUpdater.DownloadLatestScriptsMod();
 
             FormUtils.LogRegister(
-                 "Test GitHub Version : " + ParamGithub.LastVersion +
-                "\r\nAsset : " + ParamGithub.AssetName +
-                "\r\nURL : " + ParamGithub.DownloadUrl
-                );
-
+                "Test GitHub Version : " +
+                ParamGithub.LastVersion +
+                "\r\nAsset : " +
+                ParamGithub.AssetName +
+                "\r\nURL : " +
+                ParamGithub.DownloadUrl);
         }
 
         private void label5_Click(object sender, EventArgs e)
@@ -4817,7 +3868,7 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++  tabPage1       +++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-            if (e.TabPage == tabPage1)
+            if (e.TabPage == tabPageLeft_Install)
             {
                 checkBoxMod();
                 groupBoxDroiteAccueil.Visible = true;
@@ -4833,7 +3884,7 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage3       +++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            else if (e.TabPage == tabPage3)
+            else if (e.TabPage == tabPageLeft_Update)
             {
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
@@ -4846,7 +3897,7 @@ namespace DCE_Manager
                 panel1.Controls.Clear();
                 //ScriptsModUpdateButton.Visible = false;
                 //button_UpdateManager.Visible = false;
-                DceManagerInstalledVersion.Text = VersionDceManager.Text;
+                DCEManagerInstalledVersion.Text = VersionDceManager.Text;
                 if (String.IsNullOrEmpty(textBox_SavedGames.Text))
                 {
                     MessageBox.Show("You must enter the path to the SavedGame folder in the \"Install\" tab ", "Report");
@@ -4876,7 +3927,7 @@ namespace DCE_Manager
 
 
             }
-            else if (e.TabPage == tabPage4)
+            else if (e.TabPage == tabPageLeft_About)
             {
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
@@ -4915,7 +3966,7 @@ namespace DCE_Manager
                     }
                 }
             }
-            else if (e.TabPage == tabPage5)
+            else if (e.TabPage == tabPageLeftNews)
             {
                 groupBoxDroiteAccueil.Visible = true;
                 groupBoxCampEdit.Visible = false;
@@ -4924,7 +3975,7 @@ namespace DCE_Manager
                 CampaignTab.Visible = false;
 
             }
-            else if (e.TabPage == tabPage16)
+            else if (e.TabPage == tabPageLeft_Campaigns)
             {
                 Cursor.Current = Cursors.WaitCursor;
 
@@ -5009,13 +4060,24 @@ namespace DCE_Manager
             return but;
         }
 
-        public string VersionLongDceManager()
+        //public string VersionLongDceManager()
+        //{
+        //    Version version = Assembly.GetExecutingAssembly().GetName().Version;
+        //    string versionString = String.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
+        //    ParamManager.verDceManager = versionString;
+        //    return versionString;
+
+        //}
+
+        public string GetVersionDceManager()
         {
             Version version = Assembly.GetExecutingAssembly().GetName().Version;
-            string versionString = String.Format("{0}.{1}.{2}.{3}", version.Major, version.Minor, version.Build, version.Revision);
+
+            // On ne garde que les 3 premiers composants (Major, Minor, Build)
+            string versionString = String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
+
             ParamManager.verDceManager = versionString;
             return versionString;
-
         }
 
         private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
@@ -5158,250 +4220,255 @@ namespace DCE_Manager
             }
         }
 
-        //button_UpdateManager_Click
-        private async void button_UpdateManager_ClickAsync(object sender, EventArgs e)
+        private async void DCEManagerUpdateButton_Click( object sender, EventArgs e)
         {
-
-            int FileServer_major = 0;
-            int FileServer_minor = 0;
-            int FileServer_build = 0;
-
-            int nbFileUpdated = 0;
-
-            bool succeed = true;
-            string tempLog = "";
-            string FileServerName = "";
-            string FileLocName = "";
-
-            string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-            bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-            if (!pathManagerExists)
-            {
-                try
-                {
-                    System.IO.Directory.CreateDirectory(pathManager);
-                }
-                catch (Exception e2)
-                {
-                    //Console.WriteLine("The process failed: {0}", e2.ToString());
-                    //MessageBox.Show("The process failed: {0}", e2.ToString());
-                    FormUtils.ShowErrorMessage(e2.Message);
-                }
-            }
-
-
-            //string DownloadFolder = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
-
-            // Récupérer le chemin du dossier Téléchargements
-            string downloadFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
-
-            // Vérifier si le dossier existe et le créer si nécessaire
-            if (!Directory.Exists(downloadFolder))
-            {
-                ////Directory.CreateDirectory(downloadFolder);
-
-                //// Créer une boîte de dialogue pour sélectionner un dossier
-                //FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
-                //folderBrowserDialog.Description = "Select the folder where you want to save the file";
-
-                //// Afficher la boîte de dialogue et récupérer le chemin sélectionné
-                //if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                //{
-                //    downloadFolder = folderBrowserDialog.SelectedPath;
-                //    // Utiliser le chemin downloadFolder pour enregistrer le fichier
-                //}
-
-                //**************************************
-                // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-                using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-                {
-                    // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-                    if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-                    {
-                        MessageBox.Show("This feature is not supported on your version of Windows.");
-                        return;
-                    }
-
-                    // Définir les propriétés du dialogue de dossier
-                    folderBrowserDialog.Description = "Select a folder";
-                    folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-                    folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
-
-                    //// Pré-sélectionner le répertoire "Saved Games"
-                    //string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-                    //if (Directory.Exists(savedGamesPath))
-                    //{
-                    //    folderBrowserDialog.SelectedPath = savedGamesPath;
-                    //}
-
-                    // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-                    if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                    {
-                        // Récupérer le chemin du dossier sélectionné
-                        downloadFolder = folderBrowserDialog.SelectedPath;
-                    }
-                }
-                //*********************************************
-            }
-            
-            // parse le fichier upgrade pour connaitre la version DCE
-            //string pathUpgradeFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\";
-
-            bool exists = System.IO.Directory.Exists(pathManager);
-            string pathFile = pathManager + "upgrade.txt";
-            bool fileExists = File.Exists(pathFile);
-            bool failedUpdate = false;
-
-            string[,] fileUpdateArray = new string[50, 4];
-
-            if (fileExists) //exists &
-            {
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-                            string lineClean = line.Replace(" ", "");
-                            if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
-                            {
-                                //versionManager = "3.7.5"
-                                //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
-
-                                if (lineClean.Contains("versionManager="))
-                                {
-                                    //recherche la version de DCE
-                                    lineClean = lineClean.Replace(" ", "");
-                                    lineClean = lineClean.Replace("versionManager=", "");
-                                    lineClean = lineClean.Replace("\"", "");
-
-                                    string[] words = lineClean.Split('.');
-                                    FileServer_major = Int32.Parse(words[0]);
-                                    FileServer_minor = Int32.Parse(words[1]);
-                                    FileServer_build = Int32.Parse(words[2]);
-
-                                    if (ParamServ.fileTypeServer == "ftp")
-                                    {
-                                        FileServerName = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
-                                    }
-
-                                }
-                                else if (lineClean.Contains("versionManagerGoogleDrive=") && ParamServ.fileTypeServer == "drivegoogle")
-                                {
-                                    lineClean = lineClean.Replace("versionManagerGoogleDrive=", "");
-                                    lineClean = lineClean.Replace(" ", "");
-                                    FileServerName = lineClean;
-                                }
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", pathFile, false, true);
-                }
-            }
-            else
-            {
-                //FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", pathFile, false, true);
-            }
-
-            //telecharge le fichier à mettre à jour
-            if (succeed)
-            {
-
-                Version version = Assembly.GetExecutingAssembly().GetName().Version;
-                String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
-
-                if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
-                {
-                    string downloadUrl = "";
-                    string destinationPath = "";
-
-                    try
-                    {
-                        if (ParamServ.fileTypeServer == "drivegoogle")
-                        {
-                            //client.DownloadFile(fileServerName, DownloadFolder + "DCE_Manager.zip");
-                            downloadUrl = FileServerName;
-                            destinationPath = downloadFolder + @"\DCE_Manager.zip";
-
-                        }
-                        else
-                        {
-                            //client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + fileServerName, DownloadFolder + fileServerName);
-                            downloadUrl = ParamServ.ServerSelected + "_DCE_Manager/" + FileServerName;
-                            destinationPath = Path.Combine(downloadFolder, FileServerName);
-                        }
-
-                        // Log avant téléchargement
-                        FormUtils.LogRegister($"Attempt to download directly from {downloadUrl} to {destinationPath}");
-
-                        // Téléchargement du fichier
-                        bool success = await FormUtils.TéléchargerFichierAvecHttpClient(downloadUrl, destinationPath);
-                        if (!success)
-                            failedUpdate = true;
-
-
-                        nbFileUpdated++;
-                        tempLog += $" Updated: {destinationPath}\r\n";
-                    }
-                    catch (WebException webEx)
-                    {
-                        // Détails de l'erreur WebException
-                        //FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, false, true);
-                        failedUpdate = true;
-
-                        // Affiche le message d'erreur détaillé dans un messagebox
-                        MessageBox.Show($"A download error has occurred:\n{webEx.Message}\n" +
-                                        $"Statut : {webEx.Status}\n" +
-                                        $"URL : {downloadUrl}", "Download error");
-
-                        FormUtils.LogRegister($"A download error has occurred:\n{webEx.Message}\n" +
-                                        $"Statut : {webEx.Status}\n" +
-                                        $"URL : {downloadUrl}");
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log général pour toutes les autres exceptions
-                        FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", $"Erreur serveur : {downloadUrl}", true, true);
-                        failedUpdate = true;
-                    }
-
-                    if (nbFileUpdated > 0 & failedUpdate == false)
-                    {
-                        DceManagerAvailableVersion.Text = "DCE_Manager downloaded " + FileLocName;
-                        tempLog = tempLog + "DCE_Manager downloaded " + FileLocName + " " + FileServerName + "\r\n";
-
-                        FormUtils.LogRegister(downloadFolder + FileLocName);
-
-                        MessageBox.Show("The program will close and open the downloaded Zip file." + "\r\n" +
-                            "It is up to you to extract it and place it wherever you want.", "Report");
-
-                        Process process = new Process();
-                        // Configure the process using the StartInfo properties.
-
-                        process.StartInfo.FileName = downloadFolder + FileLocName;
-                        process.StartInfo.Arguments = " ";
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                        process.StartInfo.WorkingDirectory = downloadFolder;
-
-                        process.Start();
-
-                        Application.Exit();
-
-
-                    }
-                }
-            }
-
-            //MessageBox.Show(tempLog, "Report");
-            FormUtils.LogRegister(tempLog);
-
+            await scriptsModUpdater.DownloadLatestDCEManager();
         }
+
+        ////button_UpdateManager_Click
+        //private async void button_UpdateManager_ClickAsync(object sender, EventArgs e)
+        //{
+
+        //    int FileServer_major = 0;
+        //    int FileServer_minor = 0;
+        //    int FileServer_build = 0;
+
+        //    int nbFileUpdated = 0;
+
+        //    bool succeed = true;
+        //    string tempLog = "";
+        //    string FileServerName = "";
+        //    string FileLocName = "";
+
+        //    string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
+        //    bool pathManagerExists = System.IO.Directory.Exists(pathManager);
+        //    if (!pathManagerExists)
+        //    {
+        //        try
+        //        {
+        //            System.IO.Directory.CreateDirectory(pathManager);
+        //        }
+        //        catch (Exception e2)
+        //        {
+        //            //Console.WriteLine("The process failed: {0}", e2.ToString());
+        //            //MessageBox.Show("The process failed: {0}", e2.ToString());
+        //            FormUtils.ShowErrorMessage(e2.Message);
+        //        }
+        //    }
+
+
+        //    //string DownloadFolder = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads\\");
+
+        //    // Récupérer le chemin du dossier Téléchargements
+        //    string downloadFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) + "\\Downloads";
+
+        //    // Vérifier si le dossier existe et le créer si nécessaire
+        //    if (!Directory.Exists(downloadFolder))
+        //    {
+        //        ////Directory.CreateDirectory(downloadFolder);
+
+        //        //// Créer une boîte de dialogue pour sélectionner un dossier
+        //        //FolderBrowserDialog folderBrowserDialog = new FolderBrowserDialog();
+        //        //folderBrowserDialog.Description = "Select the folder where you want to save the file";
+
+        //        //// Afficher la boîte de dialogue et récupérer le chemin sélectionné
+        //        //if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+        //        //{
+        //        //    downloadFolder = folderBrowserDialog.SelectedPath;
+        //        //    // Utiliser le chemin downloadFolder pour enregistrer le fichier
+        //        //}
+
+        //        //**************************************
+        //        // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
+        //        using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
+        //        {
+        //            // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
+        //            if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
+        //            {
+        //                MessageBox.Show("This feature is not supported on your version of Windows.");
+        //                return;
+        //            }
+
+        //            // Définir les propriétés du dialogue de dossier
+        //            folderBrowserDialog.Description = "Select a folder";
+        //            folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
+        //            folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
+
+        //            //// Pré-sélectionner le répertoire "Saved Games"
+        //            //string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
+        //            //if (Directory.Exists(savedGamesPath))
+        //            //{
+        //            //    folderBrowserDialog.SelectedPath = savedGamesPath;
+        //            //}
+
+        //            // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
+        //            if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
+        //            {
+        //                // Récupérer le chemin du dossier sélectionné
+        //                downloadFolder = folderBrowserDialog.SelectedPath;
+        //            }
+        //        }
+        //        //*********************************************
+        //    }
+
+        //    // parse le fichier upgrade pour connaitre la version DCE
+        //    //string pathUpgradeFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\";
+
+        //    bool exists = System.IO.Directory.Exists(pathManager);
+        //    string pathFile = pathManager + "upgrade.txt";
+        //    bool fileExists = File.Exists(pathFile);
+        //    bool failedUpdate = false;
+
+        //    string[,] fileUpdateArray = new string[50, 4];
+
+        //    if (fileExists) //exists &
+        //    {
+        //        try
+        //        {
+        //            // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
+        //            using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+        //            using (StreamReader sr = new StreamReader(fs))
+        //            {
+        //                string line;
+        //                while ((line = sr.ReadLine()) != null)
+        //                {
+        //                    string lineClean = line.Replace(" ", "");
+        //                    if (!String.IsNullOrEmpty(lineClean) && lineClean.Substring(0, 2) != "--")                                                              //ne prend pas en compte les lignes commençant par --
+        //                    {
+        //                        //versionManager = "3.7.5"
+        //                        //versionManagerGoogleDrive = 1gn-wgHxxh8i-ke7LpUsu65x9aF5RtPBA
+
+        //                        if (lineClean.Contains("versionManager="))
+        //                        {
+        //                            //recherche la version de DCE
+        //                            lineClean = lineClean.Replace(" ", "");
+        //                            lineClean = lineClean.Replace("versionManager=", "");
+        //                            lineClean = lineClean.Replace("\"", "");
+
+        //                            string[] words = lineClean.Split('.');
+        //                            FileServer_major = Int32.Parse(words[0]);
+        //                            FileServer_minor = Int32.Parse(words[1]);
+        //                            FileServer_build = Int32.Parse(words[2]);
+
+        //                            if (ParamServ.fileTypeServer == "ftp")
+        //                            {
+        //                                FileServerName = "DCE_Manager_V" + FileServer_major + "." + FileServer_minor + "." + FileServer_build + ".zip";
+        //                            }
+
+        //                        }
+        //                        else if (lineClean.Contains("versionManagerGoogleDrive=") && ParamServ.fileTypeServer == "drivegoogle")
+        //                        {
+        //                            lineClean = lineClean.Replace("versionManagerGoogleDrive=", "");
+        //                            lineClean = lineClean.Replace(" ", "");
+        //                            FileServerName = lineClean;
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", pathFile, false, true);
+        //        }
+        //    }
+        //    else
+        //    {
+        //        //FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", pathFile, false, true);
+        //    }
+
+        //    //telecharge le fichier à mettre à jour
+        //    if (succeed)
+        //    {
+
+        //        Version version = Assembly.GetExecutingAssembly().GetName().Version;
+        //        String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
+
+        //        if ((FileServer_major > version.Major) | (FileServer_minor > version.Minor) | (FileServer_build > version.Build))
+        //        {
+        //            string downloadUrl = "";
+        //            string destinationPath = "";
+
+        //            try
+        //            {
+        //                if (ParamServ.fileTypeServer == "drivegoogle")
+        //                {
+        //                    //client.DownloadFile(fileServerName, DownloadFolder + "DCE_Manager.zip");
+        //                    downloadUrl = FileServerName;
+        //                    destinationPath = downloadFolder + @"\DCE_Manager.zip";
+
+        //                }
+        //                else
+        //                {
+        //                    //client.DownloadFile(ParamServ.ServerSelected + @"_DCE_Manager\" + fileServerName, DownloadFolder + fileServerName);
+        //                    downloadUrl = ParamServ.ServerSelected + "_DCE_Manager/" + FileServerName;
+        //                    destinationPath = Path.Combine(downloadFolder, FileServerName);
+        //                }
+
+        //                // Log avant téléchargement
+        //                FormUtils.LogRegister($"Attempt to download directly from {downloadUrl} to {destinationPath}");
+
+        //                // Téléchargement du fichier
+        //                bool success = await FormUtils.TéléchargerFichierAvecHttpClient(downloadUrl, destinationPath);
+        //                if (!success)
+        //                    failedUpdate = true;
+
+
+        //                nbFileUpdated++;
+        //                tempLog += $" Updated: {destinationPath}\r\n";
+        //            }
+        //            catch (WebException webEx)
+        //            {
+        //                // Détails de l'erreur WebException
+        //                //FormUtils.ErrorGeneral_BoxOrLog(webEx, "Erreur Web pendant le téléchargement", downloadUrl, false, true);
+        //                failedUpdate = true;
+
+        //                // Affiche le message d'erreur détaillé dans un messagebox
+        //                MessageBox.Show($"A download error has occurred:\n{webEx.Message}\n" +
+        //                                $"Statut : {webEx.Status}\n" +
+        //                                $"URL : {downloadUrl}", "Download error");
+
+        //                FormUtils.LogRegister($"A download error has occurred:\n{webEx.Message}\n" +
+        //                                $"Statut : {webEx.Status}\n" +
+        //                                $"URL : {downloadUrl}");
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                // Log général pour toutes les autres exceptions
+        //                FormUtils.ErrorGeneral_BoxOrLog(ex, "button_UpdateManager_Click", $"Erreur serveur : {downloadUrl}", true, true);
+        //                failedUpdate = true;
+        //            }
+
+        //            if (nbFileUpdated > 0 & failedUpdate == false)
+        //            {
+        //                DCEManagerAvailableVersion.Text = "DCE_Manager downloaded " + FileLocName;
+        //                tempLog = tempLog + "DCE_Manager downloaded " + FileLocName + " " + FileServerName + "\r\n";
+
+        //                FormUtils.LogRegister(downloadFolder + FileLocName);
+
+        //                MessageBox.Show("The program will close and open the downloaded Zip file." + "\r\n" +
+        //                    "It is up to you to extract it and place it wherever you want.", "Report");
+
+        //                Process process = new Process();
+        //                // Configure the process using the StartInfo properties.
+
+        //                process.StartInfo.FileName = downloadFolder + FileLocName;
+        //                process.StartInfo.Arguments = " ";
+        //                process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
+        //                process.StartInfo.WorkingDirectory = downloadFolder;
+
+        //                process.Start();
+
+        //                Application.Exit();
+
+
+        //            }
+        //        }
+        //    }
+
+        //    //MessageBox.Show(tempLog, "Report");
+        //    FormUtils.LogRegister(tempLog);
+
+        //}
 
         private void button_Log_Click(object sender, EventArgs e)
         {
@@ -7001,7 +6068,8 @@ namespace DCE_Manager
             if (ButtonPreview == true ) {
 
 
-                VersionLongDceManager();
+                //VersionLongDceManager();
+                GetVersionDceManager();
                 txtBoxFolderCreateUpdate.Visible = true;
                 textBoxCreateFileUpdate.Visible = true;
                 butCreateUpdateBrowse.Visible = true;
@@ -7014,17 +6082,17 @@ namespace DCE_Manager
                 //checkBoxSanitize.Visible = true;
                 LabelStatut.Text = "DEV";
                 ScriptsModUpdateButton.Text = "Update DEV";
-                butCheckVersion.Visible = true;
+                //butCheckVersion.Visible = true;
                 textBox_id_client.Visible = true;
             }
 
         }
 
-        private void butCheckVersion_Click(object sender, EventArgs e)
-        {
-            //CheckVersionScriptsModLocal();
-            _ = CheckGithubVersionAsync();
-        }
+        //private void butCheckVersion_Click(object sender, EventArgs e)
+        //{
+        //    //CheckVersionScriptsModLocal();
+        //    _ = CheckGithubVersionAsync();
+        //}
 
         private void textBox_id_client_TextChanged(object sender, EventArgs e)
         {
@@ -7070,7 +6138,20 @@ namespace DCE_Manager
             RefreshGrids();
         }
 
+        private void Form1_Load(object sender, EventArgs e)
+        {
 
+        }
+
+        private void panel2_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void groupBox6_Enter(object sender, EventArgs e)
+        {
+
+        }
     }
 
 }

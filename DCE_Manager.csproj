@@ -209,6 +209,7 @@
       <DependentUpon>FormSquadEdit.cs</DependentUpon>
     </Compile>
     <Compile Include="CampaignEdit\OobAirParser.cs" />
+    <Compile Include="ParamGithubManager.cs" />
     <Compile Include="Proj_NET.cs" />
     <Compile Include="LuaParse.cs" />
     <Compile Include="FixedProcess.cs">
@@ -241,6 +242,7 @@
     <Compile Include="Parameters.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ScriptsModUpdater.cs" />
     <Compile Include="UIBatchBuilder.cs.cs" />
     <Compile Include="Utils.cs" />
     <EmbeddedResource Include="FormDownload.resx">

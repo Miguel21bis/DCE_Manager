@@ -52,7 +52,6 @@ namespace DCE_Manager
             this.Label_DCS = new System.Windows.Forms.Label();
             this.textBox_SavedGames = new System.Windows.Forms.TextBox();
             this.button1 = new System.Windows.Forms.Button();
-            this.label4 = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.label1 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -60,7 +59,7 @@ namespace DCE_Manager
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.tabControl = new System.Windows.Forms.TabControl();
-            this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.tabPageLeft_Install = new System.Windows.Forms.TabPage();
             this.groupBox7 = new System.Windows.Forms.GroupBox();
             this.groupBox4 = new System.Windows.Forms.GroupBox();
             this.groupBox8 = new System.Windows.Forms.GroupBox();
@@ -70,52 +69,57 @@ namespace DCE_Manager
             this.groupBox5 = new System.Windows.Forms.GroupBox();
             this.textBox_Config = new System.Windows.Forms.TextBox();
             this.m_Button_AddConfig = new System.Windows.Forms.Button();
-            this.tabPage16 = new System.Windows.Forms.TabPage();
+            this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.tabPageLeft_Campaigns = new System.Windows.Forms.TabPage();
             this.dataGridViewCampaigns = new System.Windows.Forms.DataGridView();
-            this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.buttonDocFolder = new System.Windows.Forms.Button();
-            this.C_DataMapCity = new System.Windows.Forms.Button();
-            this.C_DataMap = new System.Windows.Forms.Button();
-            this.textBoxCreateFileUpdate = new System.Windows.Forms.TextBox();
-            this.butCreateUpdateBrowse = new System.Windows.Forms.Button();
-            this.txtBoxFolderCreateUpdate = new System.Windows.Forms.TextBox();
-            this.butCreaUpdate = new System.Windows.Forms.Button();
+            this.tabPageLeft_Update = new System.Windows.Forms.TabPage();
+            this.panel3 = new System.Windows.Forms.Panel();
             this.label10 = new System.Windows.Forms.Label();
             this.comboBox_Server = new System.Windows.Forms.ComboBox();
-            this.button_Log = new System.Windows.Forms.Button();
+            this.C_DataMapCity = new System.Windows.Forms.Button();
+            this.butCreaUpdate = new System.Windows.Forms.Button();
+            this.C_DataMap = new System.Windows.Forms.Button();
+            this.txtBoxFolderCreateUpdate = new System.Windows.Forms.TextBox();
+            this.textBoxCreateFileUpdate = new System.Windows.Forms.TextBox();
+            this.butCreateUpdateBrowse = new System.Windows.Forms.Button();
             this.groupBox6 = new System.Windows.Forms.GroupBox();
+            this.DCEManagerStatusLabel = new System.Windows.Forms.Label();
             this.label13 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
-            this.DceManagerInstalledVersion = new System.Windows.Forms.Label();
-            this.DceManagerAvailableVersion = new System.Windows.Forms.Label();
-            this.button_UpdateManager = new System.Windows.Forms.Button();
+            this.DCEManagerInstalledVersion = new System.Windows.Forms.Label();
+            this.DCEManagerAvailableVersion = new System.Windows.Forms.Label();
+            this.DCEManagerUpdateButton = new System.Windows.Forms.Button();
             this.groupBox3 = new System.Windows.Forms.GroupBox();
-            this.butCheckVersion = new System.Windows.Forms.Button();
             this.panel1 = new System.Windows.Forms.Panel();
             this.CampUpdateButton = new System.Windows.Forms.Button();
             this.groupBox2 = new System.Windows.Forms.GroupBox();
-            this.buttonResetSM = new System.Windows.Forms.Button();
+            this.ScriptsModStatusLabel = new System.Windows.Forms.Label();
             this.label12 = new System.Windows.Forms.Label();
             this.label11 = new System.Windows.Forms.Label();
             this.ScriptModInstalledVersion = new System.Windows.Forms.Label();
             this.ScriptsModUpdateButton = new System.Windows.Forms.Button();
             this.ScriptsModAvailableVersion = new System.Windows.Forms.Label();
-            this.tabPage4 = new System.Windows.Forms.TabPage();
+            this.tabPageLeft_About = new System.Windows.Forms.TabPage();
             this.label9 = new System.Windows.Forms.Label();
             this.textBox_ChangelogScriptsMod = new System.Windows.Forms.TextBox();
             this.label8 = new System.Windows.Forms.Label();
             this.textBox_changelog = new System.Windows.Forms.TextBox();
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
-            this.tabPage5 = new System.Windows.Forms.TabPage();
+            this.tabPageLeftNews = new System.Windows.Forms.TabPage();
             this.panel_News = new System.Windows.Forms.Panel();
             this.textBox_News = new System.Windows.Forms.TextBox();
-            this.tabPage13 = new System.Windows.Forms.TabPage();
+            this.tabPageLeft_Tools = new System.Windows.Forms.TabPage();
             this.textBox_ASTI = new System.Windows.Forms.TextBox();
             this.label6 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.but_ASTI = new System.Windows.Forms.Button();
             this.button_theWay = new System.Windows.Forms.Button();
+            this.tabPageLeft_Options = new System.Windows.Forms.TabPage();
+            this.checkBox_Stat_anonym = new System.Windows.Forms.CheckBox();
+            this.buttonDocFolder = new System.Windows.Forms.Button();
+            this.button_Log = new System.Windows.Forms.Button();
             this.VersionDceManager = new System.Windows.Forms.Label();
             this.LabelStatut = new System.Windows.Forms.Label();
             this.pictureBox5 = new System.Windows.Forms.PictureBox();
@@ -125,9 +129,6 @@ namespace DCE_Manager
             this.butCampMaker = new System.Windows.Forms.Button();
             this.but_Expert = new System.Windows.Forms.Button();
             this.butClient = new System.Windows.Forms.Button();
-            this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
-            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
-            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
             this.CampaignTab = new System.Windows.Forms.TabControl();
             this.tabPage6 = new System.Windows.Forms.TabPage();
             this.pictureBoxCampImage = new System.Windows.Forms.PictureBox();
@@ -139,6 +140,8 @@ namespace DCE_Manager
             this.tabPage11 = new System.Windows.Forms.TabPage();
             this.tabPage12 = new System.Windows.Forms.TabPage();
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
+            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
+            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
             this.buttonResetBackup = new System.Windows.Forms.Button();
             this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
@@ -150,29 +153,33 @@ namespace DCE_Manager
             this.but_ASTI_Browse_Template = new System.Windows.Forms.Button();
             this.textBox_ASTI_MissionFile = new System.Windows.Forms.TextBox();
             this.textBox_ASTI_importTemplateFolder = new System.Windows.Forms.TextBox();
+            this.panel2 = new System.Windows.Forms.Panel();
+            this.panel_Droite = new System.Windows.Forms.Panel();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.tabControl.SuspendLayout();
-            this.tabPage1.SuspendLayout();
+            this.tabPageLeft_Install.SuspendLayout();
             this.groupBox7.SuspendLayout();
             this.groupBox4.SuspendLayout();
             this.groupBox8.SuspendLayout();
             this.groupBox5.SuspendLayout();
-            this.tabPage16.SuspendLayout();
+            this.groupBoxCampEdit.SuspendLayout();
+            this.tabPageLeft_Campaigns.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).BeginInit();
-            this.tabPage3.SuspendLayout();
+            this.tabPageLeft_Update.SuspendLayout();
+            this.panel3.SuspendLayout();
             this.groupBox6.SuspendLayout();
             this.groupBox3.SuspendLayout();
             this.groupBox2.SuspendLayout();
-            this.tabPage4.SuspendLayout();
-            this.tabPage5.SuspendLayout();
-            this.tabPage13.SuspendLayout();
+            this.tabPageLeft_About.SuspendLayout();
+            this.tabPageLeftNews.SuspendLayout();
+            this.tabPageLeft_Tools.SuspendLayout();
+            this.tabPageLeft_Options.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOvGME)).BeginInit();
             this.groupBoxDroiteAccueil.SuspendLayout();
-            this.groupBoxCampEdit.SuspendLayout();
             this.CampaignTab.SuspendLayout();
             this.tabPage6.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCampImage)).BeginInit();
@@ -182,6 +189,8 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).BeginInit();
             this.tabPage12.SuspendLayout();
             this.groupBox_staticTemplate.SuspendLayout();
+            this.panel2.SuspendLayout();
+            this.panel_Droite.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_ButtonDcsPath
@@ -406,15 +415,6 @@ namespace DCE_Manager
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(245, 464);
-            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(0, 16);
-            this.label4.TabIndex = 10;
-            // 
             // toolTip1
             // 
             this.toolTip1.Popup += new System.Windows.Forms.PopupEventHandler(this.toolTip1_Popup);
@@ -475,32 +475,33 @@ namespace DCE_Manager
             // 
             this.tabControl.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left)));
-            this.tabControl.Controls.Add(this.tabPage1);
-            this.tabControl.Controls.Add(this.tabPage16);
-            this.tabControl.Controls.Add(this.tabPage3);
-            this.tabControl.Controls.Add(this.tabPage4);
-            this.tabControl.Controls.Add(this.tabPage5);
-            this.tabControl.Controls.Add(this.tabPage13);
+            this.tabControl.Controls.Add(this.tabPageLeft_Install);
+            this.tabControl.Controls.Add(this.tabPageLeft_Campaigns);
+            this.tabControl.Controls.Add(this.tabPageLeft_Update);
+            this.tabControl.Controls.Add(this.tabPageLeft_About);
+            this.tabControl.Controls.Add(this.tabPageLeftNews);
+            this.tabControl.Controls.Add(this.tabPageLeft_Tools);
+            this.tabControl.Controls.Add(this.tabPageLeft_Options);
             this.tabControl.Location = new System.Drawing.Point(4, 14);
             this.tabControl.Margin = new System.Windows.Forms.Padding(4);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
-            this.tabControl.Size = new System.Drawing.Size(1088, 570);
+            this.tabControl.Size = new System.Drawing.Size(1088, 687);
             this.tabControl.TabIndex = 18;
             // 
-            // tabPage1
+            // tabPageLeft_Install
             // 
-            this.tabPage1.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage1.Controls.Add(this.groupBox7);
-            this.tabPage1.Controls.Add(this.groupBox4);
-            this.tabPage1.Controls.Add(this.groupBox1);
-            this.tabPage1.Location = new System.Drawing.Point(4, 25);
-            this.tabPage1.Margin = new System.Windows.Forms.Padding(4);
-            this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage1.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "Install";
+            this.tabPageLeft_Install.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_Install.Controls.Add(this.groupBox7);
+            this.tabPageLeft_Install.Controls.Add(this.groupBox4);
+            this.tabPageLeft_Install.Controls.Add(this.groupBox1);
+            this.tabPageLeft_Install.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_Install.Margin = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_Install.Name = "tabPageLeft_Install";
+            this.tabPageLeft_Install.Padding = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_Install.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_Install.TabIndex = 0;
+            this.tabPageLeft_Install.Text = "Install";
             // 
             // groupBox7
             // 
@@ -527,6 +528,7 @@ namespace DCE_Manager
             // 
             this.groupBox4.Controls.Add(this.groupBox8);
             this.groupBox4.Controls.Add(this.groupBox5);
+            this.groupBox4.Controls.Add(this.groupBoxCampEdit);
             this.groupBox4.Location = new System.Drawing.Point(323, 391);
             this.groupBox4.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox4.Name = "groupBox4";
@@ -613,139 +615,91 @@ namespace DCE_Manager
             this.m_Button_AddConfig.UseVisualStyleBackColor = true;
             this.m_Button_AddConfig.Click += new System.EventHandler(this.m_Button_AddConfig_Click);
             // 
-            // tabPage16
+            // groupBoxCampEdit
             // 
-            this.tabPage16.Controls.Add(this.dataGridViewCampaigns);
-            this.tabPage16.Location = new System.Drawing.Point(4, 25);
-            this.tabPage16.Name = "tabPage16";
-            this.tabPage16.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage16.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage16.TabIndex = 6;
-            this.tabPage16.Text = "Campaigns";
-            this.tabPage16.UseVisualStyleBackColor = true;
+            this.groupBoxCampEdit.Controls.Add(this.label4);
+            this.groupBoxCampEdit.Location = new System.Drawing.Point(425, 101);
+            this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
+            this.groupBoxCampEdit.Name = "groupBoxCampEdit";
+            this.groupBoxCampEdit.Padding = new System.Windows.Forms.Padding(4);
+            this.groupBoxCampEdit.Size = new System.Drawing.Size(373, 324);
+            this.groupBoxCampEdit.TabIndex = 24;
+            this.groupBoxCampEdit.TabStop = false;
+            this.groupBoxCampEdit.Visible = false;
+            this.groupBoxCampEdit.Enter += new System.EventHandler(this.groupBoxCampEdit_Enter);
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(245, 464);
+            this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(0, 16);
+            this.label4.TabIndex = 10;
+            // 
+            // tabPageLeft_Campaigns
+            // 
+            this.tabPageLeft_Campaigns.Controls.Add(this.dataGridViewCampaigns);
+            this.tabPageLeft_Campaigns.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_Campaigns.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPageLeft_Campaigns.Name = "tabPageLeft_Campaigns";
+            this.tabPageLeft_Campaigns.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPageLeft_Campaigns.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_Campaigns.TabIndex = 6;
+            this.tabPageLeft_Campaigns.Text = "Campaigns";
+            this.tabPageLeft_Campaigns.UseVisualStyleBackColor = true;
             // 
             // dataGridViewCampaigns
             // 
-            this.dataGridViewCampaigns.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dataGridViewCampaigns.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
             this.dataGridViewCampaigns.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dataGridViewCampaigns.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewCampaigns.Location = new System.Drawing.Point(3, 3);
+            this.dataGridViewCampaigns.Location = new System.Drawing.Point(3, 2);
+            this.dataGridViewCampaigns.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.dataGridViewCampaigns.MultiSelect = false;
             this.dataGridViewCampaigns.Name = "dataGridViewCampaigns";
             this.dataGridViewCampaigns.ReadOnly = true;
             this.dataGridViewCampaigns.RowHeadersWidth = 51;
             this.dataGridViewCampaigns.RowTemplate.Height = 80;
             this.dataGridViewCampaigns.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewCampaigns.Size = new System.Drawing.Size(1074, 535);
+            this.dataGridViewCampaigns.Size = new System.Drawing.Size(1075, 650);
             this.dataGridViewCampaigns.TabIndex = 0;
             // 
-            // tabPage3
+            // tabPageLeft_Update
             // 
-            this.tabPage3.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage3.Controls.Add(this.buttonDocFolder);
-            this.tabPage3.Controls.Add(this.C_DataMapCity);
-            this.tabPage3.Controls.Add(this.C_DataMap);
-            this.tabPage3.Controls.Add(this.textBoxCreateFileUpdate);
-            this.tabPage3.Controls.Add(this.butCreateUpdateBrowse);
-            this.tabPage3.Controls.Add(this.txtBoxFolderCreateUpdate);
-            this.tabPage3.Controls.Add(this.butCreaUpdate);
-            this.tabPage3.Controls.Add(this.label10);
-            this.tabPage3.Controls.Add(this.comboBox_Server);
-            this.tabPage3.Controls.Add(this.button_Log);
-            this.tabPage3.Controls.Add(this.groupBox6);
-            this.tabPage3.Controls.Add(this.groupBox3);
-            this.tabPage3.Controls.Add(this.groupBox2);
-            this.tabPage3.Location = new System.Drawing.Point(4, 25);
-            this.tabPage3.Margin = new System.Windows.Forms.Padding(4);
-            this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage3.TabIndex = 2;
-            this.tabPage3.Text = "Update";
+            this.tabPageLeft_Update.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_Update.Controls.Add(this.panel3);
+            this.tabPageLeft_Update.Controls.Add(this.groupBox6);
+            this.tabPageLeft_Update.Controls.Add(this.groupBox3);
+            this.tabPageLeft_Update.Controls.Add(this.groupBox2);
+            this.tabPageLeft_Update.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_Update.Margin = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_Update.Name = "tabPageLeft_Update";
+            this.tabPageLeft_Update.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_Update.TabIndex = 2;
+            this.tabPageLeft_Update.Text = "Update";
             // 
-            // buttonDocFolder
+            // panel3
             // 
-            this.buttonDocFolder.Location = new System.Drawing.Point(899, 444);
-            this.buttonDocFolder.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonDocFolder.Name = "buttonDocFolder";
-            this.buttonDocFolder.Size = new System.Drawing.Size(87, 28);
-            this.buttonDocFolder.TabIndex = 30;
-            this.buttonDocFolder.Text = "DocFolder";
-            this.buttonDocFolder.UseVisualStyleBackColor = true;
-            this.buttonDocFolder.Click += new System.EventHandler(this.buttonDocFolder_Click);
-            // 
-            // C_DataMapCity
-            // 
-            this.C_DataMapCity.Location = new System.Drawing.Point(803, 315);
-            this.C_DataMapCity.Margin = new System.Windows.Forms.Padding(4);
-            this.C_DataMapCity.Name = "C_DataMapCity";
-            this.C_DataMapCity.Size = new System.Drawing.Size(179, 28);
-            this.C_DataMapCity.TabIndex = 29;
-            this.C_DataMapCity.Text = "CreateDataMapCity";
-            this.C_DataMapCity.UseVisualStyleBackColor = true;
-            this.C_DataMapCity.Visible = false;
-            this.C_DataMapCity.Click += new System.EventHandler(this.C_DataMapCity_Click_1);
-            // 
-            // C_DataMap
-            // 
-            this.C_DataMap.Location = new System.Drawing.Point(803, 268);
-            this.C_DataMap.Margin = new System.Windows.Forms.Padding(4);
-            this.C_DataMap.Name = "C_DataMap";
-            this.C_DataMap.Size = new System.Drawing.Size(179, 28);
-            this.C_DataMap.TabIndex = 28;
-            this.C_DataMap.Text = "CreateDataMapSAR";
-            this.C_DataMap.UseVisualStyleBackColor = true;
-            this.C_DataMap.Visible = false;
-            this.C_DataMap.Click += new System.EventHandler(this.C_DataMap_Click);
-            // 
-            // textBoxCreateFileUpdate
-            // 
-            this.textBoxCreateFileUpdate.Location = new System.Drawing.Point(803, 150);
-            this.textBoxCreateFileUpdate.Margin = new System.Windows.Forms.Padding(4);
-            this.textBoxCreateFileUpdate.Name = "textBoxCreateFileUpdate";
-            this.textBoxCreateFileUpdate.Size = new System.Drawing.Size(181, 22);
-            this.textBoxCreateFileUpdate.TabIndex = 27;
-            this.textBoxCreateFileUpdate.Visible = false;
-            // 
-            // butCreateUpdateBrowse
-            // 
-            this.butCreateUpdateBrowse.Location = new System.Drawing.Point(993, 98);
-            this.butCreateUpdateBrowse.Margin = new System.Windows.Forms.Padding(4);
-            this.butCreateUpdateBrowse.Name = "butCreateUpdateBrowse";
-            this.butCreateUpdateBrowse.Size = new System.Drawing.Size(76, 25);
-            this.butCreateUpdateBrowse.TabIndex = 26;
-            this.butCreateUpdateBrowse.Text = "Browse...";
-            this.butCreateUpdateBrowse.UseVisualStyleBackColor = true;
-            this.butCreateUpdateBrowse.Visible = false;
-            this.butCreateUpdateBrowse.Click += new System.EventHandler(this.butCreateUpdateBrowse_Click);
-            // 
-            // txtBoxFolderCreateUpdate
-            // 
-            this.txtBoxFolderCreateUpdate.Location = new System.Drawing.Point(803, 98);
-            this.txtBoxFolderCreateUpdate.Margin = new System.Windows.Forms.Padding(4);
-            this.txtBoxFolderCreateUpdate.Name = "txtBoxFolderCreateUpdate";
-            this.txtBoxFolderCreateUpdate.Size = new System.Drawing.Size(181, 22);
-            this.txtBoxFolderCreateUpdate.TabIndex = 25;
-            this.txtBoxFolderCreateUpdate.Visible = false;
-            this.txtBoxFolderCreateUpdate.TextChanged += new System.EventHandler(this.txtBoxFolderCreateUpdate_TextChanged);
-            // 
-            // butCreaUpdate
-            // 
-            this.butCreaUpdate.Location = new System.Drawing.Point(803, 207);
-            this.butCreaUpdate.Margin = new System.Windows.Forms.Padding(4);
-            this.butCreaUpdate.Name = "butCreaUpdate";
-            this.butCreaUpdate.Size = new System.Drawing.Size(179, 28);
-            this.butCreaUpdate.TabIndex = 24;
-            this.butCreaUpdate.Text = "CreationUpdate";
-            this.butCreaUpdate.UseVisualStyleBackColor = true;
-            this.butCreaUpdate.Visible = false;
-            this.butCreaUpdate.Click += new System.EventHandler(this.ButCreaUpdate_Click);
+            this.panel3.Controls.Add(this.label10);
+            this.panel3.Controls.Add(this.comboBox_Server);
+            this.panel3.Controls.Add(this.C_DataMapCity);
+            this.panel3.Controls.Add(this.butCreaUpdate);
+            this.panel3.Controls.Add(this.C_DataMap);
+            this.panel3.Controls.Add(this.txtBoxFolderCreateUpdate);
+            this.panel3.Controls.Add(this.textBoxCreateFileUpdate);
+            this.panel3.Controls.Add(this.butCreateUpdateBrowse);
+            this.panel3.Location = new System.Drawing.Point(1024, 15);
+            this.panel3.Name = "panel3";
+            this.panel3.Size = new System.Drawing.Size(43, 166);
+            this.panel3.TabIndex = 31;
+            this.panel3.Visible = false;
             // 
             // label10
             // 
             this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(803, 18);
+            this.label10.Location = new System.Drawing.Point(14, 12);
             this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label10.Name = "label10";
             this.label10.Size = new System.Drawing.Size(97, 16);
@@ -756,7 +710,7 @@ namespace DCE_Manager
             // comboBox_Server
             // 
             this.comboBox_Server.FormattingEnabled = true;
-            this.comboBox_Server.Location = new System.Drawing.Point(803, 42);
+            this.comboBox_Server.Location = new System.Drawing.Point(14, 36);
             this.comboBox_Server.Margin = new System.Windows.Forms.Padding(4);
             this.comboBox_Server.Name = "comboBox_Server";
             this.comboBox_Server.Size = new System.Drawing.Size(181, 24);
@@ -764,32 +718,100 @@ namespace DCE_Manager
             this.comboBox_Server.Visible = false;
             this.comboBox_Server.SelectedIndexChanged += new System.EventHandler(this.comboBox1_SelectedIndexChanged);
             // 
-            // button_Log
+            // C_DataMapCity
             // 
-            this.button_Log.Location = new System.Drawing.Point(807, 444);
-            this.button_Log.Margin = new System.Windows.Forms.Padding(4);
-            this.button_Log.Name = "button_Log";
-            this.button_Log.Size = new System.Drawing.Size(84, 28);
-            this.button_Log.TabIndex = 21;
-            this.button_Log.Text = "Log";
-            this.button_Log.UseVisualStyleBackColor = true;
-            this.button_Log.Click += new System.EventHandler(this.button_Log_Click);
+            this.C_DataMapCity.Location = new System.Drawing.Point(14, 309);
+            this.C_DataMapCity.Margin = new System.Windows.Forms.Padding(4);
+            this.C_DataMapCity.Name = "C_DataMapCity";
+            this.C_DataMapCity.Size = new System.Drawing.Size(179, 28);
+            this.C_DataMapCity.TabIndex = 29;
+            this.C_DataMapCity.Text = "CreateDataMapCity";
+            this.C_DataMapCity.UseVisualStyleBackColor = true;
+            this.C_DataMapCity.Visible = false;
+            this.C_DataMapCity.Click += new System.EventHandler(this.C_DataMapCity_Click_1);
+            // 
+            // butCreaUpdate
+            // 
+            this.butCreaUpdate.Location = new System.Drawing.Point(14, 201);
+            this.butCreaUpdate.Margin = new System.Windows.Forms.Padding(4);
+            this.butCreaUpdate.Name = "butCreaUpdate";
+            this.butCreaUpdate.Size = new System.Drawing.Size(179, 28);
+            this.butCreaUpdate.TabIndex = 24;
+            this.butCreaUpdate.Text = "CreationUpdate";
+            this.butCreaUpdate.UseVisualStyleBackColor = true;
+            this.butCreaUpdate.Visible = false;
+            this.butCreaUpdate.Click += new System.EventHandler(this.ButCreaUpdate_Click);
+            // 
+            // C_DataMap
+            // 
+            this.C_DataMap.Location = new System.Drawing.Point(14, 262);
+            this.C_DataMap.Margin = new System.Windows.Forms.Padding(4);
+            this.C_DataMap.Name = "C_DataMap";
+            this.C_DataMap.Size = new System.Drawing.Size(179, 28);
+            this.C_DataMap.TabIndex = 28;
+            this.C_DataMap.Text = "CreateDataMapSAR";
+            this.C_DataMap.UseVisualStyleBackColor = true;
+            this.C_DataMap.Visible = false;
+            this.C_DataMap.Click += new System.EventHandler(this.C_DataMap_Click);
+            // 
+            // txtBoxFolderCreateUpdate
+            // 
+            this.txtBoxFolderCreateUpdate.Location = new System.Drawing.Point(14, 92);
+            this.txtBoxFolderCreateUpdate.Margin = new System.Windows.Forms.Padding(4);
+            this.txtBoxFolderCreateUpdate.Name = "txtBoxFolderCreateUpdate";
+            this.txtBoxFolderCreateUpdate.Size = new System.Drawing.Size(181, 22);
+            this.txtBoxFolderCreateUpdate.TabIndex = 25;
+            this.txtBoxFolderCreateUpdate.Visible = false;
+            this.txtBoxFolderCreateUpdate.TextChanged += new System.EventHandler(this.txtBoxFolderCreateUpdate_TextChanged);
+            // 
+            // textBoxCreateFileUpdate
+            // 
+            this.textBoxCreateFileUpdate.Location = new System.Drawing.Point(14, 144);
+            this.textBoxCreateFileUpdate.Margin = new System.Windows.Forms.Padding(4);
+            this.textBoxCreateFileUpdate.Name = "textBoxCreateFileUpdate";
+            this.textBoxCreateFileUpdate.Size = new System.Drawing.Size(181, 22);
+            this.textBoxCreateFileUpdate.TabIndex = 27;
+            this.textBoxCreateFileUpdate.Visible = false;
+            // 
+            // butCreateUpdateBrowse
+            // 
+            this.butCreateUpdateBrowse.Location = new System.Drawing.Point(204, 92);
+            this.butCreateUpdateBrowse.Margin = new System.Windows.Forms.Padding(4);
+            this.butCreateUpdateBrowse.Name = "butCreateUpdateBrowse";
+            this.butCreateUpdateBrowse.Size = new System.Drawing.Size(76, 25);
+            this.butCreateUpdateBrowse.TabIndex = 26;
+            this.butCreateUpdateBrowse.Text = "Browse...";
+            this.butCreateUpdateBrowse.UseVisualStyleBackColor = true;
+            this.butCreateUpdateBrowse.Visible = false;
+            this.butCreateUpdateBrowse.Click += new System.EventHandler(this.butCreateUpdateBrowse_Click);
             // 
             // groupBox6
             // 
+            this.groupBox6.Controls.Add(this.DCEManagerStatusLabel);
             this.groupBox6.Controls.Add(this.label13);
             this.groupBox6.Controls.Add(this.label14);
-            this.groupBox6.Controls.Add(this.DceManagerInstalledVersion);
-            this.groupBox6.Controls.Add(this.DceManagerAvailableVersion);
-            this.groupBox6.Controls.Add(this.button_UpdateManager);
-            this.groupBox6.Location = new System.Drawing.Point(20, 119);
+            this.groupBox6.Controls.Add(this.DCEManagerInstalledVersion);
+            this.groupBox6.Controls.Add(this.DCEManagerAvailableVersion);
+            this.groupBox6.Controls.Add(this.DCEManagerUpdateButton);
+            this.groupBox6.Location = new System.Drawing.Point(20, 140);
             this.groupBox6.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox6.Name = "groupBox6";
             this.groupBox6.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox6.Size = new System.Drawing.Size(760, 84);
+            this.groupBox6.Size = new System.Drawing.Size(986, 104);
             this.groupBox6.TabIndex = 4;
             this.groupBox6.TabStop = false;
             this.groupBox6.Text = "DCE_Manager Version";
+            this.groupBox6.Enter += new System.EventHandler(this.groupBox6_Enter);
+            // 
+            // DCEManagerStatusLabel
+            // 
+            this.DCEManagerStatusLabel.AutoSize = true;
+            this.DCEManagerStatusLabel.Location = new System.Drawing.Point(619, 69);
+            this.DCEManagerStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.DCEManagerStatusLabel.Name = "DCEManagerStatusLabel";
+            this.DCEManagerStatusLabel.Size = new System.Drawing.Size(62, 16);
+            this.DCEManagerStatusLabel.TabIndex = 6;
+            this.DCEManagerStatusLabel.Text = "Unknown";
             // 
             // label13
             // 
@@ -811,64 +833,51 @@ namespace DCE_Manager
             this.label14.TabIndex = 4;
             this.label14.Text = "Available";
             // 
-            // DceManagerInstalledVersion
+            // DCEManagerInstalledVersion
             // 
-            this.DceManagerInstalledVersion.AutoSize = true;
-            this.DceManagerInstalledVersion.Location = new System.Drawing.Point(141, 52);
-            this.DceManagerInstalledVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.DceManagerInstalledVersion.Name = "DceManagerInstalledVersion";
-            this.DceManagerInstalledVersion.Size = new System.Drawing.Size(16, 16);
-            this.DceManagerInstalledVersion.TabIndex = 3;
-            this.DceManagerInstalledVersion.Text = "...";
+            this.DCEManagerInstalledVersion.AutoSize = true;
+            this.DCEManagerInstalledVersion.Location = new System.Drawing.Point(141, 69);
+            this.DCEManagerInstalledVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.DCEManagerInstalledVersion.Name = "DCEManagerInstalledVersion";
+            this.DCEManagerInstalledVersion.Size = new System.Drawing.Size(16, 16);
+            this.DCEManagerInstalledVersion.TabIndex = 3;
+            this.DCEManagerInstalledVersion.Text = "...";
             // 
-            // DceManagerAvailableVersion
+            // DCEManagerAvailableVersion
             // 
-            this.DceManagerAvailableVersion.AutoSize = true;
-            this.DceManagerAvailableVersion.Location = new System.Drawing.Point(393, 52);
-            this.DceManagerAvailableVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
-            this.DceManagerAvailableVersion.Name = "DceManagerAvailableVersion";
-            this.DceManagerAvailableVersion.Size = new System.Drawing.Size(16, 16);
-            this.DceManagerAvailableVersion.TabIndex = 2;
-            this.DceManagerAvailableVersion.Text = "...";
-            this.DceManagerAvailableVersion.Click += new System.EventHandler(this.labelUpdateDceManager_Click);
+            this.DCEManagerAvailableVersion.AutoSize = true;
+            this.DCEManagerAvailableVersion.Location = new System.Drawing.Point(393, 69);
+            this.DCEManagerAvailableVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.DCEManagerAvailableVersion.Name = "DCEManagerAvailableVersion";
+            this.DCEManagerAvailableVersion.Size = new System.Drawing.Size(16, 16);
+            this.DCEManagerAvailableVersion.TabIndex = 2;
+            this.DCEManagerAvailableVersion.Text = "...";
+            this.DCEManagerAvailableVersion.Click += new System.EventHandler(this.labelUpdateDceManager_Click);
             // 
-            // button_UpdateManager
+            // DCEManagerUpdateButton
             // 
-            this.button_UpdateManager.Location = new System.Drawing.Point(605, 39);
-            this.button_UpdateManager.Margin = new System.Windows.Forms.Padding(4);
-            this.button_UpdateManager.Name = "button_UpdateManager";
-            this.button_UpdateManager.Size = new System.Drawing.Size(135, 28);
-            this.button_UpdateManager.TabIndex = 0;
-            this.button_UpdateManager.Text = "Update available";
-            this.button_UpdateManager.UseVisualStyleBackColor = true;
-            this.button_UpdateManager.Visible = false;
-            this.button_UpdateManager.Click += new System.EventHandler(this.button_UpdateManager_ClickAsync);
+            this.DCEManagerUpdateButton.Location = new System.Drawing.Point(605, 25);
+            this.DCEManagerUpdateButton.Margin = new System.Windows.Forms.Padding(4);
+            this.DCEManagerUpdateButton.Name = "DCEManagerUpdateButton";
+            this.DCEManagerUpdateButton.Size = new System.Drawing.Size(135, 28);
+            this.DCEManagerUpdateButton.TabIndex = 0;
+            this.DCEManagerUpdateButton.Text = "Update available";
+            this.DCEManagerUpdateButton.UseVisualStyleBackColor = true;
+            this.DCEManagerUpdateButton.Visible = false;
+            this.DCEManagerUpdateButton.Click += new System.EventHandler(this.DCEManagerUpdateButton_Click);
             // 
             // groupBox3
             // 
-            this.groupBox3.Controls.Add(this.butCheckVersion);
             this.groupBox3.Controls.Add(this.panel1);
             this.groupBox3.Controls.Add(this.CampUpdateButton);
-            this.groupBox3.Location = new System.Drawing.Point(20, 210);
+            this.groupBox3.Location = new System.Drawing.Point(20, 267);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox3.Size = new System.Drawing.Size(760, 283);
+            this.groupBox3.Size = new System.Drawing.Size(986, 239);
             this.groupBox3.TabIndex = 3;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Campaign";
-            // 
-            // butCheckVersion
-            // 
-            this.butCheckVersion.Location = new System.Drawing.Point(639, 138);
-            this.butCheckVersion.Margin = new System.Windows.Forms.Padding(4);
-            this.butCheckVersion.Name = "butCheckVersion";
-            this.butCheckVersion.Size = new System.Drawing.Size(113, 29);
-            this.butCheckVersion.TabIndex = 31;
-            this.butCheckVersion.Text = "CheckVersion";
-            this.butCheckVersion.UseVisualStyleBackColor = true;
-            this.butCheckVersion.Visible = false;
-            this.butCheckVersion.Click += new System.EventHandler(this.butCheckVersion_Click);
             // 
             // panel1
             // 
@@ -876,7 +885,7 @@ namespace DCE_Manager
             this.panel1.Location = new System.Drawing.Point(27, 58);
             this.panel1.Margin = new System.Windows.Forms.Padding(4);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(604, 204);
+            this.panel1.Size = new System.Drawing.Size(938, 180);
             this.panel1.TabIndex = 1;
             // 
             // CampUpdateButton
@@ -893,7 +902,7 @@ namespace DCE_Manager
             // 
             // groupBox2
             // 
-            this.groupBox2.Controls.Add(this.buttonResetSM);
+            this.groupBox2.Controls.Add(this.ScriptsModStatusLabel);
             this.groupBox2.Controls.Add(this.label12);
             this.groupBox2.Controls.Add(this.label11);
             this.groupBox2.Controls.Add(this.ScriptModInstalledVersion);
@@ -903,22 +912,20 @@ namespace DCE_Manager
             this.groupBox2.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBox2.Size = new System.Drawing.Size(760, 84);
+            this.groupBox2.Size = new System.Drawing.Size(986, 114);
             this.groupBox2.TabIndex = 2;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "ScriptsMod Version";
             // 
-            // buttonResetSM
+            // ScriptsModStatusLabel
             // 
-            this.buttonResetSM.Location = new System.Drawing.Point(27, 38);
-            this.buttonResetSM.Margin = new System.Windows.Forms.Padding(4);
-            this.buttonResetSM.Name = "buttonResetSM";
-            this.buttonResetSM.Size = new System.Drawing.Size(72, 28);
-            this.buttonResetSM.TabIndex = 5;
-            this.buttonResetSM.Text = "Reset";
-            this.buttonResetSM.UseVisualStyleBackColor = true;
-            this.buttonResetSM.Visible = false;
-            this.buttonResetSM.Click += new System.EventHandler(this.buttonResetSM_Click);
+            this.ScriptsModStatusLabel.AutoSize = true;
+            this.ScriptsModStatusLabel.Location = new System.Drawing.Point(619, 79);
+            this.ScriptsModStatusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
+            this.ScriptsModStatusLabel.Name = "ScriptsModStatusLabel";
+            this.ScriptsModStatusLabel.Size = new System.Drawing.Size(62, 16);
+            this.ScriptsModStatusLabel.TabIndex = 5;
+            this.ScriptsModStatusLabel.Text = "Unknown";
             // 
             // label12
             // 
@@ -945,7 +952,7 @@ namespace DCE_Manager
             // 
             this.ScriptModInstalledVersion.AutoSize = true;
             this.ScriptModInstalledVersion.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.ScriptModInstalledVersion.Location = new System.Drawing.Point(141, 50);
+            this.ScriptModInstalledVersion.Location = new System.Drawing.Point(141, 72);
             this.ScriptModInstalledVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.ScriptModInstalledVersion.Name = "ScriptModInstalledVersion";
             this.ScriptModInstalledVersion.Size = new System.Drawing.Size(16, 16);
@@ -955,7 +962,7 @@ namespace DCE_Manager
             // 
             // ScriptsModUpdateButton
             // 
-            this.ScriptsModUpdateButton.Location = new System.Drawing.Point(605, 38);
+            this.ScriptsModUpdateButton.Location = new System.Drawing.Point(605, 23);
             this.ScriptsModUpdateButton.Margin = new System.Windows.Forms.Padding(4);
             this.ScriptsModUpdateButton.Name = "ScriptsModUpdateButton";
             this.ScriptsModUpdateButton.Size = new System.Drawing.Size(135, 28);
@@ -968,7 +975,7 @@ namespace DCE_Manager
             // ScriptsModAvailableVersion
             // 
             this.ScriptsModAvailableVersion.AutoSize = true;
-            this.ScriptsModAvailableVersion.Location = new System.Drawing.Point(393, 50);
+            this.ScriptsModAvailableVersion.Location = new System.Drawing.Point(393, 72);
             this.ScriptsModAvailableVersion.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.ScriptsModAvailableVersion.Name = "ScriptsModAvailableVersion";
             this.ScriptsModAvailableVersion.Size = new System.Drawing.Size(16, 16);
@@ -976,21 +983,21 @@ namespace DCE_Manager
             this.ScriptsModAvailableVersion.Text = "...";
             this.ScriptsModAvailableVersion.Click += new System.EventHandler(this.label5_Click);
             // 
-            // tabPage4
+            // tabPageLeft_About
             // 
-            this.tabPage4.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage4.Controls.Add(this.label9);
-            this.tabPage4.Controls.Add(this.textBox_ChangelogScriptsMod);
-            this.tabPage4.Controls.Add(this.label8);
-            this.tabPage4.Controls.Add(this.textBox_changelog);
-            this.tabPage4.Controls.Add(this.textBox1);
-            this.tabPage4.Controls.Add(this.label5);
-            this.tabPage4.Location = new System.Drawing.Point(4, 25);
-            this.tabPage4.Margin = new System.Windows.Forms.Padding(4);
-            this.tabPage4.Name = "tabPage4";
-            this.tabPage4.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage4.TabIndex = 3;
-            this.tabPage4.Text = "About";
+            this.tabPageLeft_About.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_About.Controls.Add(this.label9);
+            this.tabPageLeft_About.Controls.Add(this.textBox_ChangelogScriptsMod);
+            this.tabPageLeft_About.Controls.Add(this.label8);
+            this.tabPageLeft_About.Controls.Add(this.textBox_changelog);
+            this.tabPageLeft_About.Controls.Add(this.textBox1);
+            this.tabPageLeft_About.Controls.Add(this.label5);
+            this.tabPageLeft_About.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_About.Margin = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_About.Name = "tabPageLeft_About";
+            this.tabPageLeft_About.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_About.TabIndex = 3;
+            this.tabPageLeft_About.Text = "About";
             // 
             // label9
             // 
@@ -1055,18 +1062,18 @@ namespace DCE_Manager
             this.label5.TabIndex = 0;
             this.label5.Text = "Credits :";
             // 
-            // tabPage5
+            // tabPageLeftNews
             // 
-            this.tabPage5.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage5.Controls.Add(this.panel_News);
-            this.tabPage5.Controls.Add(this.textBox_News);
-            this.tabPage5.Location = new System.Drawing.Point(4, 25);
-            this.tabPage5.Margin = new System.Windows.Forms.Padding(4);
-            this.tabPage5.Name = "tabPage5";
-            this.tabPage5.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage5.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage5.TabIndex = 4;
-            this.tabPage5.Text = "News";
+            this.tabPageLeftNews.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeftNews.Controls.Add(this.panel_News);
+            this.tabPageLeftNews.Controls.Add(this.textBox_News);
+            this.tabPageLeftNews.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeftNews.Margin = new System.Windows.Forms.Padding(4);
+            this.tabPageLeftNews.Name = "tabPageLeftNews";
+            this.tabPageLeftNews.Padding = new System.Windows.Forms.Padding(4);
+            this.tabPageLeftNews.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeftNews.TabIndex = 4;
+            this.tabPageLeftNews.Text = "News";
             // 
             // panel_News
             // 
@@ -1089,21 +1096,21 @@ namespace DCE_Manager
             this.textBox_News.Size = new System.Drawing.Size(895, 421);
             this.textBox_News.TabIndex = 3;
             // 
-            // tabPage13
+            // tabPageLeft_Tools
             // 
-            this.tabPage13.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPage13.Controls.Add(this.textBox_ASTI);
-            this.tabPage13.Controls.Add(this.label6);
-            this.tabPage13.Controls.Add(this.label2);
-            this.tabPage13.Controls.Add(this.but_ASTI);
-            this.tabPage13.Controls.Add(this.button_theWay);
-            this.tabPage13.Location = new System.Drawing.Point(4, 25);
-            this.tabPage13.Margin = new System.Windows.Forms.Padding(4);
-            this.tabPage13.Name = "tabPage13";
-            this.tabPage13.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage13.Size = new System.Drawing.Size(1080, 541);
-            this.tabPage13.TabIndex = 5;
-            this.tabPage13.Text = "Tools";
+            this.tabPageLeft_Tools.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_Tools.Controls.Add(this.textBox_ASTI);
+            this.tabPageLeft_Tools.Controls.Add(this.label6);
+            this.tabPageLeft_Tools.Controls.Add(this.label2);
+            this.tabPageLeft_Tools.Controls.Add(this.but_ASTI);
+            this.tabPageLeft_Tools.Controls.Add(this.button_theWay);
+            this.tabPageLeft_Tools.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_Tools.Margin = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_Tools.Name = "tabPageLeft_Tools";
+            this.tabPageLeft_Tools.Padding = new System.Windows.Forms.Padding(4);
+            this.tabPageLeft_Tools.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_Tools.TabIndex = 5;
+            this.tabPageLeft_Tools.Text = "Tools";
             // 
             // textBox_ASTI
             // 
@@ -1155,6 +1162,49 @@ namespace DCE_Manager
             this.button_theWay.TabIndex = 0;
             this.button_theWay.Text = "The Way (futur)";
             this.button_theWay.UseVisualStyleBackColor = true;
+            // 
+            // tabPageLeft_Options
+            // 
+            this.tabPageLeft_Options.Controls.Add(this.checkBox_Stat_anonym);
+            this.tabPageLeft_Options.Controls.Add(this.buttonDocFolder);
+            this.tabPageLeft_Options.Controls.Add(this.button_Log);
+            this.tabPageLeft_Options.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeft_Options.Name = "tabPageLeft_Options";
+            this.tabPageLeft_Options.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPageLeft_Options.Size = new System.Drawing.Size(1080, 658);
+            this.tabPageLeft_Options.TabIndex = 7;
+            this.tabPageLeft_Options.Text = "Options";
+            this.tabPageLeft_Options.UseVisualStyleBackColor = true;
+            // 
+            // checkBox_Stat_anonym
+            // 
+            this.checkBox_Stat_anonym.AutoSize = true;
+            this.checkBox_Stat_anonym.Location = new System.Drawing.Point(47, 57);
+            this.checkBox_Stat_anonym.Name = "checkBox_Stat_anonym";
+            this.checkBox_Stat_anonym.Size = new System.Drawing.Size(229, 20);
+            this.checkBox_Stat_anonym.TabIndex = 34;
+            this.checkBox_Stat_anonym.Text = "Send anonymous usage statistics";
+            this.checkBox_Stat_anonym.UseVisualStyleBackColor = true;
+            // 
+            // buttonDocFolder
+            // 
+            this.buttonDocFolder.Location = new System.Drawing.Point(47, 165);
+            this.buttonDocFolder.Margin = new System.Windows.Forms.Padding(4);
+            this.buttonDocFolder.Name = "buttonDocFolder";
+            this.buttonDocFolder.Size = new System.Drawing.Size(87, 28);
+            this.buttonDocFolder.TabIndex = 32;
+            this.buttonDocFolder.Text = "DocFolder";
+            this.buttonDocFolder.UseVisualStyleBackColor = true;
+            // 
+            // button_Log
+            // 
+            this.button_Log.Location = new System.Drawing.Point(47, 107);
+            this.button_Log.Margin = new System.Windows.Forms.Padding(4);
+            this.button_Log.Name = "button_Log";
+            this.button_Log.Size = new System.Drawing.Size(84, 28);
+            this.button_Log.TabIndex = 31;
+            this.button_Log.Text = "Log";
+            this.button_Log.UseVisualStyleBackColor = true;
             // 
             // VersionDceManager
             // 
@@ -1219,7 +1269,7 @@ namespace DCE_Manager
             this.groupBoxDroiteAccueil.Controls.Add(this.VersionDceManager);
             this.groupBoxDroiteAccueil.Controls.Add(this.label3);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox2);
-            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(1176, 41);
+            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(17, 10);
             this.groupBoxDroiteAccueil.Margin = new System.Windows.Forms.Padding(4);
             this.groupBoxDroiteAccueil.Name = "groupBoxDroiteAccueil";
             this.groupBoxDroiteAccueil.Padding = new System.Windows.Forms.Padding(4);
@@ -1231,7 +1281,8 @@ namespace DCE_Manager
             // 
             this.textBox_id_client.BackColor = System.Drawing.SystemColors.Control;
             this.textBox_id_client.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textBox_id_client.Location = new System.Drawing.Point(71, 403);
+            this.textBox_id_client.Location = new System.Drawing.Point(71, 402);
+            this.textBox_id_client.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.textBox_id_client.Name = "textBox_id_client";
             this.textBox_id_client.Size = new System.Drawing.Size(100, 15);
             this.textBox_id_client.TabIndex = 27;
@@ -1275,62 +1326,21 @@ namespace DCE_Manager
             this.butClient.UseVisualStyleBackColor = true;
             this.butClient.Click += new System.EventHandler(this.butClient_Click);
             // 
-            // groupBoxCampEdit
-            // 
-            this.groupBoxCampEdit.Controls.Add(this.radioButton_OOB_INIT);
-            this.groupBoxCampEdit.Controls.Add(this.radioButton_OOB_ACTIVE);
-            this.groupBoxCampEdit.Controls.Add(this.CampaignTab);
-            this.groupBoxCampEdit.Controls.Add(this.buttonResetBackup);
-            this.groupBoxCampEdit.Controls.Add(this.buttonSaveChgtCampaign);
-            this.groupBoxCampEdit.Controls.Add(this.label4);
-            this.groupBoxCampEdit.Location = new System.Drawing.Point(1115, 14);
-            this.groupBoxCampEdit.Margin = new System.Windows.Forms.Padding(4);
-            this.groupBoxCampEdit.Name = "groupBoxCampEdit";
-            this.groupBoxCampEdit.Padding = new System.Windows.Forms.Padding(4);
-            this.groupBoxCampEdit.Size = new System.Drawing.Size(711, 578);
-            this.groupBoxCampEdit.TabIndex = 24;
-            this.groupBoxCampEdit.TabStop = false;
-            this.groupBoxCampEdit.Visible = false;
-            this.groupBoxCampEdit.Enter += new System.EventHandler(this.groupBoxCampEdit_Enter);
-            // 
-            // radioButton_OOB_INIT
-            // 
-            this.radioButton_OOB_INIT.AutoSize = true;
-            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(27, 546);
-            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
-            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(76, 20);
-            this.radioButton_OOB_INIT.TabIndex = 16;
-            this.radioButton_OOB_INIT.TabStop = true;
-            this.radioButton_OOB_INIT.Text = "OOB Init";
-            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
-            this.radioButton_OOB_INIT.Visible = false;
-            this.radioButton_OOB_INIT.CheckedChanged += new System.EventHandler(this.radioButton_OOB_INIT_CheckedChanged);
-            // 
-            // radioButton_OOB_ACTIVE
-            // 
-            this.radioButton_OOB_ACTIVE.AutoSize = true;
-            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(127, 546);
-            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
-            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(97, 20);
-            this.radioButton_OOB_ACTIVE.TabIndex = 17;
-            this.radioButton_OOB_ACTIVE.TabStop = true;
-            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
-            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
-            this.radioButton_OOB_ACTIVE.Visible = false;
-            this.radioButton_OOB_ACTIVE.CheckedChanged += new System.EventHandler(this.radioButton_OOB_ACTIVE_CheckedChanged);
-            // 
             // CampaignTab
             // 
+            this.CampaignTab.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.CampaignTab.Controls.Add(this.tabPage6);
             this.CampaignTab.Controls.Add(this.tabPage14);
             this.CampaignTab.Controls.Add(this.tabPage15);
             this.CampaignTab.Controls.Add(this.tabPage11);
             this.CampaignTab.Controls.Add(this.tabPage12);
-            this.CampaignTab.Location = new System.Drawing.Point(0, 14);
+            this.CampaignTab.Location = new System.Drawing.Point(27, 31);
             this.CampaignTab.Margin = new System.Windows.Forms.Padding(4);
             this.CampaignTab.Name = "CampaignTab";
             this.CampaignTab.SelectedIndex = 0;
-            this.CampaignTab.Size = new System.Drawing.Size(699, 517);
+            this.CampaignTab.Size = new System.Drawing.Size(712, 646);
             this.CampaignTab.TabIndex = 11;
             this.CampaignTab.Visible = false;
             // 
@@ -1343,49 +1353,54 @@ namespace DCE_Manager
             this.tabPage6.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage6.Name = "tabPage6";
             this.tabPage6.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage6.Size = new System.Drawing.Size(691, 488);
+            this.tabPage6.Size = new System.Drawing.Size(704, 617);
             this.tabPage6.TabIndex = 0;
             this.tabPage6.Text = "Intro";
             // 
             // pictureBoxCampImage
             // 
-            this.pictureBoxCampImage.Location = new System.Drawing.Point(85, 234);
+            this.pictureBoxCampImage.Location = new System.Drawing.Point(25, 366);
             this.pictureBoxCampImage.Margin = new System.Windows.Forms.Padding(4);
             this.pictureBoxCampImage.Name = "pictureBoxCampImage";
-            this.pictureBoxCampImage.Size = new System.Drawing.Size(532, 230);
+            this.pictureBoxCampImage.Size = new System.Drawing.Size(655, 230);
             this.pictureBoxCampImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pictureBoxCampImage.TabIndex = 1;
             this.pictureBoxCampImage.TabStop = false;
             // 
             // textBoxCampBriefing
             // 
-            this.textBoxCampBriefing.Location = new System.Drawing.Point(67, 15);
+            this.textBoxCampBriefing.Location = new System.Drawing.Point(25, 15);
             this.textBoxCampBriefing.Margin = new System.Windows.Forms.Padding(4);
             this.textBoxCampBriefing.Multiline = true;
             this.textBoxCampBriefing.Name = "textBoxCampBriefing";
             this.textBoxCampBriefing.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBoxCampBriefing.Size = new System.Drawing.Size(576, 219);
+            this.textBoxCampBriefing.Size = new System.Drawing.Size(653, 219);
             this.textBoxCampBriefing.TabIndex = 0;
             // 
             // tabPage14
             // 
             this.tabPage14.Controls.Add(this.dataGridViewBlue);
             this.tabPage14.Location = new System.Drawing.Point(4, 25);
+            this.tabPage14.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage14.Name = "tabPage14";
-            this.tabPage14.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage14.Size = new System.Drawing.Size(691, 488);
+            this.tabPage14.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage14.Size = new System.Drawing.Size(704, 617);
             this.tabPage14.TabIndex = 7;
             this.tabPage14.Text = "OOB Blue";
             this.tabPage14.UseVisualStyleBackColor = true;
             // 
             // dataGridViewBlue
             // 
+            this.dataGridViewBlue.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewBlue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewBlue.Location = new System.Drawing.Point(3, 3);
+            this.dataGridViewBlue.Location = new System.Drawing.Point(3, 2);
+            this.dataGridViewBlue.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.dataGridViewBlue.Name = "dataGridViewBlue";
             this.dataGridViewBlue.RowHeadersWidth = 51;
             this.dataGridViewBlue.RowTemplate.Height = 24;
-            this.dataGridViewBlue.Size = new System.Drawing.Size(682, 477);
+            this.dataGridViewBlue.Size = new System.Drawing.Size(743, 615);
             this.dataGridViewBlue.TabIndex = 14;
             this.dataGridViewBlue.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewBlue_CellContentClick);
             // 
@@ -1393,21 +1408,26 @@ namespace DCE_Manager
             // 
             this.tabPage15.Controls.Add(this.dataGridViewRed);
             this.tabPage15.Location = new System.Drawing.Point(4, 25);
+            this.tabPage15.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.tabPage15.Name = "tabPage15";
-            this.tabPage15.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage15.Size = new System.Drawing.Size(691, 488);
+            this.tabPage15.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.tabPage15.Size = new System.Drawing.Size(704, 617);
             this.tabPage15.TabIndex = 8;
             this.tabPage15.Text = "OOB Red";
             this.tabPage15.UseVisualStyleBackColor = true;
             // 
             // dataGridViewRed
             // 
+            this.dataGridViewRed.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewRed.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewRed.Location = new System.Drawing.Point(3, 3);
+            this.dataGridViewRed.Location = new System.Drawing.Point(3, 2);
+            this.dataGridViewRed.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.dataGridViewRed.Name = "dataGridViewRed";
             this.dataGridViewRed.RowHeadersWidth = 51;
             this.dataGridViewRed.RowTemplate.Height = 24;
-            this.dataGridViewRed.Size = new System.Drawing.Size(682, 478);
+            this.dataGridViewRed.Size = new System.Drawing.Size(748, 613);
             this.dataGridViewRed.TabIndex = 15;
             this.dataGridViewRed.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewRed_CellContentClick);
             // 
@@ -1416,7 +1436,7 @@ namespace DCE_Manager
             this.tabPage11.Location = new System.Drawing.Point(4, 25);
             this.tabPage11.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage11.Name = "tabPage11";
-            this.tabPage11.Size = new System.Drawing.Size(691, 488);
+            this.tabPage11.Size = new System.Drawing.Size(704, 617);
             this.tabPage11.TabIndex = 5;
             this.tabPage11.Text = "Options";
             // 
@@ -1427,24 +1447,58 @@ namespace DCE_Manager
             this.tabPage12.Margin = new System.Windows.Forms.Padding(4);
             this.tabPage12.Name = "tabPage12";
             this.tabPage12.Padding = new System.Windows.Forms.Padding(4);
-            this.tabPage12.Size = new System.Drawing.Size(691, 488);
+            this.tabPage12.Size = new System.Drawing.Size(704, 617);
             this.tabPage12.TabIndex = 6;
             this.tabPage12.Text = "Bugs";
             this.tabPage12.UseVisualStyleBackColor = true;
             // 
             // textBox_Bugs
             // 
+            this.textBox_Bugs.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.textBox_Bugs.Location = new System.Drawing.Point(17, 4);
             this.textBox_Bugs.Margin = new System.Windows.Forms.Padding(4);
             this.textBox_Bugs.Multiline = true;
             this.textBox_Bugs.Name = "textBox_Bugs";
             this.textBox_Bugs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_Bugs.Size = new System.Drawing.Size(666, 475);
+            this.textBox_Bugs.Size = new System.Drawing.Size(777, 600);
             this.textBox_Bugs.TabIndex = 1;
+            // 
+            // radioButton_OOB_INIT
+            // 
+            this.radioButton_OOB_INIT.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.radioButton_OOB_INIT.AutoSize = true;
+            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(129, 7);
+            this.radioButton_OOB_INIT.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
+            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(76, 20);
+            this.radioButton_OOB_INIT.TabIndex = 16;
+            this.radioButton_OOB_INIT.TabStop = true;
+            this.radioButton_OOB_INIT.Text = "OOB Init";
+            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_INIT.Visible = false;
+            this.radioButton_OOB_INIT.CheckedChanged += new System.EventHandler(this.radioButton_OOB_INIT_CheckedChanged);
+            // 
+            // radioButton_OOB_ACTIVE
+            // 
+            this.radioButton_OOB_ACTIVE.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.radioButton_OOB_ACTIVE.AutoSize = true;
+            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(244, 7);
+            this.radioButton_OOB_ACTIVE.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
+            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
+            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(97, 20);
+            this.radioButton_OOB_ACTIVE.TabIndex = 17;
+            this.radioButton_OOB_ACTIVE.TabStop = true;
+            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
+            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
+            this.radioButton_OOB_ACTIVE.Visible = false;
+            this.radioButton_OOB_ACTIVE.CheckedChanged += new System.EventHandler(this.radioButton_OOB_ACTIVE_CheckedChanged);
             // 
             // buttonResetBackup
             // 
-            this.buttonResetBackup.Location = new System.Drawing.Point(410, 542);
+            this.buttonResetBackup.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.buttonResetBackup.Location = new System.Drawing.Point(543, 6);
             this.buttonResetBackup.Margin = new System.Windows.Forms.Padding(4);
             this.buttonResetBackup.Name = "buttonResetBackup";
             this.buttonResetBackup.Size = new System.Drawing.Size(100, 28);
@@ -1456,10 +1510,11 @@ namespace DCE_Manager
             // 
             // buttonSaveChgtCampaign
             // 
-            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(231, 542);
+            this.buttonSaveChgtCampaign.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.buttonSaveChgtCampaign.Location = new System.Drawing.Point(376, 6);
             this.buttonSaveChgtCampaign.Margin = new System.Windows.Forms.Padding(4);
             this.buttonSaveChgtCampaign.Name = "buttonSaveChgtCampaign";
-            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(146, 28);
+            this.buttonSaveChgtCampaign.Size = new System.Drawing.Size(147, 28);
             this.buttonSaveChgtCampaign.TabIndex = 12;
             this.buttonSaveChgtCampaign.Text = "Save Campaign";
             this.buttonSaveChgtCampaign.UseVisualStyleBackColor = true;
@@ -1479,7 +1534,7 @@ namespace DCE_Manager
             this.groupBox_staticTemplate.Controls.Add(this.but_ASTI_Browse_Template);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_MissionFile);
             this.groupBox_staticTemplate.Controls.Add(this.textBox_ASTI_importTemplateFolder);
-            this.groupBox_staticTemplate.Location = new System.Drawing.Point(1176, 76);
+            this.groupBox_staticTemplate.Location = new System.Drawing.Point(17, 87);
             this.groupBox_staticTemplate.Margin = new System.Windows.Forms.Padding(4);
             this.groupBox_staticTemplate.Name = "groupBox_staticTemplate";
             this.groupBox_staticTemplate.Padding = new System.Windows.Forms.Padding(4);
@@ -1557,22 +1612,47 @@ namespace DCE_Manager
             this.textBox_ASTI_importTemplateFolder.Size = new System.Drawing.Size(428, 22);
             this.textBox_ASTI_importTemplateFolder.TabIndex = 0;
             // 
+            // panel2
+            // 
+            this.panel2.Controls.Add(this.radioButton_OOB_INIT);
+            this.panel2.Controls.Add(this.radioButton_OOB_ACTIVE);
+            this.panel2.Controls.Add(this.buttonSaveChgtCampaign);
+            this.panel2.Controls.Add(this.buttonResetBackup);
+            this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panel2.Location = new System.Drawing.Point(0, 684);
+            this.panel2.Margin = new System.Windows.Forms.Padding(4);
+            this.panel2.Name = "panel2";
+            this.panel2.Size = new System.Drawing.Size(743, 46);
+            this.panel2.TabIndex = 25;
+            this.panel2.Paint += new System.Windows.Forms.PaintEventHandler(this.panel2_Paint);
+            // 
+            // panel_Droite
+            // 
+            this.panel_Droite.Controls.Add(this.panel2);
+            this.panel_Droite.Controls.Add(this.CampaignTab);
+            this.panel_Droite.Controls.Add(this.groupBoxDroiteAccueil);
+            this.panel_Droite.Controls.Add(this.groupBox_staticTemplate);
+            this.panel_Droite.Dock = System.Windows.Forms.DockStyle.Right;
+            this.panel_Droite.Location = new System.Drawing.Point(1140, 0);
+            this.panel_Droite.Margin = new System.Windows.Forms.Padding(4);
+            this.panel_Droite.Name = "panel_Droite";
+            this.panel_Droite.Size = new System.Drawing.Size(743, 730);
+            this.panel_Droite.TabIndex = 26;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoSize = true;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.ClientSize = new System.Drawing.Size(1827, 598);
+            this.ClientSize = new System.Drawing.Size(1883, 730);
             this.Controls.Add(this.tabControl);
-            this.Controls.Add(this.groupBoxCampEdit);
-            this.Controls.Add(this.groupBoxDroiteAccueil);
-            this.Controls.Add(this.groupBox_staticTemplate);
+            this.Controls.Add(this.panel_Droite);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.KeyPreview = true;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "Form1";
             this.Text = "DCE_Manager";
+            this.Load += new System.EventHandler(this.Form1_Load);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
             this.groupBox1.ResumeLayout(false);
@@ -1581,34 +1661,37 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).EndInit();
             this.tabControl.ResumeLayout(false);
-            this.tabPage1.ResumeLayout(false);
+            this.tabPageLeft_Install.ResumeLayout(false);
             this.groupBox7.ResumeLayout(false);
             this.groupBox7.PerformLayout();
             this.groupBox4.ResumeLayout(false);
             this.groupBox8.ResumeLayout(false);
             this.groupBox5.ResumeLayout(false);
             this.groupBox5.PerformLayout();
-            this.tabPage16.ResumeLayout(false);
+            this.groupBoxCampEdit.ResumeLayout(false);
+            this.groupBoxCampEdit.PerformLayout();
+            this.tabPageLeft_Campaigns.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).EndInit();
-            this.tabPage3.ResumeLayout(false);
-            this.tabPage3.PerformLayout();
+            this.tabPageLeft_Update.ResumeLayout(false);
+            this.panel3.ResumeLayout(false);
+            this.panel3.PerformLayout();
             this.groupBox6.ResumeLayout(false);
             this.groupBox6.PerformLayout();
             this.groupBox3.ResumeLayout(false);
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
-            this.tabPage4.ResumeLayout(false);
-            this.tabPage4.PerformLayout();
-            this.tabPage5.ResumeLayout(false);
-            this.tabPage5.PerformLayout();
-            this.tabPage13.ResumeLayout(false);
-            this.tabPage13.PerformLayout();
+            this.tabPageLeft_About.ResumeLayout(false);
+            this.tabPageLeft_About.PerformLayout();
+            this.tabPageLeftNews.ResumeLayout(false);
+            this.tabPageLeftNews.PerformLayout();
+            this.tabPageLeft_Tools.ResumeLayout(false);
+            this.tabPageLeft_Tools.PerformLayout();
+            this.tabPageLeft_Options.ResumeLayout(false);
+            this.tabPageLeft_Options.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOvGME)).EndInit();
             this.groupBoxDroiteAccueil.ResumeLayout(false);
             this.groupBoxDroiteAccueil.PerformLayout();
-            this.groupBoxCampEdit.ResumeLayout(false);
-            this.groupBoxCampEdit.PerformLayout();
             this.CampaignTab.ResumeLayout(false);
             this.tabPage6.ResumeLayout(false);
             this.tabPage6.PerformLayout();
@@ -1621,6 +1704,9 @@ namespace DCE_Manager
             this.tabPage12.PerformLayout();
             this.groupBox_staticTemplate.ResumeLayout(false);
             this.groupBox_staticTemplate.PerformLayout();
+            this.panel2.ResumeLayout(false);
+            this.panel2.PerformLayout();
+            this.panel_Droite.ResumeLayout(false);
             this.ResumeLayout(false);
 
         }
@@ -1644,7 +1730,6 @@ namespace DCE_Manager
         private System.Windows.Forms.Button Button_choiceCampaign;
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.PictureBox pictureBox1;
-        private System.Windows.Forms.Label label4;
         private System.Windows.Forms.Label Label_OvGME;
         private System.Windows.Forms.TextBox textBox_OvGME;
         private System.Windows.Forms.Button button2;
@@ -1656,12 +1741,12 @@ namespace DCE_Manager
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.Label label3;
         public System.Windows.Forms.CheckBox checkBoxActiveFolder;
-        private System.Windows.Forms.TabControl tabControl;
-        private System.Windows.Forms.TabPage tabPage1;
-        private System.Windows.Forms.TabPage tabPage3;
-        private System.Windows.Forms.TabPage tabPage4;
-        private System.Windows.Forms.Button ScriptsModUpdateButton;
-        private System.Windows.Forms.Label ScriptsModAvailableVersion;
+        public System.Windows.Forms.TabControl tabControl;
+        private System.Windows.Forms.TabPage tabPageLeft_Install;
+        private System.Windows.Forms.TabPage tabPageLeft_Update;
+        private System.Windows.Forms.TabPage tabPageLeft_About;
+        public System.Windows.Forms.Button ScriptsModUpdateButton;
+        public System.Windows.Forms.Label ScriptsModAvailableVersion;
         private System.Windows.Forms.GroupBox groupBox3;
         private System.Windows.Forms.Button CampUpdateButton;
         private System.Windows.Forms.GroupBox groupBox2;
@@ -1677,26 +1762,23 @@ namespace DCE_Manager
         public System.Windows.Forms.Label LabelStatut;
         private System.Windows.Forms.TextBox textBox_changelog;
         private System.Windows.Forms.GroupBox groupBox6;
-        private System.Windows.Forms.Button button_UpdateManager;
+        public System.Windows.Forms.Button DCEManagerUpdateButton;
         private System.Windows.Forms.Label label8;
-        private System.Windows.Forms.Label DceManagerAvailableVersion;
-        private System.Windows.Forms.Button button_Log;
+        public System.Windows.Forms.Label DCEManagerAvailableVersion;
         private System.Windows.Forms.Label label9;
         private System.Windows.Forms.TextBox textBox_ChangelogScriptsMod;
         private System.Windows.Forms.PictureBox pictureBox5;
         private System.Windows.Forms.ComboBox comboBox_Server;
         private System.Windows.Forms.Label label10;
         private System.Windows.Forms.PictureBox pictureBoxOvGME;
-        private System.Windows.Forms.TabPage tabPage5;
+        private System.Windows.Forms.TabPage tabPageLeftNews;
         private System.Windows.Forms.TextBox textBox_News;
         private System.Windows.Forms.CheckBox checkBox_OvwNGfolder;
-        private System.Windows.Forms.Label ScriptModInstalledVersion;
-        public System.Windows.Forms.Label DceManagerInstalledVersion;
+        public System.Windows.Forms.Label ScriptModInstalledVersion;
+        public System.Windows.Forms.Label DCEManagerInstalledVersion;
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.Label label12;
-        private System.Windows.Forms.Label label11;
-        private System.Windows.Forms.Button buttonResetSM;
         private System.Windows.Forms.Button butCreaUpdate;
         public System.Windows.Forms.TextBox txtBoxFolderCreateUpdate;
         private System.Windows.Forms.Button butCreateUpdateBrowse;
@@ -1705,7 +1787,6 @@ namespace DCE_Manager
         private System.Windows.Forms.Button C_DataMapCity;
         private System.Windows.Forms.CheckBox checkBoxSanitize;
         public System.Windows.Forms.GroupBox groupBoxDroiteAccueil;
-        public System.Windows.Forms.GroupBox groupBoxCampEdit;
         public System.Windows.Forms.TabControl CampaignTab;
         public System.Windows.Forms.TabPage tabPage6;
         private System.Windows.Forms.Button buttonSaveChgtCampaign;
@@ -1713,13 +1794,12 @@ namespace DCE_Manager
         private System.Windows.Forms.ToolTip toolTip3;
         public System.Windows.Forms.TextBox textBoxCampBriefing;
         public System.Windows.Forms.PictureBox pictureBoxCampImage;
-        private System.Windows.Forms.Button buttonDocFolder;
         public System.Windows.Forms.TabPage tabPage11;
         public System.Windows.Forms.TextBox textBox_Bugs;
         public System.Windows.Forms.TabPage tabPage12;
         private System.Windows.Forms.Panel panel_News;
         private System.Windows.Forms.GroupBox groupBox7;
-        private System.Windows.Forms.TabPage tabPage13;
+        private System.Windows.Forms.TabPage tabPageLeft_Tools;
 
         private System.Windows.Forms.Button button_theWay;
         public System.Windows.Forms.GroupBox groupBox_staticTemplate;
@@ -1747,16 +1827,27 @@ namespace DCE_Manager
         public System.Windows.Forms.TextBox textBox_ASTI_MissionFile;
         public System.Windows.Forms.TextBox textBox_ASTI_importTemplateFolder;
         private System.Windows.Forms.TextBox textBox_ASTI;
-        private System.Windows.Forms.Button butCheckVersion;
         private System.Windows.Forms.TextBox textBox_id_client;
         public System.Windows.Forms.DataGridView dataGridViewBlue;
         public System.Windows.Forms.DataGridView dataGridViewRed;
         public System.Windows.Forms.TabPage tabPage14;
         public System.Windows.Forms.TabPage tabPage15;
-        public System.Windows.Forms.TabPage tabPage16;
+        public System.Windows.Forms.TabPage tabPageLeft_Campaigns;
         public System.Windows.Forms.DataGridView dataGridViewCampaigns;
         public System.Windows.Forms.RadioButton radioButton_OOB_ACTIVE;
         public System.Windows.Forms.RadioButton radioButton_OOB_INIT;
+        public System.Windows.Forms.Label ScriptsModStatusLabel;
+        private System.Windows.Forms.Label label11;
+        public System.Windows.Forms.Panel panel2;
+        public System.Windows.Forms.GroupBox groupBoxCampEdit;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.Panel panel_Droite;
+        private System.Windows.Forms.Panel panel3;
+        private System.Windows.Forms.TabPage tabPageLeft_Options;
+        private System.Windows.Forms.CheckBox checkBox_Stat_anonym;
+        private System.Windows.Forms.Button buttonDocFolder;
+        private System.Windows.Forms.Button button_Log;
+        public System.Windows.Forms.Label DCEManagerStatusLabel;
     }
 }
 
