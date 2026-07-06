@@ -79,58 +79,6 @@ namespace DCE_Manager.Parameters
     }
 
 
-    public static class ParamServ
-    {
-        public static int tmpResponse = 1000;
-
-
-        //public static string FileServerName01 = "http://miguel21.byethost3.com/";
-        //public static string FileServDgUpgradeTXT01 = "http://miguel21.byethost3.com/upgrade.txt";
-        //public static string ServerNickName01 = "Server 1";//"000webhostapp"
-        //public static string fileTypeServer01 = "ftp";
-
-
-        public static string FileServerName01 = "http://dce-manager.alwaysdata.net/";
-        public static string FileServDgUpgradeTXT01 = "http://dce-manager.alwaysdata.net//upgrade.txt";
-        public static string ServerNickName01 = "Server 1";//"000webhostapp"
-        public static string fileTypeServer01 = "ftp";
-        public static Boolean Server01Exit = true;
-
-
-
-        public static string FileServerName02 = "https://drive.google.com/uc?export=download&id=";
-        //public static string FileServDgUpgradeTXT02 = "1kfO_8LCU7Zvu2tNAZ2WKlUEL2x6t0wFK";
-        public static string FileServDgUpgradeTXT02 = "https://bit.ly/3dDSSq1";
-        //public static string FileServDceManager02 = "https://bit.ly/3au28Lq";
-        public static string ServerNickName02 = "Server 2";//"GoogleDrive";
-        public static string fileTypeServer02 = "drivegoogle";
-        public static Boolean Server02Exit = true;
-
-
-        public static string FileServerName03 = "http://dcemanager.free.fr/public_html/";
-        public static string FileServDgUpgradeTXT03 = "http://dcemanager.free.fr/public_html/upgrade.txt";
-        public static string ServerNickName03 = "Server 3";//"free.fr";
-        public static string fileTypeServer03 = "ftp";
-        public static Boolean Server03Exit = true;
-
-
-        //public static string ServerSelected = FileServerName02;
-        //public static string fileTypeServer = fileTypeServer02;
-        //public static string FileServDgUpgradeTXT = FileServDgUpgradeTXT02;
-
-        public static string ServerSelected = "";
-        public static string ServerNickNameSelected = "";
-        public static string fileTypeServer = "";
-
-        public static string FileServDgUpgradeTXT = "";
-    }
-
-    public static class ParamUpdate
-    {
-        public static int NbUpdateAvailable = 0;
-    }
-
-
 
     public static class ParamManager
     {
@@ -166,6 +114,8 @@ namespace DCE_Manager.Parameters
         // Nom du fichier ZIP.
         // Pourquoi : utilisé lors du téléchargement.
         public static string AssetName = "";
+
+        public static string Repository = "DCE";
     }
 
     public class CampaignSquad

@@ -1419,7 +1419,7 @@ namespace DCE_Manager
                     //Suppression des fichiers dans Debug:
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debug", false);
 
-                    _form1.LoadCampaigns();
+                    _form1.LoadCampaignsAsync();
 
                     this.Close();
                 }              

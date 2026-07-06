@@ -19,7 +19,7 @@ namespace DCE_Manager.Properties {
     // à l'aide d'un outil, tel que ResGen ou Visual Studio.
     // Pour ajouter ou supprimer un membre, modifiez votre fichier .ResX, puis réexécutez ResGen
     // avec l'option /str ou régénérez votre projet VS.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "4.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -71,20 +71,26 @@ namespace DCE_Manager.Properties {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à V5.12.35
-        ///mod: modify server n°1 to download the latest DCE_Manager files
-        ///add: ASTI (All Static Template Importer)
-        ///	a tool for importing templates, especially those in static mode where selection,
-        ///	rotation and deletion are particularly difficult.
+        ///   Recherche une chaîne localisée semblable à V8.14.44
+        ///fix: compatible with certain DCE Lua files
+        ///add: compatible with \loadouts folder
         ///
+        ///V8.14.42
+        ///add: Compatible with campaign cloning, possessing the Mods folder
         ///
-        ///V5.11.33
-        ///fix: news display not working properly
-        ///mod: n-depth rewriting of the code, especially the class systems, with a slightly more &apos;academic&apos; approach... ^^
-        ///fix: cloning a campaign does not automatically activate the selected aircraft
+        ///V7.13.41
+        ///fix: cloning bug campaigns (again^^)
         ///
-        ///V5.11.32
-        ///m [le reste de la chaîne a été tronqué]&quot;;.
+        ///V7.13.40
+        ///mod: need to change file versioning in “Mission Scripts” folder
+        ///fix: cloning bug campaigns
+        ///
+        ///V6.12.39
+        ///fix: downloading an update to DCE_Manager creates an empty ZIP with a certain type of server
+        ///
+        ///V6.12.38
+        ///mod: configuration management revisited
+        ///mod: different display of  [le reste de la chaîne a été tronqué]&quot;;.
         /// </summary>
         internal static string changelog {
             get {
@@ -168,6 +174,66 @@ namespace DCE_Manager.Properties {
         internal static System.Drawing.Bitmap iconePlus {
             get {
                 object obj = ResourceManager.GetObject("iconePlus", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_download_24 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-download-24", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_download_cloud_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-download-cloud-32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_download_cloud_64 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-download-cloud-64", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_engrenages_50 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-engrenages-50", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_ok_24 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-ok-24", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_warning_blue_30 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-warning-blue-30", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

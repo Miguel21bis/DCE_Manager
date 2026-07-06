@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -661,7 +662,7 @@ namespace DCE_Manager.Utils
             ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
             ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
             ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
-            ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
+            //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
             ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
             ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
             ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
@@ -755,7 +756,7 @@ namespace DCE_Manager.Utils
             ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
             ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
             ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
-            ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
+            //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
             ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
             ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
 
@@ -1729,9 +1730,19 @@ namespace DCE_Manager.Utils
             }
         }
 
+        public static void MakeRoundedButton(Button button, int radius)
+        {
+            GraphicsPath path = new GraphicsPath();
 
+            path.AddArc(0, 0, radius, radius, 180, 90);
+            path.AddArc(button.Width - radius, 0, radius, radius, 270, 90);
+            path.AddArc(button.Width - radius, button.Height - radius, radius, radius, 0, 90);
+            path.AddArc(0, button.Height - radius, radius, radius, 90, 90);
 
+            path.CloseFigure();
 
+            button.Region = new Region(path);
+        }
 
     }
 }
