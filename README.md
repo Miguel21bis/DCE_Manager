@@ -54,14 +54,8 @@ This repository is mainly intended for:
 
 ---
 
-## Credits
 
-DCE_Manager is part of the DCE (Dynamic Campaign Engine) ecosystem created and maintained by the DCE community.
-
-Special thanks to MBot, CEF and everyone who contributes to DCE.
-
-
-🔒 Privacy & Analytics
+## Privacy & Analytics
 
 DCE Manager includes basic, optional usage analytics to help improve the application.
 
@@ -75,3 +69,11 @@ What is sent (at most once a day):
 
 Your Control:
 This data collection is entirely optional. You can disable it at any time by unchecking the dedicated box in the application's options. No data is ever shared with third parties.
+
+---
+
+## Credits
+
+DCE_Manager is part of the DCE (Dynamic Campaign Engine) ecosystem created and maintained by the DCE community.
+
+Special thanks to MBot, CEF and everyone who contributes to DCE.
