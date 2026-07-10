@@ -181,6 +181,26 @@ namespace DCE_Manager.Properties {
         /// <summary>
         ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_document_72 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-document-72", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_dossier_ouvert_72 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-dossier-ouvert-72", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_download_24 {
             get {
                 object obj = ResourceManager.GetObject("icons8-download-24", resourceCulture);
@@ -221,9 +241,49 @@ namespace DCE_Manager.Properties {
         /// <summary>
         ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_forward_50 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-forward-50", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_lien_externe_30 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-lien-externe-30", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_ok_24 {
             get {
                 object obj = ResourceManager.GetObject("icons8-ok-24", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_outils_50 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-outils-50", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_roue_dentée_50 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-roue-dentée-50", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

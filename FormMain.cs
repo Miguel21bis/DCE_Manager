@@ -72,15 +72,24 @@ namespace DCE_Manager
 
         private DCEManagerUpdater dceManagerUpdater;
 
-        private readonly CampaignUpdater campaignUpdater = new CampaignUpdater();
+        public CampaignUpdater campaignUpdater;
 
 
         //constructeur :
         public Form1()
         {
+
+            // C'est ici qu'on passe "this" (qui représente le Form en cours)
+            campaignUpdater = new CampaignUpdater(this);
+
             KeyPreview = true;
 
             InitializeComponent();
+
+            InitActionRows();
+
+            CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
+            //this.Shown += Form1_Shown;
 
             scriptsModUpdater = new ScriptsModUpdater(this);
             dceManagerUpdater = new DCEManagerUpdater(this);
@@ -113,14 +122,12 @@ namespace DCE_Manager
             // Abonner l'événement FormClosed à une méthode
             this.FormClosed += new FormClosedEventHandler(Form1_FormClosed);
 
-            //this.tabControl1.SelectedTab = tabPage2;
-
             //VersionDceManager.Text = VersionLongDceManager();
             VersionDceManager.Text = GetVersionDceManager();
 
             ScriptsModStatusLabel.Text = "Status : Checking...";
 
-            textBox_id_client.Text = CreateIdClient();
+            textBox_id_client.Text = Statistic.CreateIdClient();
             AjusterLargeurTextBox(textBox_id_client);
 
 
@@ -156,8 +163,7 @@ namespace DCE_Manager
                         }
                     }
 
-                    //Dictionary<string, int> configMap = new Dictionary<string, int>();
-
+             
                     foreach (var entry in ParamConf.configDictionary)
                     {
                         if (entry.Key == "config_0_pathZipCampaign")
@@ -178,6 +184,14 @@ namespace DCE_Manager
                         if (entry.Key == "LastNewsVersion")
                             DceNews.LastNewsVersion = entry.Value;
 
+                        if (entry.Key == "LastGithubCheckUtc" &&
+                            DateTime.TryParse(entry.Value, null,
+                                System.Globalization.DateTimeStyles.RoundtripKind,
+                                out DateTime dt))
+                        {
+                            ParamUpdater.LastGithubCheckUtc = dt;
+                        }
+
                         if (entry.Key == "NbLancement")
                         {
                             string nbL = entry.Value;
@@ -197,7 +211,7 @@ namespace DCE_Manager
 
 
                        if (entry.Key.StartsWith("config_") && entry.Key.EndsWith("_"))
-                        {
+                       {
                             // Exemple config_2_=toto2
                             // Extraire la partie entre "config_" et "_"
                             string numStr = entry.Key.Replace("config_", "").TrimEnd('_');
@@ -260,8 +274,6 @@ namespace DCE_Manager
 
                             string configName = entry.Value;
 
-                            //MessageBox.Show(configName, "configName");
-
                             if (ParamConf.configMap.TryGetValue(configName, out int configNumber))
                             {
                                 ParamConf.NumSelectConfig = configNumber;
@@ -276,6 +288,10 @@ namespace DCE_Manager
                         }
 
                         comboBox_Config.SelectedItem = SelectedItem;
+
+                        ParamConf.CurrentConfigName = (string)comboBox_Config.SelectedItem;
+
+                        this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + ParamConf.CurrentConfigName;
 
                         textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
 
@@ -298,9 +314,9 @@ namespace DCE_Manager
 
             _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
-            ParamManager.NbLancement++;
+            //ParamManager.NbLancement++;
 
-            _ = EnvoiStatsAsync();
+            _ = Statistic.EnvoiStatsAsync(checkBox_Stat_anonym.Checked);
 
 
             ToolTip toolTip1 = new ToolTip();
@@ -585,6 +601,8 @@ namespace DCE_Manager
             //    sr.Close();
 
             //}
+
+
        
         }//public Form1()
 
@@ -823,7 +841,48 @@ namespace DCE_Manager
                 {
                     try
                     {
+                        List<string> filesToDelete = Directory.Exists(folderPath)
+                            ? Directory.GetFiles(folderPath, "*", SearchOption.AllDirectories).ToList()
+                            : new List<string>();
+
+                        string parentFolder = Path.GetDirectoryName(folderPath) ?? "";
+                        string prefix = name + "-";
+
+                        string baseName = name;
+
+                        HashSet<string> expected = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            baseName,
+                            baseName + "_first",
+                            baseName + "_ongoing"
+                        };
+
+                        var extraFiles = Directory.GetFiles(parentFolder)
+                            .Where(f => expected.Contains(Path.GetFileNameWithoutExtension(f)))
+                            .ToList();
+
+                        filesToDelete.AddRange(extraFiles);
+
+                        //foreach (string file in filesToDelete)
+                        //    FormUtils.LogRegister($"À supprimer : {file}");
+
+                        foreach (string file in filesToDelete)
+                        {
+                            if (!CanDeleteFile(file))
+                            {
+                                MessageBox.Show("Impossible de supprimer car le fichier est utilisé :\r\n" + file);
+                                return;
+                            }
+                        }
+
                         Directory.Delete(folderPath, true);
+
+                        foreach (string file in filesToDelete.Where(File.Exists))
+                        {
+                            File.Delete(file); 
+                            //FormUtils.LogRegister($"À supprimer : {file}");
+                        }
+
 
                         // Recharge la liste
                         LoadCampaignsAsync();
@@ -978,12 +1037,6 @@ namespace DCE_Manager
                             if (match.Success)
                                 repositoryUrl = match.Groups[1].Value;
                         }
-                        //if (campInitContent != null)
-                        //{
-                        //    var match = Regex.Match(campInitContent, @"version\s*=\s*""([^""]+)""");
-                        //    if (match.Success)
-                        //        VerCamp = match.Groups[1].Value;
-                        //}
 
 
                         //Cherche le nombre de mission joué
@@ -1265,25 +1318,13 @@ namespace DCE_Manager
 
         }
 
-        private async Task EnvoiStatsAsync()
-        {
-            try
-            {
-                await EnvoiStats();
-            }
-            catch (Exception ex)
-            {
-                FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du step one", "", true, true);
-            }
-        }
-
         // Méthode exécutée après la fermeture du formulaire
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
             // Inscrire ici les actions à réaliser après la fermeture
             string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
             string filePath = pathOptionInstaller + @"\options.txt";
-            
+
             // Écriture dans le fichier config
             try
             {
@@ -1295,162 +1336,6 @@ namespace DCE_Manager
                 FormUtils.ErrorGeneral_BoxOrLog(ex, "Form1_FormClosed Error writing config: ", filePath, true, true);
             }
         }
-
-        public bool IsUrlExist(string url, int timeOutMs = 1)
-        {
-            WebRequest webRequest = WebRequest.Create(url);
-            webRequest.Method = "HEAD";
-            webRequest.Timeout = timeOutMs;
-
-            try
-            {
-                var response = webRequest.GetResponse();
-                /* response is `200 OK` */
-                response.Close();
-            }
-            catch
-            {
-                /* Any other response */
-                FormUtils.LogRegister("LogRegister 672 No response : " + url);
-                return false;
-            }
-
-            return true;
-        }
-
-        static string CreateIdClient()
-        {
-            // Récupérer les informations matérielles
-            string processorId = GetProcessorId();
-            string diskSerial = GetDiskSerial();
-            string motherboardSerial = GetMotherboardSerial();
-
-            // Combiner les informations en une chaîne
-            string combinedInfo = $"{processorId}-{diskSerial}-{motherboardSerial}";
-
-            // Générer un identifiant unique avec SHA-256
-            string clientId = GenerateSHA256Hash(combinedInfo);
-            return clientId;
-        }
-
-        static string GetProcessorId()
-        {
-            string processorId = string.Empty;
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher("select ProcessorId from Win32_Processor");
-
-            foreach (ManagementObject obj in searcher.Get())
-            {
-                processorId = obj["ProcessorId"]?.ToString() ?? "Unknown";
-            }
-
-            return processorId;
-        }
-
-        static string GetDiskSerial()
-        {
-            string diskSerial = string.Empty;
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher("select SerialNumber from Win32_DiskDrive");
-
-            foreach (ManagementObject obj in searcher.Get())
-            {
-                diskSerial = obj["SerialNumber"]?.ToString().Trim() ?? "Unknown";
-                break; // Utiliser seulement le premier disque pour cet exemple
-            }
-
-            return diskSerial;
-        }
-
-        static string GetMotherboardSerial()
-        {
-            string motherboardSerial = string.Empty;
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher("select SerialNumber from Win32_BaseBoard");
-
-            foreach (ManagementObject obj in searcher.Get())
-            {
-                motherboardSerial = obj["SerialNumber"]?.ToString().Trim() ?? "Unknown";
-            }
-
-            return motherboardSerial;
-        }
-
-        static string GenerateSHA256Hash(string rawData)
-        {
-            using (SHA256 sha256Hash = SHA256.Create())
-            {
-                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(rawData));
-
-                StringBuilder builder = new StringBuilder();
-                foreach (byte b in bytes)
-                {
-                    builder.Append(b.ToString("x2"));
-                }
-                return builder.ToString();
-            }
-        }
-
-        //static async Task Main(string[] args)
-
-        static async Task EnvoiStats()
-        {
-            // Vérifier si la clé "LastStats" existe, sinon la définir avec une valeur par défaut
-            if (!ParamConf.configDictionary.TryGetValue("LastStats", out string lastStatsValue) || string.IsNullOrEmpty(lastStatsValue))
-            {
-                lastStatsValue = DateTime.MinValue.ToString(); // Valeur par défaut si la clé est absente
-                ParamConf.configDictionary["LastStats"] = lastStatsValue;
-            }
-
-
-            // Vérifiez si une requête a déjà été envoyée aujourd'hui
-            DateTime lastSentDate;
-            if (DateTime.TryParse(lastStatsValue, out lastSentDate))
-            {
-                if (lastSentDate.Date == DateTime.Today)
-                {
-                    return; // Déjà envoyé aujourd'hui
-                }
-            }
-
-            // Continuer avec l'envoi des statistiques
-            var data = new
-            {
-                id_client = CreateIdClient(),
-                usage_count = ParamManager.NbLancement,
-                token = appsettings.token
-            };
-
-            using (var client = new HttpClient())
-            {
-                try
-                {
-                    var content = new FormUrlEncodedContent(new[]
-                    {
-                        new KeyValuePair<string, string>("id_client", data.id_client),
-                        new KeyValuePair<string, string>("usage_count", data.usage_count.ToString()),
-                        new KeyValuePair<string, string>("verDceManager", ParamManager.verDceManager),
-                        new KeyValuePair<string, string>("verScriptsMod", ParamScriptsMod.verScriptsMod),
-                        new KeyValuePair<string, string>("token", data.token)
-                    });
-
-                    HttpResponseMessage response = await client.PostAsync(appsettings.url, content);
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        ParamConf.configDictionary["LastStats"] = DateTime.Now.ToString();
-                        ParamManager.NbLancement = 0;
-                    }
-                    else
-                    {
-                        //MessageBox.Show($"Erreur: {response.StatusCode}", "Erreur step one");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Erreur lors du step one", "", false, true);
-                }
-            }
-        }
-
-       
 
         //check sanitizeModule ?
         public void checkBoxMod()
@@ -1893,11 +1778,6 @@ namespace DCE_Manager
             }
         }
 
-        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
-        {
-
-        }
-
         
         private void m_ButtonDcsPath_Click(object sender, EventArgs e)
         {
@@ -2105,10 +1985,7 @@ namespace DCE_Manager
                         {
                             TestFile.presenceOobAirInit = true;
                         }
-                        //if (file.FullName.Contains("ScriptsMod"))
-                        //{
-                        //    TestFile.presenceScriptMod = true;
-                        //}
+
                     }
                 }
                 if (TestFile.structureValide == false & TestFile.presenceCampInit == false)
@@ -2119,21 +1996,10 @@ namespace DCE_Manager
                 {
                     MessageBox.Show("Missionscript not found", "Information");
                 }
-                //if (TestFile.presenceScriptMod == false)
-                //{
-                //    MessageBox.Show("ScriptsMod not found", "Information");
-                //}
+
 
             }
 
-            //if(TestFile.structureValide )
-            //{
-            //    button_InstallCampaign.Visible = true;
-            //}
-            //else if(TestFile.presenceCampInit && TestFile.presenceOobAirInit)
-            // {
-            //    button_InstallCampaign.Visible = true;
-            //}
         }
 
 
@@ -2498,21 +2364,6 @@ namespace DCE_Manager
             Close();
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox4_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        public void toolTip1_Popup(object sender, PopupEventArgs e)
-        {
-
-        }
-
         private void linkLabelOvGME_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             try
@@ -2581,23 +2432,6 @@ namespace DCE_Manager
 
         }
 
-        private void label5_Click(object sender, EventArgs e)
-        {
-
-        }
-
-
-        private void ScriptsModUpdate_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox1_TextChanged_2(object sender, EventArgs e)
-        {
-
-        }
-
-
 
         public void CampaignPlusClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
         {
@@ -2663,19 +2497,16 @@ namespace DCE_Manager
 
                 FormUtils.MakeRoundedButton( ScriptsModUpdateButton, 10);
 
-                FormUtils.MakeRoundedButton(
-                    DCEManagerUpdateButton,
-                    10);
+                FormUtils.MakeRoundedButton( DCEManagerUpdateButton, 10);
 
-                FormUtils.MakeRoundedButton(
-                    buttonCampaignCancel,
-                    10);
+                FormUtils.MakeRoundedButton(  buttonCampaignCancel, 10);
 
                 groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
 
                 DCEManagerInstalledVersion.Text = VersionDceManager.Text;
+
                 if (String.IsNullOrEmpty(textBox_SavedGames.Text))
                 {
                     MessageBox.Show("You must enter the path to the SavedGame folder in the \"Install\" tab ", "Report");
@@ -2685,9 +2516,9 @@ namespace DCE_Manager
                 Directory.CreateDirectory(ParamManager.pathManager);
                 ParamUpdater.CreateFolders();
 
-                CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
+                //CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
 
-                await campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
+                //await campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
 
             }
             else if (e.TabPage == tabPageLeft_About)
@@ -2800,28 +2631,76 @@ namespace DCE_Manager
 
         private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // 1. On récupère le nom sélectionné (sécurisé avec "as string")
+            string selectedName = comboBox_Config.SelectedItem as string;
 
-            //TODO, doit y avoir melange dans configMap, un vrai bordel
-            if (ParamConf.configMap.TryGetValue((string)comboBox_Config.SelectedItem, out int configNumber))
+            if (string.IsNullOrEmpty(selectedName)) return;
+
+            // 2. On le stocke "seulement" en mémoire dans notre nouvelle variable
+            ParamConf.CurrentConfigName = selectedName;
+
+            // 3. On cherche le numéro de configuration correspondant
+            if (ParamConf.configMap.TryGetValue(selectedName, out int configNumber))
             {
                 ParamConf.NumSelectConfig = configNumber;
             }
 
-            ParamConf.configDictionary["display"] = (string)comboBox_Config.SelectedItem;
+            // Mise à jour de l'ancien dictionnaire si vous en avez encore besoin ailleurs
+            ParamConf.configDictionary["display"] = selectedName;
 
-            textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
+            ParamConf.CurrentConfigName = selectedName;
 
-            textBox_DCS.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
+            // 4. On remplit les TextBox de façon sécurisée (pour éviter le "vrai bordel" / crashs)
+            string prefix = $"config_{ParamConf.NumSelectConfig}_";
 
-            textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
+            textBox_Campaign.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathZipCampaign", out var p1) ? p1 : "";
+            textBox_DCS.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2) ? p2 : "";
+            textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var p3) ? p3 : "";
+            textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var p4) ? p4 : "";
 
-            textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
-            
-            //CheckVersionScriptsModLocal();
+            // Le reste de vos appels asynchrones...+
+            FormUtils.LogRegister("FormMain comboBox_Config_SelectedIndexChanged() appels asynchrones... _ = RefreshCampaignUpdates");
+            _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
+            _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
-            //MessageBox.Show("ParamConf.NumSelectConfig "+ ParamConf.NumSelectConfig.ToString(), textBox_Campaign.Text);
+            _ = campaignUpdater.RefreshCampaignUpdates( CampaignDataGridView, textBox_SavedGames.Text);
 
+            this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + selectedName;
         }
+
+        //private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
+        //{
+
+        //    //TODO, doit y avoir melange dans configMap, un vrai bordel
+        //    if (ParamConf.configMap.TryGetValue((string)comboBox_Config.SelectedItem, out int configNumber))
+        //    {
+        //        ParamConf.NumSelectConfig = configNumber;
+        //    }
+
+        //    ParamConf.configDictionary["display"] = (string)comboBox_Config.SelectedItem;
+
+        //    textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
+
+        //    textBox_DCS.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
+
+        //    textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
+
+        //    textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
+
+        //    //CheckVersionScriptsModLocal();
+
+        //    //MessageBox.Show("ParamConf.NumSelectConfig "+ ParamConf.NumSelectConfig.ToString(), textBox_Campaign.Text);
+
+        //    _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
+
+        //    _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
+
+        //    //CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
+        //    //this.Shown += Form1_Shown;
+
+        //    this.Text = "DCE_Manager - " + (string)comboBox_Config.SelectedItem;
+
+        //}
 
 
         private void m_Button_AddConfig_Click(object sender, EventArgs e)
@@ -3014,32 +2893,6 @@ namespace DCE_Manager
         }
 
        
-
-        private void label_server_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void pictureBox6_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox_ChangelogScriptsMod_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void labelUpdateDceManager_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label11_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void ScriptModInstalledVersion_Click(object sender, EventArgs e)
         {
             Process process = new Process();
@@ -3052,17 +2905,6 @@ namespace DCE_Manager
             process.Start();
         }
 
-        private void label9_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void txtBoxFolderCreateUpdate_TextChanged(object sender, EventArgs e)
-        {
-            //txtBoxFolderCreateUpdate
-        }
-
-      
 
         internal class version
         {
@@ -3079,682 +2921,6 @@ namespace DCE_Manager
             }
         }
 
-        private void tabPage2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-
-
-        public static bool PointIsWithinCircle(double circleRadius, double circleCenterPointX, double circleCenterPointY, double pointToCheckX, double pointToCheckY)
-        {
-            return (Math.Pow(pointToCheckX - circleCenterPointX, 2) + Math.Pow(pointToCheckY - circleCenterPointY, 2)) < (Math.Pow(circleRadius, 2));
-        }
-
-        private void C_DataMap_Click(object sender, EventArgs e)
-        {
-            Boolean makeCircleMap = true;
-            Boolean makeUniquePointMap = false;
-
-            if (makeCircleMap == true)
-            {
-
-                //MessageBox.Show("AA START makeCircleMap");
-
-                int[,] ArrayCircle = new int[100000, 3];
-
-
-                string texteFinal = null;
-
-                Bitmap img = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus.png");
-                Color newColor = Color.Red;
-                Bitmap img2 = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus2.png");
-
-                //texteFinal = "Width: " + img.Width.ToString() + " Height: " + img.Height.ToString() + "\r\n";
-
-
-                //circleSAR = {
-                //    {
-                //       pixel_x = 1,   
-                //       pixel_y = 276,  
-                //       radius = 5,  
-                //   },  
-                //   {
-                //                    pixel_x = 31,   
-                //       pixel_y = 756,  
-                //       radius = 35,  
-                //   },  
-                //   {
-                //                    pixel_x = 38,   
-                //       pixel_y = 838,  
-                //       radius = 42,  
-                //   }, 
-
-                texteFinal = "circleSAR = {";
-
-                int NColor = 1;
-                Color SColors = Color.Black;
-
-                //Width: 18869 Height: 10391
-                for (int i = 1; i < (img.Width / 1); i += 25) //25
-                {
-                    for (int j = 1; j < (img.Height / 1); j += 25)
-                    {
-                        //bool breakInCircle = false;
-                        Color pixel = img.GetPixel(i, j);
-                        if (pixel.B != 198 && pixel.G >= 150)
-                        {
-                            //bool badLand = false;
-                            bool breakInCircle = false;
-                            int centerX = 0;
-                            int centerY = 0;
-                            int max_ii = 0;
-                            int max_jj = 0;
-                            int max_m = 0;
-                            bool breakBoolean = false;
-                            int maxPointLibre = 0;
-
-                            if (NColor == 3)
-                            {
-                                NColor = 1;
-                                SColors = Color.Black;
-                            }
-                            else if (NColor == 1)
-                            {
-                                NColor = 2;
-                                SColors = Color.Blue;
-                            }
-                            else if (NColor == 2)
-                            {
-                                NColor = 3;
-                                SColors = Color.Red;
-                            }
-
-                            for (int m = 0; m <= 100; m += 15)
-                            {
-                                //si le cercle est déjà dans un autre, aucun regard et creation, on passe au suivant                        
-                                for (int n = 0; n < 100000; n++)
-                                {
-                                    if (ArrayCircle[n, 0] != 0)
-                                    {
-                                        int center_x = ArrayCircle[n, 0];
-                                        int center_y = ArrayCircle[n, 1];
-                                        int radius = ArrayCircle[n, 2];
-
-                                        if (Math.Pow((i - center_x), 2) + Math.Pow((j - center_y), 2) <= Math.Pow(radius, 2))
-                                        {
-                                            breakInCircle = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                if (breakInCircle)
-                                    break;
-
-                                for (int ii = i + m; ii < i + m + 5; ii += 5) //110
-                                {
-                                    for (int jj = j + m; jj < j + m + 5; jj += 5) //110 115
-                                    {
-                                        //if ((ii >= 0 & ii < img.Width) & (jj >= 0 & jj < img.Height))
-                                        if (breakBoolean != true && (i >= 0 & i < img.Width) & (jj >= 0 & jj < img.Height))
-                                        {
-
-                                            Color pixelB = img.GetPixel(i, jj);
-                                            max_ii = i + m - 5;
-                                            max_jj = j + m - 5;
-                                            maxPointLibre++;
-                                            max_m = m - 15;
-
-                                            //if (pixelB.B == 198 || pixelB.G <= 160)
-                                            if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
-                                            {
-                                                //badLand = true;
-                                                breakBoolean = true;
-
-                                                break;
-                                            }
-
-                                            //if ((nbFileToUpdat >= 0 & nbFileToUpdat < img.Width) & (jj >= 0 & jj < img.Height))
-                                            //{
-                                            //    img2.SetPixel(nbFileToUpdat, jj, SColors);
-                                            //}
-
-                                        }
-                                        if (breakBoolean != true && (ii >= 0 & ii < img.Width) & (j >= 0 & j < img.Height))
-                                        {
-
-                                            Color pixelB = img.GetPixel(ii, j);
-                                            max_ii = i + m - 5;
-                                            max_jj = j + m - 5;
-                                            //maxPointLibre++;
-                                            max_m = m - 15;
-
-                                            //if (pixelB.B == 198 || pixelB.G <= 160)
-                                            if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
-                                            {
-                                                //badLand = true;
-                                                breakBoolean = true;
-
-                                                break;
-                                            }
-
-
-                                            //if ((ii >= 0 & ii < img.Width) & (j >= 0 & j < img.Height))
-                                            //{
-                                            //    img2.SetPixel(ii, j, SColors);
-                                            //}
-
-                                        }
-                                        if (breakBoolean != true && (ii >= 0 & ii < img.Width) & (jj >= 0 & jj < img.Height))
-                                        {
-                                            Color pixelB = img.GetPixel(ii, jj);
-                                            max_ii = i + m - 5;
-                                            max_jj = j + m - 5;
-                                            //maxPointLibre++;
-                                            max_m = m - 15;
-
-                                            //if (pixelB.B == 198 || pixelB.G <= 160)
-                                            if ((pixelB.B == 198 || pixelB.G <= 139) & pixelB.G != 0 & (pixelB.G >= 75 & pixelB.G >= 79))
-                                            {
-                                                //badLand = true;
-                                                breakBoolean = true;
-                                                break;
-                                            }
-
-
-                                            //if ((ii >= 0 & ii < img.Width) & (jj >= 0 & jj < img.Height))
-                                            //{
-                                            //    img2.SetPixel(ii, jj, SColors);
-                                            //}
-
-                                        }
-                                    }
-                                    if (breakBoolean)
-                                        break;
-                                }
-                                if (breakBoolean)
-                                    break;
-                            }
-
-                            if (!breakInCircle)
-                            {
-
-                                //centerX = (nbFileToUpdat + max_ii) / 2;
-                                //centerY = (j + max_jj) / 2;
-
-                                centerX = i + (max_m / 2);
-                                centerY = j + (max_m / 2);
-
-                                int rayonX = (max_ii - i) / 2;
-                                int rayonY = (max_jj - j) / 2;
-                                int rayon = 0;
-                                if (rayonX <= rayonY)
-                                {
-                                    rayon = rayonX;
-                                }
-                                else
-                                {
-                                    rayon = rayonY;
-                                }
-
-
-                                //si le cercle est déjà dans un autre, aucun regard et creation, on passe au suivant                        
-                                for (int n = 0; n < 100000; n++)
-                                {
-                                    if (ArrayCircle[n, 0] != 0)
-                                    {
-                                        int center_x = ArrayCircle[n, 0];
-                                        int center_y = ArrayCircle[n, 1];
-                                        int radius = ArrayCircle[n, 2];
-
-                                        for (double ia = 0.0; ia < 360.0; ia += 36)
-                                        {
-                                            double angle = ia * System.Math.PI / 180;
-
-                                            int x = (int)(centerX + radius * System.Math.Cos(angle));
-
-                                            int y = (int)(centerY + radius * System.Math.Sin(angle));
-
-                                            if (Math.Pow((x - center_x), 2) + Math.Pow((y - center_y), 2) <= Math.Pow(radius, 2))
-                                            {
-                                                breakInCircle = true;
-                                                break;
-                                            }
-                                        }
-
-                                        //if (Math.Pow((centerX - center_x), 2) + Math.Pow((centerY - center_y), 2) <= Math.Pow(radius, 2))
-                                        //{
-                                        //    breakInCircle = true;
-                                        //    break;
-                                        //}
-                                    }
-                                }
-
-                                //if (badLand == false)
-                                if (rayon > 2 & !breakInCircle)    //maxPointLibre >= 1 && && max_ii !=0 && max_jj != 0
-                                {
-
-                                    //texteFinal = (texteFinal + (nbFileToUpdat.ToString() + " _ " + j.ToString() + " : " + pixel.ToString() + " :: X " + centerX.ToString() + "  Y: " + centerY.ToString() + "  r: " + rayon.ToString() + "\r\n"));
-
-                                    texteFinal = texteFinal +
-                                        "\r\n" +
-                                        "   {   \r\n" +
-                                        "       pixel_x = " + centerX.ToString() + ",   \r\n" +
-                                        "       pixel_y = " + centerY.ToString() + ",  \r\n" +
-                                        "       radius = " + rayon.ToString() + ",  \r\n" +
-                                        "   },  ";
-
-                                    int radius = rayon;
-
-                                    for (double ia = 0.0; ia < 360.0; ia += 36)
-                                    {
-                                        double angle = ia * System.Math.PI / 180;
-
-                                        int x = (int)(centerX + radius * System.Math.Cos(angle));
-
-                                        int y = (int)(centerY + radius * System.Math.Sin(angle));
-
-                                        if ((x >= 0 & x < img.Width) & (y >= 0 & y < img.Height))
-                                        {
-                                            img2.SetPixel(x, y, SColors);
-                                        }
-                                    }
-
-
-                                    for (int n = 0; n < 100000; n++)
-                                    {
-                                        if (ArrayCircle[n, 0] == 0)
-                                        {
-                                            ArrayCircle[n, 0] = centerX;
-                                            ArrayCircle[n, 1] = centerY;
-                                            ArrayCircle[n, 2] = rayon;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                texteFinal = texteFinal + "      \r\n" +
-                    "}";
-                StreamWriter sr2 = new StreamWriter(@"D:\DCS_Maps\DCS_F10_Caucasus.txt");
-                sr2.WriteLine(texteFinal);
-                sr2.Close();
-
-                //MessageBox.Show("A ok");
-
-                img2.Save(@"D:\DCS_Maps\DCS_F10_Caucasus3.png");
-                //MessageBox.Show("B ok");
-
-            } // if (makeCercleMap)
-
-
-            if (makeUniquePointMap == true)
-            {
-                //MessageBox.Show("C1 START");
-
-                ////**** TEST UNE POSITION CONNUE ****
-                ////Width: 18869 Height: 10391
-                // axe_X : 18869 pixel (gauche à droite)
-                // axe_Y : 10391 pixel (haut en bas)
-                // 0/0 point origine en haut à droite
-
-                //trouver 2 bases eloigné, dessiner 2 cerles dessus et trouver la distance équivalente sur DCS
-                //426 nm => 788952 metre
-                // 1 pixel = 41.81 metre
-
-                //position Vaziani
-                int testX = 17640; // 15963;
-                int testY = 8013; // 7472;
-                //["y"] = 904028,
-                //["x"] = -319918,
-                
-                Bitmap img10 = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus2.png");
-
-                //Sukhumi
-                //int testX = 10444;
-                //int testY = 5900;
-
-                img10.SetPixel(testX, testY, Color.LightBlue);
-
-                for (int radius = 10; radius <= 200; radius += 10)
-                {
-                    for (double ia = 0.0; ia < 360.0; ia += 36)
-                    {
-                        double angle = ia * System.Math.PI / 180;
-
-                        int x = (int)(testX + radius * System.Math.Cos(angle));
-
-                        int y = (int)(testY + radius * System.Math.Sin(angle));
-
-                        if ((x >= 0 & x < img10.Width) & (y >= 0 & y < img10.Height))
-                        {
-                            img10.SetPixel(x, y, Color.Red);
-                        }
-                    }
-                }
-
-
-
-                ////dessine un gros gras rond rouge
-                //for (int radius = 1; radius <= 20; radius += 1)
-                //{
-                //    for (double ia = 0.0; ia < 360.0; ia += 2)
-                //    {
-                //        double angle = ia * System.Math.PI / 180;
-
-                //        int x = (int)(testX + radius * System.Math.Cos(angle));
-
-                //        int y = (int)(testY + radius * System.Math.Sin(angle));
-
-                //        if ((x >= 0 & x < img10.Width) & (y >= 0 & y < img10.Height))
-                //        {
-                //            img10.SetPixel(x, y, Color.Red);
-                //        }
-                //    }
-                //}
-
-                img10.Save(@"D:\DCS_Maps\DCS_F10_CaucasusUniquePoint.png");
-                //MessageBox.Show("C2 ok");
-
-            }   // if (makeUniquePointMap)
-        }
-        
-
-
-        private void C_DataMapCity_Click_1(object sender, EventArgs e)
-        {
-
-            int[,] ArrayCircle = new int[100000, 3];
-
-
-            string texteFinal = null;
-            //bool premierPixelIdentique = false;
-
-            //Bitmap img = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus.png");
-            Bitmap img = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus2.png");
-            Color newColor = Color.Red;
-            Bitmap img2 = new Bitmap(@"D:\DCS_Maps\DCS_F10_Caucasus2.png");
-
-            //texteFinal = "Width: " + img.Width.ToString() + " Height: " + img.Height.ToString() + "\r\n";
-
-
-            //circleSAR = {
-            //    {
-            //       pixel_x = 1,   
-            //       pixel_y = 276,  
-            //       radius = 5,  
-            //   },  
-            //   {
-            //                    pixel_x = 31,   
-            //       pixel_y = 756,  
-            //       radius = 35,  
-            //   },  
-            //   {
-            //                    pixel_x = 38,   
-            //       pixel_y = 838,  
-            //       radius = 42,  
-            //   }, 
-
-            texteFinal = "circleCity = {";
-
-            int NColor = 1;
-            Color SColors = Color.Black;
-
-            //Width: 18869 Height: 10391
-            for (int i = 1; i < (img.Width / 1); i += 25) //25
-            {
-                for (int j = 1; j < (img.Height / 1); j += 25)
-                {
-                    //bool breakInCircle = false;
-                    Color pixel = img.GetPixel(i, j);
-
-                    ////la mer: R=126 V185 B198
-                    if (pixel.B != 198)        //&& pixel.G >= 150
-                    {
-                        bool breakInCircle = false;
-                        int centerX = 0;
-                        int centerY = 0;
-                        int max_ii = 0;
-                        int max_jj = 0;
-                        int max_m = 0;
-                        bool breakBoolean = false;
-                        bool breakBoolean1 = false;
-                        bool breakBoolean2 = false;
-                        bool breakBoolean3 = false;
-                        bool foundCity = false;
-
-
-                        int maxPointLibre = 0;
-
-                        if (NColor == 3)
-                        {
-                            NColor = 1;
-                            SColors = Color.Black;
-                        }
-                        else if (NColor == 1)
-                        {
-                            NColor = 2;
-                            SColors = Color.Blue;
-                        }
-                        else if (NColor == 2)
-                        {
-                            NColor = 3;
-                            SColors = Color.Red;
-                        }
-
-                        for (int m = 0; m <= 50; m += 15)
-                        {
-                            ////si le cercle est déjà dans un autre, aucun regard et creation, on passe au suivant                        
-                            //for (int n = 0; n < 100000; n++)
-                            //{
-                            //    if (ArrayCircle[n, 0] != 0)
-                            //    {
-                            //        int center_x = ArrayCircle[n, 0];
-                            //        int center_y = ArrayCircle[n, 1];
-                            //        int radius = ArrayCircle[n, 2];
-
-                            //        if (Math.Pow((nbFileToUpdat - center_x), 2) + Math.Pow((j - center_y), 2) <= Math.Pow(radius, 2))
-                            //        {
-                            //            breakInCircle = true;
-                            //            break;
-                            //        }
-                            //    }
-                            //}
-                            //if (breakInCircle)
-                            //    break;
-
-                            for (int ii = i + m - 50; ii < i + m + 5; ii += 5) //110
-                            {
-                                for (int jj = j + m - 50; jj < j + m + 5; jj += 5) //110 115
-                                {
-                                    if (breakBoolean != true && (i >= 0 & i < img.Width) & (jj >= 0 & jj < img.Height))
-                                    {
-
-                                        Color pixelB = img.GetPixel(i, jj);
-                                        max_ii = i + m;
-                                        max_jj = j + m;
-                                        maxPointLibre++;
-                                        max_m = m;
-
-                                        ////la mer: R=126 V185 B198
-                                        //if (pixelB.R < 126 )
-                                        //{
-                                        //    breakBoolean1 = true;
-                                        //    //break;
-                                        //}
-                                        //la ville R198 V131 R0
-
-                                        if (pixelB.R == 198 & pixelB.G == 131)
-                                        {
-                                            foundCity = true;
-                                        }
-                                    }
-                                    if (breakBoolean != true && (ii >= 0 & ii < img.Width) & (j >= 0 & j < img.Height))
-                                    {
-
-                                        Color pixelB = img.GetPixel(ii, j);
-                                        max_ii = i + m;
-                                        max_jj = j + m;
-                                        //maxPointLibre++;
-                                        max_m = m - 15;
-
-
-                                        if (pixelB.R == 198 & pixelB.G == 131)
-                                        {
-                                            foundCity = true;
-                                        }
-
-                                    }
-                                    if (breakBoolean != true && (ii >= 0 & ii < img.Width) & (jj >= 0 & jj < img.Height))
-                                    {
-                                        Color pixelB = img.GetPixel(ii, jj);
-                                        max_ii = i + m;
-                                        max_jj = j + m;
-                                        //maxPointLibre++;
-                                        max_m = m;
-
-
-                                        if (pixelB.R == 198 & pixelB.G == 131)
-                                        {
-                                            foundCity = true;
-                                        }
-                                    }
-                                    if (breakBoolean1 == true & breakBoolean2 == true & breakBoolean3 == true)
-                                    {
-                                        breakBoolean = true;
-                                        max_m = m - 15;
-                                        max_ii = ii - 5;
-                                        max_jj = jj - 5;
-                                    }
-
-                                }
-                                if (breakBoolean)
-                                    break;
-                            }
-                            if (breakBoolean)
-                                break;
-                        }
-
-                        if (foundCity)
-                        {
-                            //centerX = nbFileToUpdat + (max_m / 2);
-                            //centerY = j + (max_m / 2);
-
-                            //int rayonX = (max_ii - nbFileToUpdat) / 2;
-                            //int rayonY = (max_jj - j) / 2;
-
-                            centerX = i + (max_m / 1);
-                            centerY = j + (max_m / 1);
-
-                            int rayonX = (max_ii - i) / 1;
-                            int rayonY = (max_jj - j) / 1;
-
-
-                            int rayon = 0;
-                            if (rayonX <= rayonY)
-                            {
-                                rayon = rayonX;
-                            }
-                            else
-                            {
-                                rayon = rayonY;
-                            }
-
-                            rayon = rayon * 2;
-
-                            //si le cercle est déjà dans un autre, aucun regard et creation, on passe au suivant                        
-                            for (int n = 0; n < 100000; n++)
-                            {
-                                if (ArrayCircle[n, 0] != 0)
-                                {
-                                    int center_x = ArrayCircle[n, 0];
-                                    int center_y = ArrayCircle[n, 1];
-                                    int radius = ArrayCircle[n, 2];
-
-                                    for (double ia = 0.0; ia < 360.0; ia += 36)
-                                    {
-                                        double angle = ia * System.Math.PI / 180;
-
-                                        int x = (int)(centerX + radius * System.Math.Cos(angle));
-
-                                        int y = (int)(centerY + radius * System.Math.Sin(angle));
-
-                                        if (Math.Pow((x - center_x), 2) + Math.Pow((y - center_y), 2) <= Math.Pow(radius, 2))
-                                        {
-                                            breakInCircle = true;
-                                            break;
-                                        }
-                                    }
-
-                                    //if (Math.Pow((centerX - center_x), 2) + Math.Pow((centerY - center_y), 2) <= Math.Pow(radius, 2))
-                                    //{
-                                    //    breakInCircle = true;
-                                    //    break;
-                                    //}
-                                }
-                            }
-
-                            //if (badLand == false)
-                            if (rayon > 15 & !breakInCircle)    //maxPointLibre >= 1 && && max_ii !=0 && max_jj != 0
-                            {
-
-                                //texteFinal = (texteFinal + (nbFileToUpdat.ToString() + " _ " + j.ToString() + " : " + pixel.ToString() + " :: X " + centerX.ToString() + "  Y: " + centerY.ToString() + "  r: " + rayon.ToString() + "\r\n"));
-
-                                texteFinal = texteFinal +
-                                    "\r\n" +
-                                    "   {   \r\n" +
-                                    "       pixel_x = " + centerX.ToString() + ",   \r\n" +
-                                    "       pixel_y = " + centerY.ToString() + ",  \r\n" +
-                                    "       radius = " + rayon.ToString() + ",  \r\n" +
-                                    "   },  ";
-
-                                int radius = rayon;
-
-                                for (double ia = 0.0; ia < 360.0; ia += 36)
-                                {
-                                    double angle = ia * System.Math.PI / 180;
-
-                                    int x = (int)(centerX + radius * System.Math.Cos(angle));
-
-                                    int y = (int)(centerY + radius * System.Math.Sin(angle));
-
-                                    if ((x >= 0 & x < img.Width) & (y >= 0 & y < img.Height))
-                                    {
-                                        img2.SetPixel(x, y, SColors);
-                                    }
-                                }
-
-                                for (int n = 0; n < 100000; n++)
-                                {
-                                    if (ArrayCircle[n, 0] == 0)
-                                    {
-                                        ArrayCircle[n, 0] = centerX;
-                                        ArrayCircle[n, 1] = centerY;
-                                        ArrayCircle[n, 2] = rayon;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            texteFinal = texteFinal + "      \r\n" +
-                "}";
-            StreamWriter sr2 = new StreamWriter(@"D:\DCS_Maps\DCS_F10_CaucasusCity.txt");
-            sr2.WriteLine(texteFinal);
-            sr2.Close();
-
-            //MessageBox.Show("A ok");
-
-            img2.Save(@"D:\DCS_Maps\DCS_F10_CaucasusCity.png");
-            //MessageBox.Show("B ok");
-
-        }
 
         private void checkBoxSanitize_CheckedChanged(object sender, EventArgs e)
         {
@@ -3801,16 +2967,6 @@ namespace DCE_Manager
                     }
                 }
             }
-        }
-
-        private void pictureBox2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void tabPage2_TextChanged(object sender, EventArgs e)
-        {
-
         }
 
         void CampaignTab_Selected(object sender, TabControlEventArgs e)
@@ -4003,21 +3159,6 @@ namespace DCE_Manager
 
         }
 
-        private void tabPage8_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void toolTip3_Popup(object sender, PopupEventArgs e)
-        {
-
-        }
-
-        private void groupBoxCampEdit_Enter(object sender, EventArgs e)
-        {
-
-        }
-
         public bool ButtonPreview = false;
         public void Form1_KeyDown(object sender, KeyEventArgs e)
         {
@@ -4045,6 +3186,7 @@ namespace DCE_Manager
             checkBox_OvwNGfolder.Visible = false;
             checkBoxSanitize.Visible = false;
             LabelStatut.Text = "User";
+            this.Text = "DCE_Manager - User - " + ParamConf.CurrentConfigName;
             ParamManager.userLevel = 1;
 
             textBox_id_client.Visible = false;
@@ -4059,6 +3201,7 @@ namespace DCE_Manager
             checkBoxSanitize.Visible = true;
             textBox_id_client.Visible = false;
             LabelStatut.Text = "Expert";
+            this.Text = "DCE_Manager - Expert - " + ParamConf.CurrentConfigName;
             ParamManager.userLevel = 2;
         }
 
@@ -4068,6 +3211,7 @@ namespace DCE_Manager
 
             textBox_id_client.Visible = false;
             LabelStatut.Text = "CampaignMaker";
+            this.Text = "DCE_Manager - CampaignMaker - " + ParamConf.CurrentConfigName;
             ScriptsModUpdateButton.Text = "Update";
             ParamManager.userLevel = 3;
 
@@ -4082,25 +3226,10 @@ namespace DCE_Manager
                 GetVersionDceManager();
                 but_GPS_LL.Visible = true;
                 LabelStatut.Text = "DEV";
+                this.Text = "DCE_Manager - DEV - " + ParamConf.CurrentConfigName;
                 ScriptsModUpdateButton.Text = "Update DEV";
                 textBox_id_client.Visible = true;
             }
-
-        }
-
-
-        private void textBox_id_client_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dataGridViewBlue_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
-
-        }
-
-        private void dataGridViewRed_CellContentClick(object sender, DataGridViewCellEventArgs e)
-        {
 
         }
 
@@ -4133,21 +3262,6 @@ namespace DCE_Manager
             RefreshGrids();
         }
 
-        private void Form1_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        private void panel2_Paint(object sender, PaintEventArgs e)
-        {
-
-        }
-
-        private void groupBox6_Enter(object sender, EventArgs e)
-        {
-
-        }
-
         private async void CampaignDataGridView_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
 
@@ -4160,11 +3274,12 @@ namespace DCE_Manager
 
             CampaignInfo campaign = campaignUpdater.GetCampaignFromRow(e.RowIndex);
 
-            if (campaign == null)
+            if (campaign == null || string.IsNullOrWhiteSpace(campaign.DownloadUrl))
                 return;
 
             if (!campaign.UpdateAvailable)
                 return;
+
 
             //CampaignDataGridView.Enabled = false;
             //groupBox_DwlCampaign.Visible = true;
@@ -4206,7 +3321,7 @@ namespace DCE_Manager
                     textBox_SavedGames.Text,
                     campaign);
 
-                FormUtils.LogRegister("Campaign installed");
+                FormUtils.LogRegister("FormMain Campaign installed RefreshCampaignUpdates()");
 
                 await campaignUpdater.RefreshCampaignUpdates(
                     CampaignDataGridView,
@@ -4252,11 +3367,6 @@ namespace DCE_Manager
 
         }
 
-        private void labelCampaignTitle_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void linkLabel_Icons8_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             // Ouvre automatiquement le navigateur web par défaut vers le site d'Icons8
@@ -4265,6 +3375,126 @@ namespace DCE_Manager
                 FileName = "https://icons8.com",
                 UseShellExecute = true // Requis sous .NET Core / .NET 5+ pour ouvrir un l'URL
             });
+
+        }
+
+        private void Readme_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            try
+            {
+                // Remplace par la vraie URL de ton dépôt GitHub.
+                // L'ancre #privacy-analytics ciblera directement ton titre.
+
+                //string url = "https://github.com/Miguel21bis/DCE_Manager/blob/main/README.md#privacy--analytics";
+                string url =
+                    $"https://github.com/{GithubHelper.GithubAccount}/{GithubHelper.Repository_Manager}/blob/main/README.md#privacy--analytics";
+
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = url,
+                    UseShellExecute = true // Requis pour .NET Core / .NET 5+ / .NET 6+
+                });
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Impossible d'ouvrir le lien de confidentialité : " + ex.Message);
+            }
+        }
+
+        private async void Form1_Shown(object sender, EventArgs e)
+        {
+            FormUtils.LogRegister("FormMain Form1_Shown comboBox_Config_SelectedIndexChanged() ");
+
+            await campaignUpdater.RefreshCampaignUpdates(
+                CampaignDataGridView,
+                textBox_SavedGames.Text);
+        }
+
+        private void InitActionRows()
+        {
+            // Assignation de l'événement Clic pour TOUS les composants de la ligne Log
+            panel_ViewLog.Click += Action_ViewLog;
+            lbl_ViewLogTitle.Click += Action_ViewLog;
+            lbl_ViewLogDesc.Click += Action_ViewLog;
+            pic_ViewLogIcon.Click += Action_ViewLog; // Si vous avez nommé votre PictureBox ainsi
+            pic_ViewLog_ArrowLog.Click += Action_ViewLog;
+
+            // Même chose pour la ligne Documentation
+            panel_OpenDoc.Click += Action_OpenDoc;
+            lbl_OpenDocTitle.Click += Action_OpenDoc;
+            lbl_OpenDocDesc.Click += Action_OpenDoc;
+            pic_OpenDocIcon.Click += Action_ViewLog; // Si vous avez nommé votre PictureBox ainsi
+            pic_OpenDoc_ArrowLog.Click += Action_ViewLog;
+        }
+
+        // --- LES ACTIONS REELLES ---
+
+        private void Action_ViewLog(object sender, EventArgs e)
+        {
+            // Chemin vers votre fichier log
+            string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DCE_Manager", "log.txt");
+
+            if (File.Exists(logPath))
+            {
+                // Ouvre le fichier avec le bloc-notes (ou l'éditeur par défaut du système)
+                Process.Start(new ProcessStartInfo(logPath) { UseShellExecute = true });
+            }
+            else
+            {
+                MessageBox.Show("Le fichier log n'a pas encore été créé.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+        }
+
+        private void Action_OpenDoc(object sender, EventArgs e)
+        {
+            // Chemin direct vers C:\Users\toto\Documents\DCE_Manager
+            string docFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DCE_Manager");
+
+            if (Directory.Exists(docFolder))
+            {
+                try
+                {
+                    // Ouvre l'explorateur Windows directement sur ce dossier
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = docFolder,
+                        UseShellExecute = true,
+                        Verb = "open" // Force explicitement l'action d'ouverture
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Impossible d'ouvrir le dossier : {ex.Message}", "Erreur Système", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            else
+            {
+                MessageBox.Show($"Le dossier est introuvable à l'emplacement :\n{docFolder}", "Dossier Manquant", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static bool CanDeleteFile(string path)
+        {
+            try
+            {
+                using (FileStream fs = File.Open(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private void lbl_ViewLogTitle_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label_tolls_Click(object sender, EventArgs e)
+        {
 
         }
     }

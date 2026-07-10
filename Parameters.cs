@@ -76,6 +76,8 @@ namespace DCE_Manager.Parameters
         public static int NumSelectConfig = 0;
 
         public static int NumMaxConfig = 0;
+
+        public static string CurrentConfigName { get; set; } = string.Empty;
     }
 
 
@@ -115,7 +117,7 @@ namespace DCE_Manager.Parameters
         // Pourquoi : utilisé lors du téléchargement.
         public static string AssetName = "";
 
-        public static string Repository = "DCE";
+        //public static string Repository = "DCE";
     }
 
     public class CampaignSquad

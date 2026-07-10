@@ -34,6 +34,7 @@ namespace DCE_Manager.Update
 
         public bool AlreadyInstalledLatestVersion { get; set; } = false;
 
+
     }
 
     // Informations minimales contenues dans une archive de campagne.

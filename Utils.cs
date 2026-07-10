@@ -662,6 +662,11 @@ namespace DCE_Manager.Utils
             ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
             ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
             ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
+
+            //configDictionary["LastGithubCheckUtc"] = ParamUpdater.LastGithubCheckUtc.ToString("O");
+
+            ParamConf.configDictionary.AddOrUpdate("LastGithubCheckUtc", ParamUpdater.LastGithubCheckUtc.ToString("O"));
+
             //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
             ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
             ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);

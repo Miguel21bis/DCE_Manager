@@ -12,6 +12,10 @@ namespace DCE_Manager.Parameters
     {
         //public static string Repository = "DCE_Manager";
 
+        public static DateTime LastGithubCheckUtc = DateTime.MinValue;
+
+        public static readonly TimeSpan GithubCheckInterval = TimeSpan.FromHours(24);
+
         public static bool ScriptsModUpdateAvailable;
         public static bool DCEManagerUpdateAvailable;
 

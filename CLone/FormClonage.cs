@@ -5,6 +5,7 @@ using NLua;
 using System.Collections.Generic;
 using DCE_Manager.Utils;
 using DCE_Manager.Parameters;
+using DCE_Manager.Clone;
 using System.Threading;
 using System.Globalization;
 using System.Linq;
@@ -1318,7 +1319,13 @@ namespace DCE_Manager
 
                 string sourcePath = path + @"\" + OldNameCamp;
                 string targetPath = path + @"\" + NewdNameCamp;
-               
+
+                string campaignPath_NewName = path + @"\" + NewdNameCamp;
+
+                FormUtils.LogRegister("campaignPath_NewName: " + campaignPath_NewName);
+                FormUtils.LogRegister("OldNameCamp :" + OldNameCamp);
+                FormUtils.LogRegister("NewdNameCamp :" + NewdNameCamp);
+
                 //evite l'écrasement d'une campagne déjà existante:
                 if (System.IO.Directory.Exists(targetPath))
                 {
@@ -1331,15 +1338,6 @@ namespace DCE_Manager
                     sourcePath = path + @"\" + OldNameCamp + ".cmp";
                     targetPath = path + @"\" + NewdNameCamp + ".cmp";
 
-                    //try
-                    //{
-                    //    File.Copy(SourcePath, targetPath, true); ;
-                    //}
-                    //catch (Exception ex)
-                    //{
-                    //    //listbox1.Items.Add("Unable to Copy file. Error : " + ex);
-                    //    MessageBox.Show(ex.StackTrace.ToString());
-                    //}
 
                     try
                     {
@@ -1391,7 +1389,8 @@ namespace DCE_Manager
                     CreateDicoClassSquad(_form1, path + @"\" + OldNameCamp, OldNameCamp);
 
                     //Modifier camp_init***
-                    Modifier_camp_init(path + @"\" + NewdNameCamp);
+                    //Modifier_camp_init(path + @"\" + NewdNameCamp);
+                    CloneHelper.UpdateCampInit(campaignPath_NewName, OldNameCamp, NewdNameCamp);
 
                     //modifie dans Class Squad : Player, Squad, Active_Squad
                     Modifier_ClassSquad();

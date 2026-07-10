@@ -226,17 +226,6 @@
         +k8yK0MdHB36qQAAAABJRU5ErkJggg==
 </value>
   </data>
-  <data name="textBox1.Text" xml:space="preserve">
-    <value>Mbot : The concept of the campaign
-Tomsk : PruneScript
-Zarbas : choice of mission
-Eagle : debugging and creating your own campaigns
-Norman99 : Fuel Check script
-
-All the talented skin designers who help us make our campaigns more immersive
-
-</value>
-  </data>
   <data name="textBox_ASTI.Text" xml:space="preserve">
     <value>with DCS (the mission editor) it's almost impossible to import templates with a large number of statics, and even more impossible to move or orientate them or even delete them.
 This is why Cef wanted a tool to do all these things: import one or more templates made of Static, orientate them, move them, delete them, whatever the original MAP.
@@ -270,6 +259,17 @@ nota:
 - the countries used will automatically be CJTF Blue and CJTF Red. This will avoid any conflict ^^
 - unitId, groupId, group.name and unit.name will automatically be renamed to avoid duplication.
 - you can use Tools/ASTI independently of DCE, no need to fill in the path on the first tab.</value>
+  </data>
+  <data name="textBox1.Text" xml:space="preserve">
+    <value>Mbot : The concept of the campaign
+Tomsk : PruneScript
+Zarbas : choice of mission
+Eagle : debugging and creating your own campaigns
+Norman99 : Fuel Check script
+
+All the talented skin designers who help us make our campaigns more immersive
+
+</value>
   </data>
   <data name="pictureBox5.Image" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>

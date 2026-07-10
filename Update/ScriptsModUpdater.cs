@@ -22,7 +22,7 @@ namespace DCE_Manager.Update
     {
         private readonly Form1 form;
         private readonly GithubHelper github;
-        private const string Repository = "DCE";
+        //private const string Repository = "DCE";
 
         public ScriptsModUpdater(Form1 form)
         {
@@ -110,15 +110,9 @@ namespace DCE_Manager.Update
 
             try
             {
-                // 1. On prépare le message textuel pour le log (sans la fonction dedans)
-                string messageDeLog = $"[GitHub Request] Owner: Miguel21bis | Repo: {Repository} | Extension: .zip | Prefix: DCE_scriptsMod_";
-
-                // 2. On appelle ta méthode de log avec ce string
-                FormUtils.LogRegister(messageDeLog);
-
                 bool success = await github.GetLatestRelease(
-                    "Miguel21bis",
-                    "DCE",
+                    GithubHelper.GithubAccount,
+                    GithubHelper.Repository_ScriptsMod,
                     ".zip",
                     "DCE_scriptsMod_",
                     (version, asset, url) =>
@@ -206,6 +200,8 @@ namespace DCE_Manager.Update
                     "Updated successfully";
 
                 updateSucceeded = true;
+
+                //UpdateUtils.RefreshUpdateTab(form);
             }
             catch (IOException ex)
             {
@@ -310,13 +306,6 @@ namespace DCE_Manager.Update
                 throw new Exception(
                     "Invalid ScriptsMod package.");
             }
-            //if (!File.Exists(changelog))
-            //{
-            //    MessageBox.Show(
-            //        "Invalid ScriptsMod package.");
-
-            //    return;
-            //}
 
             await ReplaceScriptsMod(tempFolder);
 
@@ -362,23 +351,7 @@ namespace DCE_Manager.Update
                         "ScriptsMod is currently in use.",
                         ex);
                 }
-                //catch (IOException)
-                //{
-                //    MessageBox.Show(
-                //        "Unable to update ScriptsMod.\r\n\r\n" +
-                //        "Some files are currently in use.\r\n\r\n" +
-                //        "Please close:\r\n" +
-                //        "- DCS World\r\n" +
-                //        "- Mission Editor\r\n" +
-                //        "- Lua editors\r\n" +
-                //        "- Windows Explorer if it is open in ScriptsMod.NG\r\n\r\n" +
-                //        "Then try again.",
-                //        "ScriptsMod Update",
-                //        MessageBoxButtons.OK,
-                //        MessageBoxIcon.Warning);
 
-                //    return;
-                //}
             }
 
             CopyDirectory(
@@ -500,8 +473,8 @@ namespace DCE_Manager.Update
 
             bool success =
                  await github.GetLatestRelease(
-                     "Miguel21bis",
-                    ParamGithub.Repository,
+                    GithubHelper.GithubAccount,
+                    GithubHelper.Repository_ScriptsMod,
                     ".zip",
                     "DCE_scriptsMod_",
                     (version, asset, url) =>
@@ -514,8 +487,9 @@ namespace DCE_Manager.Update
             if (!success)
                 return;
 
-            string githubVersion =
-                ParamGithub.LastVersion;
+            string githubVersion = ParamGithub.LastVersion;
+
+            ParamUpdater.LastGithubCheckUtc = DateTime.UtcNow;
 
             //ScriptsModVersion.Text = localVersion;
             form.ScriptModInstalledVersion.Text = localVersion;
@@ -540,7 +514,7 @@ namespace DCE_Manager.Update
 
             form.ScriptsModUpdateButton.Visible = updateAvailable;
 
-            UpdateUtils.RefreshUpdateTab(form);
+            //UpdateUtils.RefreshUpdateTab(form);
 
 
             ParamUpdater.ScriptsModUpdateAvailable =
@@ -549,7 +523,7 @@ namespace DCE_Manager.Update
             form.ScriptsModUpdateButton.Visible =
                 updateAvailable;
 
-            UpdateUtils.RefreshUpdateTab(form);
+            //UpdateUtils.RefreshUpdateTab(form);
 
         }
 

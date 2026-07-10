@@ -37,29 +37,34 @@ namespace DCE_Manager.Update
         // Pourquoi : afficher automatiquement le nombre de mises à jour disponibles.
         public static void RefreshUpdateTab(Form1 form)
         {
-            int nbUpdate = 0;
+            ParamUpdater.NbUpdateAvailable = 0;
 
             if (ParamUpdater.ScriptsModUpdateAvailable)
-                nbUpdate++;
+                ParamUpdater.NbUpdateAvailable++;
 
             if (ParamUpdater.DCEManagerUpdateAvailable)
-                nbUpdate++;
+                ParamUpdater.NbUpdateAvailable++;
+
+            if (form.campaignUpdater != null)
+                ParamUpdater.NbUpdateAvailable += form.campaignUpdater.GetUpdateCount();
 
             TabPage updateTab =
                 form.tabControl.TabPages["tabPageLeft_Update"];
-            //form.tabControl.TabPages[2];
 
-            FormUtils.LogRegister("RefreshUpdateTab() nbUpdate: " + nbUpdate + " updateTab " + updateTab);
+            FormUtils.LogRegister(
+                "RefreshUpdateTab() nbUpdate: " +
+                ParamUpdater.NbUpdateAvailable +
+                " updateTab " +
+                updateTab);
 
             if (updateTab != null)
             {
                 updateTab.Text =
-                    nbUpdate > 0
-                    ? "Update (" + nbUpdate + ")"
+                    ParamUpdater.NbUpdateAvailable > 0
+                    ? "Update (" + ParamUpdater.NbUpdateAvailable + ")"
                     : "Update";
             }
         }
-
 
     }
 

@@ -19,7 +19,7 @@ namespace DCE_Manager.Update
 
         private readonly GithubHelper github;
 
-        private const string Repository = "DCE_Manager";
+        //private const string Repository = "DCE_Manager";
 
         public static string LastVersion = "";
         public static string DownloadUrl = "";
@@ -42,8 +42,9 @@ namespace DCE_Manager.Update
 
             bool success =
                 await github.GetLatestRelease(
-                    "Miguel21bis",
-                    Repository,
+                    GithubHelper.GithubAccount,
+                    GithubHelper.Repository_Manager,
+                    //Repository,
                     ".exe",
                     "DCE_Manager_Setup_",
                     (version, asset, url) =>
@@ -56,11 +57,11 @@ namespace DCE_Manager.Update
             if (!success)
                 return;
 
-            form.DCEManagerInstalledVersion.Text =
-                localVersion;
+            form.DCEManagerInstalledVersion.Text = localVersion;
 
-            form.DCEManagerAvailableVersion.Text =
-                LastVersion;
+            form.DCEManagerAvailableVersion.Text = LastVersion;
+
+            ParamUpdater.LastGithubCheckUtc = DateTime.UtcNow;
 
             bool updateAvailable =
                 UpdateUtils.IsVersionNewer(
@@ -70,7 +71,7 @@ namespace DCE_Manager.Update
             form.DCEManagerUpdateButton.Visible =
                 updateAvailable;
 
-            UpdateUtils.RefreshUpdateTab(form);
+            //UpdateUtils.RefreshUpdateTab(form);
 
             if (updateAvailable)
             {
@@ -102,8 +103,8 @@ namespace DCE_Manager.Update
             //    await github.GetLatestGithubManagerRelease();
 
             bool success = await github.GetLatestRelease(
-                "Miguel21bis",
-                Repository,
+                GithubHelper.GithubAccount,
+                GithubHelper.Repository_Manager,
                 ".exe",
                 "DCE_Manager_Setup_",
                 (version, asset, url) =>

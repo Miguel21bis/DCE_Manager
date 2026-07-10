@@ -106,14 +106,6 @@ namespace DCE_Manager
             this.ScriptModInstalledVersion = new System.Windows.Forms.Label();
             this.ScriptsModUpdateButton = new System.Windows.Forms.Button();
             this.ScriptsModAvailableVersion = new System.Windows.Forms.Label();
-            this.tabPageLeft_About = new System.Windows.Forms.TabPage();
-            this.linkLabel_Icons8 = new System.Windows.Forms.LinkLabel();
-            this.label9 = new System.Windows.Forms.Label();
-            this.textBox_ChangelogScriptsMod = new System.Windows.Forms.TextBox();
-            this.label8 = new System.Windows.Forms.Label();
-            this.textBox_changelog = new System.Windows.Forms.TextBox();
-            this.textBox1 = new System.Windows.Forms.TextBox();
-            this.label5 = new System.Windows.Forms.Label();
             this.tabPageLeftNews = new System.Windows.Forms.TabPage();
             this.panel_News = new System.Windows.Forms.Panel();
             this.textBox_News = new System.Windows.Forms.TextBox();
@@ -124,9 +116,33 @@ namespace DCE_Manager
             this.but_ASTI = new System.Windows.Forms.Button();
             this.button_theWay = new System.Windows.Forms.Button();
             this.tabPageLeft_Options = new System.Windows.Forms.TabPage();
+            this.pictureBox4 = new System.Windows.Forms.PictureBox();
+            this.pic_preferences = new System.Windows.Forms.PictureBox();
+            this.panel_OpenDoc = new System.Windows.Forms.Panel();
+            this.pic_OpenDoc_ArrowLog = new System.Windows.Forms.PictureBox();
+            this.lbl_OpenDocTitle = new System.Windows.Forms.Label();
+            this.pic_OpenDocIcon = new System.Windows.Forms.PictureBox();
+            this.lbl_OpenDocDesc = new System.Windows.Forms.Label();
+            this.label_tolls = new System.Windows.Forms.Label();
+            this.label_preference = new System.Windows.Forms.Label();
+            this.panel_ViewLog = new System.Windows.Forms.Panel();
+            this.pic_ViewLog_ArrowLog = new System.Windows.Forms.PictureBox();
+            this.lbl_ViewLogTitle = new System.Windows.Forms.Label();
+            this.pic_ViewLogIcon = new System.Windows.Forms.PictureBox();
+            this.lbl_ViewLogDesc = new System.Windows.Forms.Label();
+            this.panel_preferences = new System.Windows.Forms.Panel();
+            this.pictureBox8 = new System.Windows.Forms.PictureBox();
             this.checkBox_Stat_anonym = new System.Windows.Forms.CheckBox();
-            this.buttonDocFolder = new System.Windows.Forms.Button();
-            this.button_Log = new System.Windows.Forms.Button();
+            this.label_statistics_explain = new System.Windows.Forms.Label();
+            this.Readme = new System.Windows.Forms.LinkLabel();
+            this.tabPageLeft_About = new System.Windows.Forms.TabPage();
+            this.linkLabel_Icons8 = new System.Windows.Forms.LinkLabel();
+            this.label9 = new System.Windows.Forms.Label();
+            this.textBox_ChangelogScriptsMod = new System.Windows.Forms.TextBox();
+            this.label8 = new System.Windows.Forms.Label();
+            this.textBox_changelog = new System.Windows.Forms.TextBox();
+            this.textBox1 = new System.Windows.Forms.TextBox();
+            this.label5 = new System.Windows.Forms.Label();
             this.VersionDceManager = new System.Windows.Forms.Label();
             this.LabelStatut = new System.Windows.Forms.Label();
             this.pictureBox5 = new System.Windows.Forms.PictureBox();
@@ -185,10 +201,20 @@ namespace DCE_Manager
             this.groupBox2.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_ScriptsMod_Status)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Update_ScriptsMod)).BeginInit();
-            this.tabPageLeft_About.SuspendLayout();
             this.tabPageLeftNews.SuspendLayout();
             this.tabPageLeft_Tools.SuspendLayout();
             this.tabPageLeft_Options.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_preferences)).BeginInit();
+            this.panel_OpenDoc.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_OpenDoc_ArrowLog)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_OpenDocIcon)).BeginInit();
+            this.panel_ViewLog.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_ViewLog_ArrowLog)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_ViewLogIcon)).BeginInit();
+            this.panel_preferences.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox8)).BeginInit();
+            this.tabPageLeft_About.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOvGME)).BeginInit();
             this.groupBoxDroiteAccueil.SuspendLayout();
@@ -321,7 +347,6 @@ namespace DCE_Manager
             this.textBox_Campaign.Name = "textBox_Campaign";
             this.textBox_Campaign.Size = new System.Drawing.Size(306, 20);
             this.textBox_Campaign.TabIndex = 9;
-            this.textBox_Campaign.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             // 
             // Button_choiceCampaign
             // 
@@ -359,7 +384,6 @@ namespace DCE_Manager
             this.textBox_OvGME.Name = "textBox_OvGME";
             this.textBox_OvGME.Size = new System.Drawing.Size(306, 20);
             this.textBox_OvGME.TabIndex = 12;
-            this.textBox_OvGME.TextChanged += new System.EventHandler(this.textBox4_TextChanged);
             // 
             // button2
             // 
@@ -406,10 +430,6 @@ namespace DCE_Manager
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
-            // toolTip1
-            // 
-            this.toolTip1.Popup += new System.Windows.Forms.PopupEventHandler(this.toolTip1_Popup);
-            // 
             // label1
             // 
             this.label1.AutoSize = true;
@@ -445,7 +465,6 @@ namespace DCE_Manager
             this.pictureBox2.Size = new System.Drawing.Size(50, 51);
             this.pictureBox2.TabIndex = 11;
             this.pictureBox2.TabStop = false;
-            this.pictureBox2.Click += new System.EventHandler(this.pictureBox2_Click);
             // 
             // pictureBox1
             // 
@@ -464,10 +483,10 @@ namespace DCE_Manager
             this.tabControl.Controls.Add(this.tabPageLeft_Install);
             this.tabControl.Controls.Add(this.tabPageLeft_Campaigns);
             this.tabControl.Controls.Add(this.tabPageLeft_Update);
-            this.tabControl.Controls.Add(this.tabPageLeft_About);
             this.tabControl.Controls.Add(this.tabPageLeftNews);
             this.tabControl.Controls.Add(this.tabPageLeft_Tools);
             this.tabControl.Controls.Add(this.tabPageLeft_Options);
+            this.tabControl.Controls.Add(this.tabPageLeft_About);
             this.tabControl.Location = new System.Drawing.Point(3, 11);
             this.tabControl.Name = "tabControl";
             this.tabControl.SelectedIndex = 0;
@@ -595,7 +614,6 @@ namespace DCE_Manager
             this.groupBoxCampEdit.TabIndex = 24;
             this.groupBoxCampEdit.TabStop = false;
             this.groupBoxCampEdit.Visible = false;
-            this.groupBoxCampEdit.Enter += new System.EventHandler(this.groupBoxCampEdit_Enter);
             // 
             // label4
             // 
@@ -664,7 +682,6 @@ namespace DCE_Manager
             this.groupBox6.Size = new System.Drawing.Size(775, 84);
             this.groupBox6.TabIndex = 4;
             this.groupBox6.TabStop = false;
-            this.groupBox6.Enter += new System.EventHandler(this.groupBox6_Enter);
             // 
             // label15
             // 
@@ -762,7 +779,6 @@ namespace DCE_Manager
             this.DCEManagerAvailableVersion.Size = new System.Drawing.Size(16, 13);
             this.DCEManagerAvailableVersion.TabIndex = 2;
             this.DCEManagerAvailableVersion.Text = "...";
-            this.DCEManagerAvailableVersion.Click += new System.EventHandler(this.labelUpdateDceManager_Click);
             // 
             // DCEManagerUpdateButton
             // 
@@ -827,7 +843,6 @@ namespace DCE_Manager
             this.labelCampaignTitle.Size = new System.Drawing.Size(350, 13);
             this.labelCampaignTitle.TabIndex = 4;
             this.labelCampaignTitle.Visible = false;
-            this.labelCampaignTitle.Click += new System.EventHandler(this.labelCampaignTitle_Click);
             // 
             // buttonCampaignCancel
             // 
@@ -974,7 +989,6 @@ namespace DCE_Manager
             this.label11.Size = new System.Drawing.Size(52, 15);
             this.label11.TabIndex = 3;
             this.label11.Text = "Installed";
-            this.label11.Click += new System.EventHandler(this.label11_Click);
             // 
             // ScriptModInstalledVersion
             // 
@@ -1012,91 +1026,6 @@ namespace DCE_Manager
             this.ScriptsModAvailableVersion.Size = new System.Drawing.Size(16, 13);
             this.ScriptsModAvailableVersion.TabIndex = 1;
             this.ScriptsModAvailableVersion.Text = "...";
-            this.ScriptsModAvailableVersion.Click += new System.EventHandler(this.label5_Click);
-            // 
-            // tabPageLeft_About
-            // 
-            this.tabPageLeft_About.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPageLeft_About.Controls.Add(this.linkLabel_Icons8);
-            this.tabPageLeft_About.Controls.Add(this.label9);
-            this.tabPageLeft_About.Controls.Add(this.textBox_ChangelogScriptsMod);
-            this.tabPageLeft_About.Controls.Add(this.label8);
-            this.tabPageLeft_About.Controls.Add(this.textBox_changelog);
-            this.tabPageLeft_About.Controls.Add(this.textBox1);
-            this.tabPageLeft_About.Controls.Add(this.label5);
-            this.tabPageLeft_About.Location = new System.Drawing.Point(4, 22);
-            this.tabPageLeft_About.Name = "tabPageLeft_About";
-            this.tabPageLeft_About.Size = new System.Drawing.Size(808, 532);
-            this.tabPageLeft_About.TabIndex = 3;
-            this.tabPageLeft_About.Text = "About";
-            // 
-            // linkLabel_Icons8
-            // 
-            this.linkLabel_Icons8.AutoSize = true;
-            this.linkLabel_Icons8.Location = new System.Drawing.Point(46, 457);
-            this.linkLabel_Icons8.Name = "linkLabel_Icons8";
-            this.linkLabel_Icons8.Size = new System.Drawing.Size(92, 13);
-            this.linkLabel_Icons8.TabIndex = 6;
-            this.linkLabel_Icons8.TabStop = true;
-            this.linkLabel_Icons8.Text = "Icônes par Icons8";
-            this.linkLabel_Icons8.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel_Icons8_LinkClicked);
-            // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(43, 232);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(139, 13);
-            this.label9.TabIndex = 5;
-            this.label9.Text = "Changelog (ScriptsMod.NG)";
-            this.label9.Click += new System.EventHandler(this.label9_Click);
-            // 
-            // textBox_ChangelogScriptsMod
-            // 
-            this.textBox_ChangelogScriptsMod.Location = new System.Drawing.Point(45, 248);
-            this.textBox_ChangelogScriptsMod.Multiline = true;
-            this.textBox_ChangelogScriptsMod.Name = "textBox_ChangelogScriptsMod";
-            this.textBox_ChangelogScriptsMod.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_ChangelogScriptsMod.Size = new System.Drawing.Size(731, 153);
-            this.textBox_ChangelogScriptsMod.TabIndex = 4;
-            this.textBox_ChangelogScriptsMod.TextChanged += new System.EventHandler(this.textBox_ChangelogScriptsMod_TextChanged);
-            // 
-            // label8
-            // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(42, 123);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(157, 13);
-            this.label8.TabIndex = 3;
-            this.label8.Text = "Changelog (DCE_Manager.exe)";
-            // 
-            // textBox_changelog
-            // 
-            this.textBox_changelog.Location = new System.Drawing.Point(45, 139);
-            this.textBox_changelog.Multiline = true;
-            this.textBox_changelog.Name = "textBox_changelog";
-            this.textBox_changelog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_changelog.Size = new System.Drawing.Size(731, 90);
-            this.textBox_changelog.TabIndex = 2;
-            // 
-            // textBox1
-            // 
-            this.textBox1.Location = new System.Drawing.Point(45, 20);
-            this.textBox1.Multiline = true;
-            this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(488, 97);
-            this.textBox1.TabIndex = 1;
-            this.textBox1.Text = resources.GetString("textBox1.Text");
-            this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged_2);
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(43, 4);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(45, 13);
-            this.label5.TabIndex = 0;
-            this.label5.Text = "Credits :";
             // 
             // tabPageLeftNews
             // 
@@ -1192,9 +1121,14 @@ namespace DCE_Manager
             // 
             // tabPageLeft_Options
             // 
-            this.tabPageLeft_Options.Controls.Add(this.checkBox_Stat_anonym);
-            this.tabPageLeft_Options.Controls.Add(this.buttonDocFolder);
-            this.tabPageLeft_Options.Controls.Add(this.button_Log);
+            this.tabPageLeft_Options.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_Options.Controls.Add(this.pictureBox4);
+            this.tabPageLeft_Options.Controls.Add(this.pic_preferences);
+            this.tabPageLeft_Options.Controls.Add(this.panel_OpenDoc);
+            this.tabPageLeft_Options.Controls.Add(this.label_tolls);
+            this.tabPageLeft_Options.Controls.Add(this.label_preference);
+            this.tabPageLeft_Options.Controls.Add(this.panel_ViewLog);
+            this.tabPageLeft_Options.Controls.Add(this.panel_preferences);
             this.tabPageLeft_Options.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Options.Margin = new System.Windows.Forms.Padding(2);
             this.tabPageLeft_Options.Name = "tabPageLeft_Options";
@@ -1202,36 +1136,291 @@ namespace DCE_Manager
             this.tabPageLeft_Options.Size = new System.Drawing.Size(808, 532);
             this.tabPageLeft_Options.TabIndex = 7;
             this.tabPageLeft_Options.Text = "Options";
-            this.tabPageLeft_Options.UseVisualStyleBackColor = true;
+            // 
+            // pictureBox4
+            // 
+            this.pictureBox4.Image = global::DCE_Manager.Properties.Resources.icons8_outils_50;
+            this.pictureBox4.Location = new System.Drawing.Point(26, 190);
+            this.pictureBox4.Name = "pictureBox4";
+            this.pictureBox4.Size = new System.Drawing.Size(31, 32);
+            this.pictureBox4.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox4.TabIndex = 43;
+            this.pictureBox4.TabStop = false;
+            // 
+            // pic_preferences
+            // 
+            this.pic_preferences.Image = global::DCE_Manager.Properties.Resources.icons8_roue_dentée_50;
+            this.pic_preferences.Location = new System.Drawing.Point(26, 29);
+            this.pic_preferences.Name = "pic_preferences";
+            this.pic_preferences.Size = new System.Drawing.Size(31, 32);
+            this.pic_preferences.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_preferences.TabIndex = 42;
+            this.pic_preferences.TabStop = false;
+            // 
+            // panel_OpenDoc
+            // 
+            this.panel_OpenDoc.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel_OpenDoc.Controls.Add(this.pic_OpenDoc_ArrowLog);
+            this.panel_OpenDoc.Controls.Add(this.lbl_OpenDocTitle);
+            this.panel_OpenDoc.Controls.Add(this.pic_OpenDocIcon);
+            this.panel_OpenDoc.Controls.Add(this.lbl_OpenDocDesc);
+            this.panel_OpenDoc.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.panel_OpenDoc.Location = new System.Drawing.Point(26, 334);
+            this.panel_OpenDoc.Name = "panel_OpenDoc";
+            this.panel_OpenDoc.Size = new System.Drawing.Size(752, 100);
+            this.panel_OpenDoc.TabIndex = 41;
+            // 
+            // pic_OpenDoc_ArrowLog
+            // 
+            this.pic_OpenDoc_ArrowLog.Image = global::DCE_Manager.Properties.Resources.icons8_forward_50;
+            this.pic_OpenDoc_ArrowLog.Location = new System.Drawing.Point(681, 17);
+            this.pic_OpenDoc_ArrowLog.Name = "pic_OpenDoc_ArrowLog";
+            this.pic_OpenDoc_ArrowLog.Size = new System.Drawing.Size(68, 50);
+            this.pic_OpenDoc_ArrowLog.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_OpenDoc_ArrowLog.TabIndex = 41;
+            this.pic_OpenDoc_ArrowLog.TabStop = false;
+            // 
+            // lbl_OpenDocTitle
+            // 
+            this.lbl_OpenDocTitle.AutoSize = true;
+            this.lbl_OpenDocTitle.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lbl_OpenDocTitle.Location = new System.Drawing.Point(132, 23);
+            this.lbl_OpenDocTitle.Name = "lbl_OpenDocTitle";
+            this.lbl_OpenDocTitle.Size = new System.Drawing.Size(207, 20);
+            this.lbl_OpenDocTitle.TabIndex = 40;
+            this.lbl_OpenDocTitle.Text = "Open Documentation Folder";
+            // 
+            // pic_OpenDocIcon
+            // 
+            this.pic_OpenDocIcon.Image = global::DCE_Manager.Properties.Resources.icons8_dossier_ouvert_72;
+            this.pic_OpenDocIcon.Location = new System.Drawing.Point(14, 23);
+            this.pic_OpenDocIcon.Name = "pic_OpenDocIcon";
+            this.pic_OpenDocIcon.Size = new System.Drawing.Size(100, 51);
+            this.pic_OpenDocIcon.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_OpenDocIcon.TabIndex = 39;
+            this.pic_OpenDocIcon.TabStop = false;
+            // 
+            // lbl_OpenDocDesc
+            // 
+            this.lbl_OpenDocDesc.AutoSize = true;
+            this.lbl_OpenDocDesc.Location = new System.Drawing.Point(133, 57);
+            this.lbl_OpenDocDesc.Name = "lbl_OpenDocDesc";
+            this.lbl_OpenDocDesc.Size = new System.Drawing.Size(223, 13);
+            this.lbl_OpenDocDesc.TabIndex = 38;
+            this.lbl_OpenDocDesc.Text = "Open the folder containing the DCE Manager.\r\n";
+            // 
+            // label_tolls
+            // 
+            this.label_tolls.AutoSize = true;
+            this.label_tolls.Font = new System.Drawing.Font("Segoe UI", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_tolls.Location = new System.Drawing.Point(63, 194);
+            this.label_tolls.Name = "label_tolls";
+            this.label_tolls.Size = new System.Drawing.Size(235, 25);
+            this.label_tolls.TabIndex = 40;
+            this.label_tolls.Text = "TOOLS && MAINTENANCE";
+            this.label_tolls.Click += new System.EventHandler(this.label_tolls_Click);
+            // 
+            // label_preference
+            // 
+            this.label_preference.AutoSize = true;
+            this.label_preference.Font = new System.Drawing.Font("Segoe UI", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_preference.Location = new System.Drawing.Point(63, 34);
+            this.label_preference.Name = "label_preference";
+            this.label_preference.Size = new System.Drawing.Size(136, 25);
+            this.label_preference.TabIndex = 39;
+            this.label_preference.Text = "PREFERENCES";
+            // 
+            // panel_ViewLog
+            // 
+            this.panel_ViewLog.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel_ViewLog.Controls.Add(this.pic_ViewLog_ArrowLog);
+            this.panel_ViewLog.Controls.Add(this.lbl_ViewLogTitle);
+            this.panel_ViewLog.Controls.Add(this.pic_ViewLogIcon);
+            this.panel_ViewLog.Controls.Add(this.lbl_ViewLogDesc);
+            this.panel_ViewLog.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.panel_ViewLog.Location = new System.Drawing.Point(26, 228);
+            this.panel_ViewLog.Name = "panel_ViewLog";
+            this.panel_ViewLog.Size = new System.Drawing.Size(752, 100);
+            this.panel_ViewLog.TabIndex = 38;
+            // 
+            // pic_ViewLog_ArrowLog
+            // 
+            this.pic_ViewLog_ArrowLog.Image = global::DCE_Manager.Properties.Resources.icons8_forward_50;
+            this.pic_ViewLog_ArrowLog.Location = new System.Drawing.Point(681, 28);
+            this.pic_ViewLog_ArrowLog.Name = "pic_ViewLog_ArrowLog";
+            this.pic_ViewLog_ArrowLog.Size = new System.Drawing.Size(68, 50);
+            this.pic_ViewLog_ArrowLog.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_ViewLog_ArrowLog.TabIndex = 40;
+            this.pic_ViewLog_ArrowLog.TabStop = false;
+            // 
+            // lbl_ViewLogTitle
+            // 
+            this.lbl_ViewLogTitle.AutoSize = true;
+            this.lbl_ViewLogTitle.Font = new System.Drawing.Font("Segoe UI", 11.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lbl_ViewLogTitle.Location = new System.Drawing.Point(132, 28);
+            this.lbl_ViewLogTitle.Name = "lbl_ViewLogTitle";
+            this.lbl_ViewLogTitle.Size = new System.Drawing.Size(73, 20);
+            this.lbl_ViewLogTitle.TabIndex = 39;
+            this.lbl_ViewLogTitle.Text = "View Log";
+            this.lbl_ViewLogTitle.Click += new System.EventHandler(this.lbl_ViewLogTitle_Click);
+            // 
+            // pic_ViewLogIcon
+            // 
+            this.pic_ViewLogIcon.Image = global::DCE_Manager.Properties.Resources.icons8_document_72;
+            this.pic_ViewLogIcon.Location = new System.Drawing.Point(14, 28);
+            this.pic_ViewLogIcon.Name = "pic_ViewLogIcon";
+            this.pic_ViewLogIcon.Size = new System.Drawing.Size(100, 50);
+            this.pic_ViewLogIcon.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_ViewLogIcon.TabIndex = 38;
+            this.pic_ViewLogIcon.TabStop = false;
+            // 
+            // lbl_ViewLogDesc
+            // 
+            this.lbl_ViewLogDesc.AutoSize = true;
+            this.lbl_ViewLogDesc.Location = new System.Drawing.Point(133, 58);
+            this.lbl_ViewLogDesc.Name = "lbl_ViewLogDesc";
+            this.lbl_ViewLogDesc.Size = new System.Drawing.Size(228, 26);
+            this.lbl_ViewLogDesc.TabIndex = 37;
+            this.lbl_ViewLogDesc.Text = "Open the application log file for troubleshooting\nand diagnostics.";
+            // 
+            // panel_preferences
+            // 
+            this.panel_preferences.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel_preferences.Controls.Add(this.pictureBox8);
+            this.panel_preferences.Controls.Add(this.checkBox_Stat_anonym);
+            this.panel_preferences.Controls.Add(this.label_statistics_explain);
+            this.panel_preferences.Controls.Add(this.Readme);
+            this.panel_preferences.Location = new System.Drawing.Point(26, 72);
+            this.panel_preferences.Name = "panel_preferences";
+            this.panel_preferences.Size = new System.Drawing.Size(752, 100);
+            this.panel_preferences.TabIndex = 37;
+            // 
+            // pictureBox8
+            // 
+            this.pictureBox8.Image = global::DCE_Manager.Properties.Resources.icons8_lien_externe_30;
+            this.pictureBox8.Location = new System.Drawing.Point(712, 29);
+            this.pictureBox8.Name = "pictureBox8";
+            this.pictureBox8.Size = new System.Drawing.Size(34, 21);
+            this.pictureBox8.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox8.TabIndex = 37;
+            this.pictureBox8.TabStop = false;
             // 
             // checkBox_Stat_anonym
             // 
             this.checkBox_Stat_anonym.AutoSize = true;
-            this.checkBox_Stat_anonym.Location = new System.Drawing.Point(35, 46);
+            this.checkBox_Stat_anonym.Checked = true;
+            this.checkBox_Stat_anonym.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBox_Stat_anonym.Font = new System.Drawing.Font("Segoe UI Semibold", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.checkBox_Stat_anonym.Location = new System.Drawing.Point(59, 23);
             this.checkBox_Stat_anonym.Margin = new System.Windows.Forms.Padding(2);
             this.checkBox_Stat_anonym.Name = "checkBox_Stat_anonym";
-            this.checkBox_Stat_anonym.Size = new System.Drawing.Size(183, 17);
+            this.checkBox_Stat_anonym.Size = new System.Drawing.Size(229, 21);
             this.checkBox_Stat_anonym.TabIndex = 34;
             this.checkBox_Stat_anonym.Text = "Send anonymous usage statistics";
             this.checkBox_Stat_anonym.UseVisualStyleBackColor = true;
             // 
-            // buttonDocFolder
+            // label_statistics_explain
             // 
-            this.buttonDocFolder.Location = new System.Drawing.Point(35, 134);
-            this.buttonDocFolder.Name = "buttonDocFolder";
-            this.buttonDocFolder.Size = new System.Drawing.Size(65, 23);
-            this.buttonDocFolder.TabIndex = 32;
-            this.buttonDocFolder.Text = "DocFolder";
-            this.buttonDocFolder.UseVisualStyleBackColor = true;
+            this.label_statistics_explain.AutoSize = true;
+            this.label_statistics_explain.Location = new System.Drawing.Point(78, 50);
+            this.label_statistics_explain.Name = "label_statistics_explain";
+            this.label_statistics_explain.Size = new System.Drawing.Size(250, 26);
+            this.label_statistics_explain.TabIndex = 36;
+            this.label_statistics_explain.Text = "Help improve DCE Manager by sending anonymous\r\nusage data. No personal informatio" +
+    "n is collected.";
             // 
-            // button_Log
+            // Readme
             // 
-            this.button_Log.Location = new System.Drawing.Point(35, 87);
-            this.button_Log.Name = "button_Log";
-            this.button_Log.Size = new System.Drawing.Size(63, 23);
-            this.button_Log.TabIndex = 31;
-            this.button_Log.Text = "Log";
-            this.button_Log.UseVisualStyleBackColor = true;
+            this.Readme.AutoSize = true;
+            this.Readme.ForeColor = System.Drawing.SystemColors.Control;
+            this.Readme.Location = new System.Drawing.Point(662, 31);
+            this.Readme.Name = "Readme";
+            this.Readme.Size = new System.Drawing.Size(47, 13);
+            this.Readme.TabIndex = 35;
+            this.Readme.TabStop = true;
+            this.Readme.Text = "Readme";
+            this.Readme.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.Readme_LinkClicked);
+            // 
+            // tabPageLeft_About
+            // 
+            this.tabPageLeft_About.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeft_About.Controls.Add(this.linkLabel_Icons8);
+            this.tabPageLeft_About.Controls.Add(this.label9);
+            this.tabPageLeft_About.Controls.Add(this.textBox_ChangelogScriptsMod);
+            this.tabPageLeft_About.Controls.Add(this.label8);
+            this.tabPageLeft_About.Controls.Add(this.textBox_changelog);
+            this.tabPageLeft_About.Controls.Add(this.textBox1);
+            this.tabPageLeft_About.Controls.Add(this.label5);
+            this.tabPageLeft_About.Location = new System.Drawing.Point(4, 22);
+            this.tabPageLeft_About.Name = "tabPageLeft_About";
+            this.tabPageLeft_About.Size = new System.Drawing.Size(808, 532);
+            this.tabPageLeft_About.TabIndex = 3;
+            this.tabPageLeft_About.Text = "About";
+            // 
+            // linkLabel_Icons8
+            // 
+            this.linkLabel_Icons8.AutoSize = true;
+            this.linkLabel_Icons8.Location = new System.Drawing.Point(46, 457);
+            this.linkLabel_Icons8.Name = "linkLabel_Icons8";
+            this.linkLabel_Icons8.Size = new System.Drawing.Size(92, 13);
+            this.linkLabel_Icons8.TabIndex = 6;
+            this.linkLabel_Icons8.TabStop = true;
+            this.linkLabel_Icons8.Text = "Icônes par Icons8";
+            this.linkLabel_Icons8.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel_Icons8_LinkClicked);
+            // 
+            // label9
+            // 
+            this.label9.AutoSize = true;
+            this.label9.Location = new System.Drawing.Point(43, 232);
+            this.label9.Name = "label9";
+            this.label9.Size = new System.Drawing.Size(139, 13);
+            this.label9.TabIndex = 5;
+            this.label9.Text = "Changelog (ScriptsMod.NG)";
+            // 
+            // textBox_ChangelogScriptsMod
+            // 
+            this.textBox_ChangelogScriptsMod.Location = new System.Drawing.Point(45, 248);
+            this.textBox_ChangelogScriptsMod.Multiline = true;
+            this.textBox_ChangelogScriptsMod.Name = "textBox_ChangelogScriptsMod";
+            this.textBox_ChangelogScriptsMod.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBox_ChangelogScriptsMod.Size = new System.Drawing.Size(731, 153);
+            this.textBox_ChangelogScriptsMod.TabIndex = 4;
+            // 
+            // label8
+            // 
+            this.label8.AutoSize = true;
+            this.label8.Location = new System.Drawing.Point(42, 123);
+            this.label8.Name = "label8";
+            this.label8.Size = new System.Drawing.Size(157, 13);
+            this.label8.TabIndex = 3;
+            this.label8.Text = "Changelog (DCE_Manager.exe)";
+            // 
+            // textBox_changelog
+            // 
+            this.textBox_changelog.Location = new System.Drawing.Point(45, 139);
+            this.textBox_changelog.Multiline = true;
+            this.textBox_changelog.Name = "textBox_changelog";
+            this.textBox_changelog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.textBox_changelog.Size = new System.Drawing.Size(731, 90);
+            this.textBox_changelog.TabIndex = 2;
+            // 
+            // textBox1
+            // 
+            this.textBox1.Location = new System.Drawing.Point(45, 20);
+            this.textBox1.Multiline = true;
+            this.textBox1.Name = "textBox1";
+            this.textBox1.Size = new System.Drawing.Size(488, 97);
+            this.textBox1.TabIndex = 1;
+            this.textBox1.Text = resources.GetString("textBox1.Text");
+            // 
+            // label5
+            // 
+            this.label5.AutoSize = true;
+            this.label5.Location = new System.Drawing.Point(43, 4);
+            this.label5.Name = "label5";
+            this.label5.Size = new System.Drawing.Size(45, 13);
+            this.label5.TabIndex = 0;
+            this.label5.Text = "Credits :";
             // 
             // VersionDceManager
             // 
@@ -1309,7 +1498,6 @@ namespace DCE_Manager
             this.textBox_id_client.TabIndex = 27;
             this.textBox_id_client.TabStop = false;
             this.textBox_id_client.Visible = false;
-            this.textBox_id_client.TextChanged += new System.EventHandler(this.textBox_id_client_TextChanged);
             // 
             // butCampMaker
             // 
@@ -1416,7 +1604,6 @@ namespace DCE_Manager
             this.dataGridViewBlue.RowTemplate.Height = 24;
             this.dataGridViewBlue.Size = new System.Drawing.Size(557, 500);
             this.dataGridViewBlue.TabIndex = 14;
-            this.dataGridViewBlue.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewBlue_CellContentClick);
             // 
             // tabPage15
             // 
@@ -1443,7 +1630,6 @@ namespace DCE_Manager
             this.dataGridViewRed.RowTemplate.Height = 24;
             this.dataGridViewRed.Size = new System.Drawing.Size(561, 498);
             this.dataGridViewRed.TabIndex = 15;
-            this.dataGridViewRed.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dataGridViewRed_CellContentClick);
             // 
             // tabPage11
             // 
@@ -1529,10 +1715,6 @@ namespace DCE_Manager
             this.buttonSaveChgtCampaign.UseVisualStyleBackColor = true;
             this.buttonSaveChgtCampaign.Visible = false;
             this.buttonSaveChgtCampaign.Click += new System.EventHandler(this.buttonSaveChgtCampaign_Click);
-            // 
-            // toolTip3
-            // 
-            this.toolTip3.Popup += new System.Windows.Forms.PopupEventHandler(this.toolTip3_Popup);
             // 
             // groupBox_staticTemplate
             // 
@@ -1623,7 +1805,6 @@ namespace DCE_Manager
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(557, 37);
             this.panel2.TabIndex = 25;
-            this.panel2.Paint += new System.Windows.Forms.PaintEventHandler(this.panel2_Paint);
             // 
             // panel_Droite
             // 
@@ -1649,7 +1830,6 @@ namespace DCE_Manager
             this.KeyPreview = true;
             this.Name = "Form1";
             this.Text = "DCE_Manager";
-            this.Load += new System.EventHandler(this.Form1_Load);
             this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyDown);
             this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.Form1_KeyUp);
             this.groupBox1.ResumeLayout(false);
@@ -1682,14 +1862,27 @@ namespace DCE_Manager
             this.groupBox2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_ScriptsMod_Status)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Update_ScriptsMod)).EndInit();
-            this.tabPageLeft_About.ResumeLayout(false);
-            this.tabPageLeft_About.PerformLayout();
             this.tabPageLeftNews.ResumeLayout(false);
             this.tabPageLeftNews.PerformLayout();
             this.tabPageLeft_Tools.ResumeLayout(false);
             this.tabPageLeft_Tools.PerformLayout();
             this.tabPageLeft_Options.ResumeLayout(false);
             this.tabPageLeft_Options.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_preferences)).EndInit();
+            this.panel_OpenDoc.ResumeLayout(false);
+            this.panel_OpenDoc.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_OpenDoc_ArrowLog)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_OpenDocIcon)).EndInit();
+            this.panel_ViewLog.ResumeLayout(false);
+            this.panel_ViewLog.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_ViewLog_ArrowLog)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_ViewLogIcon)).EndInit();
+            this.panel_preferences.ResumeLayout(false);
+            this.panel_preferences.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox8)).EndInit();
+            this.tabPageLeft_About.ResumeLayout(false);
+            this.tabPageLeft_About.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox5)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOvGME)).EndInit();
             this.groupBoxDroiteAccueil.ResumeLayout(false);
@@ -1745,7 +1938,7 @@ namespace DCE_Manager
         public System.Windows.Forms.CheckBox checkBoxActiveFolder;
         public System.Windows.Forms.TabControl tabControl;
         private System.Windows.Forms.TabPage tabPageLeft_Install;
-        private System.Windows.Forms.TabPage tabPageLeft_Update;
+        public System.Windows.Forms.TabPage tabPageLeft_Update;
         private System.Windows.Forms.TabPage tabPageLeft_About;
         public System.Windows.Forms.Button ScriptsModUpdateButton;
         public System.Windows.Forms.Label ScriptsModAvailableVersion;
@@ -1836,8 +2029,6 @@ namespace DCE_Manager
         private System.Windows.Forms.Panel panel_Droite;
         private System.Windows.Forms.TabPage tabPageLeft_Options;
         private System.Windows.Forms.CheckBox checkBox_Stat_anonym;
-        private System.Windows.Forms.Button buttonDocFolder;
-        private System.Windows.Forms.Button button_Log;
         public System.Windows.Forms.Label DCEManagerStatusLabel;
         public System.Windows.Forms.DataGridView CampaignDataGridView;
         public System.Windows.Forms.Label labelCampaignDownload;
@@ -1857,6 +2048,24 @@ namespace DCE_Manager
         private System.Windows.Forms.Label label_ScriptsMod_A;
         private System.Windows.Forms.Label label15;
         private System.Windows.Forms.Label label16;
+        private System.Windows.Forms.LinkLabel Readme;
+        private System.Windows.Forms.Label label_statistics_explain;
+        private System.Windows.Forms.Label label_tolls;
+        private System.Windows.Forms.Label label_preference;
+        private System.Windows.Forms.Panel panel_ViewLog;
+        private System.Windows.Forms.Label lbl_ViewLogDesc;
+        private System.Windows.Forms.Panel panel_preferences;
+        private System.Windows.Forms.Panel panel_OpenDoc;
+        private System.Windows.Forms.PictureBox pic_OpenDocIcon;
+        private System.Windows.Forms.Label lbl_OpenDocDesc;
+        private System.Windows.Forms.PictureBox pic_ViewLogIcon;
+        private System.Windows.Forms.Label lbl_ViewLogTitle;
+        private System.Windows.Forms.PictureBox pic_ViewLog_ArrowLog;
+        private System.Windows.Forms.Label lbl_OpenDocTitle;
+        private System.Windows.Forms.PictureBox pictureBox8;
+        private System.Windows.Forms.PictureBox pic_OpenDoc_ArrowLog;
+        private System.Windows.Forms.PictureBox pic_preferences;
+        private System.Windows.Forms.PictureBox pictureBox4;
     }
 }
 

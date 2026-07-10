@@ -5,21 +5,24 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Policy;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
+using DCE_Manager.Properties;
 using DCE_Manager.Utils;
+using DCE_Manager.Clone;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static DCE_Manager.Utils.FormUtils;
-using DCE_Manager.Properties;
 
 namespace DCE_Manager.Update
 {
     public partial class CampaignUpdater
     {
+        private readonly Form1 form;
 
         private CancellationTokenSource downloadCancellation;
 
@@ -27,11 +30,13 @@ namespace DCE_Manager.Update
 
         private readonly GithubHelper github;
 
-        public CampaignUpdater()
+        public CampaignUpdater(Form1 form)
         {
+            this.form = form;
             github = new GithubHelper();
 
         }
+
 
         // Charge uniquement les informations nécessaires aux mises à jour.
         // Pourquoi : éviter le scan complet des campagnes.
@@ -99,6 +104,8 @@ namespace DCE_Manager.Update
         {
             displayedCampaigns.Clear();
 
+            ParamUpdater.NbUpdateAvailable = 0;
+
             campaignGrid.Rows.Clear();
 
             List<CampaignInfo> campaigns = LoadCampaignsForUpdate(savedGamesPath);
@@ -121,8 +128,38 @@ namespace DCE_Manager.Update
                 }
             }
 
+
+            // 1. Initialiser le constructeur de texte
+            StringBuilder logBuilder = new StringBuilder();
+            logBuilder.AppendLine("=== Début de l'inventaire uniqueCampaigns ===");
+
+            // 2. Parcourir le dictionnaire
+            foreach (KeyValuePair<string, CampaignInfo> kvp in uniqueCampaigns)
+            {
+                string campaignId = kvp.Key;
+                CampaignInfo info = kvp.Value;
+
+                // Joindre les listes internes (versions et noms installés) pour les afficher proprement
+                string listCampaigns = string.Join(", ", info.InstalledCampaigns);
+                string listVersions = string.Join(", ", info.InstalledVersions);
+
+                // Construire la ligne pour cette campagne
+                logBuilder.AppendLine($"- ID: {campaignId} | Nom principal: {info.Name} | Version Locale: {info.LocalVersion}");
+                logBuilder.AppendLine($"  Campagnes combinées: [{listCampaigns}]");
+                logBuilder.AppendLine($"  Versions combinées: [{listVersions}]");
+                logBuilder.AppendLine(new string('-', 40)); // Petite ligne de séparation interne
+            }
+
+            logBuilder.AppendLine("=== Fin de l'inventaire uniqueCampaigns ===");
+
+            // 3. Envoyer le tout d'un coup dans votre méthode de Log
+            FormUtils.LogRegister(logBuilder.ToString());
+
+
             foreach (CampaignInfo campaign in uniqueCampaigns.Values)
             {
+                FormUtils.LogRegister("A await github.GetLatestReleaseFromUrl() ");
+
                 bool success =
                     await github.GetLatestReleaseFromUrl(
                         campaign.RepositoryUrl,
@@ -135,22 +172,48 @@ namespace DCE_Manager.Update
                             campaign.DownloadUrl = url;
                         });
 
+                FormUtils.LogRegister("B await github.GetLatestReleaseFromUrl() ");
+
                 if (success)
                 {
+                    FormUtils.LogRegister(
+                        "RefreshCampaignUpdates() success: " +
+                        " RepositoryUrl " + campaign.RepositoryUrl +
+                        " AssetName: " + campaign.AssetName +
+                        " LatestVersion: " + campaign.LatestVersion);
+
                     campaign.AlreadyInstalledLatestVersion =
                         campaign.InstalledVersions.Contains(campaign.LatestVersion);
 
                     campaign.UpdateAvailable =
                         !campaign.AlreadyInstalledLatestVersion;
+
+                    if (campaign.UpdateAvailable)
+                        ParamUpdater.NbUpdateAvailable++;
+
+                    Form1.Instance.tabPageLeft_Update.Text =
+                        ParamUpdater.NbUpdateAvailable > 0
+                            ? $"Update ({ParamUpdater.NbUpdateAvailable})"
+                            : "Update";
+
+                }
+                else
+                {
+                    campaign.LatestVersion = "?";
+                    campaign.UpdateAvailable = false;
+
+                    FormUtils.LogRegister(
+                    "RefreshCampaignUpdates() else ECHEC: ");
                 }
 
+                FormUtils.LogRegister("C await github.GetLatestReleaseFromUrl() ");
 
-                AddCampaignToGrid(
-                    campaignGrid,
-                    campaign);
+                AddCampaignToGrid( campaignGrid, campaign);
 
 
-                campaign.InstalledCampaigns.Add(campaign.Name + " (" + campaign.LocalVersion + ")");
+                //campaign.InstalledCampaigns.Add(campaign.Name + " (" + campaign.LocalVersion + ")");
+
+                UpdateUtils.RefreshUpdateTab(form);
             }
         }
 
@@ -267,7 +330,7 @@ namespace DCE_Manager.Update
             if (string.IsNullOrEmpty(campaign.LatestVersion))
             {
                 status = "No release";
-                action = "";
+                action = null;
 
                 icon = Properties.Resources.icons8_warning_blue_30;
             }
@@ -281,7 +344,7 @@ namespace DCE_Manager.Update
             else
             {
                 status = "Up to date";
-                action = "";
+                action = null;
 
                 icon = Properties.Resources.icons8_ok_24;
             }
@@ -336,6 +399,26 @@ namespace DCE_Manager.Update
             return null;
         }
 
+        // Retourne le nombre de campagnes ayant une mise à jour.
+        // Pourquoi : permettre à l'onglet Update d'afficher le nombre total de mises à jour.
+        public int GetUpdateCount()
+        {
+            FormUtils.LogRegister("GetUpdateCount STARTING ");
+            int count = 0;
+
+            foreach (CampaignInfo campaign in displayedCampaigns.Values)
+            {
+                if (campaign.UpdateAvailable)
+                {
+                    count++;
+                    FormUtils.LogRegister( "GetUpdateCount: " + count);
+                }
+            }
+
+            FormUtils.LogRegister("GetUpdateCount END return count " + count);
+            return count;
+        }
+
         // Télécharge l'archive de la campagne.
         // Pourquoi : récupérer la dernière release avant installation.
         public async Task<string> DownloadCampaign( CampaignInfo campaign, System.Windows.Forms.ProgressBar progressBar, 
@@ -356,10 +439,7 @@ namespace DCE_Manager.Update
             labelCampaignDld_Pct.Visible = true;
             label.Text = "Connecting...";
 
-            //if (!Directory.Exists(downloadFolder))
-            //    Directory.CreateDirectory(downloadFolder);
-
-            //string destinationFile = Path.Combine( ParamUpdater.PathDownloadManager, ParamUpdater.AssetName);
+           //string destinationFile = Path.Combine( ParamUpdater.PathDownloadManager, ParamUpdater.AssetName);
             string destinationFile = Path.Combine( ParamUpdater.PathDownloadCampaigns, campaign.AssetName);
 
             try
@@ -367,12 +447,8 @@ namespace DCE_Manager.Update
 
                 labelTitle.Visible = true;
 
-                labelTitle.Text =
-                    "Downloading " +
-                    campaign.Name +
-                    " " +
-                    campaign.LatestVersion +
-                    "...";
+                labelTitle.Text = "Downloading " + campaign.Name +
+                    " " +  campaign.LatestVersion +  "...";
 
                 using (HttpClient client = new HttpClient())
                 {
@@ -434,15 +510,13 @@ namespace DCE_Manager.Update
 
                                         labelCampaignDld_Pct.Text = string.Format( "{0}% ", percent);
 
-                                        label.Text =
-                                            string.Format(
-                                                "{0}%   {1:0.0}/{2:0.0} MB   {3:0.00} MB/s   ETA {4:mm\\:ss}",
-                                                percent,
-                                                totalRead / 1024d / 1024d,
-                                                totalSize / 1024d / 1024d,
-                                                speed / 1024d / 1024d,
-                                                TimeSpan.FromSeconds(remaining)
-                                                );
+                                        label.Text = string.Format(
+                                            "{0:0.0}/{1:0.0} MB   {2:0.00} MB/s   ETA {3:mm\\:ss}",
+                                            totalRead / 1024d / 1024d,
+                                            totalSize / 1024d / 1024d,
+                                            speed / 1024d / 1024d,
+                                            TimeSpan.FromSeconds(remaining)
+                                        );
 
                                         //label.Text =
                                         //    string.Format(
@@ -452,9 +526,8 @@ namespace DCE_Manager.Update
                                         //        totalSize / 1024d / 1024d,
                                         //        speed / 1024d / 1024d,
                                         //        TimeSpan.FromSeconds(remaining)
-                                        //        );
+                                        //     );
 
-                                        //Application.DoEvents();
                                     }
                                 }
                             }
@@ -552,6 +625,17 @@ namespace DCE_Manager.Update
             string savedGamesPath,
             CampaignInfo campaign)
         {
+
+            //string newNameCamp = null;
+            string oldNameCamp = campaign.Name;
+            //string campaignPathNewName = null;
+
+            string newNameCamp = campaign.Name + " " + campaign.LatestVersion;
+            string campaignRootRelative = Path.Combine( "Mods", "tech", "DCE", "Missions", "Campaigns", newNameCamp);
+            string campaignMainPath = Path.Combine(savedGamesPath,"Mods", "tech", "DCE", "Missions", "Campaigns");
+
+            string campaignPathNewName = Path.Combine(savedGamesPath, campaignRootRelative);
+
             using (ZipArchive archive = ZipFile.OpenRead(zipFile))
             {
                 foreach (ZipArchiveEntry entry in archive.Entries)
@@ -584,31 +668,50 @@ namespace DCE_Manager.Update
                     if (!zipPath.StartsWith("DCS_SavedGames_Path/"))
                         continue;
 
-                    string relativePath =
-                        zipPath.Substring("DCS_SavedGames_Path/".Length);
+                    string relativePath = zipPath.Substring("DCS_SavedGames_Path/".Length);
 
                     //----------------------------------------------------
                     // Renommage automatique du dossier campagne
                     //----------------------------------------------------
 
-                    string campaignPrefix =
-                        "Mods/tech/DCE/Missions/Campaigns/" +
-                        campaign.Name + "/";
+                    string campaignPrefix = "Mods/tech/DCE/Missions/Campaigns/" + campaign.Name + "/";
 
                     if (relativePath.StartsWith(campaignPrefix))
                     {
-                        relativePath =
-                            "Mods/tech/DCE/Missions/Campaigns/" +
-                            campaign.Name +
-                            " " +
-                            campaign.LatestVersion +
-                            "/" +
-                            relativePath.Substring(campaignPrefix.Length);
+                        relativePath = "Mods/tech/DCE/Missions/Campaigns/" +
+                            campaign.Name + " " + campaign.LatestVersion +
+                            "/" + relativePath.Substring(campaignPrefix.Length);
+
                     }
 
-                    string destinationFile =
-                        Path.Combine(savedGamesPath, relativePath);
+                    if (relativePath.Equals(
+                        $@"Mods/tech/DCE/Missions/Campaigns/{oldNameCamp}_first.miz",
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        relativePath = $@"Mods/tech/DCE/Missions/Campaigns/{newNameCamp}_first.miz";
+                    }
+                    else if (relativePath.Equals(
+                                 $@"Mods/tech/DCE/Missions/Campaigns/{oldNameCamp}_ongoing.miz",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        relativePath = $@"Mods/tech/DCE/Missions/Campaigns/{newNameCamp}_ongoing.miz";
+                    }
+                    else if (relativePath.Equals(
+                                 $@"Mods/tech/DCE/Missions/Campaigns/{oldNameCamp}.cmp",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        relativePath = $@"Mods/tech/DCE/Missions/Campaigns/{newNameCamp}.cmp";
+                    }
+                    else if (relativePath.Equals(
+                                 $@"Mods/tech/DCE/Missions/Campaigns/{oldNameCamp}.png",
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        relativePath = $@"Mods/tech/DCE/Missions/Campaigns/{newNameCamp}.png";
+                    }
 
+                    string destinationFile = Path.Combine(savedGamesPath, relativePath);
+
+                    
                     //----------------------------------------------------
                     // Dossier
                     //----------------------------------------------------
@@ -645,49 +748,68 @@ namespace DCE_Manager.Update
                         true);
                 }
             }
+
+            if (Directory.Exists(campaignPathNewName))
+            {
+                CloneHelper.UpdateCampInit(campaignPathNewName, oldNameCamp, newNameCamp);
+                string fileCmdPath = Path.Combine(campaignMainPath, newNameCamp + ".cmp");
+                CloneHelper.UpdateCmpFile(fileCmdPath, oldNameCamp, newNameCamp);
+                //CloneHelper.RenameMissionFiles(campaignPathNewName, oldNameCamp, newNameCamp);
+
+            }
+            else
+            {
+                MessageBox.Show(
+                    $"Installation failed: The campaign folder could not be found.\nPath: {campaignPathNewName}",
+                    "Installation Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+
         }
 
         // Installe une campagne téléchargée.
         // Pourquoi : réutiliser le système d'installation déjà présent dans DCE_Manager.
-        public async Task InstallCampaign(
-            Form1 form,
-            CampaignInfo campaign,
-            string zipFile,
-            DataGridView campaignGrid)
-        {
-            if (!File.Exists(zipFile))
-                throw new FileNotFoundException(zipFile);
+        //public async Task InstallCampaign(
+        //    Form1 form,
+        //    CampaignInfo campaign,
+        //    string zipFile,
+        //    DataGridView campaignGrid)
+        //{
+        //    if (!File.Exists(zipFile))
+        //        throw new FileNotFoundException(zipFile);
 
-            FormUtils.LogRegister("Installing campaign : " + campaign.Name);
+        //    //FormUtils.LogRegister("Installing campaign : " + campaign.Name);
 
-            form.labelCampaignDownload.Text = "Checking package...";
+        //    form.labelCampaignDownload.Text = "Checking package...";
 
-            CampaignPackageInfo package = ReadCampaignPackage(zipFile);
+        //    CampaignPackageInfo package = ReadCampaignPackage(zipFile);
 
-            if (package == null)
-                throw new Exception("Invalid DCE campaign package.");
+        //    if (package == null)
+        //        throw new Exception("Invalid DCE campaign package.");
 
-            FormUtils.LogRegister("CampaignId : " + package.CampaignId);
-            FormUtils.LogRegister("Version    : " + package.Version);
+        //    //FormUtils.LogRegister("CampaignId : " + package.CampaignId);
+        //    //FormUtils.LogRegister("Version    : " + package.Version);
 
-            form.labelCampaignDownload.Text = "Installing...";
+        //    form.labelCampaignDownload.Text = "Installing...";
 
-            form.ExtractZipFileToDirectoryLight(
-                zipFile,
-                true);
+        //    form.ExtractZipFileToDirectoryLight(
+        //        zipFile,
+        //        true);
 
-            FormUtils.LogRegister("Campaign installed.");
+        //    //FormUtils.LogRegister("Campaign installed.");
 
-            form.labelCampaignDownload.Text = "Refreshing...";
-            FormUtils.LogRegister("Refreshing...");
+        //    form.labelCampaignDownload.Text = "Refreshing...";
+        //    //FormUtils.LogRegister("Refreshing...");
 
-            await RefreshCampaignUpdates( campaignGrid, form.textBox_SavedGames.Text);
+        //    //await RefreshCampaignUpdates( campaignGrid, form.textBox_SavedGames.Text);
 
-            await form.LoadCampaignsAsync();
+        //    await form.LoadCampaignsAsync();
 
-            form.labelCampaignDownload.Text = "Completed";
-            FormUtils.LogRegister("Completed");
-        }
+        //    form.labelCampaignDownload.Text = "Completed";
+        //    //FormUtils.LogRegister("Completed");
+        //}
 
 
 
