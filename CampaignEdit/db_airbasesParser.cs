@@ -117,7 +117,7 @@ namespace DCE_Manager
             }
 
             timer.Stop();
-            FormUtils.LogRegister($"Parsed db_airbases ({folderName}) in {timer.ElapsedMilliseconds} ms");
+            //FormUtils.LogRegister($"Parsed db_airbases ({folderName}) in {timer.ElapsedMilliseconds} ms");
         }
 
         // -------------------------

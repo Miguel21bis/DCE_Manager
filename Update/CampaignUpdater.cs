@@ -5,17 +5,13 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
-using System.Security.Policy;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
-using DCE_Manager.Properties;
 using DCE_Manager.Utils;
 using DCE_Manager.Clone;
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using static DCE_Manager.Utils.FormUtils;
 
 namespace DCE_Manager.Update
@@ -29,6 +25,12 @@ namespace DCE_Manager.Update
         private readonly Dictionary<int, CampaignInfo> displayedCampaigns = new Dictionary<int, CampaignInfo>();
 
         private readonly GithubHelper github;
+
+        // Jeton d'annulation : si un nouveau rafraîchissement démarre, on abandonne le précédent proprement
+        private CancellationTokenSource _refreshCampaignsCts;
+
+        // Cache mémoire : dernières infos GitHub connues par CampaignId (pas de requête réseau)
+        private readonly Dictionary<string, CampaignInfo> _lastKnownGithubInfo = new Dictionary<string, CampaignInfo>();
 
         public CampaignUpdater(Form1 form)
         {
@@ -100,8 +102,13 @@ namespace DCE_Manager.Update
 
         // Met à jour la grille des campagnes.
         // Pourquoi : vérifier les releases et afficher le résultat.
-        public async Task RefreshCampaignUpdates( DataGridView campaignGrid, string savedGamesPath)
+        public async Task RefreshCampaignUpdates(DataGridView campaignGrid, string savedGamesPath)
         {
+            // Si un rafraîchissement précédent est encore en cours, on l'annule proprement
+            _refreshCampaignsCts?.Cancel();
+            _refreshCampaignsCts = new CancellationTokenSource();
+            CancellationToken token = _refreshCampaignsCts.Token;
+
             displayedCampaigns.Clear();
 
             ParamUpdater.NbUpdateAvailable = 0;
@@ -158,6 +165,10 @@ namespace DCE_Manager.Update
 
             foreach (CampaignInfo campaign in uniqueCampaigns.Values)
             {
+                // Un rafraîchissement plus récent a pris le relais : on abandonne sans toucher à la grille
+                if (token.IsCancellationRequested)
+                    return;
+
                 FormUtils.LogRegister("A await github.GetLatestReleaseFromUrl() ");
 
                 bool success =
@@ -191,10 +202,18 @@ namespace DCE_Manager.Update
                     if (campaign.UpdateAvailable)
                         ParamUpdater.NbUpdateAvailable++;
 
-                    Form1.Instance.tabPageLeft_Update.Text =
-                        ParamUpdater.NbUpdateAvailable > 0
-                            ? $"Update ({ParamUpdater.NbUpdateAvailable})"
-                            : "Update";
+                    _lastKnownGithubInfo[campaign.CampaignId] = new CampaignInfo
+                    {
+                        CampaignId = campaign.CampaignId,
+                        LatestVersion = campaign.LatestVersion,
+                        AssetName = campaign.AssetName,
+                        DownloadUrl = campaign.DownloadUrl
+                    };
+
+                    //Form1.Instance.tabPageLeft_Update.Text =
+                    //    ParamUpdater.NbUpdateAvailable > 0
+                    //        ? $"Update ({ParamUpdater.NbUpdateAvailable})"
+                    //        : "Update";
 
                 }
                 else
@@ -202,22 +221,98 @@ namespace DCE_Manager.Update
                     campaign.LatestVersion = "?";
                     campaign.UpdateAvailable = false;
 
+                    if (github.IsRateLimited)
+                    {
+                        campaign.RateLimited = true;
+                        campaign.RateLimitResetUtc = github.RateLimitResetUtc;
+                    }
+
                     FormUtils.LogRegister(
                     "RefreshCampaignUpdates() else ECHEC: ");
                 }
 
                 FormUtils.LogRegister("C await github.GetLatestReleaseFromUrl() ");
 
-                AddCampaignToGrid( campaignGrid, campaign);
+                AddCampaignToGrid(campaignGrid, campaign);
 
 
                 //campaign.InstalledCampaigns.Add(campaign.Name + " (" + campaign.LocalVersion + ")");
 
                 UpdateUtils.RefreshUpdateTab(form);
             }
+
+            UpdateUtils.RefreshUpdateTab(form);
+        }
+
+        // Recalcule l'état "Up to date / Update available" à partir du cache GitHub déjà connu.
+        // Pourquoi : après une installation, on connaît déjà la dernière version ;
+        // pas besoin de re-questionner GitHub, juste de relire les dossiers locaux.
+        public void RefreshCampaignUpdatesLocalOnly(DataGridView campaignGrid, string savedGamesPath)
+        {
+            displayedCampaigns.Clear();
+
+            ParamUpdater.NbUpdateAvailable = 0;
+
+            campaignGrid.Rows.Clear();
+
+            List<CampaignInfo> campaigns = LoadCampaignsForUpdate(savedGamesPath);
+
+            Dictionary<string, CampaignInfo> uniqueCampaigns = new Dictionary<string, CampaignInfo>();
+
+            foreach (CampaignInfo campaign in campaigns)
+            {
+                if (!uniqueCampaigns.ContainsKey(campaign.CampaignId))
+                {
+                    campaign.InstalledCampaigns.Add(campaign.Name + " (" + campaign.LocalVersion + ")");
+                    campaign.InstalledVersions.Add(campaign.LocalVersion);
+
+                    uniqueCampaigns.Add(campaign.CampaignId, campaign);
+                }
+                else
+                {
+                    uniqueCampaigns[campaign.CampaignId].InstalledCampaigns.Add(campaign.Name + " (" + campaign.LocalVersion + ")");
+                    uniqueCampaigns[campaign.CampaignId].InstalledVersions.Add(campaign.LocalVersion);
+                }
+            }
+
+            foreach (CampaignInfo campaign in uniqueCampaigns.Values)
+            {
+                if (_lastKnownGithubInfo.TryGetValue(campaign.CampaignId, out CampaignInfo cached))
+                {
+                    campaign.LatestVersion = cached.LatestVersion;
+                    campaign.AssetName = cached.AssetName;
+                    campaign.DownloadUrl = cached.DownloadUrl;
+
+                    campaign.AlreadyInstalledLatestVersion =
+                        campaign.InstalledVersions.Contains(campaign.LatestVersion);
+
+                    campaign.UpdateAvailable =
+                        !campaign.AlreadyInstalledLatestVersion;
+
+                    if (campaign.UpdateAvailable)
+                        ParamUpdater.NbUpdateAvailable++;
+                }
+                else
+                {
+                    // Jamais interrogé via GitHub depuis le lancement : on affiche un état neutre
+                    campaign.LatestVersion = "?";
+                    campaign.UpdateAvailable = false;
+                }
+
+                AddCampaignToGrid(campaignGrid, campaign);
+            }
+
+            Form1.Instance.tabPageLeft_Update.Text =
+                ParamUpdater.NbUpdateAvailable > 0
+                    ? $"Update ({ParamUpdater.NbUpdateAvailable})"
+                    : "Update";
+
+            UpdateUtils.RefreshUpdateTab(form);
         }
 
 
+        // Initialise la grille des mises à jour des campagnes.
+        // Pourquoi : centraliser toute la configuration de l'onglet Campaign Update.
         // Initialise la grille des mises à jour des campagnes.
         // Pourquoi : centraliser toute la configuration de l'onglet Campaign Update.
         public static void InitCampaignUpdateGrid(DataGridView campaignDataGridView)
@@ -237,54 +332,47 @@ namespace DCE_Manager.Update
             campaignDataGridView.RowTemplate.Height = 32;
             campaignDataGridView.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleLeft;
 
-            campaignDataGridView.Columns.Add(
-                "Campaign",
-                "Campaign");
+            // ---- ORDRE DES COLONNES : doit correspondre EXACTEMENT à l'ordre des valeurs dans Rows.Add() ----
 
-            campaignDataGridView.Columns.Add(
-                "Installed",
-                "Installed");
+            // 1. Campaign
+            campaignDataGridView.Columns.Add("Campaign", "Campaign");
 
-            campaignDataGridView.Columns.Add(
-                "Latest",
-                "Latest");
+            // 2. Installed
+            campaignDataGridView.Columns.Add("Installed", "Installed");
 
+            // 3. Latest
+            campaignDataGridView.Columns.Add("Latest", "Latest");
 
-
-            DataGridViewImageColumn iconColumn =
-                new DataGridViewImageColumn();
-
+            // 4. Icon (statut : coche verte / flèche de téléchargement / warning)
+            DataGridViewImageColumn iconColumn = new DataGridViewImageColumn();
             iconColumn.Name = "Icon";
             iconColumn.HeaderText = "";
             iconColumn.Width = 28;
-            iconColumn.ImageLayout =
-                DataGridViewImageCellLayout.Zoom;
-
+            iconColumn.ImageLayout = DataGridViewImageCellLayout.Zoom;
             campaignDataGridView.Columns.Add(iconColumn);
 
+            // 5. Status (texte)
+            campaignDataGridView.Columns.Add("Status", "Status");
 
-
-            campaignDataGridView.Columns.Add(
-                "Status",
-                "Status");
-
-
-
-            DataGridViewButtonColumn actionColumn =
-                new DataGridViewButtonColumn();
-
+            // 6. Action (bouton Install)
+            DataGridViewButtonColumn actionColumn = new DataGridViewButtonColumn();
             actionColumn.Name = "Action";
             actionColumn.HeaderText = "Action";
             actionColumn.UseColumnTextForButtonValue = false;
-
             campaignDataGridView.Columns.Add(actionColumn);
 
+            // 7. Repo (lien GitHub) -- doit rester en DERNIER
+            DataGridViewButtonColumn repoColumn = new DataGridViewButtonColumn();
+            repoColumn.Name = "Repo";
+            repoColumn.Text = "🔗";
+            repoColumn.UseColumnTextForButtonValue = true;
+            repoColumn.HeaderText = "Repo";
+            campaignDataGridView.Columns.Add(repoColumn);
 
+            // ---- Largeurs ----
 
             campaignDataGridView.Columns["Campaign"].Width = 180;
-
             campaignDataGridView.Columns["Installed"].Width = 120;
-
             campaignDataGridView.Columns["Latest"].Width = 90;
 
             campaignDataGridView.Columns["Icon"].Width = 30;
@@ -294,11 +382,9 @@ namespace DCE_Manager.Update
 
             campaignDataGridView.Columns["Action"].Width = 130;
 
-            
-
-           
+            campaignDataGridView.Columns["Repo"].Width = 40;
+            campaignDataGridView.Columns["Repo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         }
-
 
         // Extrait une chaîne Lua.
         // Pourquoi : factoriser la lecture des variables.
@@ -318,20 +404,28 @@ namespace DCE_Manager.Update
 
 
 
-        private void AddCampaignToGrid( DataGridView campaignGrid, CampaignInfo campaign)
+        private void AddCampaignToGrid(DataGridView campaignGrid, CampaignInfo campaign)
         {
             string status;
             string action;
 
             Image icon;
 
+            if (campaign.RateLimited)
+            {
+                TimeSpan wait = campaign.RateLimitResetUtc - DateTime.UtcNow;
 
+                status = wait.TotalMinutes > 0
+                    ? $"Quota GitHub dépassé - réessai dans {Math.Max(1, (int)wait.TotalMinutes)} min"
+                    : "Quota GitHub dépassé - réessayez";
 
-            if (string.IsNullOrEmpty(campaign.LatestVersion))
+                action = null;
+                icon = Properties.Resources.icons8_warning_blue_30;
+            }
+            else if (string.IsNullOrEmpty(campaign.LatestVersion))
             {
                 status = "No release";
                 action = null;
-
                 icon = Properties.Resources.icons8_warning_blue_30;
             }
             else if (campaign.UpdateAvailable)
@@ -350,20 +444,18 @@ namespace DCE_Manager.Update
             }
 
 
-
             int row =
                 campaignGrid.Rows.Add(
-                    campaign.Name,
-                    campaign.InstalledCampaigns.Count + " installed",
-                    campaign.LatestVersion,
-                    icon,
-                    status,
-                    action);
-
+                    campaign.Name,                                    // Campaign
+                    campaign.InstalledCampaigns.Count + " installed",  // Installed
+                    campaign.LatestVersion,                            // Latest
+                    icon,                                              // Icon
+                    status,                                            // Status
+                    action,                                            // Action
+                    "🔗");                                             // Repo
 
 
             displayedCampaigns[row] = campaign;
-
 
 
             campaignGrid.Rows[row]
@@ -372,7 +464,6 @@ namespace DCE_Manager.Update
                 string.Join(
                     Environment.NewLine,
                     campaign.InstalledCampaigns);
-
 
 
             DataGridViewButtonCell button = (DataGridViewButtonCell) campaignGrid.Rows[row].Cells["Action"];
@@ -754,7 +845,6 @@ namespace DCE_Manager.Update
                 CloneHelper.UpdateCampInit(campaignPathNewName, oldNameCamp, newNameCamp);
                 string fileCmdPath = Path.Combine(campaignMainPath, newNameCamp + ".cmp");
                 CloneHelper.UpdateCmpFile(fileCmdPath, oldNameCamp, newNameCamp);
-                //CloneHelper.RenameMissionFiles(campaignPathNewName, oldNameCamp, newNameCamp);
 
             }
             else
@@ -768,49 +858,6 @@ namespace DCE_Manager.Update
             }
 
         }
-
-        // Installe une campagne téléchargée.
-        // Pourquoi : réutiliser le système d'installation déjà présent dans DCE_Manager.
-        //public async Task InstallCampaign(
-        //    Form1 form,
-        //    CampaignInfo campaign,
-        //    string zipFile,
-        //    DataGridView campaignGrid)
-        //{
-        //    if (!File.Exists(zipFile))
-        //        throw new FileNotFoundException(zipFile);
-
-        //    //FormUtils.LogRegister("Installing campaign : " + campaign.Name);
-
-        //    form.labelCampaignDownload.Text = "Checking package...";
-
-        //    CampaignPackageInfo package = ReadCampaignPackage(zipFile);
-
-        //    if (package == null)
-        //        throw new Exception("Invalid DCE campaign package.");
-
-        //    //FormUtils.LogRegister("CampaignId : " + package.CampaignId);
-        //    //FormUtils.LogRegister("Version    : " + package.Version);
-
-        //    form.labelCampaignDownload.Text = "Installing...";
-
-        //    form.ExtractZipFileToDirectoryLight(
-        //        zipFile,
-        //        true);
-
-        //    //FormUtils.LogRegister("Campaign installed.");
-
-        //    form.labelCampaignDownload.Text = "Refreshing...";
-        //    //FormUtils.LogRegister("Refreshing...");
-
-        //    //await RefreshCampaignUpdates( campaignGrid, form.textBox_SavedGames.Text);
-
-        //    await form.LoadCampaignsAsync();
-
-        //    form.labelCampaignDownload.Text = "Completed";
-        //    //FormUtils.LogRegister("Completed");
-        //}
-
 
 
     }

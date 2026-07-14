@@ -260,12 +260,13 @@ nota:
 - unitId, groupId, group.name and unit.name will automatically be renamed to avoid duplication.
 - you can use Tools/ASTI independently of DCE, no need to fill in the path on the first tab.</value>
   </data>
-  <data name="textBox1.Text" xml:space="preserve">
+  <data name="textBox_Credits.Text" xml:space="preserve">
     <value>Mbot : The concept of the campaign
 Tomsk : PruneScript
 Zarbas : choice of mission
 Eagle : debugging and creating your own campaigns
 Norman99 : Fuel Check script
+Bandit648 : DCA AAA
 
 All the talented skin designers who help us make our campaigns more immersive
 

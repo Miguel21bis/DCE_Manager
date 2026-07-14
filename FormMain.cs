@@ -74,6 +74,14 @@ namespace DCE_Manager
 
         public CampaignUpdater campaignUpdater;
 
+        private bool _isInitializing = true; // champ de classe
+
+        private string _cachedDcsRootPath;
+        private string _cachedSavedGamesPath;
+        private string _cachedOvGmePath;
+
+        private string _selectedCampaignZipPath = "";
+
 
         //constructeur :
         public Form1()
@@ -85,6 +93,9 @@ namespace DCE_Manager
             KeyPreview = true;
 
             InitializeComponent();
+
+            dropZoneControl1.FilesSelected += DropZone_FilesSelected;
+            //InitializeDropZone();
 
             InitActionRows();
 
@@ -115,8 +126,22 @@ namespace DCE_Manager
 
             but_GPS_LL.Click += (sender, e) => ASTI.GPS_LL_Click(this);
 
+            pictureBox_Update_ScriptsMod.Click += (s, e) =>
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://github.com/{GithubHelper.GithubAccount}/{GithubHelper.Repository_ScriptsMod}",
+                UseShellExecute = true
+            });
 
-            tabControl.Selected += new TabControlEventHandler(TabControl1_SelectedAsync);
+            pictureBox_Update_DCE_Manager.Click += (s, e) =>
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = $"https://github.com/{GithubHelper.GithubAccount}/{GithubHelper.Repository_Manager}",
+                UseShellExecute = true
+            });
+
+
+            tabControl_LEFT.Selected += new TabControlEventHandler(TabControl1_SelectedAsync);
             CampaignTab.Selected += new TabControlEventHandler(CampaignTab_Selected);
 
             // Abonner l'événement FormClosed à une méthode
@@ -125,7 +150,7 @@ namespace DCE_Manager
             //VersionDceManager.Text = VersionLongDceManager();
             VersionDceManager.Text = GetVersionDceManager();
 
-            ScriptsModStatusLabel.Text = "Status : Checking...";
+            //ScriptsModStatusLabel.Text = "Status : Checking...";
 
             textBox_id_client.Text = Statistic.CreateIdClient();
             AjusterLargeurTextBox(textBox_id_client);
@@ -166,11 +191,11 @@ namespace DCE_Manager
              
                     foreach (var entry in ParamConf.configDictionary)
                     {
-                        if (entry.Key == "config_0_pathZipCampaign")
-                          textBox_Campaign.Text = entry.Value;
+                        //if (entry.Key == "config_0_pathZipCampaign")
+                        //  textBox_Campaign.Text = entry.Value;
                             
                         if (entry.Key == "config_0_" + "pathDCS")
-                            textBox_DCS.Text = entry.Value;
+                            textBox_PATH_DCS_Root.Text = entry.Value;
 
                         if (entry.Key == "config_0_" + "pathSavedGames")
                             textBox_SavedGames.Text = entry.Value;
@@ -287,21 +312,20 @@ namespace DCE_Manager
                             ParamDownload.UpgradeTime = entry.Value;
                         }
 
-                        comboBox_Config.SelectedItem = SelectedItem;
-
-                        ParamConf.CurrentConfigName = (string)comboBox_Config.SelectedItem;
-
-                        this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + ParamConf.CurrentConfigName;
-
-                        textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
-
-                        textBox_DCS.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
-
-                        textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
-
-                        textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
-
+            
                     }
+
+                    // Une seule fois, après la boucle :
+                    comboBox_Config.SelectedItem = SelectedItem;
+                    ParamConf.CurrentConfigName = (string)comboBox_Config.SelectedItem;
+
+                    this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + ParamConf.CurrentConfigName;
+
+                    //textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
+                    textBox_PATH_DCS_Root.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
+                    textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
+                    textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
+
                 }
                 catch (Exception ex)
                 {
@@ -309,14 +333,20 @@ namespace DCE_Manager
                 }
             }
 
-         
+
+            _isInitializing = false;
+
             _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
 
             _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
+            _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
+
             //ParamManager.NbLancement++;
 
             _ = Statistic.EnvoiStatsAsync(checkBox_Stat_anonym.Checked);
+
+            InitializeDCS_Installation_Path();
 
 
             ToolTip toolTip1 = new ToolTip();
@@ -329,13 +359,13 @@ namespace DCE_Manager
             toolTip1.AutoPopDelay = 20000;
             toolTip1.InitialDelay = 1000;
             toolTip1.ReshowDelay = 5000;
-            toolTip1.SetToolTip(m_ButtonDcsPath, @"C:\Eagle Dynamics\DCS World or DCS World OpenBeta");
-            toolTip1.SetToolTip(textBox_Campaign, @"C:\Eagle Dynamics\DCS World or DCS World OpenBeta");
+            toolTip1.SetToolTip(m_But_Install_Browse_DcsPath, @"C:\Eagle Dynamics\DCS World or DCS World OpenBeta");
+            //toolTip1.SetToolTip(textBox_Campaign, @"C:\Eagle Dynamics\DCS World or DCS World OpenBeta");
             toolTip1.SetToolTip(Label_DCS, @"C:\Eagle Dynamics\DCS World or DCS World OpenBeta");
 
-            toolTip1.SetToolTip(m_ButtonSavedGames, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
-            toolTip1.SetToolTip(textBox_DCS, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
-            toolTip1.SetToolTip(Label_SavedGames, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
+            toolTip1.SetToolTip(m_But_Install_Browse_SavedGame, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
+            toolTip1.SetToolTip(textBox_PATH_DCS_Root, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
+            //toolTip1.SetToolTip(Label_SavedGame, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
 
 
             //affiche le changelog
@@ -667,7 +697,7 @@ namespace DCE_Manager
             // ===== BOUTONS =====
             
             AddButtonColumn("First", "▶", 55);
-            AddButtonColumn("Skip", "⏭", 55);
+            AddButtonColumn("Skip", "⏭", 55, useColumnTextForButtonValue: false);
             AddButtonColumn("Config", "⚙", 55);
             AddButtonColumn("Delete", "🗑", 55);
 
@@ -754,13 +784,15 @@ namespace DCE_Manager
             dataGridViewCampaigns.GridColor = Color.LightGray;
             dataGridViewCampaigns.BorderStyle = BorderStyle.None;
         }
-        private void AddButtonColumn(string name, string text, int width)
+
+
+        private void AddButtonColumn(string name, string text, int width, bool useColumnTextForButtonValue = true)
         {
             dataGridViewCampaigns.Columns.Add(new DataGridViewButtonColumn()
             {
                 Name = name,
                 Text = text,
-                UseColumnTextForButtonValue = true,
+                UseColumnTextForButtonValue = useColumnTextForButtonValue,
                 Width = width,
                 FlatStyle = FlatStyle.Flat
             });
@@ -804,6 +836,14 @@ namespace DCE_Manager
             }
             else if (columnName == "Skip")
             {
+                string nbMissionTextSkip = dataGridViewCampaigns.Rows[e.RowIndex].Cells["Missions"].Value?.ToString();
+
+                int nbMissionSkip;
+                int.TryParse(nbMissionTextSkip, out nbMissionSkip);
+
+                if (nbMissionSkip <= 0)
+                    return; // bouton grisé : aucune mission jouée, on ignore le clic
+
                 string batPath = Path.Combine(folderPath, "SkipMission.bat");
 
                 if (File.Exists(batPath))
@@ -995,11 +1035,11 @@ namespace DCE_Manager
 
                     if (fileExistPathBat)
                     {
-                        if (textBox_DCS.Text != "" & textBox_SavedGames.Text != "")
+                        if (textBox_PATH_DCS_Root.Text != "" & textBox_SavedGames.Text != "")
                         {
 
                             string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
+                           "set \"pathDCS=" + textBox_PATH_DCS_Root.Text + "\\\"\r\n" +
                            "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
                            "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
                            "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
@@ -1022,6 +1062,13 @@ namespace DCE_Manager
                         if (campInitContent != null)
                         {
                             Match match;
+
+                            match = Regex.Match(
+                                campInitContent,
+                                @"(?<!\w)version\s*=\s*""([^""]+)""");
+
+                            if (match.Success)
+                                VerCamp = match.Groups[1].Value;
 
                             match = Regex.Match(
                                 campInitContent,
@@ -1192,8 +1239,6 @@ namespace DCE_Manager
                                         throw new Exception("Image corrompue ou vide : " + imagePath);
                                     }
 
-                                    // 🔵 BONUS → À PLACER ICI (voir explication plus bas)
-                                    //var fileInfo = new FileInfo(imagePath);
                                     if (fileInfo.Length < 100)
                                     {
                                         throw new Exception("Image corrompue ou vide : " + imagePath);
@@ -1216,7 +1261,6 @@ namespace DCE_Manager
                                         }
                                     }
 
-                                    // 🔴 sécurité : si après retry img toujours null
                                     if (img == null)
                                     {
                                         throw new Exception("Impossible de charger l'image après plusieurs tentatives : " + imagePath);
@@ -1241,6 +1285,11 @@ namespace DCE_Manager
                                     Folder = subFolder
                                 });
 
+                            // Le bouton Skip ne doit être visible que si au moins une mission a été jouée
+                            int nbMissionParsed;
+                            int.TryParse(NbMission, out nbMissionParsed);
+                            bool skipVisible = nbMissionParsed > 0;
+
                             dataGridViewCampaigns.Rows.Add(
                                 null,       // Clone (bouton)
                                 img,        // Image
@@ -1250,15 +1299,18 @@ namespace DCE_Manager
                                 NbMission,  // Missions
                                 type,       // Aircraft
                                 null,       // First
-                                null,       // Skip
+                                skipVisible ? "⏭" : "",   // Skip (vide = invisible)
                                 null,       // Config
                                 null        // Delete
                             );
 
                             int rowIndex = dataGridViewCampaigns.Rows.Count - 1;
 
-                            // Exemple : bouton Skip rouge si besoin
-                            if (colorSM == "red")
+                            // Aucune mission jouée : le bouton reste vide (pas d'icône) et non cliquable
+                            dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].ReadOnly = !skipVisible;
+
+                            // Exemple : bouton Skip rouge si besoin (uniquement si visible)
+                            if (skipVisible && colorSM == "red")
                             {
                                 dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
                             }
@@ -1269,24 +1321,13 @@ namespace DCE_Manager
                                 dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
                             }
 
-                            //A = A + 1;
-
                         }
                     }
                 }
 
             }
 
-            //tabPage2.ResumeLayout();
-
-            //CampaignUpdater updater =
-            //    new CampaignUpdater();
-
-            //await updater.RefreshCampaignUpdates(
-            //    CampaignDataGridView,
-            //    textBox_SavedGames.Text);
-
-            LoadCampaigns.Stop();
+             LoadCampaigns.Stop();
             FormUtils.LogRegister($"LoadCampaigns : {LoadCampaigns.ElapsedMilliseconds} ms");
         }
 
@@ -1309,8 +1350,8 @@ namespace DCE_Manager
         public void UpdateSharedData()
         {
             SharedData.comboBox_Config = comboBox_Config.Text;
-            SharedData.textBox_Campaign = textBox_Campaign.Text;
-            SharedData.textBox_DCS = textBox_DCS.Text;
+            //SharedData.textBox_Campaign = textBox_Campaign.Text;
+            SharedData.textBox_DCS = textBox_PATH_DCS_Root.Text;
             SharedData.textBox_SavedGames = textBox_SavedGames.Text;
             SharedData.textBox_OvGME = textBox_OvGME.Text;
             SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
@@ -1340,7 +1381,7 @@ namespace DCE_Manager
         //check sanitizeModule ?
         public void checkBoxMod()
         {
-            string pathFile = textBox_DCS.Text + @"\Scripts\MissionScripting.lua";
+            string pathFile = textBox_PATH_DCS_Root.Text + @"\Scripts\MissionScripting.lua";
 
             Boolean find_OS = false;
             Boolean find_IO = false;
@@ -1348,7 +1389,7 @@ namespace DCE_Manager
             if (File.Exists(pathFile))
             {
                 
-                checkBoxSanitize.Enabled = true;
+                //checkBoxSanitize.Enabled = true;
                 using (StreamReader reader = new StreamReader(pathFile))
                 {
                     string line;
@@ -1380,16 +1421,16 @@ namespace DCE_Manager
 
                 if (find_OS && find_IO)
                 {
-                    checkBoxSanitize.Checked = true;
+                    //checkBoxSanitize.Checked = true;
                 }
                 else
                 {
-                    checkBoxSanitize.Checked = false;
+                    //checkBoxSanitize.Checked = false;
                 }
             }
             else
             {
-                checkBoxSanitize.Enabled = false;
+                //checkBoxSanitize.Enabled = false;
             }
         }
 
@@ -1448,7 +1489,7 @@ namespace DCE_Manager
 
         public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
         {
-            MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? " + checkBox_OvwNGfolder.Checked.ToString());
+            //MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? " + checkBox_OvwNGfolder.Checked.ToString());
 
             using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
             {
@@ -1504,35 +1545,13 @@ namespace DCE_Manager
                                 extractAutorise = false; // Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
 
                                 // Permettre l'extraction uniquement si la case checkBox_OvwNGfolder est cochée
-                                if (checkBox_OvwNGfolder.Checked)
-                                {
-                                    extractAutorise = true;
-                                }
+                                //if (checkBox_OvwNGfolder.Checked)
+                                //{
+                                //    extractAutorise = true;
+                                //}
                             }
                         }
 
-
-                        //// Vérification pour "ScriptsMod.NG"
-                        //if (words.Contains("ScriptsMod.NG"))
-                        //{
-                        //    string scriptsModPath = Path.Combine(destinationDirectoryName, @"\Mods\tech\DCE\ScriptsMod.NG");
-
-                        //    FormUtils.LogRegister("Passe A if (words.Contains(ScriptsMod.NG)) " + scriptsModPath + " | extractAutorise ? " + extractAutorise.ToString());
-
-                        //    // Vérifier si le dossier ScriptsMod.NG existe déjà et s'il contient UTIL_Changelog.lua
-                        //    if (Directory.Exists(scriptsModPath) && File.Exists(Path.Combine(scriptsModPath, "UTIL_Changelog.lua")))
-                        //    {
-                        //        extractAutorise = false;// Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
-
-                        //        FormUtils.LogRegister("Passe B if UTIL_Changelog.lua exist | extractAutorise? " + extractAutorise.ToString());
-
-                        //        if (checkBox_OvwNGfolder.Checked) 
-                        //        {
-                        //            extractAutorise = true;
-                        //            FormUtils.LogRegister("Passe B if checkBox_OvwNGfolder.Checked | extractAutorise? " + extractAutorise.ToString());
-                        //        }
-                        //    }
-                        //}
                         else
                         {
                             foreach (string word in words)
@@ -1778,585 +1797,7 @@ namespace DCE_Manager
             }
         }
 
-        
-        private void m_ButtonDcsPath_Click(object sender, EventArgs e)
-        {
-            // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-            using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-            {
-                // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-                if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-                {
-                    MessageBox.Show("This feature is not supported on your version of Windows.");
-                    return;
-                }
 
-                // Définir les propriétés du dialogue de dossier
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-                folderBrowserDialog.ShowNewFolderButton = false; // Permet de créer un nouveau dossier
-
-                // Pré-sélectionner le répertoire textBox_DCS.Text
-                string savedGamesPath = textBox_DCS.Text;
-                if (Directory.Exists(savedGamesPath))
-                {
-                    folderBrowserDialog.SelectedPath = savedGamesPath;
-                }
-
-                // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-                if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                {
-
-                    // Récupérer le chemin du dossier sélectionné
-                    string folderPath = folderBrowserDialog.SelectedPath;
-
-                    // Afficher le chemin dans la TextBox
-                    ParamConf.configDictionary.AddOrUpdate("config_" + ParamConf.NumSelectConfig + "_pathDCS", SharedData.textBox_DCS);
-                    textBox_DCS.Text = folderPath;
-                    TestPath.DCS_Root = true;
-
-                    string combPath = Path.Combine(folderPath, "bin");
-                    if (Directory.Exists(combPath))
-                    {
-                    }
-                    else
-                    {
-                        //MessageBox.Show("This folder does not seem to be the one of DCS.", words[words.Length - 1]);
-                        MessageBox.Show("This directory does not appear to be the root folder of DCS: \r\n" + folderPath, "Error");
-                    }
-                }
-                else
-                {
-                    //FormUtils.ShowErrorMessage("No folder selected");
-                }
-            }
-        }
-        private void m_ButtonSavedGame_Click(object sender, EventArgs e)
-        {
-            // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-            using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-            {
-                // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-                if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-                {
-                    MessageBox.Show("This feature is not supported on your version of Windows.");
-                    return;
-                }
-
-                // Définir les propriétés du dialogue de dossier
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-                folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
-
-                // Pré-sélectionner le répertoire "Saved Games"
-                string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-                if (Directory.Exists(savedGamesPath))
-                {
-                    folderBrowserDialog.SelectedPath = savedGamesPath;
-                    FormUtils.ShowErrorMessage("PasseA Directory.Exists");
-                }
-                else if (Directory.Exists(textBox_SavedGames.Text))
-                {
-                    folderBrowserDialog.SelectedPath = textBox_SavedGames.Text;
-                }
-
-                // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-                if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                {
-
-                    // Récupérer le chemin du dossier sélectionné
-                    string folderPath = folderBrowserDialog.SelectedPath;
-
-                    // Afficher le chemin dans la TextBox
-                    ParamConf.configDictionary.AddOrUpdate("config_" + ParamConf.NumSelectConfig + "_pathSavedGames", SharedData.textBox_DCS);
-                    textBox_SavedGames.Text = folderPath;
-                    TestPath.OVGME = true;
-
-                    string combPath = Path.Combine(folderPath, "Logs");
-                    if (Directory.Exists(combPath))
-                    {
-                    }
-                    else
-                    {
-                        MessageBox.Show("This directory does not seem to be the DCS Saved Games folder: \r\n" + folderPath, "Error");
-                    }
-                }
-                else
-                {
-                    //FormUtils.ShowErrorMessage("No folder selected");
-                }
-            }
-        }
-
-
-        private void m_buttonOvGME_Click(object sender, EventArgs e)
-        {
-            // Utiliser VistaFolderBrowserDialog pour une meilleure sélection de dossiers
-            using (VistaFolderBrowserDialog folderBrowserDialog = new VistaFolderBrowserDialog())
-            {
-                // Vérifiez si VistaFolderBrowserDialog est pris en charge (pour les versions plus anciennes de Windows)
-                if (!VistaFolderBrowserDialog.IsVistaFolderDialogSupported)
-                {
-                    MessageBox.Show("This feature is not supported on your version of Windows.");
-                    return;
-                }
-
-                // Définir les propriétés du dialogue de dossier
-                folderBrowserDialog.Description = "Select a folder";
-                folderBrowserDialog.UseDescriptionForTitle = true; // Utiliser la description comme titre
-                folderBrowserDialog.ShowNewFolderButton = true; // Permet de créer un nouveau dossier
-
-                // Pré-sélectionner le répertoire "Saved Games"
-                string savedGamesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Saved Games";
-                if (Directory.Exists(savedGamesPath))
-                {
-                    folderBrowserDialog.SelectedPath = savedGamesPath;
-                }
-                else if (Directory.Exists(textBox_OvGME.Text))
-                {
-                    folderBrowserDialog.SelectedPath = textBox_OvGME.Text;
-                }
-
-                // Afficher le dialogue et vérifier si l'utilisateur a sélectionné un dossier
-                if (folderBrowserDialog.ShowDialog() == DialogResult.OK)
-                {
-                    
-                    // Récupérer le chemin du dossier sélectionné
-                    string folderPath = folderBrowserDialog.SelectedPath;
-
-                    // Afficher le chemin dans la TextBox
-                    ParamConf.configDictionary.AddOrUpdate("config_" + ParamConf.NumSelectConfig + "_pathOVGME", SharedData.textBox_DCS);
-                    textBox_OvGME.Text = folderPath;
-                    
-                }
-                else
-                {
-                    //FormUtils.ShowErrorMessage("No folder selected");
-                }
-            }
-
-        }
-
-
-        private void Button_choiceCampaign_Click(object sender, EventArgs e)
-        {
-
-            TestFile.structureValide = false;
-            //TestFile.presenceMisScript = false;
-            //TestFile.presenceScriptMod = false;
-
-            OpenFileDialog fdlg = new OpenFileDialog();
-            string Downloads = "";
-            if (textBox_Campaign.Text == "")
-            {
-                Downloads = System.Environment.ExpandEnvironmentVariables("%USERPROFILE%\\Downloads");
-            }
-            Downloads = textBox_Campaign.Text;
-            fdlg.InitialDirectory = Downloads;
-            fdlg.DefaultExt = ".zip";
-            fdlg.Filter = "ZIP  (.ZIP)|*.zip";
-            fdlg.FilterIndex = 2;
-            fdlg.RestoreDirectory = true;
-            if (fdlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                textBox_Campaign.Text = fdlg.FileName;
-
-                //controle si les elements attendu sont dans le fichier zip
-                using (var archive = ZipFile.Open(fdlg.FileName, ZipArchiveMode.Read))
-                {
-                    foreach (ZipArchiveEntry file in archive.Entries)
-                    {
-                        if (file.FullName.Contains("tech"))
-                        {
-                            TestFile.structureValide = true;
-                            //button_InstallCampaign.Visible = true;
-                        }
-                        if (file.FullName.Contains("Missionscript_mod"))
-                        {
-                            TestFile.presenceMisScript = true;
-                        }
-
-                        //check la version simplifié
-                        if (file.FullName.Contains("camp_init"))
-                        {
-                            TestFile.presenceCampInit = true;
-                        }
-                        if (file.FullName.Contains("oob_air_init"))
-                        {
-                            TestFile.presenceOobAirInit = true;
-                        }
-
-                    }
-                }
-                if (TestFile.structureValide == false & TestFile.presenceCampInit == false)
-                {
-                    MessageBox.Show("\"Tech\" path not found.\n Automatic installation canceled", "Error");
-                }
-                if (TestFile.presenceMisScript == false & TestFile.presenceCampInit == false)
-                {
-                    MessageBox.Show("Missionscript not found", "Information");
-                }
-
-
-            }
-
-        }
-
-
-        private void button_InstallCampaign_Click(object sender, EventArgs e)
-        {
-
-            string combPathDCS = Path.Combine(textBox_DCS.Text, "bin");
-            if (Directory.Exists(combPathDCS))
-            {
-                TestPath.DCS_Root = true;
-            }
-            else
-            {
-                MessageBox.Show("This directory does not appear to be the root folder of DCS: \r\n" + textBox_DCS.Text, "Error");
-                //button_InstallCampaign.Visible = false;
-                return;
-            }
-
-
-
-            string combPathSavedGame = Path.Combine(textBox_SavedGames.Text, "Logs");
-            if (Directory.Exists(combPathSavedGame))
-            {
-                TestPath.OVGME = true;
-            }
-            else
-            {
-                MessageBox.Show("This directory does not seem to be the DCS Saved Games folder: \r\n" + textBox_SavedGames.Text, "Error");
-                //button_InstallCampaign.Visible = false;
-                return;
-            }
-
-
-            string combPathDCE = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
-            if (Directory.Exists(combPathDCE))
-            {
-                TestPath.DCE_alreadyInstalled = true;
-            }
-
-            Cursor.Current = Cursors.WaitCursor;
-
-            //bool findNameCampaign = false;
-            //bool findScriptsMod = false;
-
-            string NameCampaign = "";
-            string zipPath = textBox_Campaign.Text;
-
-            if (File.Exists(textBox_Campaign.Text))
-            {
-
-                //cherche le nom de la campagne dans le fichier zip
-                using (ZipArchive archive = ZipFile.OpenRead(zipPath))
-                {
-                    foreach (ZipArchiveEntry entry in archive.Entries)
-                    {
-                        //bool containsSearchResult = entry.FullName.Contains("Campaigns");
-
-                        //if (containsSearchResult & findNameCampaign == false)
-                        //{
-
-                        //    string[] words = entry.FullName.Split('/');
-                        //    string stringNum = Convert.ToString(words.Length);
-
-                        //    for (int nbFileToUpdat = 0; nbFileToUpdat < words.Length; nbFileToUpdat++)
-                        //    {
-                        //        string stringMot = Convert.ToString(words[nbFileToUpdat].Length);
-                        //        if (entry.Name == "" && words[nbFileToUpdat].Contains("Campaigns") & ((nbFileToUpdat + 1) < words.Length) && (words[nbFileToUpdat + 1].Length > 0) & findNameCampaign == false)
-                        //        {
-                        //            NameCampaign = words[nbFileToUpdat + 1];
-                        //            ParamCampaign.NameCampaign = words[nbFileToUpdat + 1];
-                        //            findNameCampaign = true;
-                        //            break;
-
-                        //        }
-                        //    }
-                        //}
-
-                        if (entry.FullName.Contains("camp_init"))
-                        {
-
-                            // Ouvrir le fichier texte pour lecture
-                            if (entry != null)
-                            {
-                                using (StreamReader reader = new StreamReader(entry.Open()))
-                                {
-                                    string line;
-                                    int lineNumber = 0;
-                                    while ((line = reader.ReadLine()) != null)
-                                    {
-                                        lineNumber++;
-                                        if (line.Contains("title"))
-                                        {
-                                            //	title = "Crisis in PG-Blue",		--Title of campaign (name of missions)
-
-                                            string tempTXT = (string)line;
-                                            string[] words_A = tempTXT.Split(',');
-                                            string[] words = words_A[0].Split('=');
-                                            ParamCampaign.NameCampaign = words[1].Replace("\"", "");
-
-                                            ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimStart();
-                                            ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimEnd();
-                                            NameCampaign = ParamCampaign.NameCampaign;
-                                            //findNameCampaign = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-
-                //if (TestPath.DCE_alreadyInstalled == false && TestFile.structureValide == false  && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
-                if (TestPath.DCE_alreadyInstalled == false  && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
-                {
-                    // Assurez-vous que l'application Windows Forms est configurée
-
-                    // Afficher la boîte de message avec les boutons Yes et No
-                    DialogResult result = MessageBox.Show(
-                        "There are no DCE directories, so you need to create them.",    // Message à afficher
-                        "Create DCE directory",               // Titre de la boîte de message
-                        MessageBoxButtons.YesNo,      // Boutons à afficher
-                        MessageBoxIcon.Question       // Icône à afficher
-                    );
-
-                    // Vérifier le résultat de la boîte de message
-                    if (result == DialogResult.Yes)
-                    {
-                        FormUtils.CreateDCE_Folder();
-
-                        //string combPathDCE_2 = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
-                        if (Directory.Exists(combPathDCE))
-                        {
-                            TestPath.DCE_alreadyInstalled = true;
-                        }
-                    }
-                    else if (result == DialogResult.No)
-                    {
-                        return;
-                    }
-
-                }
-
-
-                //---------------REGARDE si la CAMPAGNE est déjà installée ----------------------
-
-                ParamCampaign.PathCampaign = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign;
-
-                //MessageBox.Show(ParamCampaign.PathCampaign, "info");
-
-                if (Directory.Exists(ParamCampaign.PathCampaign))
-                {
-                    // Afficher la boîte de message avec les boutons Yes et No
-                        DialogResult result = MessageBox.Show(
-                        "The campaign already seems to be already installed. Do you want to overrun it?.",    // Message à afficher
-                        "Attention",               // Titre de la boîte de message
-                        MessageBoxButtons.YesNo,      // Boutons à afficher
-                        MessageBoxIcon.Question       // Icône à afficher
-                     );
-
-                    // Vérifier le résultat de la boîte de message
-                    if (result == DialogResult.No)
-                    {
-                        return;
-                    }
-                }
-                   
-
-
-                //---------------ENREGISTRE ici les fichiers de la campagne ----------------------
-
-                if (TestFile.structureValide  )
-                {
-                    ExtractZipFileToDirectory(textBox_Campaign.Text, true);
-                }
-                else if (TestPath.DCE_alreadyInstalled && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
-                {
-                    ExtractZipFileToDirectoryLight(textBox_Campaign.Text, true);
-                }
-                else
-                {
-                    MessageBox.Show(NameCampaign + "or " + ParamCampaign.NameCampaign + " impossible to add this campaign.\r\n" +
-                         "  ", "Report");
-                    return;
-                }
-
-                TestFile.ScriptsMod = "NG";
-
-
-
-                //ecrit dans le fichier path.bat de la campagne installée:
-
-
-                //REM Core or Main DCS ou DCS.beta path, always end the line with \
-                //set "pathDCS=D:\___DCS___\"
-
-                //REM DCS or DCS.beta saved game path, always end the line with \
-                //set "pathSavedGames=Saved Games\DCS.openbeta\" 
-
-                //REM DCE ScriptMod version not any / or \ and no space before and after =
-                //set "versionPackageICM=20.43.59"
-
-                string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign + @"\Init\path.bat";
-
-
-                string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                               "set \"pathDCS=" + textBox_DCS.Text + "\\\"\r\n" +
-                               "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                               "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
-                               "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
-                               "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
-                               "\r\n" +
-                               "\r\n" +
-                               "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
-
-                System.IO.File.WriteAllText(pathFile, textPathBat);
-
-                //******************new system
-
-                string pathStatus = textBox_SavedGames.Text.Replace(@"\", "/") + "/";
-                string fileNameA = ParamCampaign.NameCampaign + "_first.miz";
-                string pathFirstMission = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns", fileNameA);
-                string tempFilePath = Path.Combine(Path.GetTempPath(), "camp_status.lua"); // Chemin temporaire pour extraire et modifier le fichier
-
-
-                if (File.Exists(pathFirstMission))
-                {
-
-                    // Ouverture du fichier zip en mode Update pour modifier son contenu
-                    using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
-                    {
-                        //string txt = "";
-                        //foreach (ZipArchiveEntry entryB in archive.Entries)
-                        //{
-                        //    txt = txt + entryB.Name + "\r\n";
-                        //}
-                        //MessageBox.Show(txt, "info");
-
-                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
-                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                        if (entry != null)
-                        {
-                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
-                            entry.ExtractToFile(tempFilePath, true);
-
-                            // 2. Modification du fichier temporaire
-                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                            if (nbLigneMod < 1)
-                            {
-                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
-                            }
-
-                            // 3. Suppression de l'ancienne entrée dans le fichier zip
-                            entry.Delete();
-
-                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
-                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
-                        }
-                        else
-                        {
-                            MessageBox.Show("The ‘camp_status.lua’ file cannot be found in the ‘l10n’ folder in the archive.");
-                        }
-                    }
-
-                    // Nettoyage : Suppression du fichier temporaire après modification
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show($"The file {fileNameA} cannot be found in this directory: " + textBox_SavedGames.Text + @"Mods\tech\DCE\Missions\Campaigns");
-                }
-                
-
-                //************************************ONGOIN.MIZ
-
-
-                string fileNameB = ParamCampaign.NameCampaign + "_ongoing.miz";
-                string pathOngoingMission = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + fileNameB;
-
-                if (File.Exists(pathFirstMission))
-                {
-
-                    // Ouverture du fichier zip en mode Update pour modifier son contenu
-                    using (ZipArchive archive = ZipFile.Open(pathOngoingMission, ZipArchiveMode.Update))
-                    {
-                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
-                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                        if (entry != null)
-                        {
-                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
-                            entry.ExtractToFile(tempFilePath, true);
-
-                            // 2. Modification du fichier temporaire
-                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                            if (nbLigneMod < 1)
-                            {
-                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
-                            }
-
-                            // 3. Suppression de l'ancienne entrée dans le fichier zip
-                            entry.Delete();
-
-                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
-                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
-                        }
-                        else
-                        {
-                            MessageBox.Show("Le fichier 'camp_status.lua' est introuvable dans le dossier 'l10n' de l'archive.");
-                        }
-                    }
-
-                    // Nettoyage : Suppression du fichier temporaire après modification
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show($"The file {fileNameB} cannot be found in this directory: " + textBox_SavedGames.Text + @"Mods\tech\DCE\Missions\Campaigns");
-                }
-
-                MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ", "Information");
-
-                FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ");
-
-                //******************FIN du new system
-                
-
-            }
-            else
-            {
-                //button_InstallCampaign.Visible = false;
-                MessageBox.Show("Zip file not found", "Error");
-            }
-
-            Cursor.Current = Cursors.Default;
-
-            //button_InstallCampaign.Visible = false;
-
-            //affiche la ligne campagne en enlevant la derniere campagne, (folder seul sans fichier)
-            string[] wordsBarre = textBox_Campaign.Text.Split('\\');
-            string[] wordsPoint = textBox_Campaign.Text.Split('.');
-
-            if (wordsPoint.Count() > 1 & wordsBarre.Count() > 1)
-            {
-                textBox_Campaign.Text = textBox_Campaign.Text.Replace(wordsBarre[wordsBarre.Count() - 1], "");
-            }
-        }
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -2382,34 +1823,34 @@ namespace DCE_Manager
         {
             // Change the color of the link text by setting LinkVisited
             // to true.
-            linkLabelOvGME.LinkVisited = true;
+            //linkLabelOvGME.LinkVisited = true;
             //Call the Process.Start method to open the default browser
             //with a URL:
             System.Diagnostics.Process.Start("https://wiki.hoggitworld.com/view/OVGME#Download_the_installer");
         }
 
-        private void linkLabelCampaign_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            try
-            {
-                VisitLinkCampaign();
-            }
-            catch (Exception ex)
-            {
-                //MessageBox.Show("Unable to open link that was clicked.");
-                //FormUtils.ShowErrorMessage(ex.Message + " \n Unable to open link that was clicked.");
-                FormUtils.ErrorGeneral_BoxOrLog(ex, " Unable to open link that was clicked. ", " ", true, true);
-            }
-        }
-        private void VisitLinkCampaign()
-        {
-            // Change the color of the link text by setting LinkVisited
-            // to true.
-            linkLabelCampaign.LinkVisited = true;
-            //Call the Process.Start method to open the default browser
-            //with a URL:
-            System.Diagnostics.Process.Start("https://forums.eagle.ru/topic/162712-dce-campaigns/");
-        }
+        //private void linkLabelCampaign_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        //{
+        //    try
+        //    {
+        //        VisitLinkCampaign();
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        //MessageBox.Show("Unable to open link that was clicked.");
+        //        //FormUtils.ShowErrorMessage(ex.Message + " \n Unable to open link that was clicked.");
+        //        FormUtils.ErrorGeneral_BoxOrLog(ex, " Unable to open link that was clicked. ", " ", true, true);
+        //    }
+        //}
+        //private void VisitLinkCampaign()
+        //{
+        //    // Change the color of the link text by setting LinkVisited
+        //    // to true.
+        //    linkLabelCampaign.LinkVisited = true;
+        //    //Call the Process.Start method to open the default browser
+        //    //with a URL:
+        //    System.Diagnostics.Process.Start("https://forums.eagle.ru/topic/162712-dce-campaigns/");
+        //}
 
       
 
@@ -2631,6 +2072,9 @@ namespace DCE_Manager
 
         private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
         {
+            if (_isInitializing)
+                return; // on ignore les changements déclenchés pendant le chargement initial
+
             // 1. On récupère le nom sélectionné (sécurisé avec "as string")
             string selectedName = comboBox_Config.SelectedItem as string;
 
@@ -2653,8 +2097,8 @@ namespace DCE_Manager
             // 4. On remplit les TextBox de façon sécurisée (pour éviter le "vrai bordel" / crashs)
             string prefix = $"config_{ParamConf.NumSelectConfig}_";
 
-            textBox_Campaign.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathZipCampaign", out var p1) ? p1 : "";
-            textBox_DCS.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2) ? p2 : "";
+            //textBox_Campaign.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathZipCampaign", out var p1) ? p1 : "";
+            textBox_PATH_DCS_Root.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2) ? p2 : "";
             textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var p3) ? p3 : "";
             textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var p4) ? p4 : "";
 
@@ -2665,42 +2109,12 @@ namespace DCE_Manager
 
             _ = campaignUpdater.RefreshCampaignUpdates( CampaignDataGridView, textBox_SavedGames.Text);
 
+            InitializeDCS_Installation_Path();
+
             this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + selectedName;
         }
 
-        //private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
-        //{
-
-        //    //TODO, doit y avoir melange dans configMap, un vrai bordel
-        //    if (ParamConf.configMap.TryGetValue((string)comboBox_Config.SelectedItem, out int configNumber))
-        //    {
-        //        ParamConf.NumSelectConfig = configNumber;
-        //    }
-
-        //    ParamConf.configDictionary["display"] = (string)comboBox_Config.SelectedItem;
-
-        //    textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
-
-        //    textBox_DCS.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
-
-        //    textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
-
-        //    textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
-
-        //    //CheckVersionScriptsModLocal();
-
-        //    //MessageBox.Show("ParamConf.NumSelectConfig "+ ParamConf.NumSelectConfig.ToString(), textBox_Campaign.Text);
-
-        //    _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
-
-        //    _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
-
-        //    //CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
-        //    //this.Shown += Form1_Shown;
-
-        //    this.Text = "DCE_Manager - " + (string)comboBox_Config.SelectedItem;
-
-        //}
+       
 
 
         private void m_Button_AddConfig_Click(object sender, EventArgs e)
@@ -2714,11 +2128,11 @@ namespace DCE_Manager
                 return;
             }
 
-            if (textBox_Campaign.Text == "" | textBox_DCS.Text == "" | textBox_SavedGames.Text == "" | textBox_OvGME.Text == "")
-            {
-                MessageBox.Show("Please fill in the paths in the 4 boxes", "Error");
-                return;
-            }
+            //if (textBox_Campaign.Text == "" | textBox_PATH_DCS_Root.Text == "" | textBox_SavedGames.Text == "" | textBox_OvGME.Text == "")
+            //{
+            //    MessageBox.Show("Please fill in the paths in the 4 boxes", "Error");
+            //    return;
+            //}
 
             ParamConf.NumMaxConfig = ParamConf.NumMaxConfig + 1;
             ParamConf.NumSelectConfig = ParamConf.NumMaxConfig;
@@ -2726,9 +2140,9 @@ namespace DCE_Manager
 
             ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_", textBox_Config.Text);
 
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathZipCampaign" , textBox_Campaign.Text);
+            //ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathZipCampaign" , textBox_Campaign.Text);
 
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathDCS", textBox_DCS.Text);
+            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathDCS", textBox_PATH_DCS_Root.Text);
 
             ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathSavedGames", textBox_SavedGames.Text);
 
@@ -2754,8 +2168,8 @@ namespace DCE_Manager
         private void but_EditConfig_Click(object sender, EventArgs e)
         {
             ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = comboBox_Config.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = textBox_Campaign.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = textBox_DCS.Text;
+            //ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = textBox_Campaign.Text;
+            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = textBox_PATH_DCS_Root.Text;
             ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = textBox_SavedGames.Text;
             ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = textBox_OvGME.Text;
 
@@ -2799,8 +2213,8 @@ namespace DCE_Manager
 
                 ParamConf.configDictionary["display"] = comboBox_Config.Text;
 
-                textBox_Campaign.Text = "";
-                textBox_DCS.Text = "";
+                //textBox_Campaign.Text = "";
+                textBox_PATH_DCS_Root.Text = "";
                 textBox_SavedGames.Text = "";
                 textBox_OvGME.Text = "";
                 textBox_Config.Text = "";
@@ -2863,10 +2277,10 @@ namespace DCE_Manager
             Process process = new Process();
             // Configure the process using the StartInfo properties.BoxOvGME
             //process.StartInfo.FileName = ParamCampaign.pathCampaign + @"\FirstMission.bat";
-            process.StartInfo.FileName = textBox_DCS.Text + @"\bin\DCS.exe";
+            process.StartInfo.FileName = textBox_PATH_DCS_Root.Text + @"\bin\DCS.exe";
             process.StartInfo.Arguments = " ";
             process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-            process.StartInfo.WorkingDirectory = textBox_DCS.Text + @"\bin";
+            process.StartInfo.WorkingDirectory = textBox_PATH_DCS_Root.Text + @"\bin";
 
             process.Start();
         }
@@ -2924,7 +2338,7 @@ namespace DCE_Manager
 
         private void checkBoxSanitize_CheckedChanged(object sender, EventArgs e)
         {
-            string pathFile = textBox_DCS.Text + @"\Scripts\MissionScripting.lua";
+            string pathFile = textBox_PATH_DCS_Root.Text + @"\Scripts\MissionScripting.lua";
             var tmp = Environment.GetEnvironmentVariable("tmp");
             string pathFileTemp = tmp + @"\MissionScriptingTMP.lua";
 
@@ -2950,16 +2364,16 @@ namespace DCE_Manager
 
                         if (line.IndexOf("sanitizeModule('os") > -1 | line.IndexOf("sanitizeModule('io") > -1)
                         {
-                            if (checkBoxSanitize.Checked == true)
-                            {
-                                string ligneModifiee = "--" + line;
-                                FormUtils.ModifierLigneByNumber(pathFile, i, ligneModifiee);
-                            }
-                            else
-                            {
-                                string ligneModifiee = line.Replace("--", "");
-                                FormUtils.ModifierLigneByNumber(pathFile, i, ligneModifiee);
-                            }
+                            //if (checkBoxSanitize.Checked == true)
+                            //{
+                            //    string ligneModifiee = "--" + line;
+                            //    FormUtils.ModifierLigneByNumber(pathFile, i, ligneModifiee);
+                            //}
+                            //else
+                            //{
+                            //    string ligneModifiee = line.Replace("--", "");
+                            //    FormUtils.ModifierLigneByNumber(pathFile, i, ligneModifiee);
+                            //}
                                
                         }
 
@@ -3182,9 +2596,9 @@ namespace DCE_Manager
         private void butClient_Click(object sender, EventArgs e)
         {
             groupBox4.Visible = false;
-            checkBoxActiveFolder.Visible = false;
-            checkBox_OvwNGfolder.Visible = false;
-            checkBoxSanitize.Visible = false;
+            //checkBoxActiveFolder.Visible = false;
+            //checkBox_OvwNGfolder.Visible = false;
+            //checkBoxSanitize.Visible = false;
             LabelStatut.Text = "User";
             this.Text = "DCE_Manager - User - " + ParamConf.CurrentConfigName;
             ParamManager.userLevel = 1;
@@ -3196,9 +2610,9 @@ namespace DCE_Manager
         private void but_Expert_Click(object sender, EventArgs e)
         {
             groupBox4.Visible = true;
-            checkBoxActiveFolder.Visible = true;
-            checkBox_OvwNGfolder.Visible = true;
-            checkBoxSanitize.Visible = true;
+            //checkBoxActiveFolder.Visible = true;
+            //checkBox_OvwNGfolder.Visible = true;
+            //checkBoxSanitize.Visible = true;
             textBox_id_client.Visible = false;
             LabelStatut.Text = "Expert";
             this.Text = "DCE_Manager - Expert - " + ParamConf.CurrentConfigName;
@@ -3269,6 +2683,22 @@ namespace DCE_Manager
             if (e.RowIndex < 0)
                 return;
 
+            if (CampaignDataGridView.Columns[e.ColumnIndex].Name == "Repo")
+            {
+                CampaignInfo campaignRepo = campaignUpdater.GetCampaignFromRow(e.RowIndex);
+
+                if (campaignRepo != null && !string.IsNullOrWhiteSpace(campaignRepo.RepositoryUrl))
+                {
+                    System.Diagnostics.Process.Start(new ProcessStartInfo
+                    {
+                        FileName = campaignRepo.RepositoryUrl,
+                        UseShellExecute = true
+                    });
+                }
+
+                return;
+            }
+
             if (CampaignDataGridView.Columns[e.ColumnIndex].Name != "Action")
                 return;
 
@@ -3321,9 +2751,15 @@ namespace DCE_Manager
                     textBox_SavedGames.Text,
                     campaign);
 
-                FormUtils.LogRegister("FormMain Campaign installed RefreshCampaignUpdates()");
+                //FormUtils.LogRegister("FormMain Campaign installed RefreshCampaignUpdates()");
 
-                await campaignUpdater.RefreshCampaignUpdates(
+                //await campaignUpdater.RefreshCampaignUpdates(
+                //    CampaignDataGridView,
+                //    textBox_SavedGames.Text);
+
+                FormUtils.LogRegister("FormMain Campaign installed - rafraîchissement local (sans requête GitHub)");
+
+                campaignUpdater.RefreshCampaignUpdatesLocalOnly(
                     CampaignDataGridView,
                     textBox_SavedGames.Text);
 
@@ -3488,15 +2924,9 @@ namespace DCE_Manager
             }
         }
 
-        private void lbl_ViewLogTitle_Click(object sender, EventArgs e)
-        {
+ 
 
-        }
 
-        private void label_tolls_Click(object sender, EventArgs e)
-        {
-
-        }
     }
 
 }

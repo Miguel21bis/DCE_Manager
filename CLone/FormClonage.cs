@@ -44,52 +44,7 @@ namespace DCE_Manager
                 MessageBox.Show("Le Form1 passé au constructeur est NULL !");
             }
 
-            //Lua lua = new Lua();
-
-            //lua["versionPackageICM"] = "NG";
-            //lua["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG"; 
-            //lua["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + OldNameCamp;
-            //lua["generator"] = "DCE_Manager";
-            //lua["pathSavedGames"] = SharedData.textBox_SavedGames;
-            //// Crée la table Debug avec la clé "debug" à false
-            //var debugTable = new Dictionary<string, object>
-            //{
-            //    { "debug", false }
-            //};
-            //lua["Debug"] = debugTable;
-
-            //lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
-
-            //var result = lua.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua");
-
-            ////LuaTable luaTable = (LuaTable)result[0];
-            ////LuaTable tabSquad = (LuaTable)luaTable["tabSquad"];
-
-            //if (result == null || result.Length == 0 || result[0] == null)
-            //{
-            //    MessageBox.Show("Le script Lua n'a pas retourné de résultat valide.");
-            //    return;
-            //}
-
-            //LuaTable luaTable = result[0] as LuaTable;
-            //if (luaTable == null)
-            //{
-            //    MessageBox.Show("luaTable est NULL !");
-            //    return;
-            //}
-
-            //if (!luaTable.Keys.Cast<object>().Contains("tabSquad"))
-            //{
-            //    MessageBox.Show("tabSquad n'existe pas dans luaTable !");
-            //    return;
-            //}
-
-            //LuaTable tabSquad = luaTable["tabSquad"] as LuaTable;
-            //if (tabSquad == null)
-            //{
-            //    MessageBox.Show("tabSquad est NULL !");
-            //    return;
-            //}
+            
 
             if (_campaignContext.LuaData.TabSquad.Count == 0)
             {
@@ -108,14 +63,7 @@ namespace DCE_Manager
                 comboPlaneChoice.SelectedIndex = 0;
             }
 
-            //var enumerator = TabSquad.GetEnumerator();
-            //int i = 1;
-            //while (enumerator.MoveNext())
-            //{
-            //    comboPlaneChoice.Items.Add(enumerator.Value.ToString());
-            //    comboPlaneChoice.SelectedItem = enumerator.Value.ToString();
-            //    i++;
-            //}
+            
 
             string tempTXT = comboPlaneChoice.SelectedItem as string;
 
@@ -190,35 +138,7 @@ namespace DCE_Manager
                 //TODO ajouter SelectedItem ici
             }
 
-            //// Créer le dictionnaire pour stocker les données
-            //var taskByPlane = new Dictionary<string, Dictionary<string, bool>>();
-
-            //// Parcourir la table Lua
-            //foreach (var key in taskByPlaneLua.Keys)
-            //{
-            //    string planeName = key.ToString();
-            //    LuaTable taskTable = (LuaTable)taskByPlaneLua[key];
-
-            //    var taskDictionary = new Dictionary<string, bool>();
-            //    foreach (var taskKey in taskTable.Keys)
-            //    {
-            //        string taskName = taskKey.ToString();
-            //        bool taskValue = (bool)taskTable[taskKey];
-            //        taskDictionary[taskName] = taskValue;
-            //    }
-
-            //    taskByPlane[planeName] = taskDictionary;
-            //}
-
-            //// Charger le tableau playable_m
-            //LuaTable playable_mLua = (LuaTable)luaTable["playable_m"];
-            //List<string> playableList = new List<string>();
-
-            //// Parcourir la table Lua
-            //foreach (var plane in playable_mLua.Keys)
-            //{
-            //    playableList.Add(plane.ToString());
-            //}
+           
 
 
             //*************************************************************************
@@ -533,90 +453,6 @@ namespace DCE_Manager
                     }
                 }
 
-
-
-                //IDictionary<int, string> pathOobAir = new Dictionary<int, string>();
-                //string pathFile = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp + @"\Init\oob_air_init.lua";
-                //pathOobAir.Add(1, pathFile); //adding a key/value using the Add() method
-
-                //pathFile = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp + @"\Active\oob_air.lua";
-                //pathOobAir.Add(2, pathFile);
-
-
-                //Form1.CampaignTab.Text = "";
-                //Form1.groupBoxCampEdit.Text = nameCamp;
-                //Form1.CampaignTab.Visible = true;
-
-
-                //for (int d = 1; d <= 2; d++)
-                //{
-                    
-                    ////*************************************************************************
-                    ////RECUPERATION Briefing Campaign ********************************************************
-                    ////PARSE camp_trigger_init ********************************************************
-                    ////*************************************************************************
-
-                    //string campTrigger = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp + @"\Init\camp_triggers_init.lua";
-
-                    //LuaParse C_campTrigger = new LuaParse();
-
-                    //Form1.ParamCampaign.NameFileParse = campTrigger;
-
-                    //C_campTrigger.Parse(File.ReadAllText(campTrigger));
-
-                    //string BriefingCampaign = "";
-
-                    //foreach (KeyValuePair<string, LuaObject> entry1 in C_campTrigger.Val)
-                    //{
-                    //    foreach (KeyValuePair<string, LuaObject> entry2 in entry1.Value)
-                    //    {
-                    //        if ((entry1.Key == "Campaign Briefing"))
-                    //        {
-                    //            //Form1.LogRegister("entry2.Key "+ entry2.Key);
-                    //        }
-
-                    //        if ((entry1.Key == "Campaign Briefing" & entry2.Key == "action"))
-                    //        {
-                    //            foreach (KeyValuePair<string, LuaObject> entry3 in entry2.Value)
-                    //            {
-                    //                 if (entry3.Value.luaobj.ToString().IndexOf("Action.AddImage") > -1)
-                    //                {
-                    //                     break;
-                    //                }
-                    //                BriefingCampaign = BriefingCampaign + entry3.Value.luaobj.ToString();
-
-                    //            }
-                    //        }
-                    //    }
-                    //}
-
-                    
-                    //BriefingCampaign = BriefingCampaign.Replace("'Action.Text(\"", "").Replace("\")'", "\r\n").Replace("\"", "\r\n");
-                    
-                    //BriefingCampaign = Regex.Replace(BriefingCampaign, @"\[.\]=", "");
-
-                    //Form1.textBoxCampBriefing.Text = BriefingCampaign;
-
-
-                    ////*************************************************************************
-                    ////IMAGE Campagne **********************************************************
-                    //// ************************************************************************
-                    ////*************************************************************************
-
-                    //string campPath = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp;
-                    ////Form1.pictureBoxCampImage.Image = Image.FromFile(campPath + ".bmp");
-
-                    //string imagePath = campPath + ".bmp";
-                    //using (Image image = Image.FromFile(imagePath, true))
-                    //{
-                    //    Form1.pictureBoxCampImage.Image?.Dispose();
-                    //    Form1.pictureBoxCampImage.Image = new Bitmap(image);
-                    //}
-
-
-                   
-
-                //}
 
             }   ////PARSE LEs FICHIERs //oob_air_init et //oob_air
         

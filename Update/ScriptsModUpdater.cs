@@ -126,8 +126,7 @@ namespace DCE_Manager.Update
                 if (!success)
                     return;
 
-                form.ScriptsModStatusLabel.Text =
-                    "Downloading...";
+                form.ScriptsModStatusLabel.Text = "Downloading...";
 
                 await Task.Delay(300);
 
@@ -177,27 +176,23 @@ namespace DCE_Manager.Update
                     }
                 }
 
-                form.ScriptsModStatusLabel.Text =
-                    "Download completed";
+                form.ScriptsModStatusLabel.Text = "Download completed";
 
                 await Task.Delay(400);
 
-                form.ScriptsModStatusLabel.Text =
-                    "Installing...";
+                form.ScriptsModStatusLabel.Text = "Installing...";
 
                 await Task.Delay(300);
 
                 await InstallLatestScriptsMod(destinationFile);
 
-                form.ScriptsModStatusLabel.Text =
-                    "Checking installation...";
+                form.ScriptsModStatusLabel.Text = "Checking installation...";
 
                 await Task.Delay(300);
 
                 await CheckGithubScriptsModVersionAsync();
 
-                form.ScriptsModStatusLabel.Text =
-                    "Updated successfully";
+                form.ScriptsModStatusLabel.Text = "Updated successfully";
 
                 updateSucceeded = true;
 
@@ -225,10 +220,34 @@ namespace DCE_Manager.Update
                     false,
                     true);
             }
-            catch (Exception ex)
+            catch (UnauthorizedAccessException ex)
             {
                 form.ScriptsModStatusLabel.Text =
-                    "Update failed";
+                    "Installation failed";
+
+                form.ScriptsModUpdateButton.Enabled = true;
+
+                MessageBox.Show(
+                    "Access denied while installing ScriptsMod.\r\n\r\n" +
+                    "This is usually caused by an antivirus temporarily locking the files, " +
+                    "or a cloud sync tool (OneDrive) accessing the Saved Games folder.\r\n\r\n" +
+                    "Please add an exception for your DCS Saved Games folder in your antivirus, " +
+                    "or pause OneDrive sync, then try again.\r\n\r\n" +
+                    "Technical detail: " + ex.Message,
+                    "ScriptsMod Update - Access Denied",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                FormUtils.ErrorGeneral_BoxOrLog(
+                    ex,
+                    "DownloadLatestScriptsMod // UnauthorizedAccess",
+                    "",
+                    false,
+                    true);
+            }
+            catch (Exception ex)
+            {
+                form.ScriptsModStatusLabel.Text = "Update failed";
 
                 form.ScriptsModUpdateButton.Enabled = true;
 
@@ -249,185 +268,208 @@ namespace DCE_Manager.Update
         }
 
         // Installe le ScriptsMod téléchargé.
-        // Pourquoi : remplacer automatiquement l'ancienne version.
+        // Pourquoi : extraire directement dans un dossier définitif ".new",
+        // puis ne faire que des bascules de dossier (rapides, peu sensibles à l'antivirus)
+        // au lieu de recopier chaque fichier un par un.
         public async Task InstallLatestScriptsMod(string zipFile)
         {
-            form.ScriptsModStatusLabel.Text =
-                "Extracting package...";
-
-
-            string tempFolder = Path.Combine(
-                ParamUpdater.PathTemp,
-                "ScriptsMod");
-
-            if (Directory.Exists(tempFolder))
-            {
-                Directory.Delete(
-                    tempFolder,
-                    true);
-            }
-
-            Directory.CreateDirectory(tempFolder);
-
-            ZipFile.ExtractToDirectory(
-                zipFile,
-                tempFolder);
-
-            foreach (string dir in Directory.GetDirectories(
-                tempFolder,
-                "*",
-                SearchOption.AllDirectories))
-            {
-                FormUtils.LogRegister("DIR : " + dir);
-            }
-
-            foreach (string file in Directory.GetFiles(
-                tempFolder,
-                "*.*",
-                SearchOption.AllDirectories))
-            {
-                FormUtils.LogRegister("FILE : " + file);
-            }
-
-            await Task.Delay(300);
-
-            //********************
-            form.ScriptsModStatusLabel.Text = "Verifying package...";
-
-            await Task.Delay(300);
-
-            // Vérifie simplement que l'archive contient bien UTIL_Changelog.lua
-            string changelog =
-                Path.Combine(
-                    tempFolder,
-                    "UTIL_Changelog.lua");
-            if (!File.Exists(changelog))
-            {
-                throw new Exception(
-                    "Invalid ScriptsMod package.");
-            }
-
-            await ReplaceScriptsMod(tempFolder);
-
-
-            Directory.Delete(
-                tempFolder,
-                true);
-        }
-
-        // Remplace le ScriptsMod installé.
-        // Pourquoi : installer la nouvelle version en conservant un rollback.
-        public async Task ReplaceScriptsMod(string newFolder)
-        {
-            form.ScriptsModStatusLabel.Text =
-                "Installing...";
+            form.ScriptsModStatusLabel.Text = "Extracting package...";
 
             string destinationFolder =
                 Path.Combine(
                     form.textBox_SavedGames.Text,
                     @"Mods\tech\DCE\ScriptsMod.NG");
 
-            string backupFolder =
-                destinationFolder + ".old";
+            string newFolder = destinationFolder + ".new";
 
+            if (Directory.Exists(newFolder))
+            {
+                Directory.Delete(newFolder, true);
+            }
+
+            ZipFile.ExtractToDirectory(zipFile, newFolder);
+
+            foreach (string dir in Directory.GetDirectories(
+                newFolder, "*", SearchOption.AllDirectories))
+            {
+                FormUtils.LogRegister("DIR : " + dir);
+            }
+
+            foreach (string file in Directory.GetFiles(
+                newFolder, "*.*", SearchOption.AllDirectories))
+            {
+                FormUtils.LogRegister("FILE : " + file);
+            }
+
+            await Task.Delay(300);
+
+            form.ScriptsModStatusLabel.Text = "Verifying package...";
+
+            await Task.Delay(300);
+
+            // Vérifie simplement que l'archive contient bien UTIL_Changelog.lua
+            string changelog = Path.Combine(newFolder, "UTIL_Changelog.lua");
+
+            if (!File.Exists(changelog))
+            {
+                Directory.Delete(newFolder, true);
+
+                throw new Exception("Invalid ScriptsMod package.");
+            }
+
+            await ReplaceScriptsMod(newFolder);
+        }
+
+        // Bascule le dossier ScriptsMod vers la nouvelle version.
+        // Pourquoi : un renommage de dossier est quasi-instantané et beaucoup moins
+        // sensible aux verrous antivirus/OneDrive qu'une copie fichier par fichier.
+        public async Task ReplaceScriptsMod(string newFolder)
+        {
+            form.ScriptsModStatusLabel.Text = "Installing...";
+
+            string destinationFolder =
+                Path.Combine(
+                    form.textBox_SavedGames.Text,
+                    @"Mods\tech\DCE\ScriptsMod.NG");
+
+            string backupFolder = destinationFolder + ".old";
+
+            // Nettoyage d'un éventuel ".old" orphelin laissé par une tentative précédente échouée
             if (Directory.Exists(backupFolder))
             {
-                Directory.Delete(
-                    backupFolder,
-                    true);
+                Directory.Delete(backupFolder, true);
             }
 
+            // Étape 1 : ancien dossier -> .old (bascule rapide, avec tentatives en cas de verrou transitoire)
             if (Directory.Exists(destinationFolder))
             {
-                try
-                {
-                    Directory.Move(
-                        destinationFolder,
-                        backupFolder);
-                }
-                catch (IOException ex)
-                {
-                    throw new IOException(
-                        "ScriptsMod is currently in use.",
-                        ex);
-                }
+                Exception moveOldError =
+                    await TryMoveWithRetryAsync(destinationFolder, backupFolder);
 
+                if (moveOldError != null)
+                {
+                    // Rien n'a encore été touché côté destination : on nettoie juste le nouveau dossier extrait
+                    if (Directory.Exists(newFolder))
+                        Directory.Delete(newFolder, true);
+
+                    throw new IOException(
+                        "ScriptsMod is currently in use (or blocked by antivirus/cloud sync).",
+                        moveOldError);
+                }
             }
 
-            CopyDirectory(
-                newFolder,
-                destinationFolder);
+            // Étape 2 : nouveau dossier .new -> destination finale (bascule rapide également)
+            Exception moveNewError =
+                await TryMoveWithRetryAsync(newFolder, destinationFolder);
+
+            if (moveNewError != null)
+            {
+                // Rollback : on restaure l'ancienne version si elle existe encore en backup
+                if (Directory.Exists(backupFolder) && !Directory.Exists(destinationFolder))
+                {
+                    Directory.Move(backupFolder, destinationFolder);
+                }
+
+                throw new IOException(
+                    "Could not finalize ScriptsMod installation (antivirus/cloud sync?).",
+                    moveNewError);
+            }
 
             await Task.Delay(300);
 
-            form.ScriptsModStatusLabel.Text =
-                "Checking installation...";
+            form.ScriptsModStatusLabel.Text = "Checking installation...";
 
             await Task.Delay(300);
 
-            string version =
-                GetLocalScriptsModVersion();
+            string version = GetLocalScriptsModVersion();
 
             if (version == ParamGithub.LastVersion)
             {
                 if (Directory.Exists(backupFolder))
                 {
-                    Directory.Delete(
-                        backupFolder,
-                        true);
+                    Directory.Delete(backupFolder, true);
                 }
 
-                form.ScriptsModStatusLabel.Text =
-                    "Updated successfully";
+                form.ScriptsModStatusLabel.Text = "Updated successfully";
 
                 await CheckGithubScriptsModVersionAsync();
             }
             else
             {
-                Directory.Delete(
-                    destinationFolder,
-                    true);
+                if (Directory.Exists(destinationFolder))
+                {
+                    Directory.Delete(destinationFolder, true);
+                }
 
-                Directory.Move(
-                    backupFolder,
-                    destinationFolder);
+                if (Directory.Exists(backupFolder))
+                {
+                    Directory.Move(backupFolder, destinationFolder);
+                }
 
-                form.ScriptsModStatusLabel.Text =
-                    "Installation failed";
+                form.ScriptsModStatusLabel.Text = "Installation failed";
 
-                MessageBox.Show(
-                    "Previous version restored.");
+                MessageBox.Show("Previous version restored.");
             }
         }
 
-        // Copie récursivement un dossier.
-        // Pourquoi : installer le nouveau ScriptsMod.
-        public void CopyDirectory(
-            string source,
-            string destination)
+        // Tente un Directory.Move plusieurs fois avant d'abandonner.
+        // Pourquoi : absorbe les verrous transitoires (antivirus, OneDrive) sans échouer immédiatement.
+        // Retourne null en cas de succès, ou la dernière exception rencontrée en cas d'échec définitif.
+        private async Task<Exception> TryMoveWithRetryAsync(
+            string source, string destination, int maxAttempts = 3)
         {
-            Directory.CreateDirectory(
-                destination);
+            Exception lastError = null;
 
-            foreach (string file in Directory.GetFiles(source))
+            for (int attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                File.Copy(
-                    file,
-                    Path.Combine(
-                        destination,
-                        Path.GetFileName(file)),
-                    true);
+                try
+                {
+                    Directory.Move(source, destination);
+                    return null; // succès
+                }
+                catch (IOException ex)
+                {
+                    lastError = ex;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    lastError = ex;
+                }
+
+                await Task.Delay(500);
             }
 
-            foreach (string dir in Directory.GetDirectories(source))
-            {
-                CopyDirectory(
-                    dir,
-                    Path.Combine(
-                        destination,
-                        Path.GetFileName(dir)));
-            }
+            return lastError;
         }
+
+        //// Copie récursivement un dossier.
+        //// Pourquoi : installer le nouveau ScriptsMod.
+        //public void CopyDirectory(
+        //    string source,if (string.IsNullOrWhiteSpace(localVersion))
+        //    string destination)
+        //{
+        //    Directory.CreateDirectory(
+        //        destination);
+
+        //    foreach (string file in Directory.GetFiles(source))
+        //    {
+        //        File.Copy(
+        //            file,
+        //            Path.Combine(
+        //                destination,
+        //                Path.GetFileName(file)),
+        //            true);
+        //    }
+
+        //    foreach (string dir in Directory.GetDirectories(source))
+        //    {
+        //        CopyDirectory(
+        //            dir,
+        //            Path.Combine(
+        //                destination,
+        //                Path.GetFileName(dir)));
+        //    }
+        //}
 
         // Vérifie si le dossier ScriptsMod peut être modifié.
         // Pourquoi : éviter de lancer une installation qui échouera immédiatement.
@@ -466,10 +508,12 @@ namespace DCE_Manager.Update
                 form.ScriptsModStatusLabel.Text = "Not installed";
                 form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_warning_blue_30;
 
+                UpdateUtils.RefreshUpdateTab(form);
+
                 return;
             }
 
-            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod Local Version : " + localVersion);
+            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync A ScriptsMod Local Version : " + localVersion);
 
             bool success =
                  await github.GetLatestRelease(
@@ -485,7 +529,14 @@ namespace DCE_Manager.Update
                     });
 
             if (!success)
+            {
+                form.ScriptsModStatusLabel.Text = github.GetStatusMessage();
+                form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_warning_blue_30;
+
+                UpdateUtils.RefreshUpdateTab(form);
+
                 return;
+            }
 
             string githubVersion = ParamGithub.LastVersion;
 
@@ -496,7 +547,7 @@ namespace DCE_Manager.Update
 
             form.ScriptsModAvailableVersion.Text = githubVersion;
 
-            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync ScriptsMod GitHub Version : " + githubVersion);
+            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync D ScriptsMod GitHub Version : " + githubVersion);
 
 
             bool updateAvailable = UpdateUtils.IsVersionNewer(githubVersion, localVersion);
@@ -512,7 +563,7 @@ namespace DCE_Manager.Update
                 form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_ok_24;
             }
 
-            form.ScriptsModUpdateButton.Visible = updateAvailable;
+            //form.ScriptsModUpdateButton.Visible = updateAvailable;
 
             //UpdateUtils.RefreshUpdateTab(form);
 
@@ -523,7 +574,7 @@ namespace DCE_Manager.Update
             form.ScriptsModUpdateButton.Visible =
                 updateAvailable;
 
-            //UpdateUtils.RefreshUpdateTab(form);
+            UpdateUtils.RefreshUpdateTab(form);
 
         }
 

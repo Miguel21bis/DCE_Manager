@@ -23,8 +23,8 @@ namespace DCE_Manager
                 campaignName +
                 @"\Init\camp_triggers_init.lua";
 
-            FormUtils.LogRegister(
-                "TriggerParser.cs: campTrigger = " + campTrigger);
+            //FormUtils.LogRegister(
+            //    "TriggerParser.cs: campTrigger = " + campTrigger);
 
             ParamCampaign.NameFileParse = campTrigger;
 

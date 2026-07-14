@@ -55,7 +55,14 @@ namespace DCE_Manager.Update
                     });
 
             if (!success)
+            {
+                form.DCEManagerStatusLabel.Text = github.GetStatusMessage();
+                form.pictureBox_DCE_Manager_Status.Image = Properties.Resources.icons8_warning_blue_30;
+
+                UpdateUtils.RefreshUpdateTab(form);
+
                 return;
+            }
 
             form.DCEManagerInstalledVersion.Text = localVersion;
 

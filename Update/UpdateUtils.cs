@@ -49,7 +49,7 @@ namespace DCE_Manager.Update
                 ParamUpdater.NbUpdateAvailable += form.campaignUpdater.GetUpdateCount();
 
             TabPage updateTab =
-                form.tabControl.TabPages["tabPageLeft_Update"];
+                form.tabControl_LEFT.TabPages["tabPageLeft_Update"];
 
             FormUtils.LogRegister(
                 "RefreshUpdateTab() nbUpdate: " +
