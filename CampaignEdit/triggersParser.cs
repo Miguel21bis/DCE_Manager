@@ -18,7 +18,7 @@ namespace DCE_Manager
             string briefingCampaign = "";
 
             string campTrigger =
-                SharedData.textBox_SavedGames +
+                ParamConf.PATH_SavedGames_DCS +
                 @"\Mods\tech\DCE\Missions\Campaigns\" +
                 campaignName +
                 @"\Init\camp_triggers_init.lua";

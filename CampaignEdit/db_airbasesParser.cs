@@ -25,7 +25,7 @@ namespace DCE_Manager
         {
             var timer = Stopwatch.StartNew();
 
-            string pathFile = Path.Combine( SharedData.textBox_SavedGames, @"Mods\tech\DCE\Missions\Campaigns",
+            string pathFile = Path.Combine( ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns",
                 campaignName, folderName, "db_airbases.lua"
             );
 

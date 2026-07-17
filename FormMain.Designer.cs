@@ -40,7 +40,7 @@ namespace DCE_Manager
             this.m_but_Install_Browse_OVGME = new System.Windows.Forms.Button();
             this.Label_DCS = new System.Windows.Forms.Label();
             this.textBox_SavedGames = new System.Windows.Forms.TextBox();
-            this.button1 = new System.Windows.Forms.Button();
+            this.button_EXIT = new System.Windows.Forms.Button();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.label1 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
@@ -51,7 +51,6 @@ namespace DCE_Manager
             this.tabPageLeft_Install = new System.Windows.Forms.TabPage();
             this.panel_install_campaign = new System.Windows.Forms.Panel();
             this.label_install_campaign = new System.Windows.Forms.Label();
-            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.panel_PATH = new System.Windows.Forms.Panel();
             this.but_PATH_CANCEL = new System.Windows.Forms.Button();
             this.but_PATH_SAVE = new System.Windows.Forms.Button();
@@ -68,16 +67,6 @@ namespace DCE_Manager
             this.Box_DCS_Root = new System.Windows.Forms.GroupBox();
             this.Label_subLabel_DCS = new System.Windows.Forms.Label();
             this.pic_DCS_Root = new System.Windows.Forms.PictureBox();
-            this.groupBox4 = new System.Windows.Forms.GroupBox();
-            this.groupBox8 = new System.Windows.Forms.GroupBox();
-            this.comboBox_Config = new System.Windows.Forms.ComboBox();
-            this.m_Button_Config_Del = new System.Windows.Forms.Button();
-            this.button6 = new System.Windows.Forms.Button();
-            this.groupBox5 = new System.Windows.Forms.GroupBox();
-            this.textBox_Config = new System.Windows.Forms.TextBox();
-            this.m_Button_AddConfig = new System.Windows.Forms.Button();
-            this.groupBoxCampEdit = new System.Windows.Forms.GroupBox();
-            this.label4 = new System.Windows.Forms.Label();
             this.tabPageLeft_Campaigns = new System.Windows.Forms.TabPage();
             this.dataGridViewCampaigns = new System.Windows.Forms.DataGridView();
             this.tabPageLeft_Update = new System.Windows.Forms.TabPage();
@@ -150,18 +139,14 @@ namespace DCE_Manager
             this.textBox_changelog = new System.Windows.Forms.TextBox();
             this.textBox_Credits = new System.Windows.Forms.TextBox();
             this.label5 = new System.Windows.Forms.Label();
+            this.comboBox_Config = new System.Windows.Forms.ComboBox();
             this.VersionDceManager = new System.Windows.Forms.Label();
-            this.LabelStatut = new System.Windows.Forms.Label();
             this.pictureBox5 = new System.Windows.Forms.PictureBox();
             this.pictureBoxOvGME = new System.Windows.Forms.PictureBox();
             this.groupBoxDroiteAccueil = new System.Windows.Forms.GroupBox();
             this.textBox_id_client = new System.Windows.Forms.TextBox();
-            this.but_Mode_CAMPAIGN_M = new System.Windows.Forms.Button();
-            this.but_Mode_EXPERT = new System.Windows.Forms.Button();
-            this.but_Mode_USER = new System.Windows.Forms.Button();
             this.CampaignTab = new System.Windows.Forms.TabControl();
             this.tabPage6 = new System.Windows.Forms.TabPage();
-            this.pictureBoxCampImage = new System.Windows.Forms.PictureBox();
             this.textBoxCampBriefing = new System.Windows.Forms.TextBox();
             this.tabPage14 = new System.Windows.Forms.TabPage();
             this.dataGridViewBlue = new System.Windows.Forms.DataGridView();
@@ -175,10 +160,12 @@ namespace DCE_Manager
             this.buttonResetBackup = new System.Windows.Forms.Button();
             this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
-            this.panel2 = new System.Windows.Forms.Panel();
+            this.panel_but_monitoring_campaign = new System.Windows.Forms.Panel();
             this.panel_Droite = new System.Windows.Forms.Panel();
-            this.panel3 = new System.Windows.Forms.Panel();
-            this.label_MOD = new System.Windows.Forms.Label();
+            this.panel_configuration = new System.Windows.Forms.Panel();
+            this.but_Configuration_Edit = new System.Windows.Forms.Button();
+            this.label_Config = new System.Windows.Forms.Label();
+            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox3)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
@@ -192,10 +179,6 @@ namespace DCE_Manager
             ((System.ComponentModel.ISupportInitialize)(this.pic_SavedGame)).BeginInit();
             this.Box_DCS_Root.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pic_DCS_Root)).BeginInit();
-            this.groupBox4.SuspendLayout();
-            this.groupBox8.SuspendLayout();
-            this.groupBox5.SuspendLayout();
-            this.groupBoxCampEdit.SuspendLayout();
             this.tabPageLeft_Campaigns.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).BeginInit();
             this.tabPageLeft_Update.SuspendLayout();
@@ -227,15 +210,14 @@ namespace DCE_Manager
             this.groupBoxDroiteAccueil.SuspendLayout();
             this.CampaignTab.SuspendLayout();
             this.tabPage6.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCampImage)).BeginInit();
             this.tabPage14.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).BeginInit();
             this.tabPage15.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).BeginInit();
             this.tabPage12.SuspendLayout();
-            this.panel2.SuspendLayout();
+            this.panel_but_monitoring_campaign.SuspendLayout();
             this.panel_Droite.SuspendLayout();
-            this.panel3.SuspendLayout();
+            this.panel_configuration.SuspendLayout();
             this.SuspendLayout();
             // 
             // m_But_Install_Browse_DcsPath
@@ -317,15 +299,15 @@ namespace DCE_Manager
             this.textBox_SavedGames.TabIndex = 5;
             this.textBox_SavedGames.Visible = false;
             // 
-            // button1
+            // button_EXIT
             // 
-            this.button1.Location = new System.Drawing.Point(310, 347);
-            this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 8;
-            this.button1.Text = "Exit";
-            this.button1.UseVisualStyleBackColor = true;
-            this.button1.Click += new System.EventHandler(this.button1_Click);
+            this.button_EXIT.Location = new System.Drawing.Point(310, 347);
+            this.button_EXIT.Name = "button_EXIT";
+            this.button_EXIT.Size = new System.Drawing.Size(75, 23);
+            this.button_EXIT.TabIndex = 8;
+            this.button_EXIT.Text = "Exit";
+            this.button_EXIT.UseVisualStyleBackColor = true;
+            this.button_EXIT.Click += new System.EventHandler(this.button_EXIT_Click);
             // 
             // label1
             // 
@@ -387,7 +369,7 @@ namespace DCE_Manager
             this.tabControl_LEFT.Location = new System.Drawing.Point(3, 11);
             this.tabControl_LEFT.Name = "tabControl_LEFT";
             this.tabControl_LEFT.SelectedIndex = 0;
-            this.tabControl_LEFT.Size = new System.Drawing.Size(816, 681);
+            this.tabControl_LEFT.Size = new System.Drawing.Size(816, 589);
             this.tabControl_LEFT.TabIndex = 18;
             // 
             // tabPageLeft_Install
@@ -395,11 +377,10 @@ namespace DCE_Manager
             this.tabPageLeft_Install.BackColor = System.Drawing.SystemColors.Control;
             this.tabPageLeft_Install.Controls.Add(this.panel_install_campaign);
             this.tabPageLeft_Install.Controls.Add(this.panel_PATH);
-            this.tabPageLeft_Install.Controls.Add(this.groupBox4);
             this.tabPageLeft_Install.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Install.Name = "tabPageLeft_Install";
             this.tabPageLeft_Install.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeft_Install.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_Install.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_Install.TabIndex = 0;
             this.tabPageLeft_Install.Text = "Install";
             // 
@@ -423,21 +404,6 @@ namespace DCE_Manager
             this.label_install_campaign.Size = new System.Drawing.Size(176, 21);
             this.label_install_campaign.TabIndex = 28;
             this.label_install_campaign.Text = "INSTALL A CAMPAIGN";
-            // 
-            // dropZoneControl1
-            // 
-            this.dropZoneControl1.AllowDrop = true;
-            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
-            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.dropZoneControl1.CustomIcon = null;
-            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
-            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
-            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
-            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
-            this.dropZoneControl1.Name = "dropZoneControl1";
-            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
-            this.dropZoneControl1.SubText = "or click to browse";
-            this.dropZoneControl1.TabIndex = 27;
             // 
             // panel_PATH
             // 
@@ -520,9 +486,9 @@ namespace DCE_Manager
             this.label_OVGME_b.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label_OVGME_b.Location = new System.Drawing.Point(62, 17);
             this.label_OVGME_b.Name = "label_OVGME_b";
-            this.label_OVGME_b.Size = new System.Drawing.Size(85, 15);
+            this.label_OVGME_b.Size = new System.Drawing.Size(153, 15);
             this.label_OVGME_b.TabIndex = 6;
-            this.label_OVGME_b.Text = "OVGME Folder";
+            this.label_OVGME_b.Text = "PATH_OVGME_MOD Folder";
             // 
             // Box_DCS_SavedGame
             // 
@@ -625,104 +591,6 @@ namespace DCE_Manager
             this.pic_DCS_Root.TabIndex = 9;
             this.pic_DCS_Root.TabStop = false;
             // 
-            // groupBox4
-            // 
-            this.groupBox4.Controls.Add(this.groupBox8);
-            this.groupBox4.Controls.Add(this.groupBox5);
-            this.groupBox4.Controls.Add(this.groupBoxCampEdit);
-            this.groupBox4.Location = new System.Drawing.Point(216, 545);
-            this.groupBox4.Name = "groupBox4";
-            this.groupBox4.Size = new System.Drawing.Size(323, 104);
-            this.groupBox4.TabIndex = 22;
-            this.groupBox4.TabStop = false;
-            this.groupBox4.Text = "Config Name (optional)";
-            this.groupBox4.Visible = false;
-            // 
-            // groupBox8
-            // 
-            this.groupBox8.Controls.Add(this.comboBox_Config);
-            this.groupBox8.Controls.Add(this.m_Button_Config_Del);
-            this.groupBox8.Controls.Add(this.button6);
-            this.groupBox8.Location = new System.Drawing.Point(6, 57);
-            this.groupBox8.Name = "groupBox8";
-            this.groupBox8.Size = new System.Drawing.Size(276, 40);
-            this.groupBox8.TabIndex = 27;
-            this.groupBox8.TabStop = false;
-            // 
-            // comboBox_Config
-            // 
-            this.comboBox_Config.FormattingEnabled = true;
-            this.comboBox_Config.Location = new System.Drawing.Point(6, 12);
-            this.comboBox_Config.Name = "comboBox_Config";
-            this.comboBox_Config.Size = new System.Drawing.Size(121, 21);
-            this.comboBox_Config.TabIndex = 18;
-            this.comboBox_Config.SelectedIndexChanged += new System.EventHandler(this.comboBox_Config_SelectedIndexChanged);
-            // 
-            // m_Button_Config_Del
-            // 
-            this.m_Button_Config_Del.Location = new System.Drawing.Point(200, 11);
-            this.m_Button_Config_Del.Name = "m_Button_Config_Del";
-            this.m_Button_Config_Del.Size = new System.Drawing.Size(63, 20);
-            this.m_Button_Config_Del.TabIndex = 21;
-            this.m_Button_Config_Del.Text = "Delete";
-            this.m_Button_Config_Del.UseVisualStyleBackColor = true;
-            this.m_Button_Config_Del.Click += new System.EventHandler(this.m_Button_Config_Del_Click);
-            // 
-            // button6
-            // 
-            this.button6.Location = new System.Drawing.Point(133, 11);
-            this.button6.Name = "button6";
-            this.button6.Size = new System.Drawing.Size(63, 20);
-            this.button6.TabIndex = 22;
-            this.button6.Text = "Edit/Save";
-            this.button6.UseVisualStyleBackColor = true;
-            this.button6.Click += new System.EventHandler(this.but_EditConfig_Click);
-            // 
-            // groupBox5
-            // 
-            this.groupBox5.Controls.Add(this.textBox_Config);
-            this.groupBox5.Controls.Add(this.m_Button_AddConfig);
-            this.groupBox5.Location = new System.Drawing.Point(6, 19);
-            this.groupBox5.Name = "groupBox5";
-            this.groupBox5.Size = new System.Drawing.Size(200, 40);
-            this.groupBox5.TabIndex = 26;
-            this.groupBox5.TabStop = false;
-            // 
-            // textBox_Config
-            // 
-            this.textBox_Config.Location = new System.Drawing.Point(6, 12);
-            this.textBox_Config.Name = "textBox_Config";
-            this.textBox_Config.Size = new System.Drawing.Size(121, 20);
-            this.textBox_Config.TabIndex = 19;
-            // 
-            // m_Button_AddConfig
-            // 
-            this.m_Button_AddConfig.Location = new System.Drawing.Point(133, 12);
-            this.m_Button_AddConfig.Name = "m_Button_AddConfig";
-            this.m_Button_AddConfig.Size = new System.Drawing.Size(63, 20);
-            this.m_Button_AddConfig.TabIndex = 20;
-            this.m_Button_AddConfig.Text = "New";
-            this.m_Button_AddConfig.UseVisualStyleBackColor = true;
-            this.m_Button_AddConfig.Click += new System.EventHandler(this.m_Button_AddConfig_Click);
-            // 
-            // groupBoxCampEdit
-            // 
-            this.groupBoxCampEdit.Controls.Add(this.label4);
-            this.groupBoxCampEdit.Location = new System.Drawing.Point(319, 82);
-            this.groupBoxCampEdit.Name = "groupBoxCampEdit";
-            this.groupBoxCampEdit.Size = new System.Drawing.Size(280, 263);
-            this.groupBoxCampEdit.TabIndex = 24;
-            this.groupBoxCampEdit.TabStop = false;
-            this.groupBoxCampEdit.Visible = false;
-            // 
-            // label4
-            // 
-            this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(184, 377);
-            this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(0, 13);
-            this.label4.TabIndex = 10;
-            // 
             // tabPageLeft_Campaigns
             // 
             this.tabPageLeft_Campaigns.Controls.Add(this.dataGridViewCampaigns);
@@ -730,7 +598,7 @@ namespace DCE_Manager
             this.tabPageLeft_Campaigns.Margin = new System.Windows.Forms.Padding(2);
             this.tabPageLeft_Campaigns.Name = "tabPageLeft_Campaigns";
             this.tabPageLeft_Campaigns.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPageLeft_Campaigns.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_Campaigns.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_Campaigns.TabIndex = 6;
             this.tabPageLeft_Campaigns.Text = "Campaigns";
             this.tabPageLeft_Campaigns.UseVisualStyleBackColor = true;
@@ -749,7 +617,7 @@ namespace DCE_Manager
             this.dataGridViewCampaigns.RowHeadersWidth = 51;
             this.dataGridViewCampaigns.RowTemplate.Height = 80;
             this.dataGridViewCampaigns.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dataGridViewCampaigns.Size = new System.Drawing.Size(806, 561);
+            this.dataGridViewCampaigns.Size = new System.Drawing.Size(806, 559);
             this.dataGridViewCampaigns.TabIndex = 0;
             // 
             // tabPageLeft_Update
@@ -760,7 +628,7 @@ namespace DCE_Manager
             this.tabPageLeft_Update.Controls.Add(this.groupBox2);
             this.tabPageLeft_Update.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Update.Name = "tabPageLeft_Update";
-            this.tabPageLeft_Update.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_Update.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_Update.TabIndex = 2;
             this.tabPageLeft_Update.Text = "Update";
             // 
@@ -1137,7 +1005,7 @@ namespace DCE_Manager
             this.tabPageLeftNews.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeftNews.Name = "tabPageLeftNews";
             this.tabPageLeftNews.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeftNews.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeftNews.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeftNews.TabIndex = 4;
             this.tabPageLeftNews.Text = "News";
             // 
@@ -1171,7 +1039,7 @@ namespace DCE_Manager
             this.tabPageLeft_Tools.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Tools.Name = "tabPageLeft_Tools";
             this.tabPageLeft_Tools.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeft_Tools.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_Tools.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_Tools.TabIndex = 5;
             this.tabPageLeft_Tools.Text = "Tools";
             // 
@@ -1211,6 +1079,7 @@ namespace DCE_Manager
             this.but_ASTI.TabIndex = 1;
             this.but_ASTI.Text = "ASTI";
             this.but_ASTI.UseVisualStyleBackColor = true;
+            this.but_ASTI.Click += new System.EventHandler(this.but_ASTI_Click);
             // 
             // button_theWay
             // 
@@ -1235,7 +1104,7 @@ namespace DCE_Manager
             this.tabPageLeft_Options.Margin = new System.Windows.Forms.Padding(2);
             this.tabPageLeft_Options.Name = "tabPageLeft_Options";
             this.tabPageLeft_Options.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPageLeft_Options.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_Options.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_Options.TabIndex = 7;
             this.tabPageLeft_Options.Text = "Options";
             // 
@@ -1453,7 +1322,7 @@ namespace DCE_Manager
             this.tabPageLeft_About.Controls.Add(this.label5);
             this.tabPageLeft_About.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_About.Name = "tabPageLeft_About";
-            this.tabPageLeft_About.Size = new System.Drawing.Size(808, 655);
+            this.tabPageLeft_About.Size = new System.Drawing.Size(808, 563);
             this.tabPageLeft_About.TabIndex = 3;
             this.tabPageLeft_About.Text = "About";
             // 
@@ -1522,6 +1391,15 @@ namespace DCE_Manager
             this.label5.TabIndex = 0;
             this.label5.Text = "Credits :";
             // 
+            // comboBox_Config
+            // 
+            this.comboBox_Config.FormattingEnabled = true;
+            this.comboBox_Config.Location = new System.Drawing.Point(169, 8);
+            this.comboBox_Config.Name = "comboBox_Config";
+            this.comboBox_Config.Size = new System.Drawing.Size(121, 21);
+            this.comboBox_Config.TabIndex = 18;
+            this.comboBox_Config.SelectedIndexChanged += new System.EventHandler(this.comboBox_Config_SelectedIndexChanged);
+            // 
             // VersionDceManager
             // 
             this.VersionDceManager.AutoSize = true;
@@ -1531,15 +1409,6 @@ namespace DCE_Manager
             this.VersionDceManager.TabIndex = 19;
             this.VersionDceManager.Text = "Version";
             this.VersionDceManager.Click += new System.EventHandler(this.VersionDceManager_Click);
-            // 
-            // LabelStatut
-            // 
-            this.LabelStatut.AutoSize = true;
-            this.LabelStatut.Location = new System.Drawing.Point(68, 11);
-            this.LabelStatut.Name = "LabelStatut";
-            this.LabelStatut.Size = new System.Drawing.Size(29, 13);
-            this.LabelStatut.TabIndex = 20;
-            this.LabelStatut.Text = "User";
             // 
             // pictureBox5
             // 
@@ -1570,14 +1439,14 @@ namespace DCE_Manager
             this.groupBoxDroiteAccueil.Controls.Add(this.textBox_id_client);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBoxOvGME);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox1);
-            this.groupBoxDroiteAccueil.Controls.Add(this.button1);
+            this.groupBoxDroiteAccueil.Controls.Add(this.button_EXIT);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox5);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox3);
             this.groupBoxDroiteAccueil.Controls.Add(this.label1);
             this.groupBoxDroiteAccueil.Controls.Add(this.VersionDceManager);
             this.groupBoxDroiteAccueil.Controls.Add(this.label3);
             this.groupBoxDroiteAccueil.Controls.Add(this.pictureBox2);
-            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(915, 68);
+            this.groupBoxDroiteAccueil.Location = new System.Drawing.Point(914, 50);
             this.groupBoxDroiteAccueil.Name = "groupBoxDroiteAccueil";
             this.groupBoxDroiteAccueil.Size = new System.Drawing.Size(447, 400);
             this.groupBoxDroiteAccueil.TabIndex = 23;
@@ -1595,42 +1464,6 @@ namespace DCE_Manager
             this.textBox_id_client.TabStop = false;
             this.textBox_id_client.Visible = false;
             // 
-            // but_Mode_CAMPAIGN_M
-            // 
-            this.but_Mode_CAMPAIGN_M.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.but_Mode_CAMPAIGN_M.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.but_Mode_CAMPAIGN_M.Location = new System.Drawing.Point(284, 5);
-            this.but_Mode_CAMPAIGN_M.Name = "but_Mode_CAMPAIGN_M";
-            this.but_Mode_CAMPAIGN_M.Size = new System.Drawing.Size(75, 23);
-            this.but_Mode_CAMPAIGN_M.TabIndex = 25;
-            this.but_Mode_CAMPAIGN_M.Text = "CAMPAIGN-Maker";
-            this.but_Mode_CAMPAIGN_M.UseVisualStyleBackColor = true;
-            this.but_Mode_CAMPAIGN_M.Click += new System.EventHandler(this.butCampMaker_Click);
-            // 
-            // but_Mode_EXPERT
-            // 
-            this.but_Mode_EXPERT.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.but_Mode_EXPERT.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.but_Mode_EXPERT.Location = new System.Drawing.Point(203, 5);
-            this.but_Mode_EXPERT.Name = "but_Mode_EXPERT";
-            this.but_Mode_EXPERT.Size = new System.Drawing.Size(75, 23);
-            this.but_Mode_EXPERT.TabIndex = 24;
-            this.but_Mode_EXPERT.Text = "EXPERT";
-            this.but_Mode_EXPERT.UseVisualStyleBackColor = true;
-            this.but_Mode_EXPERT.Click += new System.EventHandler(this.but_Expert_Click);
-            // 
-            // but_Mode_USER
-            // 
-            this.but_Mode_USER.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.but_Mode_USER.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.but_Mode_USER.Location = new System.Drawing.Point(122, 5);
-            this.but_Mode_USER.Name = "but_Mode_USER";
-            this.but_Mode_USER.Size = new System.Drawing.Size(75, 23);
-            this.but_Mode_USER.TabIndex = 23;
-            this.but_Mode_USER.Text = "USER";
-            this.but_Mode_USER.UseVisualStyleBackColor = true;
-            this.but_Mode_USER.Click += new System.EventHandler(this.butClient_Click);
-            // 
             // CampaignTab
             // 
             this.CampaignTab.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -1641,10 +1474,10 @@ namespace DCE_Manager
             this.CampaignTab.Controls.Add(this.tabPage15);
             this.CampaignTab.Controls.Add(this.tabPage11);
             this.CampaignTab.Controls.Add(this.tabPage12);
-            this.CampaignTab.Location = new System.Drawing.Point(20, 58);
+            this.CampaignTab.Location = new System.Drawing.Point(3, 20);
             this.CampaignTab.Name = "CampaignTab";
             this.CampaignTab.SelectedIndex = 0;
-            this.CampaignTab.Size = new System.Drawing.Size(534, 441);
+            this.CampaignTab.Size = new System.Drawing.Size(551, 479);
             this.CampaignTab.TabIndex = 11;
             this.CampaignTab.Visible = false;
             // 
@@ -1655,18 +1488,9 @@ namespace DCE_Manager
             this.tabPage6.Location = new System.Drawing.Point(4, 22);
             this.tabPage6.Name = "tabPage6";
             this.tabPage6.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage6.Size = new System.Drawing.Size(526, 415);
+            this.tabPage6.Size = new System.Drawing.Size(543, 453);
             this.tabPage6.TabIndex = 0;
             this.tabPage6.Text = "Intro";
-            // 
-            // pictureBoxCampImage
-            // 
-            this.pictureBoxCampImage.Location = new System.Drawing.Point(821, 10);
-            this.pictureBoxCampImage.Name = "pictureBoxCampImage";
-            this.pictureBoxCampImage.Size = new System.Drawing.Size(34, 187);
-            this.pictureBoxCampImage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBoxCampImage.TabIndex = 1;
-            this.pictureBoxCampImage.TabStop = false;
             // 
             // textBoxCampBriefing
             // 
@@ -1684,7 +1508,7 @@ namespace DCE_Manager
             this.tabPage14.Margin = new System.Windows.Forms.Padding(2);
             this.tabPage14.Name = "tabPage14";
             this.tabPage14.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPage14.Size = new System.Drawing.Size(526, 415);
+            this.tabPage14.Size = new System.Drawing.Size(543, 453);
             this.tabPage14.TabIndex = 7;
             this.tabPage14.Text = "OOB Blue";
             this.tabPage14.UseVisualStyleBackColor = true;
@@ -1700,7 +1524,7 @@ namespace DCE_Manager
             this.dataGridViewBlue.Name = "dataGridViewBlue";
             this.dataGridViewBlue.RowHeadersWidth = 51;
             this.dataGridViewBlue.RowTemplate.Height = 24;
-            this.dataGridViewBlue.Size = new System.Drawing.Size(557, 416);
+            this.dataGridViewBlue.Size = new System.Drawing.Size(574, 454);
             this.dataGridViewBlue.TabIndex = 14;
             // 
             // tabPage15
@@ -1710,7 +1534,7 @@ namespace DCE_Manager
             this.tabPage15.Margin = new System.Windows.Forms.Padding(2);
             this.tabPage15.Name = "tabPage15";
             this.tabPage15.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPage15.Size = new System.Drawing.Size(526, 415);
+            this.tabPage15.Size = new System.Drawing.Size(543, 453);
             this.tabPage15.TabIndex = 8;
             this.tabPage15.Text = "OOB Red";
             this.tabPage15.UseVisualStyleBackColor = true;
@@ -1726,14 +1550,14 @@ namespace DCE_Manager
             this.dataGridViewRed.Name = "dataGridViewRed";
             this.dataGridViewRed.RowHeadersWidth = 51;
             this.dataGridViewRed.RowTemplate.Height = 24;
-            this.dataGridViewRed.Size = new System.Drawing.Size(561, 414);
+            this.dataGridViewRed.Size = new System.Drawing.Size(578, 469);
             this.dataGridViewRed.TabIndex = 15;
             // 
             // tabPage11
             // 
             this.tabPage11.Location = new System.Drawing.Point(4, 22);
             this.tabPage11.Name = "tabPage11";
-            this.tabPage11.Size = new System.Drawing.Size(526, 415);
+            this.tabPage11.Size = new System.Drawing.Size(543, 453);
             this.tabPage11.TabIndex = 5;
             this.tabPage11.Text = "Options";
             // 
@@ -1743,7 +1567,7 @@ namespace DCE_Manager
             this.tabPage12.Location = new System.Drawing.Point(4, 22);
             this.tabPage12.Name = "tabPage12";
             this.tabPage12.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage12.Size = new System.Drawing.Size(526, 415);
+            this.tabPage12.Size = new System.Drawing.Size(543, 453);
             this.tabPage12.TabIndex = 6;
             this.tabPage12.Text = "Bugs";
             this.tabPage12.UseVisualStyleBackColor = true;
@@ -1757,7 +1581,7 @@ namespace DCE_Manager
             this.textBox_Bugs.Multiline = true;
             this.textBox_Bugs.Name = "textBox_Bugs";
             this.textBox_Bugs.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_Bugs.Size = new System.Drawing.Size(584, 405);
+            this.textBox_Bugs.Size = new System.Drawing.Size(601, 460);
             this.textBox_Bugs.TabIndex = 1;
             // 
             // radioButton_OOB_INIT
@@ -1814,61 +1638,84 @@ namespace DCE_Manager
             this.buttonSaveChgtCampaign.Visible = false;
             this.buttonSaveChgtCampaign.Click += new System.EventHandler(this.buttonSaveChgtCampaign_Click);
             // 
-            // panel2
+            // panel_but_monitoring_campaign
             // 
-            this.panel2.Controls.Add(this.radioButton_OOB_INIT);
-            this.panel2.Controls.Add(this.radioButton_OOB_ACTIVE);
-            this.panel2.Controls.Add(this.buttonSaveChgtCampaign);
-            this.panel2.Controls.Add(this.buttonResetBackup);
-            this.panel2.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel2.Location = new System.Drawing.Point(0, 505);
-            this.panel2.Name = "panel2";
-            this.panel2.Size = new System.Drawing.Size(557, 37);
-            this.panel2.TabIndex = 25;
+            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_OOB_INIT);
+            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_OOB_ACTIVE);
+            this.panel_but_monitoring_campaign.Controls.Add(this.buttonSaveChgtCampaign);
+            this.panel_but_monitoring_campaign.Controls.Add(this.buttonResetBackup);
+            this.panel_but_monitoring_campaign.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panel_but_monitoring_campaign.Location = new System.Drawing.Point(0, 505);
+            this.panel_but_monitoring_campaign.Name = "panel_but_monitoring_campaign";
+            this.panel_but_monitoring_campaign.Size = new System.Drawing.Size(557, 37);
+            this.panel_but_monitoring_campaign.TabIndex = 25;
             // 
             // panel_Droite
             // 
-            this.panel_Droite.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.panel_Droite.Controls.Add(this.panel2);
+            this.panel_Droite.Controls.Add(this.panel_but_monitoring_campaign);
             this.panel_Droite.Controls.Add(this.CampaignTab);
-            this.panel_Droite.Location = new System.Drawing.Point(855, 96);
+            this.panel_Droite.Location = new System.Drawing.Point(855, 58);
             this.panel_Droite.Name = "panel_Droite";
             this.panel_Droite.Size = new System.Drawing.Size(557, 542);
             this.panel_Droite.TabIndex = 26;
             // 
-            // panel3
+            // panel_configuration
             // 
-            this.panel3.Controls.Add(this.label_MOD);
-            this.panel3.Controls.Add(this.LabelStatut);
-            this.panel3.Controls.Add(this.but_Mode_USER);
-            this.panel3.Controls.Add(this.but_Mode_CAMPAIGN_M);
-            this.panel3.Controls.Add(this.but_Mode_EXPERT);
-            this.panel3.Location = new System.Drawing.Point(940, 2);
-            this.panel3.Margin = new System.Windows.Forms.Padding(2);
-            this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(412, 37);
-            this.panel3.TabIndex = 27;
+            this.panel_configuration.Controls.Add(this.but_Configuration_Edit);
+            this.panel_configuration.Controls.Add(this.comboBox_Config);
+            this.panel_configuration.Controls.Add(this.label_Config);
+            this.panel_configuration.Location = new System.Drawing.Point(925, 11);
+            this.panel_configuration.Margin = new System.Windows.Forms.Padding(2);
+            this.panel_configuration.Name = "panel_configuration";
+            this.panel_configuration.Size = new System.Drawing.Size(412, 37);
+            this.panel_configuration.TabIndex = 28;
             // 
-            // label_MOD
+            // but_Configuration_Edit
             // 
-            this.label_MOD.AutoSize = true;
-            this.label_MOD.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label_MOD.Location = new System.Drawing.Point(3, 9);
-            this.label_MOD.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
-            this.label_MOD.Name = "label_MOD";
-            this.label_MOD.Size = new System.Drawing.Size(37, 13);
-            this.label_MOD.TabIndex = 26;
-            this.label_MOD.Text = "Mode";
+            this.but_Configuration_Edit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.but_Configuration_Edit.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.but_Configuration_Edit.Location = new System.Drawing.Point(310, 7);
+            this.but_Configuration_Edit.Name = "but_Configuration_Edit";
+            this.but_Configuration_Edit.Size = new System.Drawing.Size(75, 23);
+            this.but_Configuration_Edit.TabIndex = 27;
+            this.but_Configuration_Edit.Text = "Edit";
+            this.but_Configuration_Edit.UseVisualStyleBackColor = true;
+            this.but_Configuration_Edit.Click += new System.EventHandler(this.but_EditConfig_Click);
+            // 
+            // label_Config
+            // 
+            this.label_Config.AutoSize = true;
+            this.label_Config.Font = new System.Drawing.Font("Segoe UI", 7.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_Config.Location = new System.Drawing.Point(3, 9);
+            this.label_Config.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
+            this.label_Config.Name = "label_Config";
+            this.label_Config.Size = new System.Drawing.Size(122, 13);
+            this.label_Config.TabIndex = 26;
+            this.label_Config.Text = "Current Configuration";
+            // 
+            // dropZoneControl1
+            // 
+            this.dropZoneControl1.AllowDrop = true;
+            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
+            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.dropZoneControl1.CustomIcon = null;
+            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
+            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
+            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
+            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
+            this.dropZoneControl1.Name = "dropZoneControl1";
+            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
+            this.dropZoneControl1.SubText = "or click to browse";
+            this.dropZoneControl1.TabIndex = 27;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.ClientSize = new System.Drawing.Size(1412, 716);
+            this.ClientSize = new System.Drawing.Size(1424, 619);
             this.Controls.Add(this.groupBoxDroiteAccueil);
-            this.Controls.Add(this.pictureBoxCampImage);
-            this.Controls.Add(this.panel3);
+            this.Controls.Add(this.panel_configuration);
             this.Controls.Add(this.tabControl_LEFT);
             this.Controls.Add(this.panel_Droite);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -1895,12 +1742,6 @@ namespace DCE_Manager
             this.Box_DCS_Root.ResumeLayout(false);
             this.Box_DCS_Root.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pic_DCS_Root)).EndInit();
-            this.groupBox4.ResumeLayout(false);
-            this.groupBox8.ResumeLayout(false);
-            this.groupBox5.ResumeLayout(false);
-            this.groupBox5.PerformLayout();
-            this.groupBoxCampEdit.ResumeLayout(false);
-            this.groupBoxCampEdit.PerformLayout();
             this.tabPageLeft_Campaigns.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewCampaigns)).EndInit();
             this.tabPageLeft_Update.ResumeLayout(false);
@@ -1944,18 +1785,17 @@ namespace DCE_Manager
             this.CampaignTab.ResumeLayout(false);
             this.tabPage6.ResumeLayout(false);
             this.tabPage6.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pictureBoxCampImage)).EndInit();
             this.tabPage14.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).EndInit();
             this.tabPage15.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).EndInit();
             this.tabPage12.ResumeLayout(false);
             this.tabPage12.PerformLayout();
-            this.panel2.ResumeLayout(false);
-            this.panel2.PerformLayout();
+            this.panel_but_monitoring_campaign.ResumeLayout(false);
+            this.panel_but_monitoring_campaign.PerformLayout();
             this.panel_Droite.ResumeLayout(false);
-            this.panel3.ResumeLayout(false);
-            this.panel3.PerformLayout();
+            this.panel_configuration.ResumeLayout(false);
+            this.panel_configuration.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -1972,7 +1812,7 @@ namespace DCE_Manager
         public System.Windows.Forms.TextBox textBox_SavedGames;
         private System.Windows.Forms.Label Label_DCS;
         private System.Windows.Forms.Button button_InstallCampaign;
-        private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Button button_EXIT;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.TextBox textBox_OvGME;
         private System.Windows.Forms.Button m_but_Install_Browse_OVGME;
@@ -1992,12 +1832,7 @@ namespace DCE_Manager
         private System.Windows.Forms.TextBox textBox_Credits;
         private System.Windows.Forms.Label label5;
         public System.Windows.Forms.ComboBox comboBox_Config;
-        private System.Windows.Forms.Button m_Button_AddConfig;
-        private System.Windows.Forms.TextBox textBox_Config;
-        private System.Windows.Forms.Button m_Button_Config_Del;
-        private System.Windows.Forms.GroupBox groupBox4;
         private System.Windows.Forms.Label VersionDceManager;
-        public System.Windows.Forms.Label LabelStatut;
         private System.Windows.Forms.TextBox textBox_changelog;
         private System.Windows.Forms.GroupBox groupBox6;
         public System.Windows.Forms.Button DCEManagerUpdateButton;
@@ -2021,7 +1856,6 @@ namespace DCE_Manager
         private System.Windows.Forms.Button buttonResetBackup;
         private System.Windows.Forms.ToolTip toolTip3;
         public System.Windows.Forms.TextBox textBoxCampBriefing;
-        public System.Windows.Forms.PictureBox pictureBoxCampImage;
         public System.Windows.Forms.TabPage tabPage11;
         public System.Windows.Forms.TextBox textBox_Bugs;
         public System.Windows.Forms.TabPage tabPage12;
@@ -2033,14 +1867,6 @@ namespace DCE_Manager
 
         private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label2;
-
-        
-        private System.Windows.Forms.Button button6;
-        private System.Windows.Forms.Button but_Mode_USER;
-        private System.Windows.Forms.Button but_Mode_EXPERT;
-        private System.Windows.Forms.GroupBox groupBox8;
-        private System.Windows.Forms.GroupBox groupBox5;
-        private System.Windows.Forms.Button but_Mode_CAMPAIGN_M;
 
         public System.Windows.Forms.Button but_ASTI;
         private System.Windows.Forms.TextBox textBox_ASTI;
@@ -2055,9 +1881,7 @@ namespace DCE_Manager
         public System.Windows.Forms.RadioButton radioButton_OOB_INIT;
         public System.Windows.Forms.Label ScriptsModStatusLabel;
         private System.Windows.Forms.Label label11;
-        public System.Windows.Forms.Panel panel2;
-        public System.Windows.Forms.GroupBox groupBoxCampEdit;
-        private System.Windows.Forms.Label label4;
+        public System.Windows.Forms.Panel panel_but_monitoring_campaign;
         private System.Windows.Forms.Panel panel_Droite;
         private System.Windows.Forms.TabPage tabPageLeft_Options;
         private System.Windows.Forms.CheckBox checkBox_Stat_anonym;
@@ -2115,10 +1939,11 @@ namespace DCE_Manager
         public System.Windows.Forms.Button but_PATH_CANCEL;
         public System.Windows.Forms.Button but_PATH_SAVE;
         private Controls.DropZoneControl dropZoneControl1;
-        private System.Windows.Forms.Panel panel3;
-        private System.Windows.Forms.Label label_MOD;
         private System.Windows.Forms.Panel panel_install_campaign;
         private System.Windows.Forms.Label label_install_campaign;
+        private System.Windows.Forms.Panel panel_configuration;
+        private System.Windows.Forms.Button but_Configuration_Edit;
+        private System.Windows.Forms.Label label_Config;
     }
 }
 

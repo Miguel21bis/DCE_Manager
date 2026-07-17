@@ -19,10 +19,10 @@ namespace DCE_Manager
             Lua lua = new Lua();
 
             lua["versionPackageICM"] = "NG";
-            lua["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG";
-            lua["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + campaignName;
+            lua["pathScriptsMod"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG";
+            lua["pathCampaign"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + campaignName;
             lua["generator"] = "DCE_Manager";
-            lua["pathSavedGames"] = SharedData.textBox_SavedGames;
+            lua["PATH_SavedGames_DCS"] = ParamConf.PATH_SavedGames_DCS;
 
             lua["Debug"] = new Dictionary<string, object>
             {
@@ -34,7 +34,7 @@ namespace DCE_Manager
             if (!_cache.ContainsKey(campaignName))
             {
                 _cache[campaignName] = lua.DoFile(
-                    SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua"
+                    ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua"
                 );
             }
 

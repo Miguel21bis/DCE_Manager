@@ -29,14 +29,16 @@ namespace DCE_Manager
                 // Le chemin est valide !
                 pic_DCS_Root.Image = Properties.Resources.icons8_ok_24;
                 Label_subLabel_DCS.Text = DCS_RootPath;
-                //TestPath.DCS_Root = true;
+                ParamConf.PATH_DCS_Root = DCS_RootPath;
+                //ParamConf.test_DCS_Root = true;
             }
             else
             {
                 // Le chemin est vide ou invalide
                 pic_DCS_Root.Image = Properties.Resources.icons8_warning_blue_30;
                 Label_subLabel_DCS.Text = "";
-                //TestPath.DCS_Root = false;
+                ParamConf.PATH_DCS_Root = "";
+                //ParamConf.test_DCS_Root = false;
             }
 
             //---textBox_SavedGames
@@ -52,14 +54,16 @@ namespace DCE_Manager
                 // Le chemin est valide !
                 pic_SavedGame.Image = Properties.Resources.icons8_ok_24;
                 label_subLabel_SavedGame_Folder.Text = savedGamesPath;
-                //TestPath.SavedGames = true;
+                ParamConf.PATH_SavedGames_DCS = savedGamesPath;
+                //ParamConf.SavedGames = true;
             }
             else
             {
                 // Le chemin est vide ou invalide
                 pic_SavedGame.Image = Properties.Resources.icons8_warning_blue_30;
                 label_subLabel_SavedGame_Folder.Text = "";
-                //TestPath.DCS_Root = false;
+                ParamConf.PATH_SavedGames_DCS = "";
+                //ParamConf.test_DCS_Root = false;
             }
 
             //--OvGMEPath
@@ -73,17 +77,19 @@ namespace DCE_Manager
                 // Le chemin est valide !
                 pic_OVGME.Image = Properties.Resources.icons8_ok_24;
                 label_sub_OVGME.Text = ovGMEPath;
+                ParamConf.PATH_OVGME_MOD = ovGMEPath;
 
                 // Si tu as une variable de test comme pour DCS, n'oublie pas de la mettre à true :
-                // TestPath.OvGME_Root = true;
+                // ParamConf.OvGME_Root = true;
             }
             else
             {
                 // Le chemin est vide ou invalide
                 pic_OVGME.Image = Properties.Resources.icons8_warning_blue_30;
                 label_sub_OVGME.Text = ""; // Ou laisser vide "" si tu préfères
+                ParamConf.PATH_OVGME_MOD = "";
 
-                // TestPath.OvGME_Root = false;
+                // ParamConf.OvGME_Root = false;
             }
         }
 
@@ -122,7 +128,7 @@ namespace DCE_Manager
 
                     // Afficher le chemin dans la TextBox
                     textBox_PATH_DCS_Root.Text = folderPath;
-                    TestPath.DCS_Root = true;
+                    ParamConf.test_DCS_Root = true;
 
                     string combPath = Path.Combine(folderPath, "bin");
                     if (Directory.Exists(combPath))
@@ -130,12 +136,14 @@ namespace DCE_Manager
                         // Le chemin est valide !
                         pic_DCS_Root.Image = Properties.Resources.icons8_ok_24;
                         Label_subLabel_DCS.Text = folderPath;
+                        ParamConf.PATH_DCS_Root = folderPath;
                     }
                     else
                     {
                         // Le chemin est vide ou invalide
                         pic_DCS_Root.Image = Properties.Resources.icons8_warning_blue_30;
                         Label_subLabel_DCS.Text = "";
+                        ParamConf.PATH_DCS_Root = "";
 
                         //MessageBox.Show("This folder does not seem to be the one of DCS.", words[words.Length - 1]);
                         MessageBox.Show("This directory does not appear to be the root folder of DCS: \r\n" + folderPath, "Error");
@@ -186,7 +194,7 @@ namespace DCE_Manager
 
                     // Afficher le chemin dans la TextBox
                     textBox_SavedGames.Text = folderPath;
-                    //TestPath.OVGME = true;
+                    //ParamConf.PATH_OVGME_MOD = true;
 
                     string combPath = Path.Combine(folderPath, "Logs");
                     if (Directory.Exists(combPath))
@@ -275,7 +283,7 @@ namespace DCE_Manager
             string combPathDCS = Path.Combine(textBox_PATH_DCS_Root.Text, "bin");
             if (Directory.Exists(combPathDCS))
             {
-                TestPath.DCS_Root = true;
+                ParamConf.test_DCS_Root = true;
             }
             else
             {
@@ -289,7 +297,7 @@ namespace DCE_Manager
             string combPathSavedGame = Path.Combine(textBox_SavedGames.Text, "Logs");
             if (Directory.Exists(combPathSavedGame))
             {
-                TestPath.OVGME = true;
+                ParamConf.test_DCS_SavedGames = true;
             }
             else
             {
@@ -302,7 +310,7 @@ namespace DCE_Manager
             string combPathDCE = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
             if (Directory.Exists(combPathDCE))
             {
-                TestPath.DCE_alreadyInstalled = true;
+                ParamConf.test_DCE_alreadyInstalled = true;
             }
 
             Cursor.Current = Cursors.WaitCursor;
@@ -359,8 +367,8 @@ namespace DCE_Manager
                 }
 
 
-                //if (TestPath.DCE_alreadyInstalled == false && TestFile.structureValide == false  && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
-                if (TestPath.DCE_alreadyInstalled == false && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
+                //if (ParamConf.DCE_alreadyInstalled == false && TestFile.structureValide == false  && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
+                if (ParamConf.test_DCE_alreadyInstalled == false && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
                 {
                     // Assurez-vous que l'application Windows Forms est configurée
 
@@ -380,7 +388,7 @@ namespace DCE_Manager
                         //string combPathDCE_2 = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
                         if (Directory.Exists(combPathDCE))
                         {
-                            TestPath.DCE_alreadyInstalled = true;
+                            ParamConf.test_DCE_alreadyInstalled = true;
                         }
                     }
                     else if (result == DialogResult.No)
@@ -420,22 +428,7 @@ namespace DCE_Manager
 
                 ExtractZipFileToDirectory(_selectedCampaignZipPath, true);
 
-                //if (TestFile.structureValide)
-                //{
-                //    ExtractZipFileToDirectory(_selectedCampaignZipPath, true);
-                //}
-                //else if (TestPath.DCE_alreadyInstalled && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
-                //{
-                //    ExtractZipFileToDirectoryLight(_selectedCampaignZipPath, true);
-                //}
-                //else
-                //{
-                //    MessageBox.Show(NameCampaign + "or " + ParamCampaign.NameCampaign + " impossible to add this campaign.\r\n" +
-                //         "  ", "Report");
-                //    return;
-                //}
-
-                TestFile.ScriptsMod = "NG";
+                 TestFile.ScriptsMod = "NG";
 
 
 
@@ -446,18 +439,18 @@ namespace DCE_Manager
                 //set "pathDCS=D:\___DCS___\"
 
                 //REM DCS or DCS.beta saved game path, always end the line with \
-                //set "pathSavedGames=Saved Games\DCS.openbeta\" 
+                //set "PATH_SavedGames_DCS=Saved Games\DCS.openbeta\" 
 
                 //REM DCE ScriptMod version not any / or \ and no space before and after =
                 //set "versionPackageICM=20.43.59"
 
-                string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign + @"\Init\path.bat";
+                string pathFile = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign + @"\Init\path.bat";
 
 
                 string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                               "set \"pathDCS=" + textBox_PATH_DCS_Root.Text + "\\\"\r\n" +
+                               "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
                                "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                               "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
+                               "set \"PATH_SavedGames_DCS=" + ParamConf.PATH_SavedGames_DCS + "\\\"\r\n" +
                                "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
                                "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
                                "\r\n" +
@@ -480,12 +473,6 @@ namespace DCE_Manager
                     // Ouverture du fichier zip en mode Update pour modifier son contenu
                     using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
                     {
-                        //string txt = "";
-                        //foreach (ZipArchiveEntry entryB in archive.Entries)
-                        //{
-                        //    txt = txt + entryB.Name + "\r\n";
-                        //}
-                        //MessageBox.Show(txt, "info");
 
                         // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
                         ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
@@ -577,10 +564,10 @@ namespace DCE_Manager
                 }
 
                 MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ", "Information");
+                    "   Don't forget to activate the ‘MissionScript’ mod with PATH_OVGME_MOD ", "Information");
 
                 FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with OVGME ");
+                    "   Don't forget to activate the ‘MissionScript’ mod with PATH_OVGME_MOD ");
 
                 //******************FIN du new system
 
@@ -635,15 +622,9 @@ namespace DCE_Manager
         {
             HidePathEditingControls();
 
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = Label_subLabel_DCS.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = label_subLabel_SavedGame_Folder.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = label_sub_OVGME.Text;
+            InitializeDCS_Installation_Path();     // 1. Synchronise ParamConf.PATH_* depuis les TextBox
+            Configuration_Form.Save_Config();      // 2. Persiste ces valeurs à jour dans options.txt
 
-            FormUtils.UpdateConfigFileFromDictionary();
-
-            InitializeDCS_Installation_Path();
-
-            // Les chemins ont changé : on rafraîchit ce qui en dépend
             checkBoxMod();
             _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
         }

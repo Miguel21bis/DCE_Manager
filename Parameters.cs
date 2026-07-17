@@ -23,13 +23,19 @@ namespace DCE_Manager.Parameters
 
         public static string ScriptsMod = "NG";
     }
-    public static class TestPath
-    {
-        public static bool DCS_Root = false;
-        public static bool DCS_SavedGames = false;
-        public static bool OVGME = false;
-        public static bool DCE_alreadyInstalled = false;
-    }
+    //public static class PATH_Configuration
+    //{
+    //    public static string PATH_DCS_Root { get; set; } = "";
+    //    public static string PATH_SavedGames_DCS { get; set; } = "";
+    //    public static string PATH_OVGME_MOD { get; set; } = "";
+
+    //    public static bool test_DCS_Root = false;
+    //    public static bool test_DCS_SavedGames = false;
+    //    public static bool test_OVGME = false;
+    //    public static bool test_DCE_alreadyInstalled = false;
+
+
+    //}
     //public static class ParamCampaign
     //{
     //    public static string NameCampaign = "";
@@ -44,22 +50,21 @@ namespace DCE_Manager.Parameters
         public static int NbMission { get; set; } = 0;
         public static string NameFileParse { get; set; } = "";
     }
-    public static class ParamDownload
+    public static class ParamCampaignSelected
     {
-        public static bool DownloadFinish { get; set; } = false;
-        public static string UpgradeTime { get; set; } = "";
-        public static int NbFileOutToDate { get; set; } = 0;
+        public static string NameCampaign { get; set; } = "";
     }
     //public static class ParamDownload
     //{
-    //    public static bool DownloadFinish = false;
-    //    public static string upgradeTime;
-    //    public static int nbFileOutToDate = 0;
+    //    public static bool DownloadFinish { get; set; } = false;
+    //    public static string UpgradeTime { get; set; } = "";
+    //    public static int NbFileOutToDate { get; set; } = 0;
     //}
-    public static class DceNews
-    {
-        public static string LastNewsVersion = "0.0.0";
-    }
+
+    //public static class DceNews
+    //{
+    //    public static string LastNewsVersion = "0.0.0";
+    //}
     public static class Divers
     {
         public static string ScriptsMod = "inc";
@@ -78,6 +83,27 @@ namespace DCE_Manager.Parameters
         public static int NumMaxConfig = 0;
 
         public static string CurrentConfigName { get; set; } = string.Empty;
+
+        public static string AstiMissionFile { get; set; } = "";
+        public static string AstiImportTemplateFolder { get; set; } = "";
+
+        public static string PATH_DCS_Root { get; set; } = "";
+        public static string PATH_SavedGames_DCS { get; set; } = "";
+        public static string PATH_OVGME_MOD { get; set; } = "";
+
+        public static bool test_DCS_Root = false;
+        public static bool test_DCS_SavedGames = false;
+        public static bool test_OVGME = false;
+        public static bool test_DCE_alreadyInstalled = false;
+
+        public static bool DownloadFinish { get; set; } = false;
+        public static string UpgradeTime { get; set; } = "";
+        public static int NbFileOutToDate { get; set; } = 0;
+
+        //public static class DceNews
+        public static string LastNewsVersion = "0.0.0";
+        
+
     }
 
 
@@ -423,22 +449,32 @@ namespace DCE_Manager.Parameters
     }
 
 
-    public static class SharedData
-    {
-        //il faut, pour faire ceci pour les mettre à jour avant de les utiliser
-        //// Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
-        //Form1.Instance.UpdateSharedData();
+    //public static class SharedData
+    //{
+    //    //il faut, pour faire ceci pour les mettre à jour avant de les utiliser
+    //    //// Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+    //    //Form1.Instance.UpdateSharedData();
 
-        public static string comboBox_Config { get; set; }
-        public static string textBox_Campaign { get; set; }
-        public static string textBox_DCS { get; set; }
-        public static string textBox_SavedGames { get; set; }
-        public static string textBox_OvGME { get; set; }
+    //    //public static string comboBox_Config { get; set; }
+    //    //public static string textBox_Campaign { get; set; }
+    //    public static string textBox_DCS { get; set; }
+    //    public static string textBox_SavedGames { get; set; }
+    //    public static string textBox_OvGME { get; set; }
 
-        public static string textBox_ASTI_MissionFile { get; set; }
-        public static string textBox_ASTI_importTemplateFolder { get; set; }
+    //    public static string textBox_ASTI_MissionFile { get; set; }
+    //    public static string textBox_ASTI_importTemplateFolder { get; set; }
 
-    }
+    //}
+
+    //public static class AppConfig
+    //{
+    //    // Toutes tes variables centralisées au même endroit
+    //    public static string PathDCS { get; set; } = "";
+    //    public static string PATH_SavedGames_DCS { get; set; } = "";
+    //    public static string PathOvGME { get; set; } = "";
+    //    public static string AstiMissionFile { get; set; } = "";
+    //    public static string AstiImportTemplateFolder { get; set; } = "";
+    //}
 
 
 }

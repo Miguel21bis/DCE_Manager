@@ -217,10 +217,10 @@ namespace DCE_Manager.Utils
         public static void CreateDCE_Folder()
         {
             // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
-            Form1.Instance.UpdateSharedData();
+            //Form1.Instance.UpdateSharedData();
 
             // Chemin de base
-            string baseFolderPath = SharedData.textBox_SavedGames;
+            string baseFolderPath = ParamConf.PATH_SavedGames_DCS;
 
             // Structure des sous-dossiers à créer
             //Mods\tech\DCE\Missions\Campaigns
@@ -633,200 +633,166 @@ namespace DCE_Manager.Utils
             return Ufind;
         }
 
-        public static bool UpdateConfigFileFromDictionary()
-        {
-            bool result = false;
-            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-            string filePath = pathOptionInstaller + @"\options.txt";
+        //public static bool Save_Config()
+        //{
+        //    string folderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DCE_Manager");
+        //    string filePath = Path.Combine(folderPath, "options.txt");
 
-            // Vérifier et créer le fichier s'il n'existe pas
-            if (!System.IO.File.Exists(filePath))
-            {
-                try
-                {
-                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
-                    using (System.IO.FileStream fs = System.IO.File.Create(filePath)) { }
-                }
-                catch (Exception e)
-                {
-                    ErrorGeneral_BoxOrLog(e, "Erreur lors de la création du fichier options.txt", filePath, true, true);
-                    return false; // Retourner immédiatement false si la création échoue
-                }
-            }
+        //    try
+        //    {
+        //        // 1. Gérer le dossier et le fichier proprement
+        //        if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
 
-            // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
-            Form1.Instance.UpdateSharedData();
+        //        // 2. Mettre à jour directement le dictionnaire avec les données de configuration à jour (via le Binding)
+        //        ParamConf.configDictionary["ASTI_MissionFile"] = ParamConf.AstiMissionFile;
+        //        ParamConf.configDictionary["ASTI_importTemplateFolder"] = ParamConf.AstiImportTemplateFolder;
+        //        ParamConf.configDictionary["upgradeTxtDownload"] = ParamConf.UpgradeTime;
+        //        ParamConf.configDictionary["LastNewsVersion"] = ParamConf.LastNewsVersion;
+        //        ParamConf.configDictionary["LastGithubCheckUtc"] = ParamUpdater.LastGithubCheckUtc.ToString("O");
+        //        ParamConf.configDictionary["NbLancement"] = ParamManager.NbLancement.ToString();
+        //        ParamConf.configDictionary["verScriptsMod"] = ParamScriptsMod.verScriptsMod;
 
-            // Mettre à jour les valeurs dans configDictionary
-            ParamConf.configDictionary.AddOrUpdate("ASTI_MissionFile", SharedData.textBox_ASTI_MissionFile);
-            ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
-            ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
-            ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
+        //        string prefix = $"config_{ParamConf.NumSelectConfig}_";
+        //        ParamConf.configDictionary[prefix + "pathDCS"] = ParamConf.PATH_DCS_Root;
+        //        ParamConf.configDictionary[prefix + "PATH_SavedGames_DCS"] = ParamConf.PATH_SavedGames_DCS;
+        //        ParamConf.configDictionary[prefix + "pathOVGME"] = ParamConf.PATH_OVGME_MOD;
 
-            //configDictionary["LastGithubCheckUtc"] = ParamUpdater.LastGithubCheckUtc.ToString("O");
+        //        // 3. Lire le fichier existant pour conserver l'ordre ou les anciennes clés si nécessaire
+        //        Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
+        //        if (File.Exists(filePath))
+        //        {
+        //            foreach (var line in File.ReadAllLines(filePath))
+        //            {
+        //                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("--")) continue;
 
-            ParamConf.configDictionary.AddOrUpdate("LastGithubCheckUtc", ParamUpdater.LastGithubCheckUtc.ToString("O"));
+        //                int index = line.IndexOf('=');
+        //                if (index > 0)
+        //                {
+        //                    string key = line.Substring(0, index).Trim();
+        //                    string value = line.Substring(index + 1).Trim();
+        //                    fileDictionary[key] = value;
+        //                }
+        //            }
+        //        }
 
-            //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
-            ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
-            ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = SharedData.textBox_Campaign;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = SharedData.textBox_DCS;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = SharedData.textBox_SavedGames;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = SharedData.textBox_OvGME;
+        //        // 4. Fusionner les dictionnaires
+        //        foreach (var entry in ParamConf.configDictionary)
+        //        {
+        //            fileDictionary[entry.Key] = entry.Value;
+        //        }
 
-            // Copier les valeurs actuelles de configDictionary
-            var configDictionary = new Dictionary<string, string>(ParamConf.configDictionary);
+        //        // 5. Écriture propre
+        //        using (StreamWriter writer = new StreamWriter(filePath))
+        //        {
+        //            foreach (var entry in fileDictionary)
+        //            {
+        //                // On n'écrit que ce qui est valide
+        //                writer.WriteLine($"{entry.Key}={entry.Value}");
+        //            }
+        //        }
 
-            try
-            {
-                // Lire et stocker le contenu actuel du fichier dans fileDictionary
-                Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
+        //        return true;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ErrorGeneral_BoxOrLog(ex, "Erreur lors de la mise à jour du fichier de config", filePath, true, true);
+        //        return false;
+        //    }
+        //}
 
-                if (File.Exists(filePath))
-                {
-                    string[] lines = File.ReadAllLines(filePath);
-                    foreach (string line in lines)
-                    {
-                        if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("--") && line.Contains('='))
-                        {
-                            string[] parts = line.Split('=');
-                            if (parts.Length == 2)
-                            {
-                                fileDictionary[parts[0].Trim()] = parts[1].Trim();
-                            }
-                        }
-                    }
+        //public static bool UpdateConfigFileFromDictionary_OLD()
+        //{
+        //    bool result = false;
+        //    string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
+        //    string filePath = pathOptionInstaller + @"\options.txt";
 
-                    // Mettre à jour les valeurs du fichier avec les valeurs du dictionnaire configDictionary
-                    foreach (var entry in configDictionary)
-                    {
-                        fileDictionary[entry.Key] = entry.Value;
-                    }
+        //    // Vérifier et créer le fichier s'il n'existe pas
+        //    if (!System.IO.File.Exists(filePath))
+        //    {
+        //        try
+        //        {
+        //            System.IO.Directory.CreateDirectory(pathOptionInstaller);
+        //            using (System.IO.FileStream fs = System.IO.File.Create(filePath)) { }
+        //        }
+        //        catch (Exception e)
+        //        {
+        //            ErrorGeneral_BoxOrLog(e, "Erreur lors de la création du fichier options.txt", filePath, true, true);
+        //            return false; // Retourner immédiatement false si la création échoue
+        //        }
+        //    }
 
-                    // Écriture des données mises à jour dans le fichier
-                    using (StreamWriter writer = new StreamWriter(filePath))
-                    {
-                        foreach (var entry in fileDictionary)
-                        {
-                            if (configDictionary.ContainsKey(entry.Key))
-                            {
-                                writer.WriteLine($"{entry.Key}={entry.Value}");
-                            }
-                        }
-                    }
-                    result = true; // Mise à jour réussie
-                }
-            }
-            catch (Exception ex)
-            {
-                ErrorGeneral_BoxOrLog(ex, "Error updating the configuration file", filePath, true, true);
-                result = false;
-            }
-            return result;
-        }
+        //    // Appel à UpdateSharedData avant de récupérer les valeurs de SharedData
+        //    Form1.Instance.UpdateSharedData();
 
+        //    // Mettre à jour les valeurs dans configDictionary
+        //    ParamConf.configDictionary.AddOrUpdate("ASTI_MissionFile", SharedData.textBox_ASTI_MissionFile);
+        //    ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
+        //    ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
+        //    ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
 
-        public static bool UpdateConfigFileFromDictionary_OLD()
-        {
-            Boolean result = false;
-            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-            string filePath = pathOptionInstaller + @"\options.txt";
+        //    //configDictionary["LastGithubCheckUtc"] = ParamUpdater.LastGithubCheckUtc.ToString("O");
 
-            if (!System.IO.File.Exists(filePath))
-            {
-                try
-                {
-                    // Assurez-vous que le répertoire existe avant de créer le fichier
-                    System.IO.Directory.CreateDirectory(pathOptionInstaller);
+        //    ParamConf.configDictionary.AddOrUpdate("LastGithubCheckUtc", ParamUpdater.LastGithubCheckUtc.ToString("O"));
 
-                    // Créez le fichier si nécessaire et libérez le flux
-                    using (System.IO.FileStream fs = System.IO.File.Create(filePath))
-                    {
-                        // Vous pouvez ajouter ici des données initiales si nécessaire
-                    }
-                }
-                catch (Exception ex)
-                {
-                    ErrorGeneral_BoxOrLog(ex, "Erreur lors de la création du fichier options.txt", filePath, true, true);
-                }
-            }
+        //    //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
+        //    ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
+        //    ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
+        //    //ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
+        //    //ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = SharedData.textBox_Campaign;
+        //    ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = SharedData.textBox_DCS;
+        //    ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = SharedData.textBox_SavedGames;
+        //    ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = SharedData.textBox_OvGME;
 
-            // Assurez-vous d'appeler UpdateSharedData avant d'utiliser SharedData
-            Form1.Instance.UpdateSharedData();
+        //    // Copier les valeurs actuelles de configDictionary
+        //    var configDictionary = new Dictionary<string, string>(ParamConf.configDictionary);
 
-            // Utilisation de la méthode générique pour mettre à jour ou ajouter les valeurs
-            ParamConf.configDictionary.AddOrUpdate("ASTI_MissionFile", SharedData.textBox_ASTI_MissionFile);
-            ParamConf.configDictionary.AddOrUpdate("ASTI_importTemplateFolder", SharedData.textBox_ASTI_importTemplateFolder);
-            ParamConf.configDictionary.AddOrUpdate("upgradeTxtDownload", ParamDownload.UpgradeTime);
-            ParamConf.configDictionary.AddOrUpdate("LastNewsVersion", DceNews.LastNewsVersion);
-            //ParamConf.configDictionary.AddOrUpdate("ServerNickNameSelected", ParamServ.ServerNickNameSelected);
-            ParamConf.configDictionary.AddOrUpdate("NbLancement", ParamManager.NbLancement.ToString());
-            ParamConf.configDictionary.AddOrUpdate("verScriptsMod", ParamScriptsMod.verScriptsMod);
+        //    try
+        //    {
+        //        // Lire et stocker le contenu actuel du fichier dans fileDictionary
+        //        Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
 
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = SharedData.comboBox_Config;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = SharedData.textBox_Campaign;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = SharedData.textBox_DCS;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = SharedData.textBox_SavedGames;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = SharedData.textBox_OvGME;
+        //        if (File.Exists(filePath))
+        //        {
+        //            string[] lines = File.ReadAllLines(filePath);
+        //            foreach (string line in lines)
+        //            {
+        //                if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("--") && line.Contains('='))
+        //                {
+        //                    string[] parts = line.Split('=');
+        //                    if (parts.Length == 2)
+        //                    {
+        //                        fileDictionary[parts[0].Trim()] = parts[1].Trim();
+        //                    }
+        //                }
+        //            }
 
-    
-            // Copie superficielle du dictionnaire
-            var configDictionary = new Dictionary<string, string>(ParamConf.configDictionary);
+        //            // Mettre à jour les valeurs du fichier avec les valeurs du dictionnaire configDictionary
+        //            foreach (var entry in configDictionary)
+        //            {
+        //                fileDictionary[entry.Key] = entry.Value;
+        //            }
 
-
-            try
-            {
-                // Créer un dictionnaire temporaire pour stocker les lignes du fichier actuel
-                Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
-
-                // Si le fichier existe, on le lit
-                if (File.Exists(filePath))
-                {
-                    // Lire le fichier ligne par ligne et ajouter les paires clé/valeur dans fileDictionary
-                    string[] lines = File.ReadAllLines(filePath);
-                    foreach (string line in lines)
-                    {
-                        if (!string.IsNullOrWhiteSpace(line) && !line.StartsWith("--") && line.Contains('='))
-                        {
-                            string[] parts = line.Split('=');
-                            if (parts.Length == 2)
-                            {
-                                string key = parts[0].Trim();
-                                string value = parts[1].Trim();
-                                fileDictionary[key] = value; // Ajouter ou mettre à jour la clé/valeur dans le dictionnaire temporaire
-                            }
-                        }
-                    }
-
-                    // Fusionner les valeurs du configDictionary dans fileDictionary (mise à jour des valeurs existantes)
-                    foreach (var entry in configDictionary)
-                    {
-                        fileDictionary[entry.Key] = entry.Value; // Ajouter ou mettre à jour les clés/valeurs du dictionnaire passé en paramètre
-                    }
-
-                    // Réécrire le fichier en supprimant les éléments qui ne sont plus présents dans configDictionary
-                    using (StreamWriter writer = new StreamWriter(filePath))
-                    {
-                        foreach (var entry in fileDictionary)
-                        {
-                            if (configDictionary.ContainsKey(entry.Key))
-                            {
-                                writer.WriteLine($"{entry.Key}={entry.Value}"); // Écrire uniquement les lignes qui sont dans configDictionary
-                            }
-                        }
-                    }
-                    result = true;
-                }
-            }
-            catch (Exception ex)
-            {
-                ErrorGeneral_BoxOrLog(ex, "Error updating the config file", filePath, true, true);
-                 result = false; 
-            }
-            return result;
-        }
+        //            // Écriture des données mises à jour dans le fichier
+        //            using (StreamWriter writer = new StreamWriter(filePath))
+        //            {
+        //                foreach (var entry in fileDictionary)
+        //                {
+        //                    if (configDictionary.ContainsKey(entry.Key))
+        //                    {
+        //                        writer.WriteLine($"{entry.Key}={entry.Value}");
+        //                    }
+        //                }
+        //            }
+        //            result = true; // Mise à jour réussie
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        ErrorGeneral_BoxOrLog(ex, "Error updating the configuration file", filePath, true, true);
+        //        result = false;
+        //    }
+        //    return result;
+        //}
 
 
 

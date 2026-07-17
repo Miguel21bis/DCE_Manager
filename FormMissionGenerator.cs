@@ -37,7 +37,7 @@ namespace DCE_Manager
         private void Form5_MissionGenerator_Load(object sender, EventArgs e)
         {
             // Assurez-vous d'appeler UpdateSharedData avant d'ouvrir Form3_Clonage
-            mainForm.UpdateSharedData();
+            //mainForm.UpdateSharedData();
 
             // Vous pouvez accéder à la variable missionName ici ou interagir avec le formulaire parent (Form1)
             MessageBox.Show("Mission Name: " + missionName);
@@ -112,7 +112,7 @@ namespace DCE_Manager
             Lua lua2 = new Lua();
 
             // Assurez-vous d'appeler UpdateSharedData avant d'ouvrir Form3_Clonage
-            mainForm.UpdateSharedData();
+            //mainForm.UpdateSharedData();
 
             // Enregistrer la fonction de débogage C#
             lua2.RegisterFunction("print", typeof(Form1).GetMethod("LuaPrint", new Type[] { typeof(string) }));
@@ -123,7 +123,7 @@ namespace DCE_Manager
 
 
             //dezip le baseMission pour utiliser directement les fichiers dezippé
-            Environment.CurrentDirectory = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\Crisis in PG-Blue\";
+            Environment.CurrentDirectory = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\Crisis in PG-Blue\";
 
             //ExtractZipFileToDirectory(Environment.CurrentDirectory + @"\Init\base_mission.miz", Environment.CurrentDirectory + @"\Init\base_missionFile", true);
 
@@ -147,11 +147,11 @@ namespace DCE_Manager
 
 
             lua2["versionPackageICM"] = "NG";                                                                          //Create lua variables
-            lua2["pathScriptsMod"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod";                    //Create lua variables
-            lua2["pathCampaign"] = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\Hornet over Caucasus-CVN\";                    //Create lua variables
+            lua2["pathScriptsMod"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod";                    //Create lua variables
+            lua2["pathCampaign"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\Hornet over Caucasus-CVN\";                    //Create lua variables
             lua2["choix1"] = InputTypeGame;                                                                            //Create lua variables
             lua2["generator"] = "DCE_Manager";                                                                         //Create lua variables
-            lua2["pathSavedGames"] = SharedData.textBox_SavedGames;                                                                            //Create lua variables
+            lua2["PATH_SavedGames_DCS"] = ParamConf.PATH_SavedGames_DCS;                                                                            //Create lua variables
 
 
             //lua2.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + @"Hornet over Caucasus-CVN\" + @"Init\conf_mod.lua");
@@ -170,7 +170,7 @@ namespace DCE_Manager
 
             //var result = lua2.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\BAT_FirstMission_C.lua");
 
-            var result = lua2.DoFile(SharedData.textBox_SavedGames + @"\Mods\tech\DCE\ScriptsMod.NG\BAT_FirstMission.lua");
+            var result = lua2.DoFile(ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\BAT_FirstMission.lua");
 
             string message = lua2.GetString("s");
 

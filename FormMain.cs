@@ -94,6 +94,8 @@ namespace DCE_Manager
 
             InitializeComponent();
 
+            //BindConfiguration();
+
             dropZoneControl1.FilesSelected += DropZone_FilesSelected;
             //InitializeDropZone();
 
@@ -113,18 +115,6 @@ namespace DCE_Manager
 
             Instance = this;  // Initialiser l'instance statique dans le constructeur
 
-            
-            // Abonnement aux événements de boutons avec les méthodes de la classe ASTI
-            but_ASTI.Click += (sender, e) => ASTI.but_ASTI_Click(this);
-
-            but_ASTI_Browse_Template.Click += (sender, e) => ASTI.but_ASTI_Browse_Template_Click(this);
-            but_ASTI_Open_templateFolder.Click += (sender, e) => ASTI.but_ASTI_Open_templateFolder_Click(this);
-
-            but_ASTI_Browse_MissionFile.Click += (sender, e) => ASTI.but_ASTI_Browse_Mission_Click(this);
-            
-            but_ASTI_Process.Click += (sender, e) => ASTI.but_ASTI_Process_Click(this);
-
-            but_GPS_LL.Click += (sender, e) => ASTI.GPS_LL_Click(this);
 
             pictureBox_Update_ScriptsMod.Click += (s, e) =>
             Process.Start(new ProcessStartInfo
@@ -156,182 +146,9 @@ namespace DCE_Manager
             AjusterLargeurTextBox(textBox_id_client);
 
 
-            string pathOptionInstaller = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager";
-            bool exists = System.IO.Directory.Exists(pathOptionInstaller);
-            bool fileExists = File.Exists(pathOptionInstaller + @"\options.txt");
-            string pathFile = pathOptionInstaller + @"\options.txt";
+            // Appel de la méthode de chargement
+            LoadConfiguration();
 
-            if (exists & fileExists)
-            {
-                try
-                {
-                    // Utiliser un FileStream avec FileShare.Read pour permettre à d'autres processus de lire le fichier
-                    using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    using (StreamReader sr = new StreamReader(fs))
-                    {
-                        string line;
-                        while ((line = sr.ReadLine()) != null)
-                        {
-
-                             // Vérifier si la ligne contient une clé-valeur
-                            if (!string.IsNullOrWhiteSpace(line) && line.Contains("="))
-                            {
-                                // Diviser la ligne à la première occurrence de '=' pour obtenir la clé et la valeur
-                                var parts = line.Split(new[] { '=' }, 2);
-
-                                string key = parts[0].Trim();  // Clé
-                                string value = parts.Length > 1 ? parts[1].Trim() : string.Empty;  // Valeur
-
-                                // Ajouter la clé-valeur au dictionnaire global
-                                ParamConf.configDictionary[key] = value;
-                            }
-                        }
-                    }
-
-             
-                    foreach (var entry in ParamConf.configDictionary)
-                    {
-                        //if (entry.Key == "config_0_pathZipCampaign")
-                        //  textBox_Campaign.Text = entry.Value;
-                            
-                        if (entry.Key == "config_0_" + "pathDCS")
-                            textBox_PATH_DCS_Root.Text = entry.Value;
-
-                        if (entry.Key == "config_0_" + "pathSavedGames")
-                            textBox_SavedGames.Text = entry.Value;
-
-                        if (entry.Key == "config_0_" + "pathOVGME")
-                            textBox_OvGME.Text = entry.Value;
-
-                        if (entry.Key == "upgradeTxtDownload")
-                            ParamDownload.UpgradeTime = entry.Value;
-
-                        if (entry.Key == "LastNewsVersion")
-                            DceNews.LastNewsVersion = entry.Value;
-
-                        if (entry.Key == "LastGithubCheckUtc" &&
-                            DateTime.TryParse(entry.Value, null,
-                                System.Globalization.DateTimeStyles.RoundtripKind,
-                                out DateTime dt))
-                        {
-                            ParamUpdater.LastGithubCheckUtc = dt;
-                        }
-
-                        if (entry.Key == "NbLancement")
-                        {
-                            string nbL = entry.Value;
-                            ParamManager.NbLancement = Int32.Parse(nbL);
-                        }
-                        else if (entry.Key == "ASTI_MissionFile")
-                        {
-                            string nbL = entry.Value;
-                            SharedData.textBox_ASTI_MissionFile = nbL;
-                        }
-                        else if (entry.Key == "ASTI_importTemplateFolder")
-                        {
-                            string nbL = entry.Value;
-                            SharedData.textBox_ASTI_importTemplateFolder = nbL;
-                            but_ASTI_Open_templateFolder.Visible = true;
-                        }
-
-
-                       if (entry.Key.StartsWith("config_") && entry.Key.EndsWith("_"))
-                       {
-                            // Exemple config_2_=toto2
-                            // Extraire la partie entre "config_" et "_"
-                            string numStr = entry.Key.Replace("config_", "").TrimEnd('_');
-
-                            // Conversion sécurisée de la chaîne en entier
-                            if (int.TryParse(numStr, out int testNum))
-                            {
-                                // Comparer avec NumMaxConfig
-                                if (testNum > ParamConf.NumMaxConfig)
-                                {
-                                    ParamConf.NumMaxConfig = testNum;
-                                }
-
-                                // Ajouter à la ComboBox
-                                comboBox_Config.Items.Add(entry.Value);
-
-                                // Vérifier l'existence d'un doublon dans configMap avant d'ajouter
-                                if (!ParamConf.configMap.ContainsKey(entry.Value))
-                                {
-                                    // Ajouter au dictionnaire seulement si la clé est unique
-                                    ParamConf.configMap.Add(entry.Value, testNum);
-                                }
-                                else
-                                {
-                                    // Si un doublon est détecté, afficher ou loguer l'erreur
-                                    string message = $"Doublon détecté pour la clé '{entry.Value}'. Valeur existante : {ParamConf.configMap[entry.Value]}";
-                                    MessageBox.Show( message,"error");
-                                }
-                            }
-                            else
-                            {
-                                // Si la conversion échoue, afficher ou loguer l'erreur
-                                string message = $"La valeur '{numStr}' n'est pas un nombre valide.";
-                                FormUtils.ErrorGeneral_BoxOrLog(
-                                    new Exception("Conversion de chaîne en entier échouée"),
-                                    message,
-                                    $"Clé: {entry.Key}, Valeur: {entry.Value}",
-                                    true,   // Afficher le message dans une MessageBox
-                                    true    // Enregistrer dans le log
-                                );
-                            }
-                        }
-
-                    }
-
-
-                    //****************************************
-                    string SelectedItem = "";
-
-                    var dictionaryCopy = new Dictionary<string, string>(ParamConf.configDictionary);
-
-                    foreach (var entry in dictionaryCopy)
-                    {
-                        
-                        //display=MegaUno
-                        if (entry.Key == "display")
-                        {
-
-                            SelectedItem = entry.Value;
-
-                            string configName = entry.Value;
-
-                            if (ParamConf.configMap.TryGetValue(configName, out int configNumber))
-                            {
-                                ParamConf.NumSelectConfig = configNumber;
-                                //MessageBox.Show(ParamConf.NumSelectConfig.ToString() + " SelectedItem "+ SelectedItem, "ParamConf.NumSelectConfig");
-                            }
-                        }
-
-                        //display=MegaUno
-                        if (entry.Key.Contains("upgradeTxtDownload="))
-                        {
-                            ParamDownload.UpgradeTime = entry.Value;
-                        }
-
-            
-                    }
-
-                    // Une seule fois, après la boucle :
-                    comboBox_Config.SelectedItem = SelectedItem;
-                    ParamConf.CurrentConfigName = (string)comboBox_Config.SelectedItem;
-
-                    this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + ParamConf.CurrentConfigName;
-
-                    //textBox_Campaign.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"];
-                    textBox_PATH_DCS_Root.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"];
-                    textBox_SavedGames.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"];
-                    textBox_OvGME.Text = ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"];
-
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Form1", pathOptionInstaller, true, true);
-                }
-            }
 
 
             _isInitializing = false;
@@ -635,6 +452,261 @@ namespace DCE_Manager
 
        
         }//public Form1()
+
+        //private void BindConfiguration()
+        //{
+        //    // "Text" = la propriété de la TextBox à lier
+        //    // AppConfig = l'objet source
+        //    // nameof(AppConfig.PATH_DCS_Root) = la propriété source
+        //    textBox_PATH_DCS_Root.DataBindings.Add("Text", typeof(AppConfig), nameof(ParamConf.PATH_DCS_Root), true, DataSourceUpdateMode.OnPropertyChanged);
+        //    textBox_SavedGames.DataBindings.Add("Text", typeof(AppConfig), nameof(ParamConf.PATH_SavedGames_DCS), true, DataSourceUpdateMode.OnPropertyChanged);
+        //    textBox_OvGME.DataBindings.Add("Text", typeof(AppConfig), nameof(ParamConf.PATH_OVGME_MOD), true, DataSourceUpdateMode.OnPropertyChanged);
+        //}
+
+        private void LoadConfiguration()
+        {
+            string pathOptionInstaller = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DCE_Manager");
+            string pathFile = Path.Combine(pathOptionInstaller, "options.txt");
+
+            if (Directory.Exists(pathOptionInstaller) && File.Exists(pathFile))
+            {
+                try
+                {
+                    // 1. Lecture complète du fichier
+                    ParamConf.configDictionary.Clear();
+                    using (FileStream fs = new FileStream(pathFile, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    using (StreamReader sr = new StreamReader(fs))
+                    {
+                        string line;
+                        while ((line = sr.ReadLine()) != null)
+                        {
+                            if (!string.IsNullOrWhiteSpace(line) && line.Contains("="))
+                            {
+                                var parts = line.Split(new[] { '=' }, 2);
+                                string key = parts[0].Trim();
+                                string value = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+
+                                ParamConf.configDictionary[key] = value;
+                            }
+                        }
+                    }
+
+                    // 2. Traitement des variables globales standards
+                    if (ParamConf.configDictionary.TryGetValue("upgradeTxtDownload", out string upgradeTime)) ParamConf.UpgradeTime = upgradeTime;
+                    if (ParamConf.configDictionary.TryGetValue("LastNewsVersion", out string lastNews)) ParamConf.LastNewsVersion = lastNews;
+                    if (ParamConf.configDictionary.TryGetValue("NbLancement", out string nbL) && int.TryParse(nbL, out int nb)) ParamManager.NbLancement = nb;
+                    if (ParamConf.configDictionary.TryGetValue("ASTI_MissionFile", out string astiM)) ParamConf.AstiMissionFile = astiM;
+                    if (ParamConf.configDictionary.TryGetValue("ASTI_importTemplateFolder", out string astiF)) ParamConf.AstiImportTemplateFolder = astiF;
+                    if (ParamConf.configDictionary.TryGetValue("LastGithubCheckUtc", out string dateStr) && DateTime.TryParse(dateStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out DateTime dt)) ParamUpdater.LastGithubCheckUtc = dt;
+
+                    // 3. Détection dynamique de TOUTES les configurations existantes par ID
+                    ParamConf.configMap.Clear();
+                    comboBox_Config.Items.Clear();
+                    ParamConf.NumMaxConfig = 0;
+
+                    // Trouver tous les IDs uniques de configurations utilisés dans le fichier
+                    HashSet<int> configIds = new HashSet<int>();
+                    foreach (var key in ParamConf.configDictionary.Keys)
+                    {
+                        if (key.StartsWith("config_"))
+                        {
+                            int nextUnderscore = key.IndexOf('_', 7);
+                            if (nextUnderscore > 7)
+                            {
+                                string idStr = key.Substring(7, nextUnderscore - 7);
+                                if (int.TryParse(idStr, out int id))
+                                {
+                                    configIds.Add(id);
+                                    if (id > ParamConf.NumMaxConfig) ParamConf.NumMaxConfig = id;
+                                }
+                            }
+                        }
+                    }
+
+                    // Pour chaque ID trouvé, on récupère son nom ou on lui en attribue un s'il est manquant
+                    foreach (int id in configIds)
+                    {
+                        string nameKey = $"config_{id}_";
+                        string configName = string.Empty;
+
+                        if (ParamConf.configDictionary.TryGetValue(nameKey, out string storedName) && !string.IsNullOrWhiteSpace(storedName))
+                        {
+                            configName = storedName;
+                        }
+                        else
+                        {
+                            // Récupération automatique si le nom était absent : on nomme par défaut ou "Main" si ID 1
+                            configName = (id == 1) ? "Main" : $"Configuration_{id}";
+                            ParamConf.configDictionary[nameKey] = configName;
+                        }
+
+                        // Enregistrement sécurisé sans doublon de nom dans l'UI
+                        if (!ParamConf.configMap.ContainsKey(configName))
+                        {
+                            ParamConf.configMap.Add(configName, id);
+                            comboBox_Config.Items.Add(configName);
+                        }
+                    }
+
+                    // 4. Application de la configuration active ("display")
+                    string selectedItem = "";
+                    if (ParamConf.configDictionary.TryGetValue("display", out string displayValue) && !string.IsNullOrEmpty(displayValue))
+                    {
+                        selectedItem = displayValue;
+                        if (ParamConf.configMap.TryGetValue(displayValue, out int configNumber))
+                        {
+                            ParamConf.NumSelectConfig = configNumber;
+                        }
+                    }
+
+                    // Fallback de sélection si "display" est introuvable
+                    if (!string.IsNullOrEmpty(selectedItem) && comboBox_Config.Items.Contains(selectedItem))
+                    {
+                        comboBox_Config.SelectedItem = selectedItem;
+                        ParamConf.CurrentConfigName = selectedItem;
+                    }
+                    else if (comboBox_Config.Items.Count > 0)
+                    {
+                        comboBox_Config.SelectedIndex = 0;
+                        ParamConf.CurrentConfigName = comboBox_Config.SelectedItem.ToString();
+                        if (ParamConf.configMap.TryGetValue(ParamConf.CurrentConfigName, out int fallbackId))
+                        {
+                            ParamConf.NumSelectConfig = fallbackId;
+                        }
+                    }
+
+                    this.Text = "DCE_Manager - " + ParamConf.CurrentConfigName;
+
+                    // 5. Hydrater l'interface avec les chemins du profil sélectionné
+                    string prefix = $"config_{ParamConf.NumSelectConfig}_";
+                    textBox_PATH_DCS_Root.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var pDcs) ? pDcs : "";
+                    ParamConf.PATH_DCS_Root = textBox_PATH_DCS_Root.Text;
+
+                    textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var pSaved) ? pSaved : "";
+                    ParamConf.PATH_SavedGames_DCS = textBox_SavedGames.Text;
+
+                    textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var pOvgme) ? pOvgme : "";
+                    ParamConf.PATH_OVGME_MOD = textBox_OvGME.Text;
+                }
+                catch (Exception ex)
+                {
+                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Form1_LoadConfig", pathOptionInstaller, true, true);
+                }
+
+                // SÉCURITÉ PREMIER LANCEMENT : Si aucune configuration n'a été chargée
+                if (comboBox_Config.Items.Count == 0)
+                {
+                    // On crée un profil par défaut "Main" associé à l'ID 1
+                    ParamConf.NumMaxConfig = 1;
+                    ParamConf.NumSelectConfig = 1;
+                    ParamConf.CurrentConfigName = "Main";
+
+                    ParamConf.configDictionary["config_1_"] = "Main";
+                    ParamConf.configDictionary["config_1_pathDCS"] = "";
+                    ParamConf.configDictionary["config_1_pathSavedGames"] = "";
+                    ParamConf.configDictionary["config_1_pathOVGME"] = "";
+                    ParamConf.configDictionary["display"] = "Main";
+
+                    ParamConf.configMap.Add("Main", 1);
+                    comboBox_Config.Items.Add("Main");
+                    comboBox_Config.SelectedItem = "Main";
+
+                    // On génère le premier fichier options.txt propre instantanément
+                    Configuration_Form.Save_Config();
+                }
+            }
+        }
+
+        private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_isInitializing)
+                return; // on ignore les changements déclenchés pendant le chargement initial
+
+            // 1. On récupère le nom sélectionné (sécurisé avec "as string")
+            string selectedName = comboBox_Config.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(selectedName)) return;
+
+            // 2. On le stocke "seulement" en mémoire dans notre nouvelle variable
+            ParamConf.CurrentConfigName = selectedName;
+
+            // 3. On cherche le numéro de configuration correspondant
+            if (ParamConf.configMap.TryGetValue(selectedName, out int configNumber))
+            {
+                ParamConf.NumSelectConfig = configNumber;
+            }
+
+            // Mise à jour de l'ancien dictionnaire si vous en avez encore besoin ailleurs
+            ParamConf.configDictionary["display"] = selectedName;
+
+            ParamConf.CurrentConfigName = selectedName;
+
+            // 4. On remplit les TextBox de façon sécurisée (pour éviter le "vrai bordel" / crashs)
+            string prefix = $"config_{ParamConf.NumSelectConfig}_";
+
+            //textBox_Campaign.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathZipCampaign", out var p1) ? p1 : "";
+            textBox_PATH_DCS_Root.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2) ? p2 : "";
+            ParamConf.PATH_DCS_Root = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2b) ? p2b : "";
+
+            textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var p3) ? p3 : "";
+            ParamConf.PATH_SavedGames_DCS = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var p3b) ? p3b : "";
+
+            textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var p4) ? p4 : "";
+            ParamConf.PATH_OVGME_MOD = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var p4b) ? p4b : "";
+
+            // Le reste de vos appels asynchrones...+
+            _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
+            _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
+            _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
+
+            InitializeDCS_Installation_Path();
+
+            this.Text = "DCE_Manager " + " - " + selectedName;
+        }
+
+
+
+
+        private void but_EditConfig_Click(object sender, EventArgs e)
+        {
+            // On crée une nouvelle instance de la fenêtre Configuration_Form
+            using (Configuration_Form astiWindow = new Configuration_Form())
+            {
+                // ShowDialog() ouvre la fenêtre de manière bloquante (modale)
+                astiWindow.ShowDialog(this);
+            } // La fenêtre est proprement détruite en mémoire une fois fermée grâce au "using"
+
+        }
+
+        public void UpdateComboBoxConfigList()
+        {
+            comboBox_Config.Items.Clear();
+            foreach (var configName in ParamConf.configMap.Keys)
+            {
+                if (!string.IsNullOrWhiteSpace(configName))
+                {
+                    comboBox_Config.Items.Add(configName);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(ParamConf.CurrentConfigName))
+            {
+                comboBox_Config.SelectedItem = ParamConf.CurrentConfigName;
+            }
+        }
+
+        //public void ResetUpdateTabsForNewConfig()
+        //{
+        //    // Reset visuel immédiat, avant que les vérifs async ne reviennent
+        //    CampaignUpdater.InitCampaignUpdateGrid(CampaignDataGridView);
+        //    DCEManagerInstalledVersion.Text = "";
+
+        //    InitializeDCS_Installation_Path();
+
+        //    _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
+        //    _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
+        //    _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, textBox_SavedGames.Text);
+        //}
 
         private void InitGrid()
         {
@@ -1035,13 +1107,13 @@ namespace DCE_Manager
 
                     if (fileExistPathBat)
                     {
-                        if (textBox_PATH_DCS_Root.Text != "" & textBox_SavedGames.Text != "")
+                        if (ParamConf.PATH_DCS_Root != "" & ParamConf.PATH_SavedGames_DCS != "")
                         {
 
                             string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathDCS=" + textBox_PATH_DCS_Root.Text + "\\\"\r\n" +
+                           "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
                            "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathSavedGames=" + textBox_SavedGames.Text + "\\\"\r\n" +
+                           "set \"PATH_SavedGames_DCS=" + ParamConf.PATH_SavedGames_DCS + "\\\"\r\n" +
                            "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
                            "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
                            "\r\n" +
@@ -1346,19 +1418,6 @@ namespace DCE_Manager
             }
         }
 
-        // Méthode qui met à jour la valeur partagée
-        public void UpdateSharedData()
-        {
-            SharedData.comboBox_Config = comboBox_Config.Text;
-            //SharedData.textBox_Campaign = textBox_Campaign.Text;
-            SharedData.textBox_DCS = textBox_PATH_DCS_Root.Text;
-            SharedData.textBox_SavedGames = textBox_SavedGames.Text;
-            SharedData.textBox_OvGME = textBox_OvGME.Text;
-            SharedData.textBox_ASTI_MissionFile = textBox_ASTI_MissionFile.Text;
-            SharedData.textBox_ASTI_importTemplateFolder = textBox_ASTI_importTemplateFolder.Text;
-
-        }
-
         // Méthode exécutée après la fermeture du formulaire
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
         {
@@ -1369,8 +1428,7 @@ namespace DCE_Manager
             // Écriture dans le fichier config
             try
             {
-                FormUtils.UpdateConfigFileFromDictionary();
-                //MessageBox.Show("parametre dans options enregistré, normalement ");
+                Configuration_Form.Save_Config();
             }
             catch (Exception ex)
             {
@@ -1799,7 +1857,7 @@ namespace DCE_Manager
 
 
 
-        private void button1_Click(object sender, EventArgs e)
+        private void button_EXIT_Click(object sender, EventArgs e)
         {
 
             Close();
@@ -1826,7 +1884,7 @@ namespace DCE_Manager
             //linkLabelOvGME.LinkVisited = true;
             //Call the Process.Start method to open the default browser
             //with a URL:
-            System.Diagnostics.Process.Start("https://wiki.hoggitworld.com/view/OVGME#Download_the_installer");
+            System.Diagnostics.Process.Start("https://wiki.hoggitworld.com/view/PATH_OVGME_MOD#Download_the_installer");
         }
 
         //private void linkLabelCampaign_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1878,7 +1936,7 @@ namespace DCE_Manager
         {
             
             // Assurez-vous d'appeler UpdateSharedData avant d'ouvrir Form3_Clonage
-            UpdateSharedData();
+            //UpdateSharedData();
 
             //Test.Form3_Clonage CloneForm = new Test.Form3_Clonage(this, path, OldNameCamp);
             DCE_Manager.FormClonage CloneForm = new DCE_Manager.FormClonage(this, path, OldNameCamp);
@@ -1918,9 +1976,9 @@ namespace DCE_Manager
             {
                 checkBoxMod();
                 groupBoxDroiteAccueil.Visible = true;
-                groupBoxCampEdit.Visible = false;
-                groupBox_staticTemplate.Visible = false;
-                groupBoxCampEdit.Text = "";
+                //groupBoxCampEdit.Visible = false;
+                //groupBox_staticTemplate.Visible = false;
+                //groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
                 
@@ -1933,8 +1991,8 @@ namespace DCE_Manager
             else if (e.TabPage == tabPageLeft_Update)
             {
                 groupBoxDroiteAccueil.Visible = true;
-                groupBoxCampEdit.Visible = false;
-                groupBox_staticTemplate.Visible = false;
+                //groupBoxCampEdit.Visible = false;
+                //groupBox_staticTemplate.Visible = false;
 
                 FormUtils.MakeRoundedButton( ScriptsModUpdateButton, 10);
 
@@ -1942,7 +2000,7 @@ namespace DCE_Manager
 
                 FormUtils.MakeRoundedButton(  buttonCampaignCancel, 10);
 
-                groupBoxCampEdit.Text = "";
+                //groupBoxCampEdit.Text = "";
 
                 CampaignTab.Visible = false;
 
@@ -1965,9 +2023,9 @@ namespace DCE_Manager
             else if (e.TabPage == tabPageLeft_About)
             {
                 groupBoxDroiteAccueil.Visible = true;
-                groupBoxCampEdit.Visible = false;
-                groupBox_staticTemplate.Visible = false;
-                groupBoxCampEdit.Text = "";
+                //groupBoxCampEdit.Visible = false;
+                //groupBox_staticTemplate.Visible = false;
+                //groupBoxCampEdit.Text = "";
                 CampaignTab.Visible = false;
 
                 if (textBox_ChangelogScriptsMod.Text == "")
@@ -2004,9 +2062,9 @@ namespace DCE_Manager
             else if (e.TabPage == tabPageLeftNews)
             {
                 groupBoxDroiteAccueil.Visible = true;
-                groupBoxCampEdit.Visible = false;
-                groupBox_staticTemplate.Visible = false;
-                groupBoxCampEdit.Text = "";
+                //groupBoxCampEdit.Visible = false;
+                //groupBox_staticTemplate.Visible = false;
+                //groupBoxCampEdit.Text = "";
                 CampaignTab.Visible = false;
 
             }
@@ -2015,9 +2073,9 @@ namespace DCE_Manager
                 Cursor.Current = Cursors.WaitCursor;
 
                 groupBoxDroiteAccueil.Visible = false;
-                groupBoxCampEdit.Visible = true;
-                groupBox_staticTemplate.Visible = false;
-                groupBoxCampEdit.Text = "";
+                //groupBoxCampEdit.Visible = true;
+                //groupBox_staticTemplate.Visible = false;
+                //groupBoxCampEdit.Text = "";
 
                 _ = LoadCampaignsAsync();
                 
@@ -2070,159 +2128,9 @@ namespace DCE_Manager
             return versionString;
         }
 
-        private void comboBox_Config_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (_isInitializing)
-                return; // on ignore les changements déclenchés pendant le chargement initial
-
-            // 1. On récupère le nom sélectionné (sécurisé avec "as string")
-            string selectedName = comboBox_Config.SelectedItem as string;
-
-            if (string.IsNullOrEmpty(selectedName)) return;
-
-            // 2. On le stocke "seulement" en mémoire dans notre nouvelle variable
-            ParamConf.CurrentConfigName = selectedName;
-
-            // 3. On cherche le numéro de configuration correspondant
-            if (ParamConf.configMap.TryGetValue(selectedName, out int configNumber))
-            {
-                ParamConf.NumSelectConfig = configNumber;
-            }
-
-            // Mise à jour de l'ancien dictionnaire si vous en avez encore besoin ailleurs
-            ParamConf.configDictionary["display"] = selectedName;
-
-            ParamConf.CurrentConfigName = selectedName;
-
-            // 4. On remplit les TextBox de façon sécurisée (pour éviter le "vrai bordel" / crashs)
-            string prefix = $"config_{ParamConf.NumSelectConfig}_";
-
-            //textBox_Campaign.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathZipCampaign", out var p1) ? p1 : "";
-            textBox_PATH_DCS_Root.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var p2) ? p2 : "";
-            textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var p3) ? p3 : "";
-            textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var p4) ? p4 : "";
-
-            // Le reste de vos appels asynchrones...+
-            FormUtils.LogRegister("FormMain comboBox_Config_SelectedIndexChanged() appels asynchrones... _ = RefreshCampaignUpdates");
-            _ = scriptsModUpdater.CheckGithubScriptsModVersionAsync();
-            _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
-
-            _ = campaignUpdater.RefreshCampaignUpdates( CampaignDataGridView, textBox_SavedGames.Text);
-
-            InitializeDCS_Installation_Path();
-
-            this.Text = "DCE_Manager - " + LabelStatut.Text + " - " + selectedName;
-        }
-
-       
+ 
 
 
-        private void m_Button_AddConfig_Click(object sender, EventArgs e)
-        {
-
-            string SelectedItem = "";
-
-            if (textBox_Config.Text == "")
-            {
-                MessageBox.Show("Please enter a name for this new configuration", "Error");
-                return;
-            }
-
-            //if (textBox_Campaign.Text == "" | textBox_PATH_DCS_Root.Text == "" | textBox_SavedGames.Text == "" | textBox_OvGME.Text == "")
-            //{
-            //    MessageBox.Show("Please fill in the paths in the 4 boxes", "Error");
-            //    return;
-            //}
-
-            ParamConf.NumMaxConfig = ParamConf.NumMaxConfig + 1;
-            ParamConf.NumSelectConfig = ParamConf.NumMaxConfig;
-            
-
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_", textBox_Config.Text);
-
-            //ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathZipCampaign" , textBox_Campaign.Text);
-
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathDCS", textBox_PATH_DCS_Root.Text);
-
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathSavedGames", textBox_SavedGames.Text);
-
-            ParamConf.configDictionary.Add("config_" + ParamConf.NumSelectConfig + "_pathOVGME", textBox_OvGME.Text);
-
-
-            comboBox_Config.Items.Add(textBox_Config.Text);
-
-            SelectedItem = textBox_Config.Text;
-
-            ParamConf.configDictionary["display"] = textBox_Config.Text;
-
-            comboBox_Config.SelectedItem = SelectedItem;
-
-            textBox_Config.Text = "";
-
-            // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
-            FormUtils.UpdateConfigFileFromDictionary();
-
-        }
-
-
-        private void but_EditConfig_Click(object sender, EventArgs e)
-        {
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_"] = comboBox_Config.Text;
-            //ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathZipCampaign"] = textBox_Campaign.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathDCS"] = textBox_PATH_DCS_Root.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathSavedGames"] = textBox_SavedGames.Text;
-            ParamConf.configDictionary["config_" + ParamConf.NumSelectConfig + "_pathOVGME"] = textBox_OvGME.Text;
-
-            // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
-            bool result = FormUtils.UpdateConfigFileFromDictionary();
-
-            if(result==true)
-            {
-                MessageBox.Show("The " + comboBox_Config.Text + " configuration paths have been save", "Report");
-            }
-            
-        }
-
-        private void m_Button_Config_Del_Click(object sender, EventArgs e)
-        {
-
-            if (comboBox_Config.Text == "")
-            {
-                MessageBox.Show("No configuration name selected", "Error");
-            }
-            else
-            {
-                ParamConf.configDictionary.Remove("config_" + ParamConf.NumSelectConfig + "_");
-
-                ParamConf.configDictionary.Remove("config_" + ParamConf.NumSelectConfig + "_pathZipCampaign");
-
-                ParamConf.configDictionary.Remove("config_" + ParamConf.NumSelectConfig + "_pathDCS");
-
-                ParamConf.configDictionary.Remove("config_" + ParamConf.NumSelectConfig + "_pathSavedGames");
-
-                ParamConf.configDictionary.Remove("config_" + ParamConf.NumSelectConfig + "_pathOVGME");
-
-                ParamConf.NumSelectConfig = 0;
-                ParamConf.NumMaxConfig = ParamConf.NumMaxConfig - 1;
-
-                ParamConf.configMap.Remove(comboBox_Config.Text);
-
-                comboBox_Config.Items.Remove(comboBox_Config.Text);
-
-                comboBox_Config.DisplayMember = "";
-
-                ParamConf.configDictionary["display"] = comboBox_Config.Text;
-
-                //textBox_Campaign.Text = "";
-                textBox_PATH_DCS_Root.Text = "";
-                textBox_SavedGames.Text = "";
-                textBox_OvGME.Text = "";
-                textBox_Config.Text = "";
-
-                // Utiliser la fonction pour mettre à jour le fichier avec le contenu du dictionnaire
-                FormUtils.UpdateConfigFileFromDictionary();
-            }
-        }
 
         private async void DCEManagerUpdateButton_Click( object sender, EventArgs e)
         {
@@ -2389,9 +2297,8 @@ namespace DCE_Manager
         }
         private void UpdateCampaignButtonsVisibility()
         {
-            bool show =
-                groupBoxCampEdit.Text != "" &&
-                (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
+            //bool show =  groupBoxCampEdit.Text != "" && (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
+            bool show =  (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
 
             buttonSaveChgtCampaign.Visible = show;
             buttonResetBackup.Visible = show;
@@ -2414,7 +2321,7 @@ namespace DCE_Manager
                     //MessageBox.Show(iox.Message, "Info");
                 }
             }
-            // Form1.groupBoxCampEdit.Text = nameCamp;
+            //Form1.groupBoxCampEdit.Text = nameCamp;
 
             string[,,,] TEMPtableOobAirBBB = new string[3, 100, 100, 4];
 
@@ -2448,19 +2355,19 @@ namespace DCE_Manager
 
         public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
         {
-            string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
+            string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init_backup_DTT.lua";
 
             string pathFile = "";
             string FolderName = "";
 
             if (radioButton_OOB_INIT.Checked)
             {
-                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init.lua";
                 FolderName = "Init";
             }
             else if (radioButton_OOB_ACTIVE.Checked)
             {
-                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+                pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Active\oob_air.lua";
 
                 FolderName = "Active";
             }
@@ -2486,7 +2393,7 @@ namespace DCE_Manager
                 {
                     string rowName = dataGridViewCampaigns.Rows[i].Cells["Name"].Value?.ToString();
 
-                    if (rowName == groupBoxCampEdit.Text)
+                    if (rowName == ParamCampaignSelected.NameCampaign)
                     {
                         // Met à jour la colonne Aircraft
                         dataGridViewCampaigns.Rows[i].Cells["Aircraft"].Value = newType;
@@ -2495,7 +2402,7 @@ namespace DCE_Manager
                         string imagePath = Path.Combine(
                             textBox_SavedGames.Text,
                             "Mods", "tech", "DCE", "Missions", "Campaigns",
-                            groupBoxCampEdit.Text,
+                            ParamCampaignSelected.NameCampaign,
                             "Images",
                             "planescreen_" + newType + ".png");
 
@@ -2520,7 +2427,7 @@ namespace DCE_Manager
 
         private void buttonSaveActive_Click(object sender, EventArgs e)
         {
-            string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Active\oob_air.lua";
+            string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Active\oob_air.lua";
            
             modifiedCampaign(pathFile, null, "Active");
 
@@ -2543,9 +2450,9 @@ namespace DCE_Manager
             result = MessageBox.Show(message, caption, buttons);
             if (result == System.Windows.Forms.DialogResult.Yes)
             {
-                string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init_backup_DTT.lua";
-                string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_init.lua";
-                //string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text + @"\Init\oob_air_initCLONE.lua";
+                string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init_backup_DTT.lua";
+                string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init.lua";
+                //string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_initCLONE.lua";
 
                 //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
                 if (File.Exists(pathFileBackup))
@@ -2569,7 +2476,7 @@ namespace DCE_Manager
             }
 
 
-            string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + groupBoxCampEdit.Text;
+            string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign;
 
         }
 
@@ -2593,43 +2500,36 @@ namespace DCE_Manager
 
         
 
-        private void butClient_Click(object sender, EventArgs e)
-        {
-            groupBox4.Visible = false;
-            //checkBoxActiveFolder.Visible = false;
-            //checkBox_OvwNGfolder.Visible = false;
-            //checkBoxSanitize.Visible = false;
-            LabelStatut.Text = "User";
-            this.Text = "DCE_Manager - User - " + ParamConf.CurrentConfigName;
-            ParamManager.userLevel = 1;
+        //private void butClient_Click(object sender, EventArgs e)
+        //{
+        //    //LabelStatut.Text = "User";
+        //    this.Text = "DCE_Manager - User - " + ParamConf.CurrentConfigName;
+        //    ParamManager.userLevel = 1;
 
-            textBox_id_client.Visible = false;
-            ScriptsModUpdateButton.Text = "Update";
-        }
+        //    textBox_id_client.Visible = false;
+        //    ScriptsModUpdateButton.Text = "Update";
+        //}
 
-        private void but_Expert_Click(object sender, EventArgs e)
-        {
-            groupBox4.Visible = true;
-            //checkBoxActiveFolder.Visible = true;
-            //checkBox_OvwNGfolder.Visible = true;
-            //checkBoxSanitize.Visible = true;
-            textBox_id_client.Visible = false;
-            LabelStatut.Text = "Expert";
-            this.Text = "DCE_Manager - Expert - " + ParamConf.CurrentConfigName;
-            ParamManager.userLevel = 2;
-        }
+        //private void but_Expert_Click(object sender, EventArgs e)
+        //{
+
+        //    textBox_id_client.Visible = false;
+        //    //LabelStatut.Text = "Expert";
+        //    this.Text = "DCE_Manager - Expert - " + ParamConf.CurrentConfigName;
+        //    ParamManager.userLevel = 2;
+        //}
 
 
-        private void butCampMaker_Click(object sender, EventArgs e)
-        {
+        //private void butCampMaker_Click(object sender, EventArgs e)
+        //{
 
-            textBox_id_client.Visible = false;
-            LabelStatut.Text = "CampaignMaker";
-            this.Text = "DCE_Manager - CampaignMaker - " + ParamConf.CurrentConfigName;
-            ScriptsModUpdateButton.Text = "Update";
-            ParamManager.userLevel = 3;
+        //    textBox_id_client.Visible = false;
+        //    LabelStatut.Text = "CampaignMaker";
+        //    this.Text = "DCE_Manager - CampaignMaker - " + ParamConf.CurrentConfigName;
+        //    ScriptsModUpdateButton.Text = "Update";
+        //    ParamManager.userLevel = 3;
 
-        }
+        //}
 
         private void VersionDceManager_Click(object sender, EventArgs e)
         {
@@ -2638,8 +2538,8 @@ namespace DCE_Manager
             if (ButtonPreview == true ) {
 
                 GetVersionDceManager();
-                but_GPS_LL.Visible = true;
-                LabelStatut.Text = "DEV";
+                //but_GPS_LL.Visible = true;
+                //LabelStatut.Text = "DEV";
                 this.Text = "DCE_Manager - DEV - " + ParamConf.CurrentConfigName;
                 ScriptsModUpdateButton.Text = "Update DEV";
                 textBox_id_client.Visible = true;
@@ -2924,7 +2824,15 @@ namespace DCE_Manager
             }
         }
 
- 
+        private void but_ASTI_Click(object sender, EventArgs e)
+        {
+            // On crée une nouvelle instance de la fenêtre ASTI_Form
+            using (ASTI_Form astiWindow = new ASTI_Form())
+            {
+                // ShowDialog() ouvre la fenêtre de manière bloquante (modale)
+                astiWindow.ShowDialog(this);
+            } // La fenêtre est proprement détruite en mémoire une fois fermée grâce au "using"
+        }
 
 
     }

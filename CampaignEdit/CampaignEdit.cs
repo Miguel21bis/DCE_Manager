@@ -72,7 +72,7 @@ namespace DCE_Manager
         {
             //FormUtils.LogRegister("[INIT CAMPAIGN] START");
 
-            _form1.UpdateSharedData();
+            //_form1.UpdateSharedData();
 
             _campaignContext = new CampaignContext();
             _campaignContext.CampaignEditRef = this;
@@ -93,7 +93,8 @@ namespace DCE_Manager
         {
             
             _form1.CampaignTab.Text = "";
-            _form1.groupBoxCampEdit.Text = _campaignName;
+            //_form1.groupBoxCampEdit.Text = _campaignName;
+            ParamCampaignSelected.NameCampaign = _campaignName;
             _form1.CampaignTab.Visible = true;
             RegisterGrid(_form1.dataGridViewBlue);
             RegisterGrid(_form1.dataGridViewRed);
@@ -168,7 +169,7 @@ namespace DCE_Manager
 
         private void SetCampaignImage()
         {
-            string basePath = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" + _campaignName;
+            string basePath = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + _campaignName;
 
             string bmpPath = basePath + ".bmp";
             string pngPath = basePath + ".png";
@@ -190,15 +191,15 @@ namespace DCE_Manager
             {
                 using (Image image = Image.FromFile(imagePath))
                 {
-                    _form1.pictureBoxCampImage.Image?.Dispose();
-                    _form1.pictureBoxCampImage.Image = new Bitmap(image);
+                    //_form1.pictureBoxCampImage.Image?.Dispose();
+                    //_form1.pictureBoxCampImage.Image = new Bitmap(image);
                 }
             }
             else
             {
                 // aucune image → on nettoie
-                _form1.pictureBoxCampImage.Image?.Dispose();
-                _form1.pictureBoxCampImage.Image = null;
+                //_form1.pictureBoxCampImage.Image?.Dispose();
+                //_form1.pictureBoxCampImage.Image = null;
             }
 
         }

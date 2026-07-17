@@ -207,7 +207,6 @@
     <Compile Include="CampaignEdit\CampaignSaver.cs" />
     <Compile Include="CampaignEdit\db_airbasesParser.cs" />
     <Compile Include="CampaignEdit\triggersParser.cs" />
-    <Compile Include="Class_ASTI.cs" />
     <Compile Include="CampaignEdit\FormSquadEdit.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -216,6 +215,12 @@
     </Compile>
     <Compile Include="CampaignEdit\OobAirParser.cs" />
     <Compile Include="CLone\CloneHelper.cs" />
+    <Compile Include="Configuration_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Configuration_Form.Designer.cs">
+      <DependentUpon>Configuration_Form.cs</DependentUpon>
+    </Compile>
     <Compile Include="DropZoneControl.cs">
       <SubType>Component</SubType>
     </Compile>
@@ -267,6 +272,9 @@
     <Compile Include="Utils.cs" />
     <EmbeddedResource Include="ASTI_Form.resx">
       <DependentUpon>ASTI_Form.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Configuration_Form.resx">
+      <DependentUpon>Configuration_Form.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="FormDownload.resx">
       <DependentUpon>FormDownload.cs</DependentUpon>

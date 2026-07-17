@@ -115,7 +115,7 @@ namespace DCE_Manager
             lua["pathScriptsMod"] = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\ScriptsMod.NG";                    //Create lua variables
             lua["pathCampaign"] = Form1.textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + nameCamp;                    //Create lua variables
             lua["generator"] = "DCE_Manager";                                                                         //Create lua variables
-            lua["pathSavedGames"] = Form1.textBox_SavedGames.Text;                                                                            //Create lua variables
+            lua["PATH_SavedGames_DCS"] = Form1.textBox_SavedGames.Text;                                                                            //Create lua variables
                                                                                                                                               // Crée la table Debug avec la clé "debug" à false
             var debugTable = new Dictionary<string, object>
             {

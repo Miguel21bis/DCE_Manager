@@ -110,7 +110,7 @@
             this.label3.TabIndex = 10;
             this.label3.Text = "2/ Edit the name of your campaign:";
             // 
-            // Form3_Clonage
+            // FormClonage
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -124,7 +124,8 @@
             this.Controls.Add(this.CampaignName);
             this.Controls.Add(this.button_clone);
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-            this.Name = "Form3_Clonage";
+            this.Name = "FormClonage";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Clone";
             this.Load += new System.EventHandler(this.Form3_Load);
             this.ResumeLayout(false);

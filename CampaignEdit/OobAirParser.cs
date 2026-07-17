@@ -101,12 +101,12 @@ namespace DCE_Manager
 
             if (folderName == "Init")
             {
-                pathFileB = SharedData.textBox_SavedGames + @"\Mods\tech\DCE\Missions\Campaigns\" +
+                pathFileB = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" +
                     campaignName +  @"\Init\oob_air_init.lua";
             }
             else
             {
-                pathFileB = SharedData.textBox_SavedGames +  @"\Mods\tech\DCE\Missions\Campaigns\" +
+                pathFileB = ParamConf.PATH_SavedGames_DCS +  @"\Mods\tech\DCE\Missions\Campaigns\" +
                     campaignName +  @"\Active\oob_air.lua";
             }
 

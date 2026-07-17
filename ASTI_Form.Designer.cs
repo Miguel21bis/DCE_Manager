@@ -54,7 +54,6 @@
             this.groupBox_staticTemplate.TabIndex = 3;
             this.groupBox_staticTemplate.TabStop = false;
             this.groupBox_staticTemplate.Text = "ASTI";
-            this.groupBox_staticTemplate.Visible = false;
             // 
             // but_GPS_LL
             // 
