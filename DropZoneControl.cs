@@ -80,7 +80,7 @@ namespace DCE_Manager.Controls
             if (_hasValidFile)
             {
                 MainText = Path.GetFileName(filePath);
-                SubText = "Campagne détectée — prête à installer (cliquer pour changer)";
+                SubText = "Campaign detected — ready to install (click to change)";
             }
             else
             {

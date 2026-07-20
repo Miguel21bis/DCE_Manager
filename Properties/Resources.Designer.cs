@@ -71,26 +71,26 @@ namespace DCE_Manager.Properties {
         }
         
         /// <summary>
-        ///   Recherche une chaîne localisée semblable à V8.14.44
-        ///fix: compatible with certain DCE Lua files
-        ///add: compatible with \loadouts folder
+        ///   Recherche une chaîne localisée semblable à V10.17.52
+        ///ADD: Viewing and editing conf_mod (work in progress)
         ///
-        ///V8.14.42
-        ///add: Compatible with campaign cloning, possessing the Mods folder
+        ///V10.16.51
+        ///MOD: revamp of the PATH/Campaign Installation page
+        ///MOD: revamp of configuration management
         ///
-        ///V7.13.41
-        ///fix: cloning bug campaigns (again^^)
+        ///V10.16
+        ///MOD: UPDATE, complete overhaul of the release update process via GITHUB
         ///
-        ///V7.13.40
-        ///mod: need to change file versioning in “Mission Scripts” folder
-        ///fix: cloning bug campaigns
+        ///V9.15
+        ///ADD Statistics
+        ///ADD: ability to add and clone squads
+        ///MOD: optimised performance
+        ///MOD: the grid-based display of campaigns has been completely overhauled
+        ///MOD: the display of squads has been overhauled
         ///
-        ///V6.12.39
-        ///fix: downloading an update to DCE_Manager creates an empty ZIP with a certain type of server
         ///
-        ///V6.12.38
-        ///mod: configuration management revisited
-        ///mod: different display of  [le reste de la chaîne a été tronqué]&quot;;.
+        ///V8.14.44
+        ///fix: compatible with certain DCE [le reste de la chaîne a été tronqué]&quot;;.
         /// </summary>
         internal static string changelog {
             get {
@@ -115,6 +115,16 @@ namespace DCE_Manager.Properties {
         internal static string changelog_ScriptsMod {
             get {
                 return ResourceManager.GetString("changelog_ScriptsMod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Byte[].
+        /// </summary>
+        internal static byte[] DCE_Incliner_64 {
+            get {
+                object obj = ResourceManager.GetObject("DCE_Incliner_64", resourceCulture);
+                return ((byte[])(obj));
             }
         }
         
@@ -364,6 +374,16 @@ namespace DCE_Manager.Properties {
         internal static System.Drawing.Bitmap icons8_warning_blue_30 {
             get {
                 object obj = ResourceManager.GetObject("icons8-warning-blue-30", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_zip_64 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-zip-64", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

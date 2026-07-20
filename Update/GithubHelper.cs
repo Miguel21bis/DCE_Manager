@@ -230,7 +230,7 @@ namespace DCE_Manager.Update
             string assetFilter,
             Action<string, string, string> saveResult)
         {
-            if (DateTime.UtcNow - ParamUpdater.LastGithubCheckUtc < ParamUpdater.GithubCheckInterval)
+            if (DateTime.UtcNow - Updater_Param.LastGithubCheckUtc < Updater_Param.GithubCheckInterval)
             {
                 //return true; // utiliser les valeurs déjà en mémoire
             }

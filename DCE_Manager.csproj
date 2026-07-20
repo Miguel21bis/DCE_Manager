@@ -61,7 +61,7 @@
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup>
-    <ApplicationIcon>xp04.ico</ApplicationIcon>
+    <ApplicationIcon>DCE_Incliner_64.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup>
     <StartupObject />
@@ -192,107 +192,108 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ASTI_Form.cs">
+    <Compile Include="ASTI\ASTI_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="ASTI_Form.Designer.cs">
+    <Compile Include="ASTI\ASTI_Form.Designer.cs">
       <DependentUpon>ASTI_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="CampaignEdit\CampaignContext.cs" />
-    <Compile Include="CampaignEdit\CampaignEdit.cs">
+    <Compile Include="ConfMod\ConfModDynamicData.cs" />
+    <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
+    <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
+    <Compile Include="Grid_Squad\CampaignContext.cs" />
+    <Compile Include="Grid_Campaign\CampaignEdit.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="appsettings.cs" />
-    <Compile Include="CampaignEdit\CampaignLuaLoader.cs" />
-    <Compile Include="CampaignEdit\CampaignSaver.cs" />
-    <Compile Include="CampaignEdit\db_airbasesParser.cs" />
-    <Compile Include="CampaignEdit\triggersParser.cs" />
-    <Compile Include="CampaignEdit\FormSquadEdit.cs">
+    <Compile Include="Grid_Squad\CampaignLuaLoader.cs" />
+    <Compile Include="Grid_Squad\Saver_Campaign.cs" />
+    <Compile Include="Grid_Squad\Parser_db_airbases.cs" />
+    <Compile Include="Grid_Squad\Parser_triggers.cs" />
+    <Compile Include="Grid_Squad\SquadEdit_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="CampaignEdit\FormSquadEdit.Designer.cs">
-      <DependentUpon>FormSquadEdit.cs</DependentUpon>
+    <Compile Include="Grid_Squad\SquadEdit_Form.Designer.cs">
+      <DependentUpon>SquadEdit_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="CampaignEdit\OobAirParser.cs" />
-    <Compile Include="CLone\CloneHelper.cs" />
-    <Compile Include="Configuration_Form.cs">
+    <Compile Include="Grid_Squad\Parser_OobAir.cs" />
+    <Compile Include="Clone\CloneHelper.cs" />
+    <Compile Include="ConfMod\ConfModData.cs" />
+    <Compile Include="ConfMod\ConfModForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Configuration_Form.Designer.cs">
+    <Compile Include="ConfMod\ConfModLoader.cs" />
+    <Compile Include="ConfMod\ConfModWriter.cs" />
+    <Compile Include="Forms\Configuration_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\Configuration_Form.Designer.cs">
       <DependentUpon>Configuration_Form.cs</DependentUpon>
     </Compile>
     <Compile Include="DropZoneControl.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Install.cs">
+    <Compile Include="Grid_Campaign\Campaign_Grid_Left.cs" />
+    <Compile Include="Forms\Main_Form.Install.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Statistic.cs" />
+    <Compile Include="Core\Statistics.cs" />
     <Compile Include="Update\CampaignInfo.cs" />
     <Compile Include="Update\CampaignRepository.cs" />
-    <Compile Include="Update\CampaignUpdater.cs" />
+    <Compile Include="Update\Updater_Campaign.cs" />
     <Compile Include="Update\GithubHelper.cs" />
-    <Compile Include="Update\UpdateUtils.cs" />
-    <Compile Include="Update\ParamUpdater.cs" />
-    <Compile Include="Proj_NET.cs" />
-    <Compile Include="LuaParse.cs" />
-    <Compile Include="FixedProcess.cs">
+    <Compile Include="Update\Utils_Update.cs" />
+    <Compile Include="Update\Updater_Param.cs" />
+    <Compile Include="ASTI\Proj_NET.cs" />
+    <Compile Include="Core\LuaParse.cs" />
+    <Content Include="DCE_Incliner_64.ico" />
+    <Content Include="xp04.ico" />
+    <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="FormDownload.cs">
+    </None>
+    <Compile Include="Forms\Main_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="FormDownload.Designer.cs">
-      <DependentUpon>FormDownload.cs</DependentUpon>
+    <Compile Include="Forms\Main_Form.Designer.cs">
+      <DependentUpon>Main_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="FormMain.cs">
+    <Compile Include="Clone\Clone_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="FormMain.Designer.cs">
-      <DependentUpon>FormMain.cs</DependentUpon>
+    <Compile Include="Clone\Clone_Form.Designer.cs">
+      <DependentUpon>Clone_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="CLone\FormClonage.cs">
+    <Compile Include="Forms\MissionGenerator_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="CLone\FormClonage.Designer.cs">
-      <DependentUpon>FormClonage.cs</DependentUpon>
+    <Compile Include="Forms\MissionGenerator_Form.Designer.cs">
+      <DependentUpon>MissionGenerator_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="FormMissionGenerator.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="FormMissionGenerator.Designer.cs">
-      <DependentUpon>FormMissionGenerator.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Parameters.cs" />
+    <Compile Include="Core\Parameters.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Update\DCEManagerUpdater.cs" />
-    <Compile Include="Update\ScriptsModUpdater.cs" />
-    <Compile Include="UIBatchBuilder.cs.cs" />
-    <Compile Include="Utils.cs" />
-    <EmbeddedResource Include="ASTI_Form.resx">
+    <Compile Include="Update\Updater_DCEManager.cs" />
+    <Compile Include="Update\Updater_ScriptsMod.cs" />
+    <Compile Include="Core\Utils.cs" />
+    <EmbeddedResource Include="ASTI\ASTI_Form.resx">
       <DependentUpon>ASTI_Form.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Configuration_Form.resx">
+    <EmbeddedResource Include="Forms\Configuration_Form.resx">
       <DependentUpon>Configuration_Form.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="FormDownload.resx">
-      <DependentUpon>FormDownload.cs</DependentUpon>
+    <EmbeddedResource Include="Forms\Main_Form.resx">
+      <DependentUpon>Main_Form.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="FormMain.resx">
-      <DependentUpon>FormMain.cs</DependentUpon>
+    <EmbeddedResource Include="Clone\Clone_Form.resx">
+      <DependentUpon>Clone_Form.cs</DependentUpon>
       <SubType>Designer</SubType>
     </EmbeddedResource>
-    <EmbeddedResource Include="CLone\FormClonage.resx">
-      <DependentUpon>FormClonage.cs</DependentUpon>
-      <SubType>Designer</SubType>
+    <EmbeddedResource Include="Forms\MissionGenerator_Form.resx">
+      <DependentUpon>MissionGenerator_Form.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="FormMissionGenerator.resx">
-      <DependentUpon>FormMissionGenerator.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="CampaignEdit\FormSquadEdit.resx">
-      <DependentUpon>FormSquadEdit.cs</DependentUpon>
+    <EmbeddedResource Include="Grid_Squad\SquadEdit_Form.resx">
+      <DependentUpon>SquadEdit_Form.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -323,7 +324,6 @@
       <DependentUpon>Settings.settings</DependentUpon>
       <DesignTimeSharedInput>True</DesignTimeSharedInput>
     </Compile>
-    <None Include="Test_TemporaryKey.pfx" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -347,14 +347,7 @@
     <EmbeddedResource Include="Resources\etiquetteLogo.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </EmbeddedResource>
-    <Content Include="xp04.ico" />
-    <Content Include="xp_01.ico" />
-    <Content Include="xp_02.ico" />
-    <Content Include="xp_03.ico" />
     <None Include="Resources\vigne11e.ico" />
-    <Content Include="Bitmap1.bmp" />
-    <Content Include="blackwings1.ico" />
-    <Content Include="DCS.ico" />
     <None Include="Resources\iconDel.png" />
     <None Include="Resources\iconePlus2.png" />
     <None Include="Resources\iconePlus.png" />

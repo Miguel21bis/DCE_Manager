@@ -1,4 +1,7 @@
-V10.16.50
+V10.17.52
+ADD: Viewing and editing conf_mod (work in progress)
+
+V10.16.51
 MOD: revamp of the PATH/Campaign Installation page
 MOD: revamp of configuration management
 
