@@ -1,3 +1,21 @@
+V10.17.52
+ADD: Viewing and editing conf_mod (work in progress)
+
+V10.16.51
+MOD: revamp of the PATH/Campaign Installation page
+MOD: revamp of configuration management
+
+V10.16
+MOD: UPDATE, complete overhaul of the release update process via GITHUB
+
+V9.15
+ADD Statistics
+ADD: ability to add and clone squads
+MOD: optimised performance
+MOD: the grid-based display of campaigns has been completely overhauled
+MOD: the display of squads has been overhauled
+
+
 V8.14.44
 fix: compatible with certain DCE Lua files
 add: compatible with \loadouts folder

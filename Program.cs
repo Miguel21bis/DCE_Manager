@@ -39,7 +39,7 @@ namespace DCE_Manager
                 }
             }, null, 0, 30000);
 
-            Application.Run(new DCE_Manager.Form1());
+            Application.Run(new DCE_Manager.Main_Form());
 
         }
 

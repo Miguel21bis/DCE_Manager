@@ -34,6 +34,9 @@ namespace DCE_Manager.Update
 
         public bool AlreadyInstalledLatestVersion { get; set; } = false;
 
+        public bool RateLimited { get; set; }
+        public DateTime RateLimitResetUtc { get; set; }
+
     }
 
     // Informations minimales contenues dans une archive de campagne.
