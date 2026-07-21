@@ -12,6 +12,13 @@ namespace DCE_Manager
     // order come from the "@ui" tags parsed out of conf_mod.lua (see
     // ConfUiSchemaParser). Adding, removing or reordering a field in conf_mod.lua is
     // enough to change what this Form shows - nothing here needs to change.
+    //
+    // NOTE: matrix rendering is implemented here, but ConfUiSchemaParser,
+    // ConfModLoader and ConfModWriter do not yet parse/read/write the "matrix" tag
+    // or the "rows="/"cols=" attributes - that is the next piece of work. Until
+    // then, matrix fields simply won't appear in _data.Schema (the parser doesn't
+    // produce them), so this code has nothing to render yet - it is ready and
+    // waiting for the other three files.
     public class ConfModForm : Form
     {
         private readonly string _campaignName;
@@ -19,6 +26,7 @@ namespace DCE_Manager
         private readonly ConfModWriter _writer = new ConfModWriter();
         private ConfModDynamicData _data;
         private readonly List<UiFieldControl> _controls = new List<UiFieldControl>();
+        private readonly List<UiMatrixControl> _matrixControls = new List<UiMatrixControl>();
 
         private Button buttonSave;
         private Button buttonCancel;
@@ -57,24 +65,47 @@ namespace DCE_Manager
         private void BuildForm()
         {
             var tabs = new TabControl { Dock = DockStyle.Fill };
-            var layoutsByGroup = new Dictionary<string, TableLayoutPanel>();
+            var tabByGroup = new Dictionary<string, TabPage>();
+            var scalarLayoutByGroup = new Dictionary<string, TableLayoutPanel>();
             var rowByGroup = new Dictionary<string, int>();
+            var matrixControlsByGroup = new Dictionary<string, List<Control>>();
 
             // Preserve the file's own order: a group's tab appears where its first
             // field appears, and fields within a group keep the file's own order.
             foreach (ConfUiFieldSchema field in _data.Schema.OrderBy(f => f.LineIndex))
             {
+                TabPage tab;
+
+                if (!tabByGroup.TryGetValue(field.Group, out tab))
+                {
+                    tab = new TabPage(field.Group);
+                    tabs.TabPages.Add(tab);
+                    tabByGroup[field.Group] = tab;
+                }
+
+                if (field.Type == UiFieldType.Matrix)
+                {
+                    List<Control> matrixControls;
+
+                    if (!matrixControlsByGroup.TryGetValue(field.Group, out matrixControls))
+                    {
+                        matrixControls = new List<Control>();
+                        matrixControlsByGroup[field.Group] = matrixControls;
+                    }
+
+                    UiMatrixControl mc = CreateMatrixControl(field);
+                    _matrixControls.Add(mc);
+                    matrixControls.Add(mc.Container);
+                    continue;
+                }
+
                 TableLayoutPanel groupLayout;
 
-                if (!layoutsByGroup.TryGetValue(field.Group, out groupLayout))
+                if (!scalarLayoutByGroup.TryGetValue(field.Group, out groupLayout))
                 {
-                    var tab = new TabPage(field.Group);
                     groupLayout = NewLayout();
-
                     tab.Controls.Add(groupLayout);
-                    tabs.TabPages.Add(tab);
-
-                    layoutsByGroup[field.Group] = groupLayout;
+                    scalarLayoutByGroup[field.Group] = groupLayout;
                     rowByGroup[field.Group] = 0;
                 }
 
@@ -90,10 +121,44 @@ namespace DCE_Manager
 
             // Absorbs the leftover vertical space left by Dock=Fill so the AutoSize
             // content rows stay packed at the top instead of the last one stretching.
-            foreach (TableLayoutPanel groupLayout in layoutsByGroup.Values)
+            foreach (TableLayoutPanel groupLayout in scalarLayoutByGroup.Values)
             {
                 groupLayout.RowCount += 1;
                 groupLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            }
+
+            // Stack the matrix control(s) of each group into their tab. A single
+            // matrix fills the whole tab; several (e.g. main repair table + runway)
+            // share the tab evenly, stacked vertically.
+            foreach (KeyValuePair<string, List<Control>> kv in matrixControlsByGroup)
+            {
+                TabPage tab = tabByGroup[kv.Key];
+                List<Control> matrixControls = kv.Value;
+
+                if (matrixControls.Count == 1)
+                {
+                    matrixControls[0].Dock = DockStyle.Fill;
+                    tab.Controls.Add(matrixControls[0]);
+                    continue;
+                }
+
+                var stack = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = matrixControls.Count
+                };
+
+                float percentPerRow = 100f / matrixControls.Count;
+
+                for (int i = 0; i < matrixControls.Count; i++)
+                {
+                    stack.RowStyles.Add(new RowStyle(SizeType.Percent, percentPerRow));
+                    matrixControls[i].Dock = DockStyle.Fill;
+                    stack.Controls.Add(matrixControls[i], 0, i);
+                }
+
+                tab.Controls.Add(stack);
             }
 
             var buttonPanel = new FlowLayoutPanel
@@ -126,12 +191,23 @@ namespace DCE_Manager
                 if (_data.Values.TryGetValue(fc.Schema.Path, out value))
                     fc.SetValue(value);
             }
+
+            foreach (UiMatrixControl mc in _matrixControls)
+            {
+                object value;
+
+                if (_data.Values.TryGetValue(mc.Schema.Path, out value))
+                    mc.SetValue(value as Dictionary<string, double[]>);
+            }
         }
 
         private void ButtonSave_Click(object sender, EventArgs e)
         {
             foreach (UiFieldControl fc in _controls)
                 _data.Values[fc.Schema.Path] = fc.GetValue();
+
+            foreach (UiMatrixControl mc in _matrixControls)
+                _data.Values[mc.Schema.Path] = mc.GetValue();
 
             bool ok = _writer.Save(_data);
 
@@ -151,10 +227,10 @@ namespace DCE_Manager
         }
 
         // ---------------------------------------------------------------
-        // Generic control factory: one entry point that turns a field's schema
-        // (type + bounds + options) into the right WinForms control, plus a
-        // uniform get/set pair so the rest of the Form never needs to know
-        // which control kind backs a given field.
+        // Generic control factory (scalar fields): one entry point that turns a
+        // field's schema (type + bounds + options) into the right WinForms
+        // control, plus a uniform get/set pair so the rest of the Form never
+        // needs to know which control kind backs a given field.
         // ---------------------------------------------------------------
 
         private static UiFieldControl CreateFieldControl(TableLayoutPanel layout, int row, ConfUiFieldSchema schema)
@@ -295,6 +371,148 @@ namespace DCE_Manager
             fc.SetValue = v => text.Text = v != null ? v.ToString() : "";
         }
 
+        // ---------------------------------------------------------------
+        // Matrix rendering: rows = named Lua keys (e.g. airUnit, airbase...),
+        // columns = 1-based positions inside each row's positional Lua array
+        // (e.g. col "2" = deathPoint). Only positions declared in schema.ColSpecs
+        // are editable; any other position in the underlying array is preserved
+        // untouched on save (see the closures below).
+        // ---------------------------------------------------------------
+
+        private UiMatrixControl CreateMatrixControl(ConfUiFieldSchema schema)
+        {
+            var container = new Panel { Dock = DockStyle.Fill };
+
+            var title = new Label
+            {
+                Text = schema.Label,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Dock = DockStyle.Top,
+                Height = 26,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(4, 0, 0, 0)
+            };
+
+            var grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.CellSelect
+            };
+
+            grid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "__row",
+                HeaderText = "",
+                ReadOnly = true,
+                FillWeight = 70
+            });
+
+            foreach (UiOption col in schema.ColSpecs)
+            {
+                grid.Columns.Add(new DataGridViewTextBoxColumn
+                {
+                    Name = "col_" + col.Value,
+                    HeaderText = col.Label,
+                    FillWeight = 100
+                });
+            }
+
+            foreach (UiOption rowSpec in schema.RowSpecs)
+            {
+                int idx = grid.Rows.Add();
+                grid.Rows[idx].Cells["__row"].Value = rowSpec.Label;
+                grid.Rows[idx].Tag = rowSpec.Value;
+            }
+
+            container.Controls.Add(grid);
+            container.Controls.Add(title);
+
+            if (!string.IsNullOrEmpty(schema.Help))
+            {
+                var tip = new ToolTip();
+                tip.SetToolTip(title, schema.Help);
+            }
+
+            var mc = new UiMatrixControl { Schema = schema, Container = container };
+
+            // Full per-row arrays as loaded (including columns not exposed in the
+            // grid), so anything not shown here still round-trips unchanged.
+            var baseline = new Dictionary<string, double[]>();
+
+            mc.SetValue = data =>
+            {
+                baseline = data ?? new Dictionary<string, double[]>();
+
+                foreach (DataGridViewRow gridRow in grid.Rows)
+                {
+                    string rowKey = (string)gridRow.Tag;
+                    double[] values;
+
+                    if (!baseline.TryGetValue(rowKey, out values))
+                        continue;
+
+                    foreach (UiOption col in schema.ColSpecs)
+                    {
+                        int colIndex = ParseColumnIndex(col.Value);
+
+                        if (colIndex >= 0 && colIndex < values.Length)
+                            gridRow.Cells["col_" + col.Value].Value = values[colIndex].ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+            };
+
+            mc.GetValue = () =>
+            {
+                var result = new Dictionary<string, double[]>();
+
+                foreach (DataGridViewRow gridRow in grid.Rows)
+                {
+                    string rowKey = (string)gridRow.Tag;
+                    double[] values;
+
+                    if (!baseline.TryGetValue(rowKey, out values))
+                        continue;
+
+                    double[] updated = (double[])values.Clone();
+
+                    foreach (UiOption col in schema.ColSpecs)
+                    {
+                        int colIndex = ParseColumnIndex(col.Value);
+
+                        if (colIndex < 0 || colIndex >= updated.Length)
+                            continue;
+
+                        object cellValue = gridRow.Cells["col_" + col.Value].Value;
+                        double d;
+
+                        if (cellValue != null && double.TryParse(cellValue.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out d))
+                            updated[colIndex] = d;
+                    }
+
+                    result[rowKey] = updated;
+                }
+
+                return result;
+            };
+
+            return mc;
+        }
+
+        // schema.ColSpecs values are 1-based Lua positions (e.g. "2" for the 2nd
+        // element of the row array); converts to a 0-based C# array index.
+        private static int ParseColumnIndex(string oneBasedToken)
+        {
+            int oneBased;
+            return int.TryParse(oneBasedToken, NumberStyles.Integer, CultureInfo.InvariantCulture, out oneBased)
+                ? oneBased - 1
+                : -1;
+        }
+
         private static TableLayoutPanel NewLayout()
         {
             var layout = new TableLayoutPanel
@@ -332,6 +550,14 @@ namespace DCE_Manager
             public ConfUiFieldSchema Schema;
             public Func<object> GetValue;
             public Action<object> SetValue;
+        }
+
+        private class UiMatrixControl
+        {
+            public ConfUiFieldSchema Schema;
+            public Control Container;
+            public Func<Dictionary<string, double[]>> GetValue;
+            public Action<Dictionary<string, double[]>> SetValue;
         }
     }
 }

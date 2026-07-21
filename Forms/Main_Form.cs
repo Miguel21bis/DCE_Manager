@@ -1148,37 +1148,9 @@ namespace DCE_Manager
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
 
             }
-
-            //else
-            //{
-            //    // On quitte l’onglet CampaignTab → on cache tout
-            //    //buttonSaveChgtCampaign.Visible = false;
-            //    //buttonResetBackup.Visible = false;
-            //    //radioButton_OOB_INIT.Visible = false;
-            //    //radioButton_OOB_ACTIVE.Visible = false;
-            //    CampaignGridLeft.UpdateCampaignButtonsVisibility();
-            //}
+s
         }
 
-
-
-
-        //int UpdateA = 1;
-        //public System.Windows.Forms.Label UpdateAddNewLabelA(string NameCamp)
-        //{
-        //    System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
-
-        //    txt.Top = UpdateA * 20 + 23;
-        //    txt.Left = 25;
-        //    txt.AutoSize = true;
-        //    //txt.Size = new System.Drawing.Size(170, 20);
-        //    txt.Text = NameCamp;
-        //    UpdateA = UpdateA + 1;
-        //    return txt;
-        //}
-        //int UpdateB = 1;
-
-        //int UpdateC = 1;
 
 
         public string GetVersionDceManager()
@@ -1357,62 +1329,6 @@ namespace DCE_Manager
             CampaignGridLeft.UpdateCampaignButtonsVisibility();
         }
 
-
-
-        //private void buttonSaveActive_Click(object sender, EventArgs e)
-        //{
-        //    string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Active\oob_air.lua";
-           
-        //    CampaignGridLeft.ModifiedCampaign(pathFile, null, "Active");
-
-        //    PublicTable.errorTable.Clear();
-        //    textBox_Bugs.Text = "";
-        //    tabPage12.Text = "Bugs";
-
-        //    //CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
-        //}
-
-        //private void buttonResetBackup_Click(object sender, EventArgs e)
-        //{
-        //    // Initializes the variables to pass to the MessageBox.Show method.
-        //    string message = "Do you really want to go back to the original values?";
-        //    string caption = "Caution";
-        //    MessageBoxButtons buttons = MessageBoxButtons.YesNo;
-        //    DialogResult result;
-
-        //    // Displays the MessageBox.
-        //    result = MessageBox.Show(message, caption, buttons);
-        //    if (result == System.Windows.Forms.DialogResult.Yes)
-        //    {
-        //        string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init_backup_DTT.lua";
-        //        string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init.lua";
-        //        //string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_initCLONE.lua";
-
-        //        //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
-        //        if (File.Exists(pathFileBackup))
-        //        {
-        //            try
-        //            {
-        //                File.Copy(pathFileBackup, pathFile, true);
-        //            }
-        //            catch (IOException iox)
-        //            {
-        //                //MessageBox.Show(iox.Message, "Info");
-        //                FormUtils.ShowErrorMessage(iox.Message);
-        //            }
-        //        }
-        //    }
-
-        //    // Remplacez l'appel statique CampaignEdit.LoadSquads(); par un appel sur l'instance _currentCampaignEdit
-        //    if (_currentCampaignEdit != null)
-        //    {
-        //        _currentCampaignEdit.LoadSquads();
-        //    }
-
-
-        //    string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign;
-
-        //}
 
         public bool ButtonPreview = false;
         public void Form1_KeyDown(object sender, KeyEventArgs e)

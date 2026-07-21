@@ -8,7 +8,8 @@ namespace DCE_Manager.Parameters
         Numeric,
         Slider,
         Combo,
-        Text
+        Text,
+        Matrix
     }
 
     // One selectable choice for a Combo field. ToString() returns the label so it
@@ -55,11 +56,19 @@ namespace DCE_Manager.Parameters
         public bool ZeroIsFalse { get; set; }
         public List<UiOption> Options { get; set; }
 
+        // Matrix only: rows and columns, reusing UiOption (Value:Label). For a row,
+        // Value is the Lua key (e.g. "airUnit"). For a column, Value is the 1-based
+        // positional index into that row's Lua array (e.g. "2" for deathPoint).
+        public List<UiOption> RowSpecs { get; set; }
+        public List<UiOption> ColSpecs { get; set; }
+
         public ConfUiFieldSchema()
         {
             Step = 1;
             Group = "General";
             Options = new List<UiOption>();
+            RowSpecs = new List<UiOption>();
+            ColSpecs = new List<UiOption>();
         }
     }
 }

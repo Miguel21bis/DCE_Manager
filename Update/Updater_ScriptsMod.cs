@@ -520,7 +520,7 @@ namespace DCE_Manager.Update
                     GithubHelper.GithubAccount,
                     GithubHelper.Repository_ScriptsMod,
                     ".zip",
-                    "DCE_scriptsMod_",
+                    "DCE_scriptsMod",
                     (version, asset, url) =>
                     {
                         ParamGithub.LastVersion = version;
