@@ -7,6 +7,7 @@ using System.Linq;
 using System.Windows.Forms;
 using DCE_Manager.Controls; // Pour que le DropZoneControl soit reconnu
 using DCE_Manager.Parameters;
+using DCE_Manager.UserControls;
 using DCE_Manager.Utils;
 using Ookii.Dialogs.WinForms;
 
@@ -32,7 +33,8 @@ namespace DCE_Manager
                 pic_DCS_Root.Image = Properties.Resources.icons8_ok_24;
                 Label_subLabel_DCS.Text = DCS_RootPath;
                 ParamConf.PATH_DCS_Root = DCS_RootPath;
-                //ParamConf.test_DCS_Root = true;
+
+                homeView.pic_Accueil_DCS_Status.Image = Properties.Resources.icons8_ok_24;
             }
             else
             {
@@ -40,7 +42,8 @@ namespace DCE_Manager
                 pic_DCS_Root.Image = Properties.Resources.icons8_warning_blue_30;
                 Label_subLabel_DCS.Text = "";
                 ParamConf.PATH_DCS_Root = "";
-                //ParamConf.test_DCS_Root = false;
+
+                homeView.pic_Accueil_DCS_Status.Image = Properties.Resources.icons8_warning_blue_30;
             }
 
             //---textBox_SavedGames
@@ -58,6 +61,7 @@ namespace DCE_Manager
                 label_subLabel_SavedGame_Folder.Text = savedGamesPath;
                 ParamConf.PATH_SavedGames_DCS = savedGamesPath;
                 //ParamConf.SavedGames = true;
+                homeView.pic_Accueil_SavedGames_Satus.Image = Properties.Resources.icons8_ok_24;
             }
             else
             {
@@ -66,6 +70,7 @@ namespace DCE_Manager
                 label_subLabel_SavedGame_Folder.Text = "";
                 ParamConf.PATH_SavedGames_DCS = "";
                 //ParamConf.test_DCS_Root = false;
+                homeView.pic_Accueil_SavedGames_Satus.Image = Properties.Resources.icons8_warning_blue_30;
             }
 
             //--OvGMEPath
@@ -83,6 +88,7 @@ namespace DCE_Manager
 
                 // Si tu as une variable de test comme pour DCS, n'oublie pas de la mettre à true :
                 // ParamConf.OvGME_Root = true;
+                homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_ok_24;
             }
             else
             {
@@ -92,6 +98,7 @@ namespace DCE_Manager
                 ParamConf.PATH_OVGME_MOD = "";
 
                 // ParamConf.OvGME_Root = false;
+                homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_warning_blue_30;
             }
         }
 

@@ -383,11 +383,11 @@ namespace DCE_Manager
             // 2. Ensuite seulement appliquer le state UI
             if (nbMission <= 0)
             {
-                _mainForm.radioButton_OOB_INIT.Checked = true;
+                Main_Form.Instance.CampaignView.SetOobInitMode(true);
             }
             else
             {
-                _mainForm.radioButton_OOB_ACTIVE.Checked = true;
+                Main_Form.Instance.CampaignView.SetOobActiveMode(true);
             }
 
         }
@@ -768,7 +768,8 @@ namespace DCE_Manager
                 UpdateCampaignButtonsVisibility();
 
 
-                _mainForm.label_Right_Campaign_Name.Text = "";
+                //_mainForm.label_Right_Campaign_Name.Text = "";
+                Main_Form.Instance.CampaignView.label_Right_Campaign_Name.Text = "";
             }
 
             // 🔧 Nouvelle instance
@@ -779,48 +780,30 @@ namespace DCE_Manager
             time_CampaignEdit1.Stop();
         }
 
-        //public void UpdateCampaignButtonsVisibility()
-        //{
-        //    //bool show =  groupBoxCampEdit.Text != "" && (CampaignTab.SelectedTab == tabPage14 || CampaignTab.SelectedTab == tabPage15);
-        //    bool show_A = _mainForm.CampaignTab.Visible && (_mainForm.CampaignTab.SelectedTab == _mainForm.tabPage14 || _mainForm.CampaignTab.SelectedTab == _mainForm.tabPage15);
-
-        //    _mainForm.buttonSaveChgtCampaign.Visible = show_A;
-        //    _mainForm.buttonResetBackup.Visible = show_A;
-        //    _mainForm.radioButton_OOB_INIT.Visible = show_A;
-        //    _mainForm.radioButton_OOB_ACTIVE.Visible = show_A;
-
-
-        //    bool show_B = _mainForm.CampaignTab.Visible ;
-
-        //    _mainForm.label_Right_Campaign_Name.Visible = show_B;
-
-
-        //}
 
         public void UpdateCampaignButtonsVisibility()
         {
             bool campaignSelected = CurrentCampaignEdit != null;
 
-            bool show_A = campaignSelected &&
-                          (_mainForm.CampaignTab.SelectedTab == _mainForm.tabPage14 ||
-                           _mainForm.CampaignTab.SelectedTab == _mainForm.tabPage15);
+            bool show_A = campaignSelected && _mainForm.CampaignView.IsOobTabSelected;
+
 
             bool show_B = campaignSelected;
 
-            _mainForm.buttonSaveChgtCampaign.Visible = show_A;
-            _mainForm.buttonResetBackup.Visible = show_A;
-            _mainForm.radioButton_OOB_INIT.Visible = show_A;
-            _mainForm.radioButton_OOB_ACTIVE.Visible = show_A;
+            Main_Form.Instance.CampaignView.EnableSaveButton(show_A);
+            Main_Form.Instance.CampaignView.EnableResetButton(show_A);
+            Main_Form.Instance.CampaignView.SetOobInitMode(show_A);
+            Main_Form.Instance.CampaignView.SetOobActiveMode(show_A);
 
-            _mainForm.label_Right_Campaign_Name.Visible = show_B;
+            _mainForm.CampaignView.ShowCampaignName(show_B);
         }
 
 
 
         public void RefreshGrids()
         {
-            CampaignEdit.LoadGridStatic(_mainForm.dataGridViewBlue, _mainForm.currentSquads, "blue", _mainForm.currentState);
-            CampaignEdit.LoadGridStatic(_mainForm.dataGridViewRed, _mainForm.currentSquads, "red", _mainForm.currentState);
+            CampaignEdit.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewBlue, _mainForm.currentSquads, "blue", _mainForm.currentState);
+            CampaignEdit.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewRed, _mainForm.currentSquads, "red", _mainForm.currentState);
 
         }
 
@@ -945,21 +928,22 @@ namespace DCE_Manager
 
             _mainForm.dataGridViewCampaigns.ClearSelection();
 
-            _mainForm.label_Right_Campaign_Name.Text = "";
-            _mainForm.textBoxCampBriefing.Clear();
+            Main_Form.Instance.CampaignView.label_Right_Campaign_Name.Text = "";
+            Main_Form.Instance.CampaignView.textBoxCampBriefing.Clear();
 
-            _mainForm.pictureBoxCampImage.Image?.Dispose();
-            _mainForm.pictureBoxCampImage.Image = null;
+            Main_Form.Instance.CampaignView.pictureBoxCampImage.Image?.Dispose();
+            Main_Form.Instance.CampaignView.pictureBoxCampImage.Image = null;
 
-            _mainForm.dataGridViewBlue.DataSource = null;
-            _mainForm.dataGridViewBlue.Columns.Clear();
+            Main_Form.Instance.CampaignView.DataGridViewBlue.DataSource = null;
+            Main_Form.Instance.CampaignView.DataGridViewBlue.Columns.Clear();
 
-            _mainForm.dataGridViewRed.DataSource = null;
-            _mainForm.dataGridViewRed.Columns.Clear();
+            Main_Form.Instance.CampaignView.DataGridViewRed.DataSource = null;
+            Main_Form.Instance.CampaignView.DataGridViewRed.Columns.Clear();
 
             _mainForm.currentSquads = new List<Squad>();
 
-            _mainForm.CampaignTab.Visible = false;
+            //_mainForm.CampaignTab.Visible = false;
+            Main_Form.Instance.ShowHome();
 
             ParamCampaignSelected.NameCampaign = "";
 

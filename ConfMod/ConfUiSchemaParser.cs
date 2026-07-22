@@ -10,6 +10,12 @@ namespace DCE_Manager
     // Reads conf_mod.lua as plain text and extracts every "-- @ui ..." tagged field,
     // together with its position in the Lua table hierarchy (its dotted path) and its
     // position in the file (used to preserve field order and grouping in the UI).
+    //
+    // Two places a "@ui" tag can appear:
+    //  - on a leaf value line ("trend = 50, -- @ui slider ...") -> a scalar field.
+    //  - on a container-opening line ("blue = { -- @ui matrix rows=... cols=...") ->
+    //    a matrix field, whose path IS that container (its rows are the container's
+    //    own named sub-keys or, for a single-row matrix, the container itself).
     internal static class ConfUiSchemaParser
     {
         private static readonly Regex ContainerOpenRegex =
@@ -38,6 +44,27 @@ namespace DCE_Manager
                         ? openMatch.Groups["bkey"].Value
                         : openMatch.Groups["key"].Value;
 
+                    // The container-opening line itself can carry a "@ui matrix" tag
+                    // describing the table it opens.
+                    int containerUiIdx = raw.IndexOf("@ui", StringComparison.Ordinal);
+
+                    if (containerUiIdx >= 0)
+                    {
+                        string parentPath = string.Join(".", stack.ToArray());
+                        string path = parentPath.Length > 0 ? parentPath + "." + name : name;
+
+                        ConfUiFieldSchema schema = ParseTag(raw.Substring(containerUiIdx + 3).Trim());
+                        schema.Path = path;
+                        schema.Key = name;
+                        schema.ContainerPath = parentPath;
+                        schema.LineIndex = i;
+
+                        if (string.IsNullOrEmpty(schema.Label))
+                            schema.Label = name;
+
+                        result.Add(schema);
+                    }
+
                     stack.Add(name);
                     continue;
                 }
@@ -65,20 +92,20 @@ namespace DCE_Manager
                     : keyMatch.Groups["key"].Value;
 
                 string containerPath = string.Join(".", stack.ToArray());
-                string path = containerPath.Length > 0 ? containerPath + "." + key : key;
+                string leafPath = containerPath.Length > 0 ? containerPath + "." + key : key;
 
                 string tagText = raw.Substring(uiIdx + 3).Trim();
 
-                ConfUiFieldSchema schema = ParseTag(tagText);
-                schema.Path = path;
-                schema.Key = key;
-                schema.ContainerPath = containerPath;
-                schema.LineIndex = i;
+                ConfUiFieldSchema leafSchema = ParseTag(tagText);
+                leafSchema.Path = leafPath;
+                leafSchema.Key = key;
+                leafSchema.ContainerPath = containerPath;
+                leafSchema.LineIndex = i;
 
-                if (string.IsNullOrEmpty(schema.Label))
-                    schema.Label = key;
+                if (string.IsNullOrEmpty(leafSchema.Label))
+                    leafSchema.Label = key;
 
-                result.Add(schema);
+                result.Add(leafSchema);
             }
 
             return result;
@@ -138,6 +165,15 @@ namespace DCE_Manager
                     case "options":
                         schema.Options = ParseOptions(value);
                         break;
+                    case "rows":
+                        schema.RowSpecs = ParseOptions(value);
+                        break;
+                    case "cols":
+                        schema.ColSpecs = ParseOptions(value);
+                        break;
+                    case "audience":
+                        schema.MinLevel = value == "campaignMaker" ? UserLevel.CampaignMaker : UserLevel.Player;
+                        break;
                 }
             }
 
@@ -153,10 +189,14 @@ namespace DCE_Manager
                 case "slider": return UiFieldType.Slider;
                 case "combo": return UiFieldType.Combo;
                 case "text": return UiFieldType.Text;
+                case "matrix": return UiFieldType.Matrix;
                 default: return UiFieldType.Text;
             }
         }
 
+        // Shared by "options=", "rows=" and "cols=": a comma-separated list of
+        // "value:Label" pairs (":Label" alone means an empty value, e.g. "" for
+        // civTraffic's "off" option).
         private static List<UiOption> ParseOptions(string value)
         {
             var list = new List<UiOption>();

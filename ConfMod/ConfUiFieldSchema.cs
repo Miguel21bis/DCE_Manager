@@ -56,6 +56,10 @@ namespace DCE_Manager.Parameters
         public bool ZeroIsFalse { get; set; }
         public List<UiOption> Options { get; set; }
 
+        // Minimum DCE_Manager.UserLevel required to see this field. Defaults to
+        // UserLevel.Player; a tag's "audience=campaignMaker" attribute raises it.
+        public int MinLevel { get; set; }
+
         // Matrix only: rows and columns, reusing UiOption (Value:Label). For a row,
         // Value is the Lua key (e.g. "airUnit"). For a column, Value is the 1-based
         // positional index into that row's Lua array (e.g. "2" for deathPoint).
@@ -66,6 +70,7 @@ namespace DCE_Manager.Parameters
         {
             Step = 1;
             Group = "General";
+            MinLevel = DCE_Manager.UserLevel.Player;
             Options = new List<UiOption>();
             RowSpecs = new List<UiOption>();
             ColSpecs = new List<UiOption>();

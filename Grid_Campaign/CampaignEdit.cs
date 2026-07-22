@@ -55,7 +55,7 @@ namespace DCE_Manager
             _form1 = form1;
             _campGridLft = campGridLft; // <-- On enregistre la référence
             _campaignName = campaignName;
-            _form1.label_Right_Campaign_Name.Text = _campaignName;
+            Main_Form.Instance.CampaignView.label_Right_Campaign_Name.Text = _campaignName;
             
 
             InitializeGridEvents();
@@ -89,13 +89,14 @@ namespace DCE_Manager
         // 4. méthodes d'initialisation
         private void InitializeGridEvents()
         {
-            
-            _form1.CampaignTab.Text = "";
+
+            Main_Form.Instance.CampaignView.CampaignTab.Text = "";
             //_form1.groupBoxCampEdit.Text = _campaignName;
             ParamCampaignSelected.NameCampaign = _campaignName;
-            _form1.CampaignTab.Visible = true;
-            RegisterGrid(_form1.dataGridViewBlue);
-            RegisterGrid(_form1.dataGridViewRed);
+            //_form1.CampaignTab.Visible = true;
+            Main_Form.Instance.ShowCampaign();
+            RegisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
+            RegisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
         }
 
         private void RegisterGrid(DataGridView grid)
@@ -162,7 +163,7 @@ namespace DCE_Manager
         // Pourquoi : on force un texte vide plutôt qu'un null.
         private void SetBriefingText(string txt)
         {
-            _form1.textBoxCampBriefing.Text = txt ?? "";
+            Main_Form.Instance.CampaignView.textBoxCampBriefing.Text = txt ?? "";
         }
 
         private void SetCampaignImage()
@@ -189,15 +190,15 @@ namespace DCE_Manager
             {
                 using (Image image = Image.FromFile(imagePath))
                 {
-                    _form1.pictureBoxCampImage.Image?.Dispose();
-                    _form1.pictureBoxCampImage.Image = new Bitmap(image);
+                    Main_Form.Instance.CampaignView.pictureBoxCampImage.Image?.Dispose();
+                    Main_Form.Instance.CampaignView.pictureBoxCampImage.Image = new Bitmap(image);
                 }
             }
             else
             {
                 // aucune image → on nettoie
-                _form1.pictureBoxCampImage.Image?.Dispose();
-                _form1.pictureBoxCampImage.Image = null;
+                Main_Form.Instance.CampaignView.pictureBoxCampImage.Image?.Dispose();
+                Main_Form.Instance.CampaignView.pictureBoxCampImage.Image = null;
             }
 
         }
@@ -318,7 +319,7 @@ namespace DCE_Manager
             if (e.ColumnIndex < 0)
                 return;
 
-            bool isActive = _form1.radioButton_OOB_ACTIVE.Checked;
+            bool isActive = Main_Form.Instance.CampaignView.IsOobInit;
 
             CampaignSquad campaignSquad;
 
@@ -375,8 +376,8 @@ namespace DCE_Manager
 
                 frm.SquadUpdated += () =>
                 {
-                    _form1.dataGridViewBlue.Refresh();
-                    _form1.dataGridViewRed.Refresh();
+                    Main_Form.Instance.CampaignView.DataGridViewBlue.Refresh();
+                    Main_Form.Instance.CampaignView.DataGridViewRed.Refresh();
                 };
 
 
@@ -488,8 +489,8 @@ namespace DCE_Manager
 
                     frm.SquadUpdated += () =>
                     {
-                        _form1.dataGridViewBlue.Refresh();
-                        _form1.dataGridViewRed.Refresh();
+                        Main_Form.Instance.CampaignView.DataGridViewBlue.Refresh();
+                        Main_Form.Instance.CampaignView.DataGridViewRed.Refresh();
                     };
 
                     frm.Show();
@@ -696,8 +697,8 @@ namespace DCE_Manager
         // Pourquoi : empêcher les handlers fantômes
         private void CampaignEdit_FormClosed(object sender, FormClosedEventArgs e)
         {
-            UnregisterGrid(_form1.dataGridViewBlue);
-            UnregisterGrid(_form1.dataGridViewRed);
+            UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
+            UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
         }
 
         // 🔧 Nettoyage manuel des events
@@ -706,8 +707,8 @@ namespace DCE_Manager
         {
             if (disposing)
             {
-                UnregisterGrid(_form1.dataGridViewBlue);
-                UnregisterGrid(_form1.dataGridViewRed);
+                UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
+                UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
             }
 
             base.Dispose(disposing);
@@ -789,12 +790,12 @@ namespace DCE_Manager
             string pathFile = "";
             string FolderName = "";
 
-            if (_form1.radioButton_OOB_INIT.Checked)
+            if (Main_Form.Instance.CampaignView.IsOobInit)
             {
                 pathFile = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init.lua";
                 FolderName = "Init";
             }
-            else if (_form1.radioButton_OOB_ACTIVE.Checked)
+            else if (Main_Form.Instance.CampaignView.IsOobActive)
             {
                 pathFile = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Active\oob_air.lua";
 
@@ -851,8 +852,8 @@ namespace DCE_Manager
             }
 
             PublicTable.errorTable.Clear();
-            _form1.textBox_Bugs.Text = "";
-            _form1.tabPage12.Text = "Bugs";
+            Main_Form.Instance.CampaignView.textBox_Bugs.Text = "";
+            Main_Form.Instance.CampaignView.tabPage12.Text = "Bugs";
 
         }
 

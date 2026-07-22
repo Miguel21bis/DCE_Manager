@@ -27,17 +27,21 @@ namespace DCE_Manager
         private ConfModDynamicData _data;
         private readonly List<UiFieldControl> _controls = new List<UiFieldControl>();
         private readonly List<UiMatrixControl> _matrixControls = new List<UiMatrixControl>();
+        private readonly Dictionary<string, Panel> _groupPanels = new Dictionary<string, Panel>();
+        private readonly Dictionary<string, Button> _groupButtons = new Dictionary<string, Button>();
+        private string _activeGroup;
 
         private Button buttonSave;
         private Button buttonCancel;
+        private readonly ToolTip _toolTip = new ToolTip();
 
         public ConfModForm(string campaignName)
         {
             _campaignName = campaignName;
 
             Text = "Config - " + campaignName;
-            Width = 560;
-            Height = 600;
+            Width = 780;
+            Height = 700;
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;
@@ -64,24 +68,45 @@ namespace DCE_Manager
 
         private void BuildForm()
         {
-            var tabs = new TabControl { Dock = DockStyle.Fill };
-            var tabByGroup = new Dictionary<string, TabPage>();
+            var tabStrip = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                FlowDirection = FlowDirection.LeftToRight,
+                WrapContents = true,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(4)
+            };
+
+            var contentPanel = new Panel { Dock = DockStyle.Fill };
+
             var scalarLayoutByGroup = new Dictionary<string, TableLayoutPanel>();
             var rowByGroup = new Dictionary<string, int>();
             var matrixControlsByGroup = new Dictionary<string, List<Control>>();
+            var groupHasRestricted = new Dictionary<string, bool>();
+            var groupOrder = new List<string>();
 
-            // Preserve the file's own order: a group's tab appears where its first
+            // Preserve the file's own order: a group's button appears where its first
             // field appears, and fields within a group keep the file's own order.
-            foreach (ConfUiFieldSchema field in _data.Schema.OrderBy(f => f.LineIndex))
+            // Fields above the current UserLevel are filtered out entirely - a
+            // player never even gets a button for a campaignMaker-only group.
+            foreach (ConfUiFieldSchema field in _data.Schema
+                .Where(f => f.MinLevel <= ParamConf.UserLevel)
+                .OrderBy(f => f.LineIndex))
             {
-                TabPage tab;
+                Panel groupPanel;
 
-                if (!tabByGroup.TryGetValue(field.Group, out tab))
+                if (!_groupPanels.TryGetValue(field.Group, out groupPanel))
                 {
-                    tab = new TabPage(field.Group);
-                    tabs.TabPages.Add(tab);
-                    tabByGroup[field.Group] = tab;
+                    groupPanel = new Panel { Dock = DockStyle.Fill, Visible = false };
+                    _groupPanels[field.Group] = groupPanel;
+                    contentPanel.Controls.Add(groupPanel);
+                    groupOrder.Add(field.Group);
+                    groupHasRestricted[field.Group] = false;
                 }
+
+                if (field.MinLevel > UserLevel.Player)
+                    groupHasRestricted[field.Group] = true;
 
                 if (field.Type == UiFieldType.Matrix)
                 {
@@ -104,7 +129,7 @@ namespace DCE_Manager
                 if (!scalarLayoutByGroup.TryGetValue(field.Group, out groupLayout))
                 {
                     groupLayout = NewLayout();
-                    tab.Controls.Add(groupLayout);
+                    groupPanel.Controls.Add(groupLayout);
                     scalarLayoutByGroup[field.Group] = groupLayout;
                     rowByGroup[field.Group] = 0;
                 }
@@ -119,36 +144,30 @@ namespace DCE_Manager
                 rowByGroup[field.Group] = row + 1;
             }
 
-            // Absorbs the leftover vertical space left by Dock=Fill so the AutoSize
-            // content rows stay packed at the top instead of the last one stretching.
+            // Absorbs the leftover vertical space so the AutoSize content rows stay
+            // packed at the top instead of the last one stretching.
             foreach (TableLayoutPanel groupLayout in scalarLayoutByGroup.Values)
             {
                 groupLayout.RowCount += 1;
                 groupLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             }
 
-            // Stack the matrix control(s) of each group into their tab. A single
-            // matrix fills the whole tab; several (e.g. main repair table + runway)
-            // share the tab evenly, stacked vertically.
+            // Stack the matrix control(s) of each group into its panel. A single
+            // matrix fills the whole panel; several (e.g. main repair table +
+            // runway) share it evenly, stacked vertically.
             foreach (KeyValuePair<string, List<Control>> kv in matrixControlsByGroup)
             {
-                TabPage tab = tabByGroup[kv.Key];
+                Panel groupPanel = _groupPanels[kv.Key];
                 List<Control> matrixControls = kv.Value;
 
                 if (matrixControls.Count == 1)
                 {
                     matrixControls[0].Dock = DockStyle.Fill;
-                    tab.Controls.Add(matrixControls[0]);
+                    groupPanel.Controls.Add(matrixControls[0]);
                     continue;
                 }
 
-                var stack = new TableLayoutPanel
-                {
-                    Dock = DockStyle.Fill,
-                    ColumnCount = 1,
-                    RowCount = matrixControls.Count
-                };
-
+                var stack = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = matrixControls.Count };
                 float percentPerRow = 100f / matrixControls.Count;
 
                 for (int i = 0; i < matrixControls.Count; i++)
@@ -158,7 +177,30 @@ namespace DCE_Manager
                     stack.Controls.Add(matrixControls[i], 0, i);
                 }
 
-                tab.Controls.Add(stack);
+                groupPanel.Controls.Add(stack);
+            }
+
+            // One button per group, added in stable file order - clicking one never
+            // reorders the strip (unlike TabControl.Multiline).
+            foreach (string group in groupOrder)
+            {
+                bool restricted = groupHasRestricted[group];
+
+                var button = new Button
+                {
+                    Text = group,
+                    AutoSize = true,
+                    AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                    FlatStyle = FlatStyle.Flat,
+                    Margin = new Padding(2),
+                    Padding = new Padding(6, 3, 6, 3),
+                    BackColor = restricted ? Color.FromArgb(255, 232, 200) : SystemColors.Control
+                };
+
+                button.Click += (s, e) => SelectGroup(group);
+
+                _groupButtons[group] = button;
+                tabStrip.Controls.Add(button);
             }
 
             var buttonPanel = new FlowLayoutPanel
@@ -178,8 +220,26 @@ namespace DCE_Manager
             buttonPanel.Controls.Add(buttonCancel);
             buttonPanel.Controls.Add(buttonSave);
 
-            Controls.Add(tabs);
+            Controls.Add(contentPanel);
+            Controls.Add(tabStrip);
             Controls.Add(buttonPanel);
+
+            if (groupOrder.Count > 0)
+                SelectGroup(groupOrder[0]);
+        }
+
+        private void SelectGroup(string group)
+        {
+            if (_activeGroup == group)
+                return;
+
+            foreach (KeyValuePair<string, Panel> kv in _groupPanels)
+                kv.Value.Visible = kv.Key == group;
+
+            foreach (KeyValuePair<string, Button> kv in _groupButtons)
+                kv.Value.Font = new Font(kv.Value.Font, kv.Key == group ? FontStyle.Bold : FontStyle.Regular);
+
+            _activeGroup = group;
         }
 
         private void BindValues()
@@ -233,7 +293,7 @@ namespace DCE_Manager
         // needs to know which control kind backs a given field.
         // ---------------------------------------------------------------
 
-        private static UiFieldControl CreateFieldControl(TableLayoutPanel layout, int row, ConfUiFieldSchema schema)
+        private UiFieldControl CreateFieldControl(TableLayoutPanel layout, int row, ConfUiFieldSchema schema)
         {
             var fc = new UiFieldControl { Schema = schema };
 
@@ -247,10 +307,7 @@ namespace DCE_Manager
             layout.Controls.Add(nameLabel, 0, row);
 
             if (!string.IsNullOrEmpty(schema.Help))
-            {
-                var tip = new ToolTip();
-                tip.SetToolTip(nameLabel, schema.Help);
-            }
+                _toolTip.SetToolTip(nameLabel, schema.Help);
 
             switch (schema.Type)
             {
@@ -433,10 +490,7 @@ namespace DCE_Manager
             container.Controls.Add(title);
 
             if (!string.IsNullOrEmpty(schema.Help))
-            {
-                var tip = new ToolTip();
-                tip.SetToolTip(title, schema.Help);
-            }
+                _toolTip.SetToolTip(title, schema.Help);
 
             var mc = new UiMatrixControl { Schema = schema, Container = container };
 

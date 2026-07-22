@@ -71,6 +71,16 @@ namespace DCE_Manager.Properties {
         }
         
         /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap CEFI_60X60_b {
+            get {
+                object obj = ResourceManager.GetObject("CEFI_60X60_b", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à V10.17.52
         ///ADD: Viewing and editing conf_mod (work in progress)
         ///

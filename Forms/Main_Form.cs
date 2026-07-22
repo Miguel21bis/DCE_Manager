@@ -15,6 +15,7 @@ using DCE_Manager.Parameters;
 using DCE_Manager.Update;
 using DCE_Manager.Utils;
 using SearchOption = System.IO.SearchOption;
+using DCE_Manager.UserControls;
 
 
 
@@ -49,6 +50,16 @@ namespace DCE_Manager
         private string _cachedOvGmePath;
         private Updater_ScriptsMod scriptsModUpdater;
         private Updater_DCEManager dceManagerUpdater;
+        private ucHome homeView;
+
+        private ucCampaign campaignView;
+
+        public ucCampaign CampaignView
+        {
+            get { return campaignView; }
+        }
+
+
         // 1. Déclarer la variable de classe
         //private CampaignGridLeft _campaignGridLeft;
         // Propriété publique en lecture seule
@@ -71,6 +82,14 @@ namespace DCE_Manager
             KeyPreview = true;
 
             InitializeComponent();
+
+            homeView = new ucHome();
+            homeView.Dock = DockStyle.Fill;
+            panelRightView.Controls.Add(homeView);
+
+            campaignView = new ucCampaign();
+            campaignView.Dock = DockStyle.Fill;
+            panelRightView.Controls.Add(campaignView);
 
             // 2. Instancier en passant "this"
             CampaignGridLeft = new CampaignGridLeft(this);
@@ -112,16 +131,14 @@ namespace DCE_Manager
 
 
             tabControl_LEFT.Selected += new TabControlEventHandler(TabControl1_SelectedAsync);
-            CampaignTab.Selected += new TabControlEventHandler(CampaignTab_Selected);
+            //CampaignTab.Selected += new TabControlEventHandler(CampaignTab_Selected);
 
             // Abonner l'événement FormClosed à une méthode
             this.FormClosed += new FormClosedEventHandler(Form1_FormClosed);
 
-            //VersionDceManager.Text = VersionLongDceManager();
-            VersionDceManager.Text = GetVersionDceManager();
+            homeView.SetClientId(Statistics.CreateIdClient());
+            homeView.SetDceManagerVersion(GetVersionDceManager());
 
-            textBox_id_client.Text = Statistics.CreateIdClient();
-            AjusterLargeurTextBox(textBox_id_client);
 
             // Appel de la méthode de chargement
             LoadConfiguration();
@@ -154,7 +171,7 @@ namespace DCE_Manager
 
             toolTip1.SetToolTip(m_But_Install_Browse_SavedGame, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
             toolTip1.SetToolTip(textBox_PATH_DCS_Root, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
-           
+
 
             //affiche le changelog
             textBox_changelog.Text = DCE_Manager.Properties.Resources.changelog;
@@ -200,6 +217,9 @@ namespace DCE_Manager
                 }
                 sr.Close();
             }
+
+            panelRightView.Controls.Add(campaignView);
+        }
 
             //*******************************************************************************************************************************
             //telecharge news.lua pour afficher les news***********************************************************************************
@@ -422,7 +442,7 @@ namespace DCE_Manager
 
 
        
-        }//public Main_Form()
+        //}//public Main_Form()
 
 
         private void LoadConfiguration()
@@ -663,17 +683,6 @@ namespace DCE_Manager
             }
         }
 
-
-
-
-        private void AjusterLargeurTextBox(TextBox tb)
-        {
-            using (Graphics g = tb.CreateGraphics())
-            {
-                SizeF size = g.MeasureString(tb.Text, tb.Font);
-                tb.Width = (int)size.Width + 10; // marge de 10 pixels
-            }
-        }
 
         // Méthode exécutée après la fermeture du formulaire
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
@@ -1026,10 +1035,10 @@ namespace DCE_Manager
                 // On quitte (ou on n'est pas sur) l'onglet Campaigns → reset complet
                 CampaignGridLeft.ResetCurrentCampaign();
 
-                buttonSaveChgtCampaign.Visible = false;
-                buttonResetBackup.Visible = false;
-                radioButton_OOB_INIT.Visible = false;
-                radioButton_OOB_ACTIVE.Visible = false;
+                Main_Form.Instance.CampaignView.buttonSaveChgtCampaign.Visible = false;
+                Main_Form.Instance.CampaignView.buttonResetBackup.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_OOB_INIT.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_OOB_ACTIVE.Visible = false;
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1039,12 +1048,8 @@ namespace DCE_Manager
             if (e.TabPage == tabPageLeft_Install)
             {
                 checkBoxMod();
-                groupBoxDroiteAccueil.Visible = true;
-                //groupBoxCampEdit.Visible = false;
-                //groupBox_staticTemplate.Visible = false;
-                //groupBoxCampEdit.Text = "";
+                //groupBoxDroiteAccueil.Visible = true;
 
-                //CampaignTab.Visible = false;
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
 
@@ -1058,7 +1063,7 @@ namespace DCE_Manager
             {
                 Cursor.Current = Cursors.WaitCursor;
 
-                groupBoxDroiteAccueil.Visible = false;
+                //groupBoxDroiteAccueil.Visible = false;
                  _ = CampaignGridLeft.LoadCampaignsAsync();
 
                 Cursor.Current = Cursors.Default;
@@ -1071,7 +1076,7 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeft_Update)
             {
-                groupBoxDroiteAccueil.Visible = true;
+                //groupBoxDroiteAccueil.Visible = true;
                 FormUtils.MakeRoundedButton( ScriptsModUpdateButton, 10);
 
                 FormUtils.MakeRoundedButton( DCEManagerUpdateButton, 10);
@@ -1080,8 +1085,10 @@ namespace DCE_Manager
 
 
                 //CampaignTab.Visible = false;
+                ShowHome();
 
-                DCEManagerInstalledVersion.Text = VersionDceManager.Text;
+                DCEManagerInstalledVersion.Text = ParamConf.DCE_Manager_LocVer;
+
 
                 if (String.IsNullOrEmpty(ParamConf.PATH_SavedGames_DCS))
                 {
@@ -1100,9 +1107,10 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeft_About)
             {
-                groupBoxDroiteAccueil.Visible = true;
+                //groupBoxDroiteAccueil.Visible = true;
 
                 //CampaignTab.Visible = false;
+                ShowHome();
 
                 if (textBox_ChangelogScriptsMod.Text == "")
                 {
@@ -1143,12 +1151,12 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeftNews)
             {
-                groupBoxDroiteAccueil.Visible = true;
-                //CampaignTab.Visible = false;
+                //groupBoxDroiteAccueil.Visible = true;
+                
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
 
             }
-s
+
         }
 
 
@@ -1160,7 +1168,7 @@ s
             // On ne garde que les 3 premiers composants (Major, Minor, Build)
             string versionString = String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
 
-            ParamManager.verDceManager = versionString;
+            ParamConf.DCE_Manager_LocVer = versionString;
             return versionString;
         }
 
@@ -1213,39 +1221,6 @@ s
             }
         }
 
-        private void pictureBox5_Click(object sender, EventArgs e)
-        {
-            Process process = new Process();
-            // Configure the process using the StartInfo properties.BoxOvGME
-            //process.StartInfo.FileName = ParamCampaign.pathCampaign + @"\FirstMission.bat";
-            process.StartInfo.FileName = textBox_PATH_DCS_Root.Text + @"\bin\DCS.exe";
-            process.StartInfo.Arguments = " ";
-            process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-            process.StartInfo.WorkingDirectory = textBox_PATH_DCS_Root.Text + @"\bin";
-
-            process.Start();
-        }
-
-        private void pictureBoxOvGME_Click(object sender, EventArgs e)
-        {
-            string OvGME_Path = FormUtils.IsApplicationInstalled("OvGME");
-            string Empty = "";
-            bool result = Empty.Equals(OvGME_Path);
-
-            //MessageBox.Show(OvGME_Path, OvGME_Path);
-            if (!result)
-            {
-
-                Process process = new Process();
-
-                process.StartInfo.FileName = OvGME_Path + @"\OvGME.exe";
-                process.StartInfo.Arguments = " ";
-                process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                process.StartInfo.WorkingDirectory = OvGME_Path;
-
-                process.Start();
-            }
-        }
 
        
         private void ScriptModInstalledVersion_Click(object sender, EventArgs e)
@@ -1261,20 +1236,20 @@ s
         }
 
 
-        internal class version
-        {
-            private string v1;
+        //internal class version
+        //{
+        //    private string v1;
 
-            public version(string v1)
-            {
-                this.v1 = v1;
-            }
+        //    public version(string v1)
+        //    {
+        //        this.v1 = v1;
+        //    }
 
-            internal object CompareTo(Version version2)
-            {
-                throw new NotImplementedException();
-            }
-        }
+        //    internal object CompareTo(Version version2)
+        //    {
+        //        throw new NotImplementedException();
+        //    }
+        //}
 
 
         private void checkBoxSanitize_CheckedChanged(object sender, EventArgs e)
@@ -1324,46 +1299,6 @@ s
             }
         }
 
-        void CampaignTab_Selected(object sender, TabControlEventArgs e)
-        {
-            CampaignGridLeft.UpdateCampaignButtonsVisibility();
-        }
-
-
-        public bool ButtonPreview = false;
-        public void Form1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.A)
-            {
-                ButtonPreview = true;
-            }
-        }
-
-        public void Form1_KeyUp(object sender, KeyEventArgs e)
-        {
-            ////if (e.KeyCode == Keys.Control)
-            if (e.KeyCode == Keys.A)
-            {
-                ButtonPreview = false;
-            }
-        }
-
-
-        private void VersionDceManager_Click(object sender, EventArgs e)
-        {
-            //Pour devenir DEV
-
-            if (ButtonPreview == true ) {
-
-                GetVersionDceManager();
-                //but_GPS_LL.Visible = true;
-                //LabelStatut.Text = "DEV";
-                this.Text = "DCE_Manager - DEV - " + ParamConf.CurrentConfigName;
-                ScriptsModUpdateButton.Text = "Update DEV";
-                textBox_id_client.Visible = true;
-            }
-
-        }
 
 
         public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
@@ -1371,7 +1306,7 @@ s
             if (_isUpdatingState)
                 return;
 
-            if (!radioButton_OOB_INIT.Checked) return;
+            if (!Main_Form.Instance.CampaignView.IsOobInit) return;
 
             currentState = "Init";
             CampaignGridLeft.RefreshGrids();
@@ -1382,7 +1317,7 @@ s
             if (_isUpdatingState)
                 return;
 
-            if (!radioButton_OOB_ACTIVE.Checked) return;
+            if (!Main_Form.Instance.CampaignView.IsOobActive) return;
 
             currentState = "Active";
             CampaignGridLeft.RefreshGrids();
@@ -1532,6 +1467,46 @@ s
 
 
 
+        public void ShowHome()
+        {
+            homeView.BringToFront();
+        }
+
+        public void ShowCampaign()
+        {
+            campaignView.BringToFront();
+        }
+
+        private void but_Level_CampMaker_Click(object sender, EventArgs e)
+        {
+            ParamConf.UserLevel = DCE_Manager.UserLevel.CampaignMaker;
+            //label_UserLevel.Text = "Campaign Maker";
+
+            but_Level_CampMaker.BackColor = System.Drawing.Color.DodgerBlue;
+            but_Level_CampMaker.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
+
+            // Retour à la couleur par défaut
+            but_level_User.BackColor = System.Drawing.SystemColors.Control;
+            but_level_User.ForeColor = System.Drawing.Color.Black; // Pour garder le texte lisible
+        }
+
+        private void but_level_User_Click(object sender, EventArgs e)
+        {
+            ParamConf.UserLevel = DCE_Manager.UserLevel.Player;
+            //label_UserLevel.Text = "Player";
+
+            but_level_User.BackColor = System.Drawing.Color.DodgerBlue;
+            but_level_User.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
+
+            // Retour à la couleur par défaut
+            but_Level_CampMaker.BackColor = System.Drawing.SystemColors.Control;
+            but_Level_CampMaker.ForeColor = System.Drawing.Color.Black; // Pour garder le texte lisible
+        }
+
+        private void panel_configuration_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
     }
 
 }

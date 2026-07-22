@@ -102,8 +102,8 @@ namespace DCE_Manager
               Form1 = form1;
 
             PublicTable.errorTable.Clear();
-            Form1.textBox_Bugs.Text = "";
-            form1.tabPage12.Text = "Bugs";
+            Main_Form.Instance.CampaignView.textBox_Bugs.Text = "";
+            Main_Form.Instance.CampaignView.tabPage12.Text = "Bugs";
 
             //Pour représenter la table Lua donnée en C#, il est généralement préférable d'utiliser une structure de données 
             //qui offre la flexibilité de stocker des paires clé-valeur, similaire aux tables en Lua. 
