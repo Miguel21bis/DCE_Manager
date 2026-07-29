@@ -238,6 +238,7 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Core\Statistics.cs" />
+    <Compile Include="News\Updater_News.cs" />
     <Compile Include="Update\CampaignInfo.cs" />
     <Compile Include="Update\CampaignRepository.cs" />
     <Compile Include="Update\Updater_Campaign.cs" />
@@ -307,6 +308,7 @@
     <EmbeddedResource Include="UserControls\ucHome.resx">
       <DependentUpon>ucHome.cs</DependentUpon>
     </EmbeddedResource>
+    <None Include="News\campaigns_catalog.json" />
     <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>
     </None>

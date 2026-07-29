@@ -50,6 +50,7 @@ namespace DCE_Manager
         private string _cachedOvGmePath;
         private Updater_ScriptsMod scriptsModUpdater;
         private Updater_DCEManager dceManagerUpdater;
+        private Updater_News newsUpdater;
         private ucHome homeView;
 
         private ucCampaign campaignView;
@@ -107,6 +108,7 @@ namespace DCE_Manager
 
             scriptsModUpdater = new Updater_ScriptsMod(this);
             dceManagerUpdater = new Updater_DCEManager(this);
+            newsUpdater = new Updater_News(this);
 
             //*************************
             CampaignGridLeft.GridCampaigns_Init_DataGridView();
@@ -152,6 +154,7 @@ namespace DCE_Manager
             _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
             _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
+            _ = newsUpdater.CheckNewsAsync();
 
             _ = Statistics.EnvoiStatsAsync(checkBox_Stat_anonym.Checked);
 
@@ -1152,10 +1155,9 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeftNews)
             {
-                //groupBoxDroiteAccueil.Visible = true;
-                
-                CampaignGridLeft.UpdateCampaignButtonsVisibility();
+                newsUpdater.DisplayNews();
 
+                CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
 
         }

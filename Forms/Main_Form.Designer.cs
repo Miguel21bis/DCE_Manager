@@ -1563,7 +1563,7 @@ namespace DCE_Manager
         private System.Windows.Forms.GroupBox groupBox_Update_DCE_M;
         public System.Windows.Forms.Button DCEManagerUpdateButton;
         public System.Windows.Forms.Label DCEManagerAvailableVersion;
-        private System.Windows.Forms.TabPage tabPageLeftNews;
+        public System.Windows.Forms.TabPage tabPageLeftNews;
         private System.Windows.Forms.TextBox textBox_News;
         public System.Windows.Forms.Label ScriptModInstalledVersion;
         public System.Windows.Forms.Label DCEManagerInstalledVersion;
