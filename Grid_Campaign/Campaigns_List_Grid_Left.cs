@@ -20,7 +20,7 @@ namespace DCE_Manager
         // Cache des images de campagnes (évite rechargement disque)
         private Dictionary<string, Image> campaignImageCache = new Dictionary<string, Image>();
         //private CampaignEdit _currentCampaignEdit;
-        public CampaignEdit CurrentCampaignEdit { get; private set; }
+        public Campaign_Edit_Grid_Right CurrentCampaignEdit { get; private set; }
 
         // Référence vers la Form principale
         private readonly Main_Form _mainForm;
@@ -773,7 +773,7 @@ namespace DCE_Manager
             }
 
             // 🔧 Nouvelle instance
-            CurrentCampaignEdit = new CampaignEdit(_mainForm, this, NameCamp);
+            CurrentCampaignEdit = new Campaign_Edit_Grid_Right(_mainForm, this, NameCamp);
 
             UpdateCampaignButtonsVisibility();
 
@@ -802,8 +802,8 @@ namespace DCE_Manager
 
         public void RefreshGrids()
         {
-            CampaignEdit.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewBlue, _mainForm.currentSquads, "blue", _mainForm.currentState);
-            CampaignEdit.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewRed, _mainForm.currentSquads, "red", _mainForm.currentState);
+            Campaign_Edit_Grid_Right.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewBlue, _mainForm.currentSquads, "blue", _mainForm.currentState);
+            Campaign_Edit_Grid_Right.LoadGridStatic(Main_Form.Instance.CampaignView.DataGridViewRed, _mainForm.currentSquads, "red", _mainForm.currentState);
 
         }
 

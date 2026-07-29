@@ -7,69 +7,37 @@ using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 
-//namespace DCE_Manager
-//{
-//    public partial class CampaignEdit : Form
-//    {
-//        // 1. champs privés
-
-//        // 2. propriétés publiques
-
-//        // 3. constructeur
-
-//        // 4. méthodes d'initialisation
-
-//        // 5. méthodes de chargement des données
-
-//        // 6. méthodes DataGridView
-
-//        // 7. méthodes utilitaires
-//    }
-//}
-
 namespace DCE_Manager
 {
-
-    public partial class CampaignEdit : Form
+    // 1. On implémente IDisposable
+    public class Campaign_Edit_Grid_Right : IDisposable
     {
         private readonly Main_Form _form1;
         private readonly string _campaignName;
         private static CampaignContext _campaignContext;
-        private void ResetUi() { }
-        private void DisplayErrors() { }
         private readonly CampaignGridLeft _campGridLft;
 
+        private void ResetUi() { }
+        private void DisplayErrors() { }
 
         public List<Squad> CurrentSquads { get; private set; } = new List<Squad>();
-        // Nouvelle liste logique regroupant Init + Active.
-        // Pourquoi : retrouver facilement les deux versions d'un squad.
         public List<CampaignSquad> CurrentCampaignSquads { get; private set; } = new List<CampaignSquad>();
         public string BriefingCampaign { get; set; }
 
-
-        // 3. constructeur
-        public CampaignEdit(Main_Form form1, CampaignGridLeft campGridLft, string campaignName)
+        public Campaign_Edit_Grid_Right(Main_Form form1, CampaignGridLeft campGridLft, string campaignName)
         {
-            this.FormClosed += CampaignEdit_FormClosed;
-
             _form1 = form1;
-            _campGridLft = campGridLft; // <-- On enregistre la référence
+            _campGridLft = campGridLft;
             _campaignName = campaignName;
+
             Main_Form.Instance.CampaignView.label_Right_Campaign_Name.Text = _campaignName;
-            
+
+            new ConfModTemplateUpdater().UpdateCampaign(_campaignName);
 
             InitializeGridEvents();
-            this.StartPosition = FormStartPosition.CenterParent;
-            this.WindowState = FormWindowState.Normal;
-            this.Size = new Size(1200, 850);
-
             InitializeCampaign();
-
-
         }
 
-
-        // 4. méthodes d'initialisation
         private void InitializeCampaign()
         {
             _campaignContext = new CampaignContext();
@@ -83,27 +51,23 @@ namespace DCE_Manager
             SetCampaignImage();
             LoadSquads();
             DisplayErrors();
-
         }
 
-        // 4. méthodes d'initialisation
         private void InitializeGridEvents()
         {
-
             Main_Form.Instance.CampaignView.CampaignTab.Text = "";
-            //_form1.groupBoxCampEdit.Text = _campaignName;
             ParamCampaignSelected.NameCampaign = _campaignName;
-            //_form1.CampaignTab.Visible = true;
             Main_Form.Instance.ShowCampaign();
+
             RegisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
             RegisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
         }
 
         private void RegisterGrid(DataGridView grid)
         {
+            if (grid == null) return;
 
-            // 🔧 Ligne à modifier dans RegisterGrid
-            grid.CellMouseDown -= Grid_CellMouseDown; // évite doublons
+            grid.CellMouseDown -= Grid_CellMouseDown;
             grid.CellMouseDown += Grid_CellMouseDown;
 
             grid.CellValueChanged -= Grid_CellValueChanged;
@@ -117,8 +81,18 @@ namespace DCE_Manager
 
             grid.CellFormatting -= Grid_CellFormatting;
             grid.CellFormatting += Grid_CellFormatting;
-
         }
+
+        //private void UnregisterGrid(DataGridView grid)
+        //{
+        //    if (grid == null) return;
+
+        //    grid.CellMouseDown -= Grid_CellMouseDown;
+        //    grid.CellValueChanged -= Grid_CellValueChanged;
+        //    grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
+        //    grid.DataError -= Grid_DataError;
+        //    grid.CellFormatting -= Grid_CellFormatting;
+        //}
 
         public void LoadLuaData()
         {
@@ -128,18 +102,28 @@ namespace DCE_Manager
 
         public void LoadSquads()
         {
-
             var parser = new Parser_OobAir();
-
             CurrentCampaignSquads = parser.LoadCampaignSquads(_campaignName);
-
-            // Ancienne liste plate reconstruite pour ne pas casser les grilles.
             CurrentSquads = List_oob_air_Manager.List_oob_air;
-
             _form1.currentSquads = CurrentSquads;
-
             _campGridLft.RefreshGrids();
         }
+
+        // 2. Implémentation de Dispose()
+        public void Dispose()
+        {
+            // On se désabonne des évènements pour libérer les grilles et éviter les fuites mémoire
+            UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
+            UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
+
+            // Indique au Garbage Collector qu'il n'a pas besoin de repasser dessus
+            GC.SuppressFinalize(this);
+        }
+
+        // N'oubliez pas de garder/ajouter les signatures des méthodes d'évènements si elles sont dans ce fichier :
+        // (Grid_CellMouseDown, Grid_CellValueChanged, LoadAirbases, LoadTrigger, SetCampaignImage, etc.)
+
+
 
 
         // Cette fonction charge le briefing depuis camp_triggers_init.lua.
@@ -701,18 +685,18 @@ namespace DCE_Manager
             UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
         }
 
-        // 🔧 Nettoyage manuel des events
-        // Pourquoi : éviter accumulation des handlers sur Main_Form
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
-                UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
-            }
+        //// 🔧 Nettoyage manuel des events
+        //// Pourquoi : éviter accumulation des handlers sur Main_Form
+        //protected override void Dispose(bool disposing)
+        //{
+        //    if (disposing)
+        //    {
+        //        UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewBlue);
+        //        UnregisterGrid(Main_Form.Instance.CampaignView.DataGridViewRed);
+        //    }
 
-            base.Dispose(disposing);
-        }
+        //    base.Dispose(disposing);
+        //}
 
         // Garantit qu'il n'y a qu'un seul squad Player dans la campagne
         // Pourquoi : centraliser toute la logique (Init + Active)

@@ -35,6 +35,7 @@ namespace DCE_Manager
                 ParamConf.PATH_DCS_Root = DCS_RootPath;
 
                 homeView.pic_Accueil_DCS_Status.Image = Properties.Resources.icons8_ok_24;
+                homeView.label_Accueil_PATH_DCS.Text = TruncatePathLeft(DCS_RootPath);
             }
             else
             {
@@ -44,6 +45,7 @@ namespace DCE_Manager
                 ParamConf.PATH_DCS_Root = "";
 
                 homeView.pic_Accueil_DCS_Status.Image = Properties.Resources.icons8_warning_blue_30;
+                homeView.label_Accueil_PATH_DCS.Text = "";
             }
 
             //---textBox_SavedGames
@@ -62,6 +64,7 @@ namespace DCE_Manager
                 ParamConf.PATH_SavedGames_DCS = savedGamesPath;
                 //ParamConf.SavedGames = true;
                 homeView.pic_Accueil_SavedGames_Satus.Image = Properties.Resources.icons8_ok_24;
+                homeView.label_Accueil_PATH_SavedGames.Text = TruncatePathLeft(savedGamesPath);
             }
             else
             {
@@ -71,6 +74,7 @@ namespace DCE_Manager
                 ParamConf.PATH_SavedGames_DCS = "";
                 //ParamConf.test_DCS_Root = false;
                 homeView.pic_Accueil_SavedGames_Satus.Image = Properties.Resources.icons8_warning_blue_30;
+                homeView.label_Accueil_PATH_SavedGames.Text = "";
             }
 
             //--OvGMEPath
@@ -89,6 +93,7 @@ namespace DCE_Manager
                 // Si tu as une variable de test comme pour DCS, n'oublie pas de la mettre à true :
                 // ParamConf.OvGME_Root = true;
                 homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_ok_24;
+                homeView.label_Accueil_PATH_ovgme.Text = TruncatePathLeft(ovGMEPath);
             }
             else
             {
@@ -99,6 +104,7 @@ namespace DCE_Manager
 
                 // ParamConf.OvGME_Root = false;
                 homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_warning_blue_30;
+                homeView.label_Accueil_PATH_ovgme.Text = "";
             }
         }
 
@@ -666,23 +672,6 @@ namespace DCE_Manager
             but_PATH_CANCEL.Visible = false;
         }
 
-        //// La méthode qui reçoit les fichiers
-        //public void DropZone_FilesSelected(object sender, string[] files)
-        //{
-        //    FormUtils.LogRegister("DropZone_FilesSelected: DragEnter déclenché");
-
-        //    foreach (var file in files)
-        //    {
-        //        // Comme vous êtes virtuellement "dans" Main_Form, vous avez accès à tout !
-        //        // Vous pouvez directement utiliser vos variables du fichier principal :
-        //        this._selectedCampaignZipPath = file;
-
-        //        MessageBox.Show($"Fichier reçu dans Main_Form : {file}");
-
-        //        // Vous pouvez appeler votre updater sans problème :
-        //        // this.campaignUpdater.MaMethode(file);
-        //    }
-
         public void DropZone_FilesSelected(object sender, string[] files)
         {
             if (files.Length > 0)
@@ -690,6 +679,15 @@ namespace DCE_Manager
                 this._selectedCampaignZipPath = files[0];
                 dropZoneControl1.SetSelectedFile(files[0]);   // ← bordure verte + nom du fichier affiché
             }
+        }
+
+        private string TruncatePathLeft(string path, int maxLength = 27)
+        {
+            if (string.IsNullOrEmpty(path) || path.Length <= maxLength)
+                return path;
+
+            // Conserve les 'maxLength' derniers caractères et ajoute "..." au début
+            return "..." + path.Substring(path.Length - maxLength);
         }
 
     }

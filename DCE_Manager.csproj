@@ -199,13 +199,12 @@
       <DependentUpon>ASTI_Form.cs</DependentUpon>
     </Compile>
     <Compile Include="ConfMod\ConfModDynamicData.cs" />
+    <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
     <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
     <Compile Include="Core\UserLevel.cs" />
     <Compile Include="Grid_Squad\CampaignContext.cs" />
-    <Compile Include="Grid_Campaign\CampaignEdit.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Grid_Campaign\Campaign_Edit_Grid_Right.cs" />
     <Compile Include="appsettings.cs" />
     <Compile Include="Grid_Squad\CampaignLuaLoader.cs" />
     <Compile Include="Grid_Squad\Saver_Campaign.cs" />
@@ -234,7 +233,7 @@
     <Compile Include="DropZoneControl.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Grid_Campaign\Campaign_Grid_Left.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.cs" />
     <Compile Include="Forms\Main_Form.Install.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -247,6 +246,11 @@
     <Compile Include="Update\Updater_Param.cs" />
     <Compile Include="ASTI\Proj_NET.cs" />
     <Compile Include="Core\LuaParse.cs" />
+    <Compile Include="UserControls\ChangelogPanel.cs" />
+    <Compile Include="UserControls\ContributorCard.cs" />
+    <Compile Include="UserControls\ucAbout.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="UserControls\ucCampaign.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -259,7 +263,43 @@
     <Compile Include="UserControls\ucHome.Designer.cs">
       <DependentUpon>ucHome.cs</DependentUpon>
     </Compile>
+    <Content Include="Data\About\changelog_dcemanager.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\contributors.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\bandit648.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\icons8-conference-50.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\icons8-puzzle-64.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\icons8-vue-de-gauche-48.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\qr_voronoy_instagram.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="DCE_Incliner_64.ico" />
+    <Content Include="Data\About\Icons\eagle.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\mbot.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\noman99.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\tomsk.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Data\About\Icons\zarbas.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="xp04.ico" />
     <EmbeddedResource Include="UserControls\ucCampaign.resx">
       <DependentUpon>ucCampaign.cs</DependentUpon>

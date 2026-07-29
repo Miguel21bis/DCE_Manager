@@ -45,6 +45,7 @@ namespace DCE_Manager
             this.tabPageLeft_Install = new System.Windows.Forms.TabPage();
             this.panel_install_campaign = new System.Windows.Forms.Panel();
             this.label_install_campaign = new System.Windows.Forms.Label();
+            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.panel_PATH = new System.Windows.Forms.Panel();
             this.but_PATH_CANCEL = new System.Windows.Forms.Button();
             this.but_PATH_SAVE = new System.Windows.Forms.Button();
@@ -126,13 +127,14 @@ namespace DCE_Manager
             this.label_statistics_explain = new System.Windows.Forms.Label();
             this.Readme = new System.Windows.Forms.LinkLabel();
             this.tabPageLeft_About = new System.Windows.Forms.TabPage();
+            this.panel_About_Credit_Icon = new System.Windows.Forms.Panel();
+            this.panel1 = new System.Windows.Forms.Panel();
+            this.label_logo_by = new System.Windows.Forms.Label();
+            this.label_icons_by = new System.Windows.Forms.Label();
+            this.pic_qrCodeScan = new System.Windows.Forms.PictureBox();
+            this.pictureBox_Paysage = new System.Windows.Forms.PictureBox();
+            this.linkLabel_Logo = new System.Windows.Forms.LinkLabel();
             this.linkLabel_Icons8 = new System.Windows.Forms.LinkLabel();
-            this.label9 = new System.Windows.Forms.Label();
-            this.textBox_ChangelogScriptsMod = new System.Windows.Forms.TextBox();
-            this.label8 = new System.Windows.Forms.Label();
-            this.textBox_changelog = new System.Windows.Forms.TextBox();
-            this.textBox_Credits = new System.Windows.Forms.TextBox();
-            this.label5 = new System.Windows.Forms.Label();
             this.comboBox_Config = new System.Windows.Forms.ComboBox();
             this.toolTip3 = new System.Windows.Forms.ToolTip(this.components);
             this.panel_top = new System.Windows.Forms.Panel();
@@ -145,7 +147,6 @@ namespace DCE_Manager
             this.panelRightView = new System.Windows.Forms.Panel();
             this.panel_Down = new System.Windows.Forms.Panel();
             this.button_EXIT = new System.Windows.Forms.Button();
-            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.tabControl_LEFT.SuspendLayout();
             this.tabPageLeft_Install.SuspendLayout();
             this.panel_install_campaign.SuspendLayout();
@@ -182,6 +183,9 @@ namespace DCE_Manager
             this.panel_preferences.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox8)).BeginInit();
             this.tabPageLeft_About.SuspendLayout();
+            this.panel_About_Credit_Icon.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_qrCodeScan)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Paysage)).BeginInit();
             this.panel_top.SuspendLayout();
             this.panel_Down.SuspendLayout();
             this.SuspendLayout();
@@ -314,6 +318,21 @@ namespace DCE_Manager
             this.label_install_campaign.Size = new System.Drawing.Size(176, 21);
             this.label_install_campaign.TabIndex = 28;
             this.label_install_campaign.Text = "INSTALL A CAMPAIGN";
+            // 
+            // dropZoneControl1
+            // 
+            this.dropZoneControl1.AllowDrop = true;
+            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
+            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
+            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
+            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
+            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
+            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
+            this.dropZoneControl1.Name = "dropZoneControl1";
+            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
+            this.dropZoneControl1.SubText = "or click to browse";
+            this.dropZoneControl1.TabIndex = 27;
             // 
             // panel_PATH
             // 
@@ -1221,83 +1240,97 @@ namespace DCE_Manager
             // tabPageLeft_About
             // 
             this.tabPageLeft_About.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPageLeft_About.Controls.Add(this.linkLabel_Icons8);
-            this.tabPageLeft_About.Controls.Add(this.label9);
-            this.tabPageLeft_About.Controls.Add(this.textBox_ChangelogScriptsMod);
-            this.tabPageLeft_About.Controls.Add(this.label8);
-            this.tabPageLeft_About.Controls.Add(this.textBox_changelog);
-            this.tabPageLeft_About.Controls.Add(this.textBox_Credits);
-            this.tabPageLeft_About.Controls.Add(this.label5);
+            this.tabPageLeft_About.Controls.Add(this.panel_About_Credit_Icon);
             this.tabPageLeft_About.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_About.Name = "tabPageLeft_About";
             this.tabPageLeft_About.Size = new System.Drawing.Size(808, 601);
             this.tabPageLeft_About.TabIndex = 3;
             this.tabPageLeft_About.Text = "About";
             // 
+            // panel_About_Credit_Icon
+            // 
+            this.panel_About_Credit_Icon.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.panel_About_Credit_Icon.Controls.Add(this.panel1);
+            this.panel_About_Credit_Icon.Controls.Add(this.label_logo_by);
+            this.panel_About_Credit_Icon.Controls.Add(this.label_icons_by);
+            this.panel_About_Credit_Icon.Controls.Add(this.pic_qrCodeScan);
+            this.panel_About_Credit_Icon.Controls.Add(this.pictureBox_Paysage);
+            this.panel_About_Credit_Icon.Controls.Add(this.linkLabel_Logo);
+            this.panel_About_Credit_Icon.Controls.Add(this.linkLabel_Icons8);
+            this.panel_About_Credit_Icon.Location = new System.Drawing.Point(17, 543);
+            this.panel_About_Credit_Icon.Name = "panel_About_Credit_Icon";
+            this.panel_About_Credit_Icon.Size = new System.Drawing.Size(760, 43);
+            this.panel_About_Credit_Icon.TabIndex = 7;
+            // 
+            // panel1
+            // 
+            this.panel1.BackColor = System.Drawing.Color.LightSlateGray;
+            this.panel1.Location = new System.Drawing.Point(355, 7);
+            this.panel1.Name = "panel1";
+            this.panel1.Size = new System.Drawing.Size(2, 25);
+            this.panel1.TabIndex = 12;
+            // 
+            // label_logo_by
+            // 
+            this.label_logo_by.AutoSize = true;
+            this.label_logo_by.Location = new System.Drawing.Point(532, 14);
+            this.label_logo_by.Name = "label_logo_by";
+            this.label_logo_by.Size = new System.Drawing.Size(48, 13);
+            this.label_logo_by.TabIndex = 11;
+            this.label_logo_by.Text = "Logo by ";
+            // 
+            // label_icons_by
+            // 
+            this.label_icons_by.AutoSize = true;
+            this.label_icons_by.Location = new System.Drawing.Point(81, 14);
+            this.label_icons_by.Name = "label_icons_by";
+            this.label_icons_by.Size = new System.Drawing.Size(47, 13);
+            this.label_icons_by.TabIndex = 10;
+            this.label_icons_by.Text = "Icons by";
+            // 
+            // pic_qrCodeScan
+            // 
+            this.pic_qrCodeScan.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.pic_qrCodeScan.Image = global::DCE_Manager.Properties.Resources.icons8_qr_code_scan_48;
+            this.pic_qrCodeScan.Location = new System.Drawing.Point(487, 9);
+            this.pic_qrCodeScan.Name = "pic_qrCodeScan";
+            this.pic_qrCodeScan.Size = new System.Drawing.Size(39, 24);
+            this.pic_qrCodeScan.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_qrCodeScan.TabIndex = 9;
+            this.pic_qrCodeScan.TabStop = false;
+            this.pic_qrCodeScan.Click += new System.EventHandler(this.pic_qrCodeScan_Click);
+            // 
+            // pictureBox_Paysage
+            // 
+            this.pictureBox_Paysage.Image = global::DCE_Manager.Properties.Resources.icons8_picture_32;
+            this.pictureBox_Paysage.Location = new System.Drawing.Point(26, 8);
+            this.pictureBox_Paysage.Name = "pictureBox_Paysage";
+            this.pictureBox_Paysage.Size = new System.Drawing.Size(39, 24);
+            this.pictureBox_Paysage.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pictureBox_Paysage.TabIndex = 8;
+            this.pictureBox_Paysage.TabStop = false;
+            // 
+            // linkLabel_Logo
+            // 
+            this.linkLabel_Logo.AutoSize = true;
+            this.linkLabel_Logo.Location = new System.Drawing.Point(576, 14);
+            this.linkLabel_Logo.Name = "linkLabel_Logo";
+            this.linkLabel_Logo.Size = new System.Drawing.Size(46, 13);
+            this.linkLabel_Logo.TabIndex = 7;
+            this.linkLabel_Logo.TabStop = true;
+            this.linkLabel_Logo.Text = "Veronoy";
+            this.linkLabel_Logo.Click += new System.EventHandler(this.pic_qrCodeScan_Click);
+            // 
             // linkLabel_Icons8
             // 
             this.linkLabel_Icons8.AutoSize = true;
-            this.linkLabel_Icons8.Location = new System.Drawing.Point(46, 457);
+            this.linkLabel_Icons8.Location = new System.Drawing.Point(129, 14);
             this.linkLabel_Icons8.Name = "linkLabel_Icons8";
-            this.linkLabel_Icons8.Size = new System.Drawing.Size(92, 13);
+            this.linkLabel_Icons8.Size = new System.Drawing.Size(39, 13);
             this.linkLabel_Icons8.TabIndex = 6;
             this.linkLabel_Icons8.TabStop = true;
-            this.linkLabel_Icons8.Text = "Icônes par Icons8";
+            this.linkLabel_Icons8.Text = "Icons8";
             this.linkLabel_Icons8.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.linkLabel_Icons8_LinkClicked);
-            // 
-            // label9
-            // 
-            this.label9.AutoSize = true;
-            this.label9.Location = new System.Drawing.Point(46, 275);
-            this.label9.Name = "label9";
-            this.label9.Size = new System.Drawing.Size(139, 13);
-            this.label9.TabIndex = 5;
-            this.label9.Text = "Changelog (ScriptsMod.NG)";
-            // 
-            // textBox_ChangelogScriptsMod
-            // 
-            this.textBox_ChangelogScriptsMod.Location = new System.Drawing.Point(48, 291);
-            this.textBox_ChangelogScriptsMod.Multiline = true;
-            this.textBox_ChangelogScriptsMod.Name = "textBox_ChangelogScriptsMod";
-            this.textBox_ChangelogScriptsMod.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_ChangelogScriptsMod.Size = new System.Drawing.Size(731, 153);
-            this.textBox_ChangelogScriptsMod.TabIndex = 4;
-            // 
-            // label8
-            // 
-            this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(45, 166);
-            this.label8.Name = "label8";
-            this.label8.Size = new System.Drawing.Size(157, 13);
-            this.label8.TabIndex = 3;
-            this.label8.Text = "Changelog (DCE_Manager.exe)";
-            // 
-            // textBox_changelog
-            // 
-            this.textBox_changelog.Location = new System.Drawing.Point(48, 182);
-            this.textBox_changelog.Multiline = true;
-            this.textBox_changelog.Name = "textBox_changelog";
-            this.textBox_changelog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.textBox_changelog.Size = new System.Drawing.Size(731, 90);
-            this.textBox_changelog.TabIndex = 2;
-            // 
-            // textBox_Credits
-            // 
-            this.textBox_Credits.Location = new System.Drawing.Point(45, 20);
-            this.textBox_Credits.Multiline = true;
-            this.textBox_Credits.Name = "textBox_Credits";
-            this.textBox_Credits.Size = new System.Drawing.Size(488, 122);
-            this.textBox_Credits.TabIndex = 1;
-            this.textBox_Credits.Text = resources.GetString("textBox_Credits.Text");
-            // 
-            // label5
-            // 
-            this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(43, 4);
-            this.label5.Name = "label5";
-            this.label5.Size = new System.Drawing.Size(45, 13);
-            this.label5.TabIndex = 0;
-            this.label5.Text = "Credits :";
             // 
             // comboBox_Config
             // 
@@ -1428,21 +1461,6 @@ namespace DCE_Manager
             this.button_EXIT.Text = "Exit";
             this.button_EXIT.UseVisualStyleBackColor = true;
             // 
-            // dropZoneControl1
-            // 
-            this.dropZoneControl1.AllowDrop = true;
-            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
-            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
-            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
-            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
-            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
-            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
-            this.dropZoneControl1.Name = "dropZoneControl1";
-            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
-            this.dropZoneControl1.SubText = "or click to browse";
-            this.dropZoneControl1.TabIndex = 27;
-            // 
             // Main_Form
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1507,7 +1525,10 @@ namespace DCE_Manager
             this.panel_preferences.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox8)).EndInit();
             this.tabPageLeft_About.ResumeLayout(false);
-            this.tabPageLeft_About.PerformLayout();
+            this.panel_About_Credit_Icon.ResumeLayout(false);
+            this.panel_About_Credit_Icon.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_qrCodeScan)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Paysage)).EndInit();
             this.panel_top.ResumeLayout(false);
             this.panel_top.PerformLayout();
             this.panel_Down.ResumeLayout(false);
@@ -1538,16 +1559,10 @@ namespace DCE_Manager
         public System.Windows.Forms.Label ScriptsModAvailableVersion;
         public System.Windows.Forms.GroupBox groupBox_DwlCampaign;
         private System.Windows.Forms.GroupBox groupBox_Update_ScriptMod;
-        private System.Windows.Forms.TextBox textBox_Credits;
-        private System.Windows.Forms.Label label5;
         public System.Windows.Forms.ComboBox comboBox_Config;
-        private System.Windows.Forms.TextBox textBox_changelog;
         private System.Windows.Forms.GroupBox groupBox_Update_DCE_M;
         public System.Windows.Forms.Button DCEManagerUpdateButton;
-        private System.Windows.Forms.Label label8;
         public System.Windows.Forms.Label DCEManagerAvailableVersion;
-        private System.Windows.Forms.Label label9;
-        private System.Windows.Forms.TextBox textBox_ChangelogScriptsMod;
         private System.Windows.Forms.TabPage tabPageLeftNews;
         private System.Windows.Forms.TextBox textBox_News;
         public System.Windows.Forms.Label ScriptModInstalledVersion;
@@ -1639,6 +1654,13 @@ namespace DCE_Manager
         private System.Windows.Forms.Panel panel_Down;
         public System.Windows.Forms.Button button_EXIT;
         public System.Windows.Forms.Button but_Level_DEV;
+        private System.Windows.Forms.Panel panel_About_Credit_Icon;
+        private System.Windows.Forms.LinkLabel linkLabel_Logo;
+        private System.Windows.Forms.PictureBox pictureBox_Paysage;
+        private System.Windows.Forms.Label label_logo_by;
+        private System.Windows.Forms.Label label_icons_by;
+        private System.Windows.Forms.PictureBox pic_qrCodeScan;
+        private System.Windows.Forms.Panel panel1;
     }
 }
 

@@ -21,7 +21,7 @@ namespace DCE_Manager.UserControls
         {
             AjusterLargeurTextBox(textBox_id_client);
             textBox_id_client.Text = id;
-            ParamConf.DCE_Manager_LocVer = id;
+            //ParamConf.DCE_Manager_LocVer = id;
         }
         public void idClient_Visible(bool visible)
         {
@@ -30,7 +30,14 @@ namespace DCE_Manager.UserControls
 
         public void SetDceManagerVersion(string version)
         {
-            label_Accueil_DceManagerVer.Text = version;
+            label_Accueil_DceManager_Ver.Text = version;
+        }
+
+        public void SetScriptsModVersion(string version)
+        {
+            FormUtils.LogRegister("SetScriptsModVersion() : " + version);
+
+            label_Accueil_ScriptsMod_Ver.Text = version;
         }
 
 
