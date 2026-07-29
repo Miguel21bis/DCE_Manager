@@ -10,7 +10,9 @@ namespace DCE_Manager
 {
     internal class ConfModLoader
     {
-        // Cache per campaign, explicitly invalidated by ConfModWriter after a Save().
+        // Cache per campaign, explicitly invalidated by ConfModWriter after a Save(),
+        // and fully cleared by ClearCache() whenever campaign identity can change
+        // (configuration switch, campaign add/remove - see LoadCampaignsAsync).
         private static Dictionary<string, ConfModDynamicData> _cache = new Dictionary<string, ConfModDynamicData>();
 
         public string GetConfModPath(string campaignName)
@@ -113,9 +115,66 @@ namespace DCE_Manager
                 case UiFieldType.Combo:
                     return ComboTokenFromLua(luaValue);
 
+                case UiFieldType.Matrix:
+                    return MatrixFromLua(luaValue, field);
+
                 default:
                     return luaValue;
             }
+        }
+
+        // Builds one row-key -> full positional array entry per schema.RowSpecs.
+        // Two shapes are supported:
+        //  - multi-row matrix: luaValue is a table of named sub-tables, one per row
+        //    (e.g. campMod.RepairOption.blue = { airUnit = {...}, airbase = {...} }).
+        //  - single-row "self" matrix: luaValue IS the positional array itself
+        //    (e.g. campMod.RepairOption.blue.runway = {0,20,0,0,25,50}), used when
+        //    RowSpecs has exactly one entry whose key matches the field's own key.
+        private static Dictionary<string, double[]> MatrixFromLua(object luaValue, ConfUiFieldSchema field)
+        {
+            var rows = new Dictionary<string, double[]>();
+            LuaTable matrixTable = luaValue as LuaTable;
+
+            if (matrixTable == null)
+                return rows;
+
+            foreach (UiOption rowSpec in field.RowSpecs)
+            {
+                LuaTable rowArray = matrixTable[rowSpec.Value] as LuaTable;
+
+                if (rowArray == null && field.RowSpecs.Count == 1 && rowSpec.Value == field.Key)
+                    rowArray = matrixTable;
+
+                if (rowArray == null)
+                {
+                    FormUtils.LogRegister("ConfModLoader | matrix row not found: " + field.Path + "." + rowSpec.Value);
+                    continue;
+                }
+
+                rows[rowSpec.Value] = ExtractPositionalArray(rowArray);
+            }
+
+            return rows;
+        }
+
+        // Reads a Lua array table (1-based integer keys) into a 0-based double[].
+        private static double[] ExtractPositionalArray(LuaTable table)
+        {
+            var values = new List<double>();
+            int i = 1;
+
+            while (true)
+            {
+                object v = table[i];
+
+                if (v == null)
+                    break;
+
+                values.Add(ToDouble(v) ?? 0);
+                i++;
+            }
+
+            return values.ToArray();
         }
 
         // Converts a raw Lua value into the token string used by that field's

@@ -15,6 +15,7 @@ using DCE_Manager.Parameters;
 using DCE_Manager.Update;
 using DCE_Manager.Utils;
 using SearchOption = System.IO.SearchOption;
+using DCE_Manager.UserControls;
 
 
 
@@ -49,6 +50,17 @@ namespace DCE_Manager
         private string _cachedOvGmePath;
         private Updater_ScriptsMod scriptsModUpdater;
         private Updater_DCEManager dceManagerUpdater;
+        private Updater_News newsUpdater;
+        private ucHome homeView;
+
+        private ucCampaign campaignView;
+
+        public ucCampaign CampaignView
+        {
+            get { return campaignView; }
+        }
+
+
         // 1. Déclarer la variable de classe
         //private CampaignGridLeft _campaignGridLeft;
         // Propriété publique en lecture seule
@@ -72,6 +84,16 @@ namespace DCE_Manager
 
             InitializeComponent();
 
+            homeView = new ucHome();
+            homeView.Dock = DockStyle.Fill;
+            panelRightView.Controls.Add(homeView);
+
+            campaignView = new ucCampaign();
+            campaignView.Dock = DockStyle.Fill;
+            panelRightView.Controls.Add(campaignView);
+
+            //linkLabel_Logo.LinkClicked += linkLabel_Logo_LinkClicked;
+
             // 2. Instancier en passant "this"
             CampaignGridLeft = new CampaignGridLeft(this);
 
@@ -86,6 +108,7 @@ namespace DCE_Manager
 
             scriptsModUpdater = new Updater_ScriptsMod(this);
             dceManagerUpdater = new Updater_DCEManager(this);
+            newsUpdater = new Updater_News(this);
 
             //*************************
             CampaignGridLeft.GridCampaigns_Init_DataGridView();
@@ -112,19 +135,17 @@ namespace DCE_Manager
 
 
             tabControl_LEFT.Selected += new TabControlEventHandler(TabControl1_SelectedAsync);
-            CampaignTab.Selected += new TabControlEventHandler(CampaignTab_Selected);
+            //CampaignTab.Selected += new TabControlEventHandler(CampaignTab_Selected);
 
             // Abonner l'événement FormClosed à une méthode
             this.FormClosed += new FormClosedEventHandler(Form1_FormClosed);
 
-            //VersionDceManager.Text = VersionLongDceManager();
-            VersionDceManager.Text = GetVersionDceManager();
-
-            textBox_id_client.Text = Statistics.CreateIdClient();
-            AjusterLargeurTextBox(textBox_id_client);
-
             // Appel de la méthode de chargement
             LoadConfiguration();
+
+            homeView.SetClientId(Statistics.CreateIdClient());
+            homeView.SetDceManagerVersion(GetVersionDceManager());
+            homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
 
             _isInitializing = false;
 
@@ -133,6 +154,7 @@ namespace DCE_Manager
             _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
             _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
+            _ = newsUpdater.CheckNewsAsync();
 
             _ = Statistics.EnvoiStatsAsync(checkBox_Stat_anonym.Checked);
 
@@ -154,52 +176,55 @@ namespace DCE_Manager
 
             toolTip1.SetToolTip(m_But_Install_Browse_SavedGame, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
             toolTip1.SetToolTip(textBox_PATH_DCS_Root, @"C:\Users\yourname\Saved Games\DCS World or DCS World OpenBeta");
-           
 
-            //affiche le changelog
-            textBox_changelog.Text = DCE_Manager.Properties.Resources.changelog;
+
+            ////affiche le changelog
+            //textBox_changelog.Text = DCE_Manager.Properties.Resources.changelog;
 
             //coche ou pas le checkbox du scriptmod
             checkBoxMod();
 
-            //Affiche le changelog
-            string ChangelogFileSM = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
-            bool ChangelogFileSMExist = File.Exists(ChangelogFileSM);
+            ////Affiche le changelog
+            //string ChangelogFileSM = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
+            //bool ChangelogFileSMExist = File.Exists(ChangelogFileSM);
 
-            if (ChangelogFileSMExist)
-            {
-                using (StreamReader reader = new StreamReader(ChangelogFileSM))
-                {
-                    string line;
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        if (((line.Length >= 2 && line.Substring(0, 2) != "--") | (line.Length <= 2)) &&
-                            !System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE") &&
-                            !System.Text.RegularExpressions.Regex.IsMatch(line, "VersionDCE")
-                            )
-                        {
-                            textBox_ChangelogScriptsMod.Text = textBox_ChangelogScriptsMod.Text + line + "\r\n";
-                        }
-                    }
-                    reader.Close();
-                }
-            }
+            //if (ChangelogFileSMExist)
+            //{
+            //    using (StreamReader reader = new StreamReader(ChangelogFileSM))
+            //    {
+            //        string line;
+            //        while ((line = reader.ReadLine()) != null)
+            //        {
+            //            if (((line.Length >= 2 && line.Substring(0, 2) != "--") | (line.Length <= 2)) &&
+            //                !System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE") &&
+            //                !System.Text.RegularExpressions.Regex.IsMatch(line, "VersionDCE")
+            //                )
+            //            {
+            //                textBox_ChangelogScriptsMod.Text = textBox_ChangelogScriptsMod.Text + line + "\r\n";
+            //            }
+            //        }
+            //        reader.Close();
+            //    }
+            //}
 
-            if (ChangelogFileSMExist)
-            {
-                string line;
+            //if (ChangelogFileSMExist)
+            //{
+            //    string line;
 
-                StreamReader sr = new StreamReader(ChangelogFileSM);
+            //    StreamReader sr = new StreamReader(ChangelogFileSM);
 
-                while ((line = sr.ReadLine()) != null)
-                {
-                    if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
-                    {
-                        textBox_ChangelogScriptsMod.Text = textBox_ChangelogScriptsMod.Text + line + "\r\n";
-                    }
-                }
-                sr.Close();
-            }
+            //    while ((line = sr.ReadLine()) != null)
+            //    {
+            //        if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE"))
+            //        {
+            //            textBox_ChangelogScriptsMod.Text = textBox_ChangelogScriptsMod.Text + line + "\r\n";
+            //        }
+            //    }
+            //    sr.Close();
+            //}
+
+            panelRightView.Controls.Add(campaignView);
+        }
 
             //*******************************************************************************************************************************
             //telecharge news.lua pour afficher les news***********************************************************************************
@@ -422,7 +447,7 @@ namespace DCE_Manager
 
 
        
-        }//public Main_Form()
+        //}//public Main_Form()
 
 
         private void LoadConfiguration()
@@ -541,14 +566,14 @@ namespace DCE_Manager
 
                     // 5. Hydrater l'interface avec les chemins du profil sélectionné
                     string prefix = $"config_{ParamConf.NumSelectConfig}_";
-                    textBox_PATH_DCS_Root.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var pDcs) ? pDcs : "";
-                    ParamConf.PATH_DCS_Root = textBox_PATH_DCS_Root.Text;
+                    ParamConf.PATH_DCS_Root = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var pDcs) ? pDcs : "";
+                    textBox_PATH_DCS_Root.Text = ParamConf.PATH_DCS_Root;
 
-                    textBox_SavedGames.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var pSaved) ? pSaved : "";
-                    ParamConf.PATH_SavedGames_DCS = textBox_SavedGames.Text;
+                    ParamConf.PATH_SavedGames_DCS = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var pSaved) ? pSaved : "";
+                    textBox_SavedGames.Text = ParamConf.PATH_SavedGames_DCS;
 
-                    textBox_OvGME.Text = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var pOvgme) ? pOvgme : "";
-                    ParamConf.PATH_OVGME_MOD = textBox_OvGME.Text;
+                    ParamConf.PATH_OVGME_MOD = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var pOvgme) ? pOvgme : "";
+                    textBox_OvGME.Text = ParamConf.PATH_OVGME_MOD;
                 }
                 catch (Exception ex)
                 {
@@ -663,17 +688,6 @@ namespace DCE_Manager
             }
         }
 
-
-
-
-        private void AjusterLargeurTextBox(TextBox tb)
-        {
-            using (Graphics g = tb.CreateGraphics())
-            {
-                SizeF size = g.MeasureString(tb.Text, tb.Font);
-                tb.Width = (int)size.Width + 10; // marge de 10 pixels
-            }
-        }
 
         // Méthode exécutée après la fermeture du formulaire
         private void Form1_FormClosed(object sender, FormClosedEventArgs e)
@@ -1016,8 +1030,6 @@ namespace DCE_Manager
 
 
 
-
-
         async void TabControl1_SelectedAsync(object sender, TabControlEventArgs e)
         {
 
@@ -1026,10 +1038,10 @@ namespace DCE_Manager
                 // On quitte (ou on n'est pas sur) l'onglet Campaigns → reset complet
                 CampaignGridLeft.ResetCurrentCampaign();
 
-                buttonSaveChgtCampaign.Visible = false;
-                buttonResetBackup.Visible = false;
-                radioButton_OOB_INIT.Visible = false;
-                radioButton_OOB_ACTIVE.Visible = false;
+                Main_Form.Instance.CampaignView.buttonSaveChgtCampaign.Visible = false;
+                Main_Form.Instance.CampaignView.buttonResetBackup.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_OOB_INIT.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_OOB_ACTIVE.Visible = false;
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1039,12 +1051,8 @@ namespace DCE_Manager
             if (e.TabPage == tabPageLeft_Install)
             {
                 checkBoxMod();
-                groupBoxDroiteAccueil.Visible = true;
-                //groupBoxCampEdit.Visible = false;
-                //groupBox_staticTemplate.Visible = false;
-                //groupBoxCampEdit.Text = "";
+                //groupBoxDroiteAccueil.Visible = true;
 
-                //CampaignTab.Visible = false;
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
 
@@ -1058,7 +1066,7 @@ namespace DCE_Manager
             {
                 Cursor.Current = Cursors.WaitCursor;
 
-                groupBoxDroiteAccueil.Visible = false;
+                //groupBoxDroiteAccueil.Visible = false;
                  _ = CampaignGridLeft.LoadCampaignsAsync();
 
                 Cursor.Current = Cursors.Default;
@@ -1071,17 +1079,19 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeft_Update)
             {
-                groupBoxDroiteAccueil.Visible = true;
-                FormUtils.MakeRoundedButton( ScriptsModUpdateButton, 10);
+                //groupBoxDroiteAccueil.Visible = true;
+                FormUtils.MakeRoundedButton(ScriptsModUpdateButton, 10);
 
-                FormUtils.MakeRoundedButton( DCEManagerUpdateButton, 10);
+                FormUtils.MakeRoundedButton(DCEManagerUpdateButton, 10);
 
-                FormUtils.MakeRoundedButton(  buttonCampaignCancel, 10);
+                FormUtils.MakeRoundedButton(buttonCampaignCancel, 10);
 
 
                 //CampaignTab.Visible = false;
+                ShowHome();
 
-                DCEManagerInstalledVersion.Text = VersionDceManager.Text;
+                DCEManagerInstalledVersion.Text = ParamConf.DCE_Manager_LocVer;
+
 
                 if (String.IsNullOrEmpty(ParamConf.PATH_SavedGames_DCS))
                 {
@@ -1100,85 +1110,58 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeft_About)
             {
-                groupBoxDroiteAccueil.Visible = true;
+                ShowHome();
 
-                //CampaignTab.Visible = false;
+                tabPageLeft_About.Controls.Clear(); // enlève textBox_changelog etc. existants
 
-                if (textBox_ChangelogScriptsMod.Text == "")
-                {
+                ucAbout aboutView = new ucAbout();
+                aboutView.Dock = DockStyle.Fill;
 
-                    //Affiche le changelog
-                    string ChangelogFileSM = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
-                    bool ChangelogFileSMExist = File.Exists(ChangelogFileSM);
+                panel_About_Credit_Icon.Dock = DockStyle.Bottom; // garde sa Height (43) du Designer
 
-                    textBox_ChangelogScriptsMod.Text = "";
-
-                    const Int32 BufferSize = 4096;
-
-                    if (ChangelogFileSMExist)
-                    {
-                        using (StreamReader reader = new StreamReader(ChangelogFileSM, Encoding.UTF8, true, BufferSize))
-                        {
-                            string line;
-                            while ((line = reader.ReadLine()) != null)
-                            {
-                                if (((line.Length >= 2 && line.Substring(0, 2) != "--") | (line.Length <= 2)) &&
-                                    !System.Text.RegularExpressions.Regex.IsMatch(line, "versionDCE") &&
-                                    !System.Text.RegularExpressions.Regex.IsMatch(line, "VersionDCE")
-                                    )
-                                {
-                                    textBox_ChangelogScriptsMod.Text = textBox_ChangelogScriptsMod.Text + line + "\r\n";
-                                }
-                            }
-                            reader.Close();
-                        }
-                    }
-                }
+                tabPageLeft_About.Controls.Add(aboutView);
+                aboutView.Controls.Add(panel_About_Credit_Icon); // ajouté APRÈS -> se cale en bas sans rien casser
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
+            //else if (e.TabPage == tabPageLeft_About)
+            //{
+            //    //groupBoxDroiteAccueil.Visible = true;
+
+            //    //CampaignTab.Visible = false;
+            //    ShowHome();
+
+            //    tabPageLeft_About.Controls.Clear(); // enlève textBox_changelog etc. existants
+            //    ucAbout aboutView = new ucAbout();
+            //    aboutView.Dock = DockStyle.Fill;
+            //    tabPageLeft_About.Controls.Add(aboutView);
+
+            //    var panelAboutDce = new Panel();
+            //    panelAboutDce.Dock = DockStyle.Bottom;
+            //    panelAboutDce.Height = 60;
+            //    // ... tes labels/icône dedans ...
+
+            //    tabPageLeft_About.Controls.Add(aboutView); // ucAbout, en Dock=Fill
+            //    aboutView.Controls.Add(panelAboutDce); // ajouté APRÈS -> vient se caler en bas sans rien casser
+
+
+            //    CampaignGridLeft.UpdateCampaignButtonsVisibility();
+
+
+            //}
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage?   NEWS    +++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeftNews)
             {
-                groupBoxDroiteAccueil.Visible = true;
-                //CampaignTab.Visible = false;
-                CampaignGridLeft.UpdateCampaignButtonsVisibility();
+                newsUpdater.DisplayNews();
 
+                CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
 
-            //else
-            //{
-            //    // On quitte l’onglet CampaignTab → on cache tout
-            //    //buttonSaveChgtCampaign.Visible = false;
-            //    //buttonResetBackup.Visible = false;
-            //    //radioButton_OOB_INIT.Visible = false;
-            //    //radioButton_OOB_ACTIVE.Visible = false;
-            //    CampaignGridLeft.UpdateCampaignButtonsVisibility();
-            //}
         }
 
-
-
-
-        //int UpdateA = 1;
-        //public System.Windows.Forms.Label UpdateAddNewLabelA(string NameCamp)
-        //{
-        //    System.Windows.Forms.Label txt = new System.Windows.Forms.Label();
-
-        //    txt.Top = UpdateA * 20 + 23;
-        //    txt.Left = 25;
-        //    txt.AutoSize = true;
-        //    //txt.Size = new System.Drawing.Size(170, 20);
-        //    txt.Text = NameCamp;
-        //    UpdateA = UpdateA + 1;
-        //    return txt;
-        //}
-        //int UpdateB = 1;
-
-        //int UpdateC = 1;
 
 
         public string GetVersionDceManager()
@@ -1188,7 +1171,7 @@ namespace DCE_Manager
             // On ne garde que les 3 premiers composants (Major, Minor, Build)
             string versionString = String.Format("{0}.{1}.{2}", version.Major, version.Minor, version.Build);
 
-            ParamManager.verDceManager = versionString;
+            ParamConf.DCE_Manager_LocVer = versionString;
             return versionString;
         }
 
@@ -1241,39 +1224,6 @@ namespace DCE_Manager
             }
         }
 
-        private void pictureBox5_Click(object sender, EventArgs e)
-        {
-            Process process = new Process();
-            // Configure the process using the StartInfo properties.BoxOvGME
-            //process.StartInfo.FileName = ParamCampaign.pathCampaign + @"\FirstMission.bat";
-            process.StartInfo.FileName = textBox_PATH_DCS_Root.Text + @"\bin\DCS.exe";
-            process.StartInfo.Arguments = " ";
-            process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-            process.StartInfo.WorkingDirectory = textBox_PATH_DCS_Root.Text + @"\bin";
-
-            process.Start();
-        }
-
-        private void pictureBoxOvGME_Click(object sender, EventArgs e)
-        {
-            string OvGME_Path = FormUtils.IsApplicationInstalled("OvGME");
-            string Empty = "";
-            bool result = Empty.Equals(OvGME_Path);
-
-            //MessageBox.Show(OvGME_Path, OvGME_Path);
-            if (!result)
-            {
-
-                Process process = new Process();
-
-                process.StartInfo.FileName = OvGME_Path + @"\OvGME.exe";
-                process.StartInfo.Arguments = " ";
-                process.StartInfo.WindowStyle = ProcessWindowStyle.Normal;
-                process.StartInfo.WorkingDirectory = OvGME_Path;
-
-                process.Start();
-            }
-        }
 
        
         private void ScriptModInstalledVersion_Click(object sender, EventArgs e)
@@ -1286,22 +1236,6 @@ namespace DCE_Manager
             //process.StartInfo.WorkingDirectory = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" ;
 
             process.Start();
-        }
-
-
-        internal class version
-        {
-            private string v1;
-
-            public version(string v1)
-            {
-                this.v1 = v1;
-            }
-
-            internal object CompareTo(Version version2)
-            {
-                throw new NotImplementedException();
-            }
         }
 
 
@@ -1352,102 +1286,6 @@ namespace DCE_Manager
             }
         }
 
-        void CampaignTab_Selected(object sender, TabControlEventArgs e)
-        {
-            CampaignGridLeft.UpdateCampaignButtonsVisibility();
-        }
-
-
-
-        //private void buttonSaveActive_Click(object sender, EventArgs e)
-        //{
-        //    string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Active\oob_air.lua";
-           
-        //    CampaignGridLeft.ModifiedCampaign(pathFile, null, "Active");
-
-        //    PublicTable.errorTable.Clear();
-        //    textBox_Bugs.Text = "";
-        //    tabPage12.Text = "Bugs";
-
-        //    //CampaignEdit1(sender, e, pathFile, groupBoxCampEdit.Text);
-        //}
-
-        //private void buttonResetBackup_Click(object sender, EventArgs e)
-        //{
-        //    // Initializes the variables to pass to the MessageBox.Show method.
-        //    string message = "Do you really want to go back to the original values?";
-        //    string caption = "Caution";
-        //    MessageBoxButtons buttons = MessageBoxButtons.YesNo;
-        //    DialogResult result;
-
-        //    // Displays the MessageBox.
-        //    result = MessageBox.Show(message, caption, buttons);
-        //    if (result == System.Windows.Forms.DialogResult.Yes)
-        //    {
-        //        string pathFileBackup = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init_backup_DTT.lua";
-        //        string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init.lua";
-        //        //string pathFile = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_initCLONE.lua";
-
-        //        //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
-        //        if (File.Exists(pathFileBackup))
-        //        {
-        //            try
-        //            {
-        //                File.Copy(pathFileBackup, pathFile, true);
-        //            }
-        //            catch (IOException iox)
-        //            {
-        //                //MessageBox.Show(iox.Message, "Info");
-        //                FormUtils.ShowErrorMessage(iox.Message);
-        //            }
-        //        }
-        //    }
-
-        //    // Remplacez l'appel statique CampaignEdit.LoadSquads(); par un appel sur l'instance _currentCampaignEdit
-        //    if (_currentCampaignEdit != null)
-        //    {
-        //        _currentCampaignEdit.LoadSquads();
-        //    }
-
-
-        //    string path = textBox_SavedGames.Text + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign;
-
-        //}
-
-        public bool ButtonPreview = false;
-        public void Form1_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.KeyCode == Keys.A)
-            {
-                ButtonPreview = true;
-            }
-        }
-
-        public void Form1_KeyUp(object sender, KeyEventArgs e)
-        {
-            ////if (e.KeyCode == Keys.Control)
-            if (e.KeyCode == Keys.A)
-            {
-                ButtonPreview = false;
-            }
-        }
-
-
-        private void VersionDceManager_Click(object sender, EventArgs e)
-        {
-            //Pour devenir DEV
-
-            if (ButtonPreview == true ) {
-
-                GetVersionDceManager();
-                //but_GPS_LL.Visible = true;
-                //LabelStatut.Text = "DEV";
-                this.Text = "DCE_Manager - DEV - " + ParamConf.CurrentConfigName;
-                ScriptsModUpdateButton.Text = "Update DEV";
-                textBox_id_client.Visible = true;
-            }
-
-        }
 
 
         public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
@@ -1455,7 +1293,7 @@ namespace DCE_Manager
             if (_isUpdatingState)
                 return;
 
-            if (!radioButton_OOB_INIT.Checked) return;
+            if (!Main_Form.Instance.CampaignView.IsOobInit) return;
 
             currentState = "Init";
             CampaignGridLeft.RefreshGrids();
@@ -1466,7 +1304,7 @@ namespace DCE_Manager
             if (_isUpdatingState)
                 return;
 
-            if (!radioButton_OOB_ACTIVE.Checked) return;
+            if (!Main_Form.Instance.CampaignView.IsOobActive) return;
 
             currentState = "Active";
             CampaignGridLeft.RefreshGrids();
@@ -1616,6 +1454,438 @@ namespace DCE_Manager
 
 
 
+        public void ShowHome()
+        {
+            homeView.BringToFront();
+        }
+
+        public void ShowCampaign()
+        {
+            campaignView.BringToFront();
+        }
+
+        private void but_Level_CampMaker_Click(object sender, EventArgs e)
+        {
+            ParamConf.UserLevel = DCE_Manager.UserLevel.CampaignMaker;
+            //label_UserLevel.Text = "Campaign Maker";
+
+            but_Level_CampMaker.BackColor = System.Drawing.Color.DodgerBlue;
+            but_Level_CampMaker.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
+
+            // Retour à la couleur par défaut
+            but_level_User.BackColor = System.Drawing.SystemColors.Control;
+            but_level_User.ForeColor = System.Drawing.Color.Black; // Pour garder le texte lisible
+        }
+
+        private void but_level_User_Click(object sender, EventArgs e)
+        {
+            ParamConf.UserLevel = DCE_Manager.UserLevel.Player;
+            //label_UserLevel.Text = "Player";
+
+            but_level_User.BackColor = System.Drawing.Color.DodgerBlue;
+            but_level_User.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
+
+            // Retour à la couleur par défaut
+            but_Level_CampMaker.BackColor = System.Drawing.SystemColors.Control;
+            but_Level_CampMaker.ForeColor = System.Drawing.Color.Black; // Pour garder le texte lisible
+        }
+
+        private void linkLabel_Logo_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ShowVoronoyCreditWindow();
+        }
+
+        // Petite fenêtre : lien Instagram cliquable + QR code (image chargée depuis
+        // Data\About\Icons\qr_voronoy_instagram.png). Tant que ce fichier n'existe
+        // pas encore, la zone QR reste simplement vide (pas de placeholder moche) -
+        // dépose le vrai PNG à cet endroit quand tu l'auras, aucun code à retoucher.
+        private void ShowVoronoyCreditWindow()
+        {
+
+        
+            //const string instagramUrl = "https://www.instagram.com/PAULINE_USERNAME/";
+            const string instagramUrl = "https://www.instagram.com/__voronoy_?igsh=MWFmYW44dXlzcW9rNA==";
+
+            var creditForm = new Form();
+            creditForm.Text = "Logo designed by Voronoy";
+            creditForm.ClientSize = new Size(300, 360);
+            creditForm.StartPosition = FormStartPosition.CenterParent;
+            creditForm.FormBorderStyle = FormBorderStyle.FixedDialog;
+            creditForm.MaximizeBox = false;
+            creditForm.MinimizeBox = false;
+
+            var linkInsta = new LinkLabel();
+            linkInsta.Text = "View Voronoy’s Instagram profile";
+            linkInsta.AutoSize = true;
+            linkInsta.Left = 20;
+            linkInsta.Top = 20;
+            linkInsta.LinkClicked += (s, ev) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+            var pictureBoxQr = new PictureBox();
+            pictureBoxQr.Left = 20;
+            pictureBoxQr.Top = 55;
+            pictureBoxQr.Width = 260;
+            pictureBoxQr.Height = 260;
+            pictureBoxQr.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBoxQr.Cursor = Cursors.Hand;
+            pictureBoxQr.Click += (s, ev) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+            string qrPath = Path.Combine(Application.StartupPath, "Data", "About", "Icons", "qr_Voronoy_instagram.png");
+            if (File.Exists(qrPath))
+            {
+                try { pictureBoxQr.Image = Image.FromFile(qrPath); }
+                catch { /* fichier illisible : zone laissée vide */ }
+            }
+
+            creditForm.Controls.Add(pictureBoxQr);
+            creditForm.Controls.Add(linkInsta);
+
+            creditForm.ShowDialog(this);
+        }
+
+        private void panel_configuration_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        // ============================================================================
+        // A coller dans Main_Form.cs (dans la classe Main_Form)
+        // Version "inline" du crédit Voronoy, affichée DANS panelRightView (comme
+        // homeView / campaignView), sans le lien portfolio, juste nom + Instagram + QR.
+        // Ne touche pas à ShowVoronoyCreditWindow() (la popup) qui reste utilisable.
+        //
+        // Pour tester : appelle ShowVoronoyCreditInline() depuis n'importe où
+        // (ex: temporairement dans le constructeur après panelRightView.Controls.Add(campaignView),
+        // ou sur un bouton de test).
+        // ============================================================================
+
+        private Panel panelVoronoyCreditInline;
+
+        public void ShowVoronoyCreditInline()
+        {
+            if (panelVoronoyCreditInline == null)
+            {
+                panelVoronoyCreditInline = BuildVoronoyCreditInlinePanel();
+                panelVoronoyCreditInline.Dock = DockStyle.Fill;
+                panelRightView.Controls.Add(panelVoronoyCreditInline);
+            }
+
+            panelVoronoyCreditInline.BringToFront();
+        }
+
+        //private Panel BuildVoronoyCreditInlinePanel()
+        //{
+        //    const string instagramUrl = "https://www.instagram.com/__voronoy_?igsh=MWFmYW44dXlzcW9rNA==";
+        //    string iconsFolder = Path.Combine(Application.StartupPath, "Data", "About", "Icons");
+
+        //    // --- root : occupe tout panelRightView, sert juste à centrer la carte ---
+        //    var root = new Panel();
+        //    root.BackColor = SystemColors.Control;
+
+        //    // --- la carte elle-même (taille fixe, centrée dans root) ---
+        //    var card = new Panel();
+        //    card.Width = 640;
+        //    card.Height = 260;
+        //    card.BackColor = Color.White;
+        //    card.BorderStyle = BorderStyle.FixedSingle;
+
+        //    root.Resize += (s, e) =>
+        //    {
+        //        card.Left = (root.ClientSize.Width - card.Width) / 2;
+        //        card.Top = (root.ClientSize.Height - card.Height) / 2;
+        //    };
+
+        //    // --- colonne de gauche : logo + nom + role ---
+        //    var leftPanel = new Panel();
+        //    leftPanel.Dock = DockStyle.Left;
+        //    leftPanel.Width = 160;
+
+        //    var logoBox = new PictureBox();
+        //    logoBox.Width = 70;
+        //    logoBox.Height = 70;
+        //    logoBox.Left = (leftPanel.Width - logoBox.Width) / 2;
+        //    logoBox.Top = 40;
+        //    logoBox.SizeMode = PictureBoxSizeMode.Zoom;
+
+        //    string logoPath = Path.Combine(iconsFolder, "voronoy_logo.png");
+        //    if (File.Exists(logoPath))
+        //    {
+        //        try { logoBox.Image = Image.FromFile(logoPath); }
+        //        catch { /* fichier illisible : zone laissée vide */ }
+        //    }
+
+        //    var nameLabel = new Label();
+        //    nameLabel.Text = "Voronoy";
+        //    nameLabel.Font = new Font(leftPanel.Font.FontFamily, 11f, FontStyle.Bold);
+        //    nameLabel.ForeColor = Color.MediumPurple;
+        //    nameLabel.TextAlign = ContentAlignment.MiddleCenter;
+        //    nameLabel.Left = 0;
+        //    nameLabel.Top = logoBox.Bottom + 10;
+        //    nameLabel.Width = leftPanel.Width;
+        //    nameLabel.Height = 20;
+
+        //    var roleLabel = new Label();
+        //    roleLabel.Text = "Logo Designer";
+        //    roleLabel.Font = new Font(leftPanel.Font, FontStyle.Italic);
+        //    roleLabel.ForeColor = Color.DimGray;
+        //    roleLabel.TextAlign = ContentAlignment.MiddleCenter;
+        //    roleLabel.Left = 0;
+        //    roleLabel.Top = nameLabel.Bottom + 2;
+        //    roleLabel.Width = leftPanel.Width;
+        //    roleLabel.Height = 18;
+
+        //    leftPanel.Controls.Add(logoBox);
+        //    leftPanel.Controls.Add(nameLabel);
+        //    leftPanel.Controls.Add(roleLabel);
+
+        //    // --- colonne de droite : QR code ---
+        //    var rightPanel = new Panel();
+        //    rightPanel.Dock = DockStyle.Right;
+        //    rightPanel.Width = 190;
+
+        //    var qrBox = new PictureBox();
+        //    qrBox.Width = 150;
+        //    qrBox.Height = 150;
+        //    qrBox.Left = (rightPanel.Width - qrBox.Width) / 2;
+        //    qrBox.Top = (card.Height - qrBox.Height) / 2;
+        //    qrBox.SizeMode = PictureBoxSizeMode.Zoom;
+        //    qrBox.Cursor = Cursors.Hand;
+        //    qrBox.Click += (s, e) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+        //    string qrPath = Path.Combine(iconsFolder, "qr_Voronoy_instagram.png");
+        //    if (File.Exists(qrPath))
+        //    {
+        //        try { qrBox.Image = Image.FromFile(qrPath); }
+        //        catch { /* fichier illisible : zone laissée vide */ }
+        //    }
+
+        //    rightPanel.Controls.Add(qrBox);
+
+        //    // --- colonne du milieu : texte + lien Instagram (pas de lien portfolio) ---
+        //    var middlePanel = new Panel();
+        //    middlePanel.Dock = DockStyle.Fill;
+
+        //    var descriptionLabel = new Label();
+        //    descriptionLabel.Text = "The DCE Manager logo was designed by Voronoy.";
+        //    descriptionLabel.Font = new Font(middlePanel.Font.FontFamily, 10f);
+        //    descriptionLabel.Left = 20;
+        //    descriptionLabel.Top = 60;
+        //    descriptionLabel.Width = 260;
+        //    descriptionLabel.Height = 40;
+
+        //    var thanksLabel = new Label();
+        //    thanksLabel.Text = "Thanks!";
+        //    thanksLabel.Font = new Font(middlePanel.Font.FontFamily, 10f, FontStyle.Bold);
+        //    thanksLabel.Left = 20;
+        //    thanksLabel.Top = descriptionLabel.Bottom + 6;
+        //    thanksLabel.AutoSize = true;
+
+        //    var linkInsta = new LinkLabel();
+        //    linkInsta.Text = "instagram.com/__voronoy_";
+        //    linkInsta.AutoSize = true;
+        //    linkInsta.Left = 20;
+        //    linkInsta.Top = thanksLabel.Bottom + 12;
+        //    linkInsta.LinkClicked += (s, e) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+        //    middlePanel.Controls.Add(descriptionLabel);
+        //    middlePanel.Controls.Add(thanksLabel);
+        //    middlePanel.Controls.Add(linkInsta);
+
+        //    // IMPORTANT : Fill (middlePanel) ajouté AVANT Left/Right (leftPanel/rightPanel)
+        //    card.Controls.Add(middlePanel);
+        //    card.Controls.Add(leftPanel);
+        //    card.Controls.Add(rightPanel);
+
+        //    root.Controls.Add(card);
+
+        //    return root;
+        //}
+
+        // ============================================================================
+        // A coller dans Main_Form.cs (dans la classe Main_Form)
+        // Version "inline" du crédit Voronoy, taillée pile pour un panel de 496x593
+        // (celui prévu à cet effet), inspirée de la maquette sombre/dorée envoyée.
+        // Toujours sans le lien portfolio (juste Instagram), comme demandé au départ -
+        // dis-moi si tu changes d'avis, c'est une ligne à ajouter.
+        //
+        // Remplace juste BuildVoronoyCreditInlinePanel() par cette version ;
+        // ShowVoronoyCreditInline() ne change pas.
+        // ============================================================================
+
+        private Panel BuildVoronoyCreditInlinePanel()
+        {
+            const string instagramUrl = "https://www.instagram.com/__voronoy_?igsh=MWFmYW44dXlzcW9rNA==";
+            string iconsFolder = Path.Combine(Application.StartupPath, "Data", "About", "Icons");
+
+            Color colorBackground = Color.FromArgb(38, 40, 32);   // fond sombre kaki
+            Color colorGold = Color.FromArgb(200, 165, 95);        // accents dorés
+            Color colorText = Color.Gainsboro;                     // texte clair secondaire
+
+            // --- carte : taille fixe 496x593, pensée pour remplir le panel prévu ---
+            var card = new Panel();
+            card.Width = 496;
+            card.Height = 593;
+            card.BackColor = colorBackground;
+            card.BorderStyle = BorderStyle.FixedSingle;
+
+            // --- titre ---
+            var titleLabel = new Label();
+            titleLabel.Text = "LOGO DESIGNER";
+            titleLabel.Font = new Font("Segoe UI", 13f, FontStyle.Bold);
+            titleLabel.ForeColor = colorGold;
+            titleLabel.TextAlign = ContentAlignment.MiddleCenter;
+            titleLabel.Left = 0;
+            titleLabel.Top = 16;
+            titleLabel.Width = card.Width;
+            titleLabel.Height = 28;
+
+            // --- badge / logo (110x110, centré) ---
+            var logoBox = new PictureBox();
+            logoBox.Width = 110;
+            logoBox.Height = 110;
+            logoBox.Left = (card.Width - logoBox.Width) / 2;
+            logoBox.Top = titleLabel.Bottom + 12;
+            logoBox.SizeMode = PictureBoxSizeMode.Zoom;
+
+            string logoPath = Path.Combine(iconsFolder, "voronoy_logo.png");
+            if (File.Exists(logoPath))
+            {
+                try { logoBox.Image = Image.FromFile(logoPath); }
+                catch { logoBox.Image = DrawFallbackBadge(colorGold, colorBackground, logoBox.Width); }
+            }
+            else
+            {
+                logoBox.Image = DrawFallbackBadge(colorGold, colorBackground, logoBox.Width);
+            }
+
+            // --- "Designed by" / "VORONOY" ---
+            var designedByLabel = new Label();
+            designedByLabel.Text = "Designed by";
+            designedByLabel.Font = new Font("Segoe UI", 9f);
+            designedByLabel.ForeColor = colorText;
+            designedByLabel.TextAlign = ContentAlignment.MiddleCenter;
+            designedByLabel.Left = 0;
+            designedByLabel.Top = logoBox.Bottom + 10;
+            designedByLabel.Width = card.Width;
+            designedByLabel.Height = 16;
+
+            var nameLabel = new Label();
+            nameLabel.Text = "VORONOY";
+            nameLabel.Font = new Font("Segoe UI", 16f, FontStyle.Bold);
+            nameLabel.ForeColor = colorGold;
+            nameLabel.TextAlign = ContentAlignment.MiddleCenter;
+            nameLabel.Left = 0;
+            nameLabel.Top = designedByLabel.Bottom + 2;
+            nameLabel.Width = card.Width;
+            nameLabel.Height = 28;
+
+            // --- séparateur ---
+            var divider = new Panel();
+            divider.BackColor = colorGold;
+            divider.Left = 60;
+            divider.Top = nameLabel.Bottom + 10;
+            divider.Width = card.Width - 120;
+            divider.Height = 1;
+
+            // --- texte de remerciement ---
+            var thanksLabel = new Label();
+            thanksLabel.Text = "Special thanks to Voronoy for designing the DCE Manager logo.";
+            thanksLabel.Font = new Font("Segoe UI", 9f);
+            thanksLabel.ForeColor = colorText;
+            thanksLabel.TextAlign = ContentAlignment.MiddleCenter;
+            thanksLabel.Left = 40;
+            thanksLabel.Top = divider.Bottom + 12;
+            thanksLabel.Width = card.Width - 80;
+            thanksLabel.Height = 36;
+
+            // --- QR code (190x190, centré) ---
+            var qrBox = new PictureBox();
+            qrBox.Width = 190;
+            qrBox.Height = 190;
+            qrBox.Left = (card.Width - qrBox.Width) / 2;
+            qrBox.Top = thanksLabel.Bottom + 12;
+            qrBox.SizeMode = PictureBoxSizeMode.Zoom;
+            qrBox.BackColor = Color.White;
+            qrBox.Padding = new Padding(6);
+            qrBox.Cursor = Cursors.Hand;
+            qrBox.Click += (s, e) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+            string qrPath = Path.Combine(iconsFolder, "qr_Voronoy_instagram.png");
+            if (File.Exists(qrPath))
+            {
+                try { qrBox.Image = Image.FromFile(qrPath); }
+                catch { /* fichier illisible : zone laissée vide (fond blanc visible) */ }
+            }
+
+            // --- pseudo Instagram ---
+            var handleLabel = new Label();
+            handleLabel.Text = "@_voronoy_";
+            handleLabel.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
+            handleLabel.ForeColor = colorGold;
+            handleLabel.TextAlign = ContentAlignment.MiddleCenter;
+            handleLabel.Left = 0;
+            handleLabel.Top = qrBox.Bottom + 8;
+            handleLabel.Width = card.Width;
+            handleLabel.Height = 20;
+
+            // --- bouton "View on Instagram" ---
+            var instaButton = new Button();
+            instaButton.Text = "View on Instagram";
+            instaButton.Font = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+            instaButton.ForeColor = colorGold;
+            instaButton.BackColor = Color.FromArgb(55, 58, 46);
+            instaButton.FlatStyle = FlatStyle.Flat;
+            instaButton.FlatAppearance.BorderColor = colorGold;
+            instaButton.FlatAppearance.BorderSize = 1;
+            instaButton.Width = 260;
+            instaButton.Height = 34;
+            instaButton.Left = (card.Width - instaButton.Width) / 2;
+            instaButton.Top = handleLabel.Bottom + 14;
+            instaButton.Cursor = Cursors.Hand;
+            instaButton.Click += (s, e) => { System.Diagnostics.Process.Start(instagramUrl); };
+
+            card.Controls.Add(titleLabel);
+            card.Controls.Add(logoBox);
+            card.Controls.Add(designedByLabel);
+            card.Controls.Add(nameLabel);
+            card.Controls.Add(divider);
+            card.Controls.Add(thanksLabel);
+            card.Controls.Add(qrBox);
+            card.Controls.Add(handleLabel);
+            card.Controls.Add(instaButton);
+
+            return card;
+        }
+
+        // Rond doré/sombre avec un "V" au centre, tant que voronoy_logo.png n'existe pas encore
+        private Image DrawFallbackBadge(Color goldColor, Color backgroundColor, int size)
+        {
+            var bmp = new Bitmap(size, size);
+            using (var g = Graphics.FromImage(bmp))
+            {
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var brushBack = new SolidBrush(backgroundColor))
+                    g.FillEllipse(brushBack, 0, 0, size, size);
+
+                using (var penGold = new Pen(goldColor, 3f))
+                    g.DrawEllipse(penGold, 2, 2, size - 4, size - 4);
+
+                using (var font = new Font("Georgia", size * 0.4f, FontStyle.Bold))
+                using (var brushGold = new SolidBrush(goldColor))
+                {
+                    var textSize = g.MeasureString("V", font);
+                    g.DrawString("V", font, brushGold, (size - textSize.Width) / 2, (size - textSize.Height) / 2 - 2);
+                }
+            }
+            return bmp;
+        }
+
+
+        private void pic_qrCodeScan_Click(object sender, EventArgs e)
+        {
+            ShowVoronoyCreditInline();
+
+        }
     }
 
 }

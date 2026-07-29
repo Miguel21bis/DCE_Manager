@@ -299,16 +299,16 @@ namespace DCE_Manager.Update
                 case GithubCheckStatus.RateLimited:
                     TimeSpan wait = RateLimitResetUtc - DateTime.UtcNow;
                     int minutes = Math.Max(1, (int)wait.TotalMinutes);
-                    return $"Quota GitHub dépassé - réessai dans {minutes} min";
+                    return $"GitHub rate limit exceeded - retrying in {minutes} min";
 
                 case GithubCheckStatus.NotFound:
-                    return "Aucune release trouvée sur GitHub";
+                    return "No releases found on GitHub";
 
                 case GithubCheckStatus.NetworkError:
-                    return "Connexion à GitHub impossible (vérifiez internet)";
+                    return "Unable to connect to GitHub (check your internet connection)";
 
                 case GithubCheckStatus.UnknownError:
-                    return "Erreur GitHub : " + LastErrorDetail;
+                    return "GitHub error: " + LastErrorDetail;
 
                 default:
                     return "";

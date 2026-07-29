@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-//using System.Linq;
-//using System.Text;
-//using System.Threading.Tasks;
 
 namespace DCE_Manager.Parameters
 {
@@ -73,10 +70,12 @@ namespace DCE_Manager.Parameters
 
         //public static class DceNews
         public static string LastNewsVersion = "0.0.0";
-        
 
+        public static string DCE_Manager_LocVer { get; set; } = "";
+        public static string DCE_ScriptsMod_LocVer { get; set; } = "";
+
+        public static int UserLevel { get; set; } = DCE_Manager.UserLevel.Player;
     }
-
 
 
     public static class ParamManager
@@ -85,10 +84,10 @@ namespace DCE_Manager.Parameters
         public static int NbLancement { get; set; } = 0;
         public static string verDceManager = "0.0.0";
         public static int userLevel { get; set; } = 1;
-        //user = 1
-        //expert = 2
-        //campaignMaker = 3
-        //DEV = 5
+        ////user = 1
+        ////expert = 2
+        ////campaignMaker = 3
+        ////DEV = 5
 
     }
     public static class ParamDivers

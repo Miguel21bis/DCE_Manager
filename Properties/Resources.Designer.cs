@@ -71,6 +71,16 @@ namespace DCE_Manager.Properties {
         }
         
         /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap CEFI_60X60_b {
+            get {
+                object obj = ResourceManager.GetObject("CEFI_60X60_b", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
         ///   Recherche une chaîne localisée semblable à V10.17.52
         ///ADD: Viewing and editing conf_mod (work in progress)
         ///
@@ -321,6 +331,16 @@ namespace DCE_Manager.Properties {
         /// <summary>
         ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap icons8_picture_32 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-picture-32", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap icons8_plus_50 {
             get {
                 object obj = ResourceManager.GetObject("icons8-plus-50", resourceCulture);
@@ -334,6 +354,16 @@ namespace DCE_Manager.Properties {
         internal static System.Drawing.Bitmap icons8_plus_50_blue {
             get {
                 object obj = ResourceManager.GetObject("icons8-plus-50_blue", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap icons8_qr_code_scan_48 {
+            get {
+                object obj = ResourceManager.GetObject("icons8-qr-code-scan-48", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

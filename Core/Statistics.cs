@@ -175,7 +175,7 @@ namespace DCE_Manager
                     {
                         new KeyValuePair<string, string>("id_client", data.id_client),
                         new KeyValuePair<string, string>("usage_count", data.usage_count.ToString()),
-                        new KeyValuePair<string, string>("verDceManager", ParamManager.verDceManager),
+                        new KeyValuePair<string, string>("verDceManager", ParamConf.DCE_Manager_LocVer),
                         new KeyValuePair<string, string>("verScriptsMod", ParamScriptsMod.verScriptsMod),
                         new KeyValuePair<string, string>("token", data.token)
                     });

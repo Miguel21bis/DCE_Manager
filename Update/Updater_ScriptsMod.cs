@@ -38,22 +38,18 @@ namespace DCE_Manager.Update
         {
             try
             {
-                string changelogFile =
-                    form.textBox_SavedGames.Text +
-                    @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
+                string changelogFile = ParamConf.PATH_SavedGames_DCS +  @"\Mods\tech\DCE\ScriptsMod.NG\UTIL_Changelog.lua";
 
                 if (!File.Exists(changelogFile))
                 {
-                    FormUtils.LogRegister(
-                        "UTIL_Changelog.lua introuvable : " +
-                        changelogFile);
+                    FormUtils.LogRegister("UTIL_Changelog.lua introuvable : " + changelogFile);
 
                     return "";
                 }
 
                 foreach (string line in File.ReadLines(changelogFile))
                 {
-                    //FormUtils.LogRegister("SCAN : " + line);
+                    FormUtils.LogRegister(" GetLocalScriptsModVersion() SCAN : " + line);
 
                     Match match = Regex.Match(
                         line,
@@ -61,9 +57,9 @@ namespace DCE_Manager.Update
 
                     if (match.Success)
                     {
-                        //FormUtils.LogRegister(
-                        //    "VERSION TROUVEE : " +
-                        //    match.Groups[1].Value);
+                        FormUtils.LogRegister(
+                            "GetLocalScriptsModVersion() VERSION TROUVEE : " +
+                            match.Groups[1].Value);
 
                         return match.Groups[1].Value;
                     }
@@ -520,7 +516,7 @@ namespace DCE_Manager.Update
                     GithubHelper.GithubAccount,
                     GithubHelper.Repository_ScriptsMod,
                     ".zip",
-                    "DCE_scriptsMod_",
+                    "DCE_scriptsMod",
                     (version, asset, url) =>
                     {
                         ParamGithub.LastVersion = version;
@@ -544,6 +540,8 @@ namespace DCE_Manager.Update
 
             //ScriptsModVersion.Text = localVersion;
             form.ScriptModInstalledVersion.Text = localVersion;
+
+            ParamConf.DCE_Manager_LocVer = localVersion;
 
             form.ScriptsModAvailableVersion.Text = githubVersion;
 

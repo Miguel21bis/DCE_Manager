@@ -1,0 +1,10 @@
+# Format d'une ligne : icone.png|PSEUDO|Role
+# Les icones doivent se trouver dans le sous-dossier Icons\ a cote de ce fichier.
+# Les lignes vides ou commencant par # sont ignorees.
+
+mbot.png|MBOT|Campaign concept
+tomsk.png|TOMSK|Mission scripting / Preamble
+zarbas.png|ZARBAS|Mission design
+eagle.png|EAGLE|Debugging and tools
+noman99.png|NOMAN99|Fuel Check script
+bandit648.png|BANDIT648|DCA AAA
