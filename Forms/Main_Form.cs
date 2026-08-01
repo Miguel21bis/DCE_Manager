@@ -1466,8 +1466,8 @@ namespace DCE_Manager
 
         private void but_Level_CampMaker_Click(object sender, EventArgs e)
         {
-            ParamConf.UserLevel = DCE_Manager.UserLevel.CampaignMaker;
-            //label_UserLevel.Text = "Campaign Maker";
+            ParamConf.UserLevel = UserLevel.CampaignMaker;
+            CampaignGridLeft.UpdateCampaignSetupColumnVisibility();
 
             but_Level_CampMaker.BackColor = System.Drawing.Color.DodgerBlue;
             but_Level_CampMaker.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
@@ -1480,7 +1480,7 @@ namespace DCE_Manager
         private void but_level_User_Click(object sender, EventArgs e)
         {
             ParamConf.UserLevel = DCE_Manager.UserLevel.Player;
-            //label_UserLevel.Text = "Player";
+            CampaignGridLeft.UpdateCampaignSetupColumnVisibility();
 
             but_level_User.BackColor = System.Drawing.Color.DodgerBlue;
             but_level_User.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible

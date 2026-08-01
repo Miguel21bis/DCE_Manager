@@ -198,6 +198,7 @@
     <Compile Include="ASTI\ASTI_Form.Designer.cs">
       <DependentUpon>ASTI_Form.cs</DependentUpon>
     </Compile>
+    <Compile Include="ConfMod\CampInitUpdater.cs" />
     <Compile Include="ConfMod\ConfModDynamicData.cs" />
     <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />

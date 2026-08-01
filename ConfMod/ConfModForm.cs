@@ -36,10 +36,19 @@ namespace DCE_Manager
         private readonly ToolTip _toolTip = new ToolTip();
 
         public ConfModForm(string campaignName)
+            : this(campaignName, null, "Config", null)
+        {
+        }
+
+        // filePath : chemin explicite du fichier .lua à éditer (null = conf_mod.lua de
+        // campaignName, comportement historique). titlePrefix : "Config", "Campaign
+        // Setup"... warningBanner : texte affiché en bandeau en haut de la Form (null
+        // = pas de bandeau).
+        public ConfModForm(string campaignName, string filePath, string titlePrefix, string warningBanner)
         {
             _campaignName = campaignName;
 
-            Text = "Config - " + campaignName;
+            Text = titlePrefix + " - " + campaignName;
             Width = 780;
             Height = 700;
             StartPosition = FormStartPosition.CenterParent;
@@ -48,13 +57,13 @@ namespace DCE_Manager
             MinimizeBox = false;
             Font = new Font("Segoe UI", 9);
 
-            _data = _loader.Load(campaignName);
+            _data = filePath != null ? _loader.Load(campaignName, filePath) : _loader.Load(campaignName);
 
             if (_data == null || _data.Schema.Count == 0)
             {
                 MessageBox.Show(
-                    "No @ui field found in conf_mod.lua for " + campaignName,
-                    "Config",
+                    "No @ui field found in " + (filePath ?? "conf_mod.lua") + " for " + campaignName,
+                    titlePrefix,
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 
@@ -63,7 +72,30 @@ namespace DCE_Manager
             }
 
             BuildForm();
+
+            if (!string.IsNullOrEmpty(warningBanner))
+                AddWarningBanner(warningBanner);
+
             BindValues();
+        }
+
+        // Bandeau d'avertissement en haut de la Form (ex: "changes here require
+        // restarting the campaign"). Ajouté après BuildForm() pour apparaître
+        // au-dessus de la barre d'onglets, pas en dessous.
+        private void AddWarningBanner(string text)
+        {
+            var banner = new Label
+            {
+                Text = text,
+                Dock = DockStyle.Top,
+                Height = 32,
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.FromArgb(255, 244, 200),
+                ForeColor = Color.FromArgb(140, 90, 0),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+
+            Controls.Add(banner);
         }
 
         private void BuildForm()
@@ -326,6 +358,9 @@ namespace DCE_Manager
                 case UiFieldType.Text:
                     BuildText(layout, row, fc);
                     break;
+                case UiFieldType.List:
+                    BuildList(layout, row, fc);
+                    break;
             }
 
             return fc;
@@ -426,6 +461,34 @@ namespace DCE_Manager
 
             fc.GetValue = () => text.Text;
             fc.SetValue = v => text.Text = v != null ? v.ToString() : "";
+        }
+
+        // Une entrée par ligne (ex: pictureBrief.blue - un nom de fichier par ligne).
+        private static void BuildList(TableLayoutPanel layout, int row, UiFieldControl fc)
+        {
+            var text = new TextBox
+            {
+                Width = 220,
+                Height = 60,
+                Multiline = true,
+                ScrollBars = ScrollBars.Vertical,
+                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Margin = new Padding(0, 5, 0, 0)
+            };
+            layout.Controls.Add(text, 1, row);
+
+            fc.GetValue = () => text.Text
+                .Replace("\r\n", "\n")
+                .Split('\n')
+                .Select(s => s.Trim())
+                .Where(s => s.Length > 0)
+                .ToList();
+
+            fc.SetValue = v =>
+            {
+                List<string> list = v as List<string>;
+                text.Text = list != null ? string.Join(Environment.NewLine, list) : "";
+            };
         }
 
         // ---------------------------------------------------------------

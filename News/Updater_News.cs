@@ -18,6 +18,7 @@ namespace DCE_Manager.Update
         public string Date { get; set; }
         public string Title { get; set; }
         public string Message { get; set; }
+        public string Type { get; set; } // "new", "update", "fix"
     }
 
     public class Updater_News
@@ -118,36 +119,68 @@ namespace DCE_Manager.Update
             }
 
             int y = 0;
+            int contentWidth = Math.Max(newsPanel.ClientSize.Width - 20, 200);
 
             foreach (NewsEntry entry in lastFetchedEntries)
             {
-                Label dateLabel = new Label
-                {
-                    Text = entry.Date,
-                    Font = new Font(newsPanel.Font, FontStyle.Bold),
-                    ForeColor = Color.Gray,
-                    AutoSize = true,
-                    Location = new Point(0, y)
-                };
-                newsPanel.Controls.Add(dateLabel);
-                y += dateLabel.Height + 4;
+                int rowStartY = y;
 
+                // Icône (simple caractère, pas de fichier image à gérer)
+                Label iconLabel = new Label
+                {
+                    Text = GetIcon(entry.Type),
+                    Font = new Font(newsPanel.Font.FontFamily, 14f),
+                    AutoSize = true,
+                    Location = new Point(0, rowStartY)
+                };
+                newsPanel.Controls.Add(iconLabel);
+
+                int textX = iconLabel.Width + 10;
+
+                // Titre
                 Label titleLabel = new Label
                 {
                     Text = entry.Title,
                     Font = new Font(newsPanel.Font, FontStyle.Bold),
                     AutoSize = true,
-                    Location = new Point(0, y)
+                    Location = new Point(textX, rowStartY)
                 };
                 newsPanel.Controls.Add(titleLabel);
-                y += titleLabel.Height + 2;
 
+                // Badge (type) juste après le titre
+                (string badgeText, Color badgeColor) = GetBadge(entry.Type);
+
+                Label badgeLabel = new Label
+                {
+                    Text = badgeText,
+                    Font = new Font(newsPanel.Font, FontStyle.Bold),
+                    ForeColor = Color.White,
+                    BackColor = badgeColor,
+                    AutoSize = true,
+                    Padding = new Padding(6, 2, 6, 2),
+                    Location = new Point(textX + titleLabel.Width + 8, rowStartY)
+                };
+                newsPanel.Controls.Add(badgeLabel);
+
+                // Date, alignée à droite
+                Label dateLabel = new Label
+                {
+                    Text = entry.Date,
+                    ForeColor = Color.Gray,
+                    AutoSize = true
+                };
+                newsPanel.Controls.Add(dateLabel);
+                dateLabel.Location = new Point(contentWidth - dateLabel.Width, rowStartY);
+
+                y += Math.Max(titleLabel.Height, iconLabel.Height) + 2;
+
+                // Description
                 Label messageLabel = new Label
                 {
                     Text = entry.Message,
-                    MaximumSize = new Size(Math.Max(newsPanel.ClientSize.Width - 20, 200), 0),
+                    MaximumSize = new Size(contentWidth - textX, 0),
                     AutoSize = true,
-                    Location = new Point(0, y)
+                    Location = new Point(textX, y)
                 };
                 newsPanel.Controls.Add(messageLabel);
                 y += messageLabel.Height + 20;
@@ -158,6 +191,32 @@ namespace DCE_Manager.Update
             ParamConf.configDictionary["LastNewsVersion"] = lastFetchedEntries[0].Id;
 
             form.tabPageLeftNews.Text = "News";
+        }
+
+
+        // Caractère affiché à gauche de chaque news, selon son type.
+        private static string GetIcon(string type)
+        {
+            switch (type)
+            {
+                case "new": return "🏳";
+                case "fix": return "🛠";
+                case "update":
+                default: return "🚀";
+            }
+        }
+
+
+        // Texte + couleur du badge affiché à côté du titre, selon le type.
+        private static (string text, Color color) GetBadge(string type)
+        {
+            switch (type)
+            {
+                case "new": return ("NEW", Color.SeaGreen);
+                case "fix": return ("FIX", Color.Firebrick);
+                case "update":
+                default: return ("UPDATE", Color.SteelBlue);
+            }
         }
     }
 }

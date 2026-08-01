@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml.Linq;
 using DCE_Manager.Parameters;
 using DCE_Manager.Update;
 using DCE_Manager.Utils;
@@ -20,10 +21,17 @@ namespace DCE_Manager
         // Cache des images de campagnes (évite rechargement disque)
         private Dictionary<string, Image> campaignImageCache = new Dictionary<string, Image>();
         //private CampaignEdit _currentCampaignEdit;
-        public Campaign_Edit_Grid_Right CurrentCampaignEdit { get; private set; }
+        private static readonly HashSet<string> _alreadyUpdated = new HashSet<string>();
+
 
         // Référence vers la Form principale
         private readonly Main_Form _mainForm;
+
+        private static bool _referenceWarningShown = false;
+
+
+        public Campaign_Edit_Grid_Right CurrentCampaignEdit { get; private set; }
+
 
         // Constructeur qui reçoit la référence de Main_Form
         public CampaignGridLeft(Main_Form mainForm)
@@ -94,6 +102,7 @@ namespace DCE_Manager
             GridCampaigns_AddButtonColumn("First", "▶", 55);
             GridCampaigns_AddButtonColumn("Skip", "⏭", 55, useColumnTextForButtonValue: false);
             GridCampaigns_AddButtonColumn("Parameters", "⚙", 55);
+            GridCampaigns_AddButtonColumn("CampaignSetup", "🛠", 55);
             GridCampaigns_AddButtonColumn("Delete", "🗑", 55);
 
 
@@ -178,6 +187,8 @@ namespace DCE_Manager
 
             _mainForm.dataGridViewCampaigns.GridColor = Color.LightGray;
             _mainForm.dataGridViewCampaigns.BorderStyle = BorderStyle.None;
+
+            UpdateCampaignSetupColumnVisibility();
         }
 
 
@@ -193,14 +204,31 @@ namespace DCE_Manager
             });
         }
 
+        public void UpdateCampaignSetupColumnVisibility()
+        {
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("CampaignSetup"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["CampaignSetup"].Visible =
+                    ParamConf.UserLevel == UserLevel.CampaignMaker;
+            }
+        }
+
         private void GridCampaigns_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             // Ignore header
             if (e.RowIndex < 0 || e.ColumnIndex < 0)
-                return;
+            {
+                return; 
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN A");
+            }
+                
 
             if (e.ColumnIndex >= _mainForm.dataGridViewCampaigns.Columns.Count)
-                return;
+            {
+                return; 
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN B");
+            }
+            
 
             string columnName = _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name;
 
@@ -208,9 +236,56 @@ namespace DCE_Manager
             string name = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex].Cells["Name"].Value?.ToString();
 
             if (string.IsNullOrEmpty(name))
-                return;
+            {
+                return; 
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN C");
+            }
+            
+
+            if (string.IsNullOrEmpty(name))
+            {
+                return; 
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN D");
+            }
+
+
+            // Recale camp_init.lua puis conf_mod.lua sur leurs fichiers de référence avant
+            // d'afficher quoi que ce soit pour cette campagne. Une seule fois par campagne
+            // pour la session (voir _alreadyUpdated en haut du fichier).
+            if (_alreadyUpdated.Add(name))
+            {
+                ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
+                ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
+
+                if (!_referenceWarningShown &&
+                    (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing))
+                {
+                    _referenceWarningShown = true;
+
+                    MessageBox.Show(
+                        "Some reference files used to keep campaign configuration up to date (UTIL_REF_conf_mod.lua and/or UTIL_REF_camp_init.lua) could not be found in your ScriptsMod folder.\r\n\r\nPlease update your ScriptsMod so this feature can work correctly.",
+                        "ScriptsMod update needed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                }
+            }
+
+            // Recale camp_init.lua puis conf_mod.lua sur leurs fichiers de référence avant
+            // d'afficher quoi que ce soit pour cette campagne. Une seule fois par campagne
+            // pour la session (voir _alreadyUpdated en haut du fichier).
+            //if (_alreadyUpdated.Add(name))
+            //{
+            //    FormUtils.LogRegister("GridCampaigns_CellClick E Updating campaign '" + name + "' with reference files.");
+
+            //    new CampInitUpdater().UpdateCampaign(name);
+            //    new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
+
+            //    FormUtils.LogRegister("GridCampaigns_CellClick F Update complete for campaign '" + name + "'.");
+            //}
+
 
             string basePath = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\";
+
             string folderPath = Path.Combine(basePath, name);
 
             Utils.FormUtils.LogRegister($"Clicked on column '{columnName}' for campaign '{name}' folderPath '{folderPath}'");
@@ -269,6 +344,21 @@ namespace DCE_Manager
                 Utils.FormUtils.LogRegister( Utils.FormUtils.ToTitleCase("Open Parameters for campaign '" + name + "'"));
 
                 using (var form = new ConfModForm(name))
+                {
+                    form.ShowDialog(_mainForm);
+                }
+            }
+            else if (columnName == "CampaignSetup")
+            {
+                Utils.FormUtils.LogRegister(Utils.FormUtils.ToTitleCase("Open Campaign Setup for campaign '" + name + "'"));
+
+                string campInitPath = new CampInitUpdater().GetCampInitPath(name);
+
+                using (var form = new ConfModForm(
+                    name,
+                    campInitPath,
+                    "Campaign Setup",
+                    "Changes here require restarting the campaign (FirstMission.bat)."))
                 {
                     form.ShowDialog(_mainForm);
                 }

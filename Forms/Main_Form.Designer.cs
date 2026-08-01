@@ -45,7 +45,6 @@ namespace DCE_Manager
             this.tabPageLeft_Install = new System.Windows.Forms.TabPage();
             this.panel_install_campaign = new System.Windows.Forms.Panel();
             this.label_install_campaign = new System.Windows.Forms.Label();
-            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.panel_PATH = new System.Windows.Forms.Panel();
             this.but_PATH_CANCEL = new System.Windows.Forms.Button();
             this.but_PATH_SAVE = new System.Windows.Forms.Button();
@@ -147,6 +146,7 @@ namespace DCE_Manager
             this.panelRightView = new System.Windows.Forms.Panel();
             this.panel_Down = new System.Windows.Forms.Panel();
             this.button_EXIT = new System.Windows.Forms.Button();
+            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.tabControl_LEFT.SuspendLayout();
             this.tabPageLeft_Install.SuspendLayout();
             this.panel_install_campaign.SuspendLayout();
@@ -318,21 +318,6 @@ namespace DCE_Manager
             this.label_install_campaign.Size = new System.Drawing.Size(176, 21);
             this.label_install_campaign.TabIndex = 28;
             this.label_install_campaign.Text = "INSTALL A CAMPAIGN";
-            // 
-            // dropZoneControl1
-            // 
-            this.dropZoneControl1.AllowDrop = true;
-            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
-            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
-            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
-            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
-            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
-            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
-            this.dropZoneControl1.Name = "dropZoneControl1";
-            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
-            this.dropZoneControl1.SubText = "or click to browse";
-            this.dropZoneControl1.TabIndex = 27;
             // 
             // panel_PATH
             // 
@@ -927,6 +912,7 @@ namespace DCE_Manager
             // tabPageLeftNews
             // 
             this.tabPageLeftNews.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeftNews.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.tabPageLeftNews.Controls.Add(this.panel_News);
             this.tabPageLeftNews.Controls.Add(this.textBox_News);
             this.tabPageLeftNews.Location = new System.Drawing.Point(4, 22);
@@ -1273,18 +1259,20 @@ namespace DCE_Manager
             // label_logo_by
             // 
             this.label_logo_by.AutoSize = true;
+            this.label_logo_by.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label_logo_by.Location = new System.Drawing.Point(532, 14);
             this.label_logo_by.Name = "label_logo_by";
-            this.label_logo_by.Size = new System.Drawing.Size(48, 13);
+            this.label_logo_by.Size = new System.Drawing.Size(62, 17);
             this.label_logo_by.TabIndex = 11;
             this.label_logo_by.Text = "Logo by ";
             // 
             // label_icons_by
             // 
             this.label_icons_by.AutoSize = true;
+            this.label_icons_by.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label_icons_by.Location = new System.Drawing.Point(81, 14);
             this.label_icons_by.Name = "label_icons_by";
-            this.label_icons_by.Size = new System.Drawing.Size(47, 13);
+            this.label_icons_by.Size = new System.Drawing.Size(59, 17);
             this.label_icons_by.TabIndex = 10;
             this.label_icons_by.Text = "Icons by";
             // 
@@ -1313,9 +1301,10 @@ namespace DCE_Manager
             // linkLabel_Logo
             // 
             this.linkLabel_Logo.AutoSize = true;
-            this.linkLabel_Logo.Location = new System.Drawing.Point(576, 14);
+            this.linkLabel_Logo.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.linkLabel_Logo.Location = new System.Drawing.Point(600, 14);
             this.linkLabel_Logo.Name = "linkLabel_Logo";
-            this.linkLabel_Logo.Size = new System.Drawing.Size(46, 13);
+            this.linkLabel_Logo.Size = new System.Drawing.Size(59, 17);
             this.linkLabel_Logo.TabIndex = 7;
             this.linkLabel_Logo.TabStop = true;
             this.linkLabel_Logo.Text = "Veronoy";
@@ -1324,9 +1313,10 @@ namespace DCE_Manager
             // linkLabel_Icons8
             // 
             this.linkLabel_Icons8.AutoSize = true;
-            this.linkLabel_Icons8.Location = new System.Drawing.Point(129, 14);
+            this.linkLabel_Icons8.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.linkLabel_Icons8.Location = new System.Drawing.Point(146, 14);
             this.linkLabel_Icons8.Name = "linkLabel_Icons8";
-            this.linkLabel_Icons8.Size = new System.Drawing.Size(39, 13);
+            this.linkLabel_Icons8.Size = new System.Drawing.Size(47, 17);
             this.linkLabel_Icons8.TabIndex = 6;
             this.linkLabel_Icons8.TabStop = true;
             this.linkLabel_Icons8.Text = "Icons8";
@@ -1460,6 +1450,21 @@ namespace DCE_Manager
             this.button_EXIT.TabIndex = 39;
             this.button_EXIT.Text = "Exit";
             this.button_EXIT.UseVisualStyleBackColor = true;
+            // 
+            // dropZoneControl1
+            // 
+            this.dropZoneControl1.AllowDrop = true;
+            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
+            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
+            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
+            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
+            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
+            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
+            this.dropZoneControl1.Name = "dropZoneControl1";
+            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
+            this.dropZoneControl1.SubText = "or click to browse";
+            this.dropZoneControl1.TabIndex = 27;
             // 
             // Main_Form
             // 

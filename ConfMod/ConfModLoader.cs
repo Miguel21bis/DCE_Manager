@@ -10,9 +10,12 @@ namespace DCE_Manager
 {
     internal class ConfModLoader
     {
-        // Cache per campaign, explicitly invalidated by ConfModWriter after a Save(),
-        // and fully cleared by ClearCache() whenever campaign identity can change
-        // (configuration switch, campaign add/remove - see LoadCampaignsAsync).
+        // Cache par fichier (chemin complet), explicitement invalidé par ConfModWriter
+        // après un Save(), et entièrement vidé par ClearCache() quand l'identité d'une
+        // campagne devient ambiguë (changement de configuration, ajout/suppression -
+        // voir LoadCampaignsAsync). La clé est le chemin du fichier, pas le nom de la
+        // campagne : une même campagne a conf_mod.lua ET camp_init.lua, deux fichiers
+        // différents qui ne doivent pas se marcher dessus dans le cache.
         private static Dictionary<string, ConfModDynamicData> _cache = new Dictionary<string, ConfModDynamicData>();
 
         public string GetConfModPath(string campaignName)
@@ -24,32 +27,41 @@ namespace DCE_Manager
                 @"Init\conf_mod.lua");
         }
 
+        // Charge conf_mod.lua pour une campagne (comportement historique, inchangé).
         public ConfModDynamicData Load(string campaignName, bool forceReload = false)
         {
-            if (!forceReload && _cache.ContainsKey(campaignName))
-                return _cache[campaignName];
+            return Load(campaignName, GetConfModPath(campaignName), forceReload);
+        }
 
-            string path = GetConfModPath(campaignName);
+        // Charge n'importe quel fichier .lua tagué @ui (conf_mod.lua, camp_init.lua...).
+        // campaignName sert juste à l'affichage/au contexte, filePath est ce qui compte
+        // vraiment pour la lecture et, plus tard, l'écriture.
+        public ConfModDynamicData Load(string campaignName, string filePath, bool forceReload = false)
+        {
+            if (!forceReload && _cache.ContainsKey(filePath))
+                return _cache[filePath];
 
-            if (!File.Exists(path))
+            if (!File.Exists(filePath))
             {
-                FormUtils.LogRegister("ConfModLoader | file not found: " + path);
+                FormUtils.LogRegister("ConfModLoader | file not found: " + filePath);
                 return null;
             }
 
-            string[] lines = File.ReadAllLines(path);
+            string[] lines = File.ReadAllLines(filePath);
 
             var data = new ConfModDynamicData
             {
                 CampaignName = campaignName,
+                FilePath = filePath,
                 Schema = ConfUiSchemaParser.Parse(lines)
             };
 
-            // conf_mod.lua is a pure data file (no internal dofile/require), so it
-            // can be executed directly without injecting any environment variables.
+            // conf_mod.lua/camp_init.lua sont des fichiers de données purs (pas de
+            // dofile/require interne), donc exécutables directement sans injecter de
+            // variables d'environnement.
             using (Lua lua = new Lua())
             {
-                lua.DoFile(path);
+                lua.DoFile(filePath);
 
                 foreach (ConfUiFieldSchema field in data.Schema)
                 {
@@ -58,14 +70,21 @@ namespace DCE_Manager
                 }
             }
 
-            _cache[campaignName] = data;
+            _cache[filePath] = data;
 
             return data;
         }
 
         public void InvalidateCache(string campaignName)
         {
-            _cache.Remove(campaignName);
+            _cache.Remove(GetConfModPath(campaignName));
+        }
+
+        // Invalide un fichier précis (utile pour camp_init.lua ou tout autre fichier
+        // qui ne suit pas la convention conf_mod.lua).
+        public void InvalidateCacheFile(string filePath)
+        {
+            _cache.Remove(filePath);
         }
 
         // Called whenever campaign identity becomes ambiguous across configurations:
@@ -110,7 +129,10 @@ namespace DCE_Manager
                     return d ?? (field.Min ?? 0);
 
                 case UiFieldType.Text:
-                    return luaValue != null ? luaValue.ToString() : "";
+                    // Si un champ tagué "text" reçoit en fait une table Lua (mauvais tag,
+                    // ou @ui mal placé), on ne fait surtout pas .ToString() dessus - ça
+                    // renverrait juste le mot "table" et écraserait la table à l'écriture.
+                    return (luaValue != null && !(luaValue is LuaTable)) ? luaValue.ToString() : "";
 
                 case UiFieldType.Combo:
                     return ComboTokenFromLua(luaValue);
@@ -118,9 +140,38 @@ namespace DCE_Manager
                 case UiFieldType.Matrix:
                     return MatrixFromLua(luaValue, field);
 
+                case UiFieldType.List:
+                    return ListFromLua(luaValue);
+
                 default:
                     return luaValue;
             }
+        }
+
+        // Lit un tableau Lua de chaînes (1-indexé) en List<string>, ex:
+        // pictureBrief.blue = { "Frontline1.png", "Frontline2.png" }.
+        private static List<string> ListFromLua(object luaValue)
+        {
+            var result = new List<string>();
+            LuaTable table = luaValue as LuaTable;
+
+            if (table == null)
+                return result;
+
+            int i = 1;
+
+            while (true)
+            {
+                object v = table[i];
+
+                if (v == null)
+                    break;
+
+                result.Add(v.ToString());
+                i++;
+            }
+
+            return result;
         }
 
         // Builds one row-key -> full positional array entry per schema.RowSpecs.

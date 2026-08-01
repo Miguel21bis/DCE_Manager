@@ -190,6 +190,7 @@ namespace DCE_Manager
                 case "combo": return UiFieldType.Combo;
                 case "text": return UiFieldType.Text;
                 case "matrix": return UiFieldType.Matrix;
+                case "list": return UiFieldType.List;
                 default: return UiFieldType.Text;
             }
         }

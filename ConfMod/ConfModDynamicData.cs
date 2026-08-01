@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DCE_Manager.Parameters;
 
 namespace DCE_Manager.Parameters
 {
@@ -10,6 +9,11 @@ namespace DCE_Manager.Parameters
     internal class ConfModDynamicData
     {
         public string CampaignName { get; set; }
+
+        // Chemin du fichier .lua dont proviennent Schema/Values (conf_mod.lua,
+        // camp_init.lua, ou n'importe quel autre fichier tagué @ui). C'est ce chemin,
+        // et non plus CampaignName, qui indique où écrire lors d'un Save().
+        public string FilePath { get; set; }
 
         // All @ui fields found in the file, in file order.
         public List<ConfUiFieldSchema> Schema { get; set; }

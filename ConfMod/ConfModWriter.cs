@@ -8,18 +8,23 @@ using DCE_Manager.Utils;
 
 namespace DCE_Manager
 {
-    // Writes conf_mod.lua via targeted line-by-line replacement, driven entirely by the
-    // schema extracted from the file's own "@ui" tags. Adding, removing or moving a
-    // field in conf_mod.lua changes what gets written here automatically - nothing to
-    // touch in C#. Everything outside the tagged fields (comments, non-tagged columns,
-    // formatting) is preserved byte-for-byte.
+    // Writes any @ui-tagged .lua file (conf_mod.lua, camp_init.lua...) via targeted
+    // line-by-line replacement, driven entirely by the schema extracted from the
+    // file's own "@ui" tags. Adding, removing or moving a field changes what gets
+    // written here automatically - nothing to touch in C#. Everything outside the
+    // tagged fields (comments, non-tagged columns, formatting) is preserved
+    // byte-for-byte.
+    //
+    // Uses List<string> (not a fixed string[]) because list fields (ex:
+    // pictureBrief.blue) can grow or shrink a line count - the user might add or
+    // remove a picture.
     internal class ConfModWriter
     {
         private readonly ConfModLoader _loader = new ConfModLoader();
 
         public bool Save(ConfModDynamicData data)
         {
-            string path = _loader.GetConfModPath(data.CampaignName);
+            string path = data.FilePath;
 
             if (!File.Exists(path))
             {
@@ -27,12 +32,18 @@ namespace DCE_Manager
                 return false;
             }
 
-            string[] lines = File.ReadAllLines(path);
+            List<string> lines = new List<string>(File.ReadAllLines(path));
             var blockRangeCache = new Dictionary<string, Tuple<int, int>>();
             var missingFields = new List<string>();
 
+            // Passe 1 : tous les champs qui ne changent jamais le nombre de lignes
+            // (scalaires et matrices) - le cache de positions reste valable tant
+            // qu'on ne fait que remplacer du contenu sur place.
             foreach (ConfUiFieldSchema field in data.Schema)
             {
+                if (field.Type == UiFieldType.List)
+                    continue; // traité en passe 2
+
                 object value;
 
                 if (!data.Values.TryGetValue(field.Path, out value))
@@ -58,6 +69,22 @@ namespace DCE_Manager
                     missingFields.Add(field.Path);
             }
 
+            // Passe 2 : les champs liste, en dernier - ils peuvent ajouter/retirer des
+            // lignes, ce qui décalerait les positions déjà mises en cache pour les
+            // champs de la passe 1 (déjà traités, donc sans incidence).
+            foreach (ConfUiFieldSchema field in data.Schema)
+            {
+                if (field.Type != UiFieldType.List)
+                    continue;
+
+                object value;
+
+                if (!data.Values.TryGetValue(field.Path, out value))
+                    continue;
+
+                SaveListField(lines, field, value as List<string>, blockRangeCache, missingFields);
+            }
+
             if (missingFields.Count > 0)
                 FormUtils.LogRegister("ConfModWriter | fields not found, skipped: " + string.Join(", ", missingFields.ToArray()));
 
@@ -72,7 +99,7 @@ namespace DCE_Manager
             File.Copy(tmpPath, path, overwrite: true);
             File.Delete(tmpPath);
 
-            _loader.InvalidateCache(data.CampaignName);
+            _loader.InvalidateCacheFile(data.FilePath);
 
             FormUtils.LogRegister("ConfModWriter | conf_mod.lua saved for " + data.CampaignName);
 
@@ -88,14 +115,14 @@ namespace DCE_Manager
 
                 case UiFieldType.Numeric:
                 case UiFieldType.Slider:
-                    {
-                        double d = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+                {
+                    double d = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
-                        if (field.ZeroIsFalse && d == 0)
-                            return "false";
+                    if (field.ZeroIsFalse && d == 0)
+                        return "false";
 
-                        return d.ToString(CultureInfo.InvariantCulture);
-                    }
+                    return d.ToString(CultureInfo.InvariantCulture);
+                }
 
                 case UiFieldType.Text:
                     return "\"" + (value != null ? value.ToString() : "").Replace("\"", "") + "\"";
@@ -125,13 +152,64 @@ namespace DCE_Manager
         }
 
         // ---------------------------------------------------------------
+        // List fields (ex: pictureBrief.blue): one quoted string per line. The whole
+        // inner content is regenerated from the current List<string> value, since the
+        // number of lines can change (a picture added or removed).
+        // ---------------------------------------------------------------
+
+        private static void SaveListField(
+            List<string> lines,
+            ConfUiFieldSchema field,
+            List<string> values,
+            Dictionary<string, Tuple<int, int>> blockRangeCache,
+            List<string> missingFields)
+        {
+            if (values == null)
+                return;
+
+            int start, end;
+
+            if (!TryResolveContainerRange(lines, field.Path, blockRangeCache, out start, out end))
+            {
+                missingFields.Add(field.Path);
+                return;
+            }
+
+            string indent = GuessIndent(lines[start]) + "\t";
+
+            var newInner = new List<string>();
+
+            foreach (string v in values)
+                newInner.Add(indent + "\"" + (v ?? "").Replace("\"", "") + "\",");
+
+            int oldInnerCount = end - start - 1;
+            lines.RemoveRange(start + 1, oldInnerCount);
+            lines.InsertRange(start + 1, newInner);
+
+            // Ce champ vient de décaler toutes les positions plus loin dans le fichier -
+            // les listes sont traitées en dernier, donc ça ne perturbe aucun autre champ
+            // déjà écrit, mais on vide quand même le cache par prudence.
+            blockRangeCache.Clear();
+        }
+
+        private static string GuessIndent(string line)
+        {
+            int i = 0;
+
+            while (i < line.Length && (line[i] == ' ' || line[i] == '\t'))
+                i++;
+
+            return line.Substring(0, i);
+        }
+
+        // ---------------------------------------------------------------
         // Matrix fields: only the declared columns (field.ColSpecs, 1-based
         // positions) are overwritten inside each row's inline Lua array; every
         // other position, and the rest of the file, is left untouched.
         // ---------------------------------------------------------------
 
         private static void SaveMatrixField(
-            string[] lines,
+            List<string> lines,
             ConfUiFieldSchema field,
             Dictionary<string, double[]> rows,
             Dictionary<string, Tuple<int, int>> blockRangeCache,
@@ -171,7 +249,7 @@ namespace DCE_Manager
         //  - self row (single-row matrix, e.g. "runway"): the bare comma-separated
         //    values line with no "key =" prefix (the only content between the
         //    matrix's own opening and closing lines).
-        private static int FindRowLine(string[] lines, int start, int end, string rowKey, bool selfRow)
+        private static int FindRowLine(List<string> lines, int start, int end, string rowKey, bool selfRow)
         {
             if (selfRow)
             {
@@ -202,7 +280,7 @@ namespace DCE_Manager
         // Replaces only the declared 1-based positions inside a single line's inline
         // "{ a, b, c, ... }" array, leaving every other position, the indentation and
         // any trailing comment untouched.
-        private static bool ReplacePositionsInLine(string[] lines, int lineIndex, List<UiOption> colSpecs, double[] fullArray)
+        private static bool ReplacePositionsInLine(List<string> lines, int lineIndex, List<UiOption> colSpecs, double[] fullArray)
         {
             string line = lines[lineIndex];
             int commentIdx = line.IndexOf("--", StringComparison.Ordinal);
@@ -240,14 +318,15 @@ namespace DCE_Manager
         }
 
         // ---------------------------------------------------------------
-        // Shared block/line resolution (scalar and matrix fields alike)
+        // Shared block/line resolution (scalar, matrix and list fields alike)
         // ---------------------------------------------------------------
 
-        // Resolves a dotted path (e.g. "mission_ini.weather" or, for a matrix field,
-        // its own full path) to a line range, walking one nested "key = { ... }" block
-        // at a time. "" resolves to the whole file. Intermediate ranges are cached so
-        // a container shared by many fields (e.g. "mission_ini") is only scanned once.
-        private static bool TryResolveContainerRange(string[] lines, string containerPath, Dictionary<string, Tuple<int, int>> cache, out int start, out int end)
+        // Resolves a dotted path (e.g. "mission_ini.weather" or, for a matrix/list
+        // field, its own full path) to a line range, walking one nested
+        // "key = { ... }" block at a time. "" resolves to the whole file.
+        // Intermediate ranges are cached so a container shared by many fields (e.g.
+        // "mission_ini") is only scanned once.
+        private static bool TryResolveContainerRange(List<string> lines, string containerPath, Dictionary<string, Tuple<int, int>> cache, out int start, out int end)
         {
             Tuple<int, int> cached;
 
@@ -261,14 +340,14 @@ namespace DCE_Manager
             if (string.IsNullOrEmpty(containerPath))
             {
                 start = 0;
-                end = lines.Length - 1;
+                end = lines.Count - 1;
                 cache[containerPath] = Tuple.Create(start, end);
                 return true;
             }
 
             string[] segments = containerPath.Split('.');
             int rangeStart = 0;
-            int rangeEnd = lines.Length - 1;
+            int rangeEnd = lines.Count - 1;
             string builtPath = "";
 
             foreach (string segment in segments)
@@ -306,7 +385,7 @@ namespace DCE_Manager
         // Finds "key = {" within [searchStart, searchEnd] and its matching "}", following
         // brace nesting depth (not the first "}" encountered, which may belong to a
         // nested sub-table). Braces inside comments are ignored.
-        private static bool TryFindBlock(string[] lines, string key, int searchStart, int searchEnd, out int blockStart, out int blockEnd)
+        private static bool TryFindBlock(List<string> lines, string key, int searchStart, int searchEnd, out int blockStart, out int blockEnd)
         {
             blockStart = -1;
             blockEnd = -1;
@@ -358,7 +437,7 @@ namespace DCE_Manager
         // string) on the matching line between startIndex and endIndex, keeping
         // indentation and the trailing comment untouched. Handles both plain keys and
         // bracket-quoted keys (["key"] = ...).
-        private static bool ReplaceRawValue(string[] lines, int startIndex, int endIndex, string key, string newValueLiteral)
+        private static bool ReplaceRawValue(List<string> lines, int startIndex, int endIndex, string key, string newValueLiteral)
         {
             var regex = new Regex(
                 @"^(\s*(?:\[""" + Regex.Escape(key) + @"""\]|" + Regex.Escape(key) + @")\s*=\s*)(""[^""]*""|[^\s,]+)(.*)$");
