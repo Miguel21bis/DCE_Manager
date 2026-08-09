@@ -115,14 +115,14 @@ namespace DCE_Manager
 
                 case UiFieldType.Numeric:
                 case UiFieldType.Slider:
-                {
-                    double d = Convert.ToDouble(value, CultureInfo.InvariantCulture);
+                    {
+                        double d = Convert.ToDouble(value, CultureInfo.InvariantCulture);
 
-                    if (field.ZeroIsFalse && d == 0)
-                        return "false";
+                        if (field.ZeroIsFalse && d == 0)
+                            return "false";
 
-                    return d.ToString(CultureInfo.InvariantCulture);
-                }
+                        return d.ToString(CultureInfo.InvariantCulture);
+                    }
 
                 case UiFieldType.Text:
                     return "\"" + (value != null ? value.ToString() : "").Replace("\"", "") + "\"";
