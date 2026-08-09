@@ -44,10 +44,10 @@ namespace DCE_Manager
 
         public string GetReferencePath()
         {
-            return Path.Combine(
-                ParamConf.PATH_SavedGames_DCS,
-                @"Mods\tech\DCE\ScriptsMod.NG",
-                "UTIL_REF_conf_mod.lua");
+            // Fichier LU COMME DU TEXTE : un relais Lua ne le couvrirait pas, il
+            // faut son vrai chemin. Resolve() applique l'ordre de recherche
+            // déclaré par ScriptsMod lui-même.
+            return DcemLua.Resolve("UTIL_REF_conf_mod.lua");
         }
 
         // Met à jour une seule campagne. Appelée à l'ouverture d'une campagne

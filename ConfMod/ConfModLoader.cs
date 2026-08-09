@@ -20,11 +20,7 @@ namespace DCE_Manager
 
         public string GetConfModPath(string campaignName)
         {
-            return Path.Combine(
-                ParamConf.PATH_SavedGames_DCS,
-                @"Mods\tech\DCE\Missions\Campaigns",
-                campaignName,
-                @"Init\conf_mod.lua");
+            return DcemLua.CampaignInitFile(campaignName, "conf_mod.lua");
         }
 
         // Charge conf_mod.lua pour une campagne (comportement historique, inchangé).
@@ -59,7 +55,7 @@ namespace DCE_Manager
             // conf_mod.lua/camp_init.lua sont des fichiers de données purs (pas de
             // dofile/require interne), donc exécutables directement sans injecter de
             // variables d'environnement.
-            using (Lua lua = new Lua())
+            using (Lua lua = DcemLua.NewState())
             {
                 lua.DoFile(filePath);
 

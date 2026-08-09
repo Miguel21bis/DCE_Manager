@@ -202,8 +202,9 @@ namespace DCE_Manager
         {
             var list = new List<UiOption>();
 
-            foreach (string part in value.Split(','))
+            foreach (string rawPart in value.Split(','))
             {
+                string part = rawPart.Trim();
                 int idx = part.IndexOf(':');
 
                 if (idx < 0)
@@ -212,8 +213,8 @@ namespace DCE_Manager
                     continue;
                 }
 
-                string val = part.Substring(0, idx);
-                string label = part.Substring(idx + 1);
+                string val = part.Substring(0, idx).Trim();
+                string label = part.Substring(idx + 1).Trim();
                 list.Add(new UiOption(val, label));
             }
 

@@ -41,16 +41,14 @@ namespace DCE_Manager
 
         public string GetReferencePath()
         {
-            return Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\ScriptsMod.NG", "UTIL_REF_camp_init.lua");
+            // Fichier LU COMME DU TEXTE, comme UTIL_REF_conf_mod.lua : voir le
+            // commentaire de DcemLua.Resolve().
+            return DcemLua.Resolve("UTIL_REF_camp_init.lua");
         }
 
         public string GetCampInitPath(string campaignName)
         {
-            return Path.Combine(
-                ParamConf.PATH_SavedGames_DCS,
-                @"Mods\tech\DCE\Missions\Campaigns",
-                campaignName,
-                @"Init\camp_init.lua");
+            return DcemLua.CampaignInitFile(campaignName, "camp_init.lua");
         }
 
         public ConfUpdateResult UpdateCampaign(string campaignName)
@@ -166,7 +164,7 @@ namespace DCE_Manager
         {
             var result = new Dictionary<string, object>();
 
-            using (Lua lua = new Lua())
+            using (Lua lua = DcemLua.NewState())
             {
                 lua.DoFile(path);
 

@@ -75,6 +75,11 @@ namespace DCE_Manager.Parameters
         public static string DCE_ScriptsMod_LocVer { get; set; } = "";
 
         public static int UserLevel { get; set; } = DCE_Manager.UserLevel.Player;
+
+        // Dernier nombre de campagnes valides connu pour la config active. Recalculé à chaque
+        // LoadCampaignsAsync(), mais gardé ici pour pouvoir l'afficher immédiatement au
+        // lancement de DCE_Manager, avant que la grid Campaigns ne soit chargée.
+        public static int InstalledCampaignCount { get; set; } = 0;
     }
 
 

@@ -82,6 +82,7 @@
             // 
             this.radioButton_OOB_INIT.Anchor = System.Windows.Forms.AnchorStyles.Left;
             this.radioButton_OOB_INIT.AutoSize = true;
+            this.radioButton_OOB_INIT.Checked = true;
             this.radioButton_OOB_INIT.Location = new System.Drawing.Point(97, 6);
             this.radioButton_OOB_INIT.Margin = new System.Windows.Forms.Padding(2);
             this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
@@ -100,7 +101,7 @@
             this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
             this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(81, 17);
             this.radioButton_OOB_ACTIVE.TabIndex = 17;
-            this.radioButton_OOB_ACTIVE.TabStop = true;
+            this.radioButton_OOB_ACTIVE.TabStop = false;
             this.radioButton_OOB_ACTIVE.Text = "OOB Active";
             this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
             // 
@@ -124,6 +125,7 @@
             this.buttonResetBackup.TabIndex = 14;
             this.buttonResetBackup.Text = "Reset Init";
             this.buttonResetBackup.UseVisualStyleBackColor = true;
+            this.buttonResetBackup.Click += new System.EventHandler(this.buttonResetBackup_Click);
             // 
             // CampaignTab
             // 

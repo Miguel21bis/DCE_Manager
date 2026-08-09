@@ -96,6 +96,9 @@ namespace DCE_Manager
         }
 
 
+        // DÉSACTIVÉ : remplacé par Parser_OobAir.LoadCampaignSquads (voir button_clone_Click).
+        // Conservé commenté le temps de valider un clonage complet ; à supprimer ensuite.
+        /*
         public void CreateDicoClassSquad(Main_Form form1, string path, string nameCamp)
         {
             Main_Form
@@ -377,17 +380,33 @@ namespace DCE_Manager
                                             idElement++;
                                             //tableN = 4;
 
-                                            //squad.TasksCoef.Add(entry4.Key, Convert.ToDouble(entry4.Value.luaobj));
-
+                                            // IMPORTANT : Convert.ToDouble(raw, InvariantCulture) directement,
+                                            // sans passer par .ToString() (comme le fait déjà Parser_OobAir.cs).
+                                            // Pourquoi : entry4.Value.luaobj.ToString() sans argument utilise la
+                                            // culture Windows courante, alors que le TryParse ci-dessous forçait
+                                            // InvariantCulture : les deux cultures ne correspondent pas, et un
+                                            // double comme 1.5 ou 0.2 pouvait ressortir corrompu (0.2 devenant
+                                            // par exemple 200000002980232).
+                                            object rawValue = entry4.Value.luaobj;
                                             double valeur;
-                                            if (Double.TryParse(entry4.Value.luaobj.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out valeur))
+
+                                            try
                                             {
+                                                valeur = Convert.ToDouble(rawValue, CultureInfo.InvariantCulture);
                                                 squad.TasksCoef.Add(entry4.Key, valeur);
                                             }
-                                            else
+                                            catch
                                             {
-                                                // Gestion de l'erreur : log, valeur par défaut, message utilisateur, etc.
-                                                MessageBox.Show("It is impossible to transform a digital format into a ‘double’. Perhaps a problem with the decimal separator.", "Retex");
+                                                // fallback si jamais c'est une string bizarre
+                                                if (Double.TryParse(Convert.ToString(rawValue, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out valeur))
+                                                {
+                                                    squad.TasksCoef.Add(entry4.Key, valeur);
+                                                }
+                                                else
+                                                {
+                                                    // Gestion de l'erreur : log, valeur par défaut, message utilisateur, etc.
+                                                    MessageBox.Show("It is impossible to transform a digital format into a ‘double’. Perhaps a problem with the decimal separator.", "Retex");
+                                                }
                                             }
 
                                         }
@@ -457,6 +476,7 @@ namespace DCE_Manager
             }   ////PARSE LEs FICHIERs //oob_air_init et //oob_air
         
         }
+        */
 
         private void Modifier_camp_init(string newCampaignPath)
         {          
@@ -497,6 +517,16 @@ namespace DCE_Manager
              // Parcourir le dictionnaire pour trouver le squad avec le nom spécifié
             foreach (var squad in List_oob_air_Manager.List_oob_air)
             {
+                // Le squad "Init" est celui qui sera réécrit dans le oob_air_init.lua
+                // de la nouvelle campagne clonée : InitNumber/InitReserve doivent
+                // repartir comme copie de Number/Reserve (nouvelle référence de départ),
+                // sinon ils restent à 0 (jamais peuplés pour un squad "Init", seulement pour "Active").
+                if (squad.FolderFile == "Init")
+                {
+                    squad.InitNumber = squad.Number;
+                    squad.InitReserve = squad.Reserve;
+                }
+
                  if (squad.Name == CloneCampaign.SquadName)
                 {
                     // Mettre à jour les propriétés Player et Squad_Inactive
@@ -1140,7 +1170,7 @@ namespace DCE_Manager
             }
         }
 
-        private void button_clone_Click(object sender, EventArgs e)
+        private async void button_clone_Click(object sender, EventArgs e)
         {
             
             if (System.IO.Directory.Exists(CloneCampaign.path))
@@ -1222,7 +1252,16 @@ namespace DCE_Manager
                     File.Copy(sourcePath, targetPath, true);
 
                     //creation du Dic Class squad***
-                    CreateDicoClassSquad(_form1, path + @"\" + OldNameCamp, OldNameCamp);
+                    // IMPORTANT : on utilise désormais Parser_OobAir (le même parseur que
+                    // Campaign_Edit_Grid_Right.cs pour l'édition normale) au lieu de l'ancien
+                    // CreateDicoClassSquad interne à ce formulaire. L'ancien parseur ne gérait
+                    // pas explicitement idSquad/humainOnly/displayReady/livery/callsign/
+                    // parking_id/sidenumber : ces champs finissaient dans AdditionalProperties
+                    // et ressortaient en double dans le fichier cloné, à côté de la propriété
+                    // typée correspondante. Parser_OobAir gère tout ça correctement, et se base
+                    // sur ParamConf.PATH_SavedGames_DCS comme référence unique de chemin.
+                    // CreateDicoClassSquad(_form1, path + @"\" + OldNameCamp, OldNameCamp);
+                    new Parser_OobAir().LoadCampaignSquads(OldNameCamp);
 
                     //Modifier camp_init***
                     //Modifier_camp_init(path + @"\" + NewdNameCamp);
@@ -1254,10 +1293,9 @@ namespace DCE_Manager
                     //Suppression des fichiers dans Debug:
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debug", false);
 
-                    //LoadCampaignsAsync();
-
-                    _form1.CampaignGridLeft.LoadCampaignsAsync();
-                    //await _campGridLft.LoadCampaignsAsync();
+                    // Recharge la grid de gauche en se plaçant directement sur la campagne
+                    // fraîchement clonée (plus besoin de la rechercher dans la liste).
+                    await _form1.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: NewdNameCamp);
 
                     this.Close();
                 }              

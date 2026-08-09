@@ -45,12 +45,32 @@ namespace DCE_Manager
             _campaignContext.CampaignName = _campaignName;
 
             ResetUi();
-            LoadLuaData();
-            LoadAirbases();
-            LoadTrigger();
-            SetCampaignImage();
-            LoadSquads();
-            DisplayErrors();
+
+            // IMPORTANT : si la campagne vient d'être supprimée (ou est incomplète, fichier
+            // manquant), LoadLuaData()/LoadSquads()/etc. peuvent lever une exception (ex: NLua
+            // qui échoue à ouvrir oob_air_init.lua). Sans ce try/catch, l'exception remonte
+            // jusqu'à la boucle de messages Windows Forms et plante toute l'application.
+            try
+            {
+                LoadLuaData();
+                LoadAirbases();
+                LoadTrigger();
+                SetCampaignImage();
+                LoadSquads();
+                DisplayErrors();
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister($"InitializeCampaign('{_campaignName}') a échoué : {ex.Message}");
+
+                MessageBox.Show(
+                    "Impossible de charger la campagne '" + _campaignName + "'.\n\n" +
+                    "Elle a peut-être été supprimée ou un fichier est manquant/corrompu.\n\n" +
+                    "Détail : " + ex.Message,
+                    "Chargement de la campagne impossible",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
         }
 
         private void InitializeGridEvents()

@@ -254,6 +254,7 @@ namespace DCE_Manager
                 ParamConf.configDictionary[prefix + "pathDCS"] = ParamConf.PATH_DCS_Root ?? string.Empty;
                 ParamConf.configDictionary[prefix + "pathSavedGames"] = ParamConf.PATH_SavedGames_DCS ?? string.Empty;
                 ParamConf.configDictionary[prefix + "pathOVGME"] = ParamConf.PATH_OVGME_MOD ?? string.Empty;
+                ParamConf.configDictionary[prefix + "installedCampCount"] = ParamConf.InstalledCampaignCount.ToString();
 
                 // 2. Charger le fichier actuel pour la fusion (en ignorant les clés corrompues ou vides)
                 Dictionary<string, string> fileDictionary = new Dictionary<string, string>();

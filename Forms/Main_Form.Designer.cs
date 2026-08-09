@@ -45,6 +45,7 @@ namespace DCE_Manager
             this.tabPageLeft_Install = new System.Windows.Forms.TabPage();
             this.panel_install_campaign = new System.Windows.Forms.Panel();
             this.label_install_campaign = new System.Windows.Forms.Label();
+            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.panel_PATH = new System.Windows.Forms.Panel();
             this.but_PATH_CANCEL = new System.Windows.Forms.Button();
             this.but_PATH_SAVE = new System.Windows.Forms.Button();
@@ -146,7 +147,6 @@ namespace DCE_Manager
             this.panelRightView = new System.Windows.Forms.Panel();
             this.panel_Down = new System.Windows.Forms.Panel();
             this.button_EXIT = new System.Windows.Forms.Button();
-            this.dropZoneControl1 = new DCE_Manager.Controls.DropZoneControl();
             this.tabControl_LEFT.SuspendLayout();
             this.tabPageLeft_Install.SuspendLayout();
             this.panel_install_campaign.SuspendLayout();
@@ -318,6 +318,21 @@ namespace DCE_Manager
             this.label_install_campaign.Size = new System.Drawing.Size(176, 21);
             this.label_install_campaign.TabIndex = 28;
             this.label_install_campaign.Text = "INSTALL A CAMPAIGN";
+            // 
+            // dropZoneControl1
+            // 
+            this.dropZoneControl1.AllowDrop = true;
+            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
+            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
+            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
+            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
+            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
+            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
+            this.dropZoneControl1.Name = "dropZoneControl1";
+            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
+            this.dropZoneControl1.SubText = "or click to browse";
+            this.dropZoneControl1.TabIndex = 27;
             // 
             // panel_PATH
             // 
@@ -1450,21 +1465,7 @@ namespace DCE_Manager
             this.button_EXIT.TabIndex = 39;
             this.button_EXIT.Text = "Exit";
             this.button_EXIT.UseVisualStyleBackColor = true;
-            // 
-            // dropZoneControl1
-            // 
-            this.dropZoneControl1.AllowDrop = true;
-            this.dropZoneControl1.BackColor = System.Drawing.SystemColors.Control;
-            this.dropZoneControl1.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.dropZoneControl1.CustomIcon = global::DCE_Manager.Properties.Resources.icons8_zip_64;
-            this.dropZoneControl1.FileFilter = "Fichiers ZIP (*.zip)|*.zip";
-            this.dropZoneControl1.Location = new System.Drawing.Point(12, 51);
-            this.dropZoneControl1.MainText = "Drag & drop ZIP here";
-            this.dropZoneControl1.Margin = new System.Windows.Forms.Padding(2);
-            this.dropZoneControl1.Name = "dropZoneControl1";
-            this.dropZoneControl1.Size = new System.Drawing.Size(631, 66);
-            this.dropZoneControl1.SubText = "or click to browse";
-            this.dropZoneControl1.TabIndex = 27;
+            this.button_EXIT.Click += new System.EventHandler(this.button_EXIT_Click_1);
             // 
             // Main_Form
             // 
