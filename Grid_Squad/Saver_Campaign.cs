@@ -234,18 +234,26 @@ namespace DCE_Manager
                                 }
                                 //********************
 
-                                if (int.TryParse(entry.Value.ToString(), out int intValue))
+                                // IMPORTANT : Convert.ToString(..., InvariantCulture) plutôt que entry.Value.ToString(),
+                                // et InvariantCulture aussi passé au TryParse ci-dessous.
+                                // Pourquoi : entry.Value.ToString() utilise la culture Windows courante ; si son
+                                // séparateur décimal n'est pas ".", un double comme 0.2 peut être re-parsé de travers
+                                // et ressortir dans le fichier sous forme d'un entier du style 200000002980232
+                                // (le "0." de tête disparaît).
+                                string entryValueTxt = Convert.ToString(entry.Value, System.Globalization.CultureInfo.InvariantCulture);
+
+                                if (int.TryParse(entryValueTxt, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int intValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
                                     sb.Append("\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
                                 }
-                                else if (double.TryParse(entry.Value.ToString(), out double doubleValue))
+                                else if (double.TryParse(entryValueTxt, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out double doubleValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
                                     string doubleStr = doubleValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
                                     sb.Append("\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleStr + accValue2 + ",\r\n");
                                 }
-                                else if (bool.TryParse(entry.Value.ToString(), out bool boolValue))
+                                else if (bool.TryParse(entryValueTxt, out bool boolValue))
                                 {
                                     accValue1 = ""; accValue2 = "";
                                     sb.Append("\t\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
@@ -259,7 +267,7 @@ namespace DCE_Manager
                                     sb.Append("\t\t\t\t" +
                                         accKey1 + keyName + accKey2 +
                                         " = " +
-                                        accValue1 + entry.Value.ToString() + accValue2 +
+                                        accValue1 + entryValueTxt + accValue2 +
                                         ",\r\n");
                                 }
 
@@ -364,24 +372,29 @@ namespace DCE_Manager
                             }
 
                             //keyName = FormUtils.ToTitleCase(keyName);
-                            string valueName = value.ToString();
+                            // IMPORTANT : Convert.ToString(..., InvariantCulture) plutôt que value.ToString().
+                            // Pourquoi : value.ToString() dépend de la culture Windows de la machine ; sans ça,
+                            // un double comme 0.2 peut ressortir dans le fichier sous forme d'un entier du style
+                            // 200000002980232 (le "0." de tête disparaît) si le séparateur décimal local n'est
+                            // pas ".".
+                            string valueName = Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
 
                             if (keyName.IndexOfAny(forbiddenChars) == -1)
                             { accKey1 = ""; accKey2 = ""; }
 
 
-                            if (int.TryParse(value.ToString(), out int intValue))
+                            if (int.TryParse(valueName, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int intValue))
                             {
                                 accValue1 = ""; accValue2 = "";
                                 sb.Append("\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + intValue + accValue2 + ",\r\n");
                             }
-                            else if (double.TryParse(value.ToString(), out double doubleValue))
+                            else if (double.TryParse(valueName, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowThousands, System.Globalization.CultureInfo.InvariantCulture, out double doubleValue))
                             {
                                 accValue1 = ""; accValue2 = "";
                                 string doubleStr = doubleValue.ToString(System.Globalization.CultureInfo.InvariantCulture);
                                 sb.Append("\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + doubleStr + accValue2 + ",\r\n");
                             }
-                            else if (bool.TryParse(value.ToString(), out bool boolValue))
+                            else if (bool.TryParse(valueName, out bool boolValue))
                             {
                                 accValue1 = ""; accValue2 = "";
                                 sb.Append("\t\t\t" + accKey1 + keyName + accKey2 + " = " + accValue1 + boolValue.ToString().ToLower() + accValue2 + ",\r\n");
@@ -394,6 +407,22 @@ namespace DCE_Manager
                             // Important : empêcher la réécriture du ***
                             // Pourquoi : sinon fallback ToString() invalide en Lua
                             continue;
+                        }
+                    }
+
+                    // GARDE-FOU : empêcher qu'une clé présente dans AdditionalProperties
+                    // (à cause d'un parseur qui ne la reconnaît pas explicitement, ex. l'ancien
+                    // parsing du clonage) ne soit réécrite en double par rapport à la propriété
+                    // typée correspondante (IdSquad, HumainOnly, InitNumber, DisplayReady, ...).
+                    // Pourquoi : sans ça, une même clé Lua peut apparaître deux fois dans le
+                    // fichier, avec potentiellement deux valeurs différentes (bug historique).
+                    var knownPropertyKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (PropertyInfo prop in properties)
+                    {
+                        knownPropertyKeys.Add(prop.Name);
+                        if (LuaPropertyNames.TryGetValue(prop.Name, out string luaKeyName))
+                        {
+                            knownPropertyKeys.Add(luaKeyName);
                         }
                     }
 
@@ -413,6 +442,11 @@ namespace DCE_Manager
                                 continue;
 
                             if (motInterdit.Contains(addProp.Key.ToString()))
+                            {
+                                continue;
+                            }
+
+                            if (knownPropertyKeys.Contains(addProp.Key))
                             {
                                 continue;
                             }

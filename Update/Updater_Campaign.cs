@@ -391,15 +391,24 @@ namespace DCE_Manager.Update
         private string GetLuaStringValue(
             string line)
         {
+            // On prend la PREMIERE paire de guillemets (la vraie valeur Lua),
+            // pas la dernière : depuis l'ajout des commentaires @ui en fin de
+            // ligne (ex: -- @ui text group="Identity" label="Repository URL" ...),
+            // la ligne contient d'autres guillemets après la valeur, et un
+            // "LastIndexOf" avalait tout le commentaire dans la valeur extraite.
             int first = line.IndexOf('"');
-            int last = line.LastIndexOf('"');
 
-            if (first < 0 || last <= first)
+            if (first < 0)
+                return "";
+
+            int second = line.IndexOf('"', first + 1);
+
+            if (second < 0)
                 return "";
 
             return line.Substring(
                 first + 1,
-                last - first - 1);
+                second - first - 1);
         }
 
 

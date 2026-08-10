@@ -41,10 +41,36 @@ namespace DCE_Manager.Clone
             string file = Path.Combine(campaignPath, "Init", "camp_init.lua");
             if (!File.Exists(file)) return;
 
-            string text = File.ReadAllText(file, Encoding.UTF8);
-            text = text.Replace($"title = \"{oldName}\"", $"title = \"{newName}\"");
-            //File.WriteAllText(file, text, Encoding.UTF8);
-            File.WriteAllText(file, text, new UTF8Encoding(false));
+            // IMPORTANT : on repère la ligne "title" par sa forme (comme le faisait l'ancien
+            // Modifier_camp_init, aujourd'hui désactivé), pas par un Replace exact de oldName.
+            // Pourquoi : text.Replace($"title = \"{oldName}\"", ...) ne fait RIEN si le texte
+            // réel du titre dans le fichier ne correspond pas caractère pour caractère à oldName
+            // (espace en trop, casse différente, titre déjà retouché...) : le titre reste alors
+            // sur l'ancien nom après clonage, sans aucune erreur.
+            string[] lines = File.ReadAllLines(file, Encoding.UTF8);
+            bool titreTrouve = false;
+
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i];
+
+                if (!line.Contains(",")) continue;
+
+                string[] words = line.Split(',');
+
+                if (words[0].Contains("title"))
+                {
+                    lines[i] = "\ttitle = \"" + newName + "\",\t\t--Title of campaign (name of missions)";
+                    titreTrouve = true;
+                }
+            }
+
+            if (!titreTrouve)
+            {
+                FormUtils.LogRegister($"UpdateCampInit: ligne 'title' introuvable dans '{file}'.");
+            }
+
+            File.WriteAllLines(file, lines, new UTF8Encoding(false));
         }
 
         public static void UpdateCmpFile(string fileCmdPath, string oldName, string newName)

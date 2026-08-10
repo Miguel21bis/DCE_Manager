@@ -1,50 +1,58 @@
 [
-    {
-        "id": "2024-06-16-persian-gulf-update",
-        "date": "2024-06-16",
-        "title": "Major campaign update",
-        "message": "Crisis in Persian Gulf with new module: OH-58D Kiowa, F-4E-45MC, ..."
-    },
-    {
-        "id": "2022-12-07-war-over-tchad",
-        "date": "2022-12-07",
-        "title": "New DCE Campaigns",
-        "message": "WAR over Tchad released"
-    },
-    {
-        "id": "2022-02-12-cyprus-incident",
-        "date": "2022-02-12",
-        "title": "New experimental DCE Campaigns",
-        "message": "Cyprus Incident Hind and Gazelle released"
-    },
-    {
-        "id": "2021-06-25-iran-iraq-v5-5",
-        "date": "2021-06-25",
-        "title": "Iran/Iraq campaigns updated (v5.5)",
-        "message": "Correcting Hind communications and relocating some aircraft"
-    },
-    {
-        "id": "2021-06-17-iran-iraq-hind-added",
-        "date": "2021-06-17",
-        "title": "New Iran-Iraq war Hind",
-        "message": "Mil Mi-24 Hind added to the Iran-Iraq war campaign"
-    },
-    {
-        "id": "2021-06-15-iriaf-tanker-war-ng",
-        "date": "2021-06-15",
-        "title": "IRIAF Tanker War updated",
-        "message": "Polia updated his great IRIAF Tanker War to NG"
-    },
-    {
-        "id": "2021-06-08-iran-iraq-v5-3",
-        "date": "2021-06-08",
-        "title": "Iran-Iraq campaign updated (V5.3)",
-        "message": "Correcting small bugs with Gazelle and new helicopter added: Hind"
-    },
-    {
-        "id": "2021-06-07-cef-campaigns-ng",
-        "date": "2021-06-07",
-        "title": "All CEF campaigns updated to NG",
-        "message": "Crisis in TF, Over Caucasus (more to come after ED approval), Over PG, TFs, Iran-Iraq War, Indian-Pak War 71, Roll's Hot War in the Cold"
-    }
+  {
+    "id": "2024-06-16-persian-gulf-update",
+    "date": "2024-06-16",
+    "title": "Major campaign update",
+    "message": "Crisis in Persian Gulf with new module: OH-58D Kiowa, F-4E-45MC, ...",
+    "type": "update"
+  },
+  {
+    "id": "2022-12-07-war-over-tchad",
+    "date": "2022-12-07",
+    "title": "New DCE Campaigns",
+    "message": "WAR over Tchad released",
+    "type": "new"
+  },
+  {
+    "id": "2022-02-12-cyprus-incident",
+    "date": "2022-02-12",
+    "title": "New experimental DCE Campaigns",
+    "message": "Cyprus Incident Hind and Gazelle released",
+    "type": "new"
+  },
+  {
+    "id": "2021-06-25-iran-iraq-v5-5",
+    "date": "2021-06-25",
+    "title": "Iran/Iraq campaigns updated (v5.5)",
+    "message": "Correcting Hind communications and relocating some aircraft",
+    "type": "update"
+  },
+  {
+    "id": "2021-06-17-iran-iraq-hind-added",
+    "date": "2021-06-17",
+    "title": "New Iran-Iraq war Hind",
+    "message": "Mil Mi-24 Hind added to the Iran-Iraq war campaign",
+    "type": "update"
+  },
+  {
+    "id": "2021-06-15-iriaf-tanker-war-ng",
+    "date": "2021-06-15",
+    "title": "IRIAF Tanker War updated",
+    "message": "Polia updated his great IRIAF Tanker War to NG",
+    "type": "update"
+  },
+  {
+    "id": "2021-06-08-iran-iraq-v5-3",
+    "date": "2021-06-08",
+    "title": "Iran-Iraq campaign updated (V5.3)",
+    "message": "Correcting small bugs with Gazelle and new helicopter added: Hind",
+    "type": "fix"
+  },
+  {
+    "id": "2021-06-07-cef-campaigns-ng",
+    "date": "2021-06-07",
+    "title": "All CEF campaigns updated to NG",
+    "message": "Crisis in TF, Over Caucasus (more to come after ED approval), Over PG, TFs, Iran-Iraq War, Indian-Pak War 71, Roll's Hot War in the Cold",
+    "type": "update"
+  }
 ]

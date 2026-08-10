@@ -76,6 +76,12 @@ namespace DCE_Manager
         //constructeur :
         public Main_Form()
         {
+            // Instance doit exister AVANT tout le reste du constructeur.
+            // Pourquoi : ucCampaign, CampaignGridLeft et compagnie passent par
+            //            Main_Form.Instance dès leur construction. Quand l'affectation
+            //            arrivait en fin de constructeur, tous ces appels partaient sur null
+            //            (ou étaient silencieusement ignorés à cause des "?.").
+            Instance = this;
 
             // C'est ici qu'on passe "this" (qui représente le Form en cours)
             campaignUpdater = new Updater_Campaign(this);
@@ -116,8 +122,6 @@ namespace DCE_Manager
 
             CampaignDataGridView.CellContentClick += CampaignGridLeft.CampaignDataGridView_CellContentClick;
 
-            Instance = this;  // Initialiser l'instance statique dans le constructeur
-
 
             pictureBox_Update_ScriptsMod.Click += (s, e) =>
             Process.Start(new ProcessStartInfo
@@ -146,6 +150,7 @@ namespace DCE_Manager
             homeView.SetClientId(Statistics.CreateIdClient());
             homeView.SetDceManagerVersion(GetVersionDceManager());
             homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
+            homeView.SetInstalledCampaignsCount(ParamConf.InstalledCampaignCount);
 
             _isInitializing = false;
 
@@ -574,6 +579,9 @@ namespace DCE_Manager
 
                     ParamConf.PATH_OVGME_MOD = ParamConf.configDictionary.TryGetValue(prefix + "pathOVGME", out var pOvgme) ? pOvgme : "";
                     textBox_OvGME.Text = ParamConf.PATH_OVGME_MOD;
+                    ParamConf.InstalledCampaignCount = (ParamConf.configDictionary.TryGetValue(prefix + "installedCampCount", out var pCampCount) && int.TryParse(pCampCount, out int campCountParsed))
+                            ? campCountParsed
+                            : 0;
                 }
                 catch (Exception ex)
                 {
@@ -954,12 +962,6 @@ namespace DCE_Manager
 
 
 
-        private void button_EXIT_Click(object sender, EventArgs e)
-        {
-
-            Close();
-        }
-
         private void linkLabelOvGME_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             try
@@ -1288,15 +1290,19 @@ namespace DCE_Manager
 
 
 
+        // Les deux handlers ne font rien tant que la campagne n'est pas prête.
+        // Pourquoi : le radio Init est désormais coché par défaut dans le Designer,
+        //            donc ces handlers peuvent être atteints très tôt.
         public void radioButton_OOB_INIT_CheckedChanged(object sender, EventArgs e)
         {
             if (_isUpdatingState)
                 return;
 
-            if (!Main_Form.Instance.CampaignView.IsOobInit) return;
+            if (!campaignView.IsOobInit)
+                return;
 
             currentState = "Init";
-            CampaignGridLeft.RefreshGrids();
+            CampaignGridLeft?.RefreshGrids();
         }
 
         public void radioButton_OOB_ACTIVE_CheckedChanged(object sender, EventArgs e)
@@ -1304,10 +1310,11 @@ namespace DCE_Manager
             if (_isUpdatingState)
                 return;
 
-            if (!Main_Form.Instance.CampaignView.IsOobActive) return;
+            if (!campaignView.IsOobActive)
+                return;
 
             currentState = "Active";
-            CampaignGridLeft.RefreshGrids();
+            CampaignGridLeft?.RefreshGrids();
         }
 
 
@@ -1442,21 +1449,31 @@ namespace DCE_Manager
             } // La fenêtre est proprement détruite en mémoire une fois fermée grâce au "using"
         }
 
-        private void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
-        {
-            CampaignGridLeft.CurrentCampaignEdit?.buttonSaveChgtCampaign_Click(sender, e);
-        }
+        //private void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
+        //{
+        //    CampaignGridLeft.CurrentCampaignEdit?.buttonSaveChgtCampaign_Click(sender, e);
+        //}
 
-        private void buttonResetBackup_Click(object sender, EventArgs e)
-        {
-            CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
-        }
+        //private void buttonResetBackup_Click(object sender, EventArgs e)
+        //{
+        //    CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
+        //}
 
 
 
         public void ShowHome()
         {
             homeView.BringToFront();
+        }
+
+        // Met à jour le label d'accueil + garde la valeur en mémoire/cache (options.txt) pour
+        // pouvoir l'afficher au prochain lancement sans recalcul. Appelé depuis
+        // CampaignGridLeft.LoadCampaignsAsync() à chaque (re)chargement de la grid Campaigns.
+        public void UpdateInstalledCampaignsLabel(int count)
+        {
+            ParamConf.InstalledCampaignCount = count;
+            homeView.SetInstalledCampaignsCount(count);
+            Configuration_Form.Save_Config();
         }
 
         public void ShowCampaign()
@@ -1466,8 +1483,8 @@ namespace DCE_Manager
 
         private void but_Level_CampMaker_Click(object sender, EventArgs e)
         {
-            ParamConf.UserLevel = DCE_Manager.UserLevel.CampaignMaker;
-            //label_UserLevel.Text = "Campaign Maker";
+            ParamConf.UserLevel = UserLevel.CampaignMaker;
+            CampaignGridLeft.UpdateCampaignSetupColumnVisibility();
 
             but_Level_CampMaker.BackColor = System.Drawing.Color.DodgerBlue;
             but_Level_CampMaker.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
@@ -1480,7 +1497,7 @@ namespace DCE_Manager
         private void but_level_User_Click(object sender, EventArgs e)
         {
             ParamConf.UserLevel = DCE_Manager.UserLevel.Player;
-            //label_UserLevel.Text = "Player";
+            CampaignGridLeft.UpdateCampaignSetupColumnVisibility();
 
             but_level_User.BackColor = System.Drawing.Color.DodgerBlue;
             but_level_User.ForeColor = System.Drawing.Color.White; // Pour garder le texte lisible
@@ -1886,6 +1903,19 @@ namespace DCE_Manager
             ShowVoronoyCreditInline();
 
         }
+
+        private void button_EXIT_Click_1(object sender, EventArgs e)
+        {
+            Close();
+        }
+
+
+        private void button_EXIT_Click(object sender, EventArgs e)
+        {
+
+            Close();
+        }
+
     }
 
 }

@@ -9,7 +9,8 @@ namespace DCE_Manager.Parameters
         Slider,
         Combo,
         Text,
-        Matrix
+        Matrix,
+        List
     }
 
     // One selectable choice for a Combo field. ToString() returns the label so it
