@@ -115,7 +115,7 @@ namespace DCE_Manager.Update
 
                     JObject release = JObject.Parse(json);
 
-                    string version = release["tag_name"]?.ToString().Replace("v", "");
+                    string version = release["tag_name"]?.ToString().TrimStart('v', 'V');
 
                     //*****************************************
 

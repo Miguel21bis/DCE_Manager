@@ -1,7 +1,8 @@
-V10.19.60
+V10.19.61
 ADD: Viewing and editing conf_mod and camp_init
 ADD: Displays campaigns and/or orphaned files, so you can delete them if you wish.
 FIX: No flights created due to a lack of aircraft, caused by two variables set to 0 in oob_air_init.lua: InitNumber = 0 and InitReserve = 0
+FIX: DCE_Manger version
 MOD: News tab linked to GitHub
 MOD: The home page has been redesigned
 MOD: About page has been redesigned
