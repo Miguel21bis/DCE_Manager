@@ -541,7 +541,7 @@ namespace DCE_Manager.Update
             //ScriptsModVersion.Text = localVersion;
             form.ScriptModInstalledVersion.Text = localVersion;
 
-            ParamConf.DCE_Manager_LocVer = localVersion;
+            //ParamConf.DCE_Manager_LocVer = localVersion;
 
             form.ScriptsModAvailableVersion.Text = githubVersion;
 

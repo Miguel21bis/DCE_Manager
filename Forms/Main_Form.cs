@@ -1092,7 +1092,7 @@ namespace DCE_Manager
                 //CampaignTab.Visible = false;
                 ShowHome();
 
-                DCEManagerInstalledVersion.Text = ParamConf.DCE_Manager_LocVer;
+                DCEManagerInstalledVersion.Text = GetVersionDceManager();
 
 
                 if (String.IsNullOrEmpty(ParamConf.PATH_SavedGames_DCS))
