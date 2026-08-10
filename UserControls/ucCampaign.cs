@@ -22,6 +22,25 @@ namespace DCE_Manager.UserControls
             InitializeComponent();
 
             CampaignTab.Selected += CampaignTab_Selected;
+
+            // CheckedChanged part sur les DEUX radios à chaque changement :
+            // celui qui se décoche ET celui qui se coche. Sans le filtre ci-dessous,
+            // Main_Form recevait donc systématiquement deux appels au lieu d'un.
+            radioButton_OOB_INIT.CheckedChanged += (s, e) =>
+            {
+                if (!radioButton_OOB_INIT.Checked)
+                    return;
+
+                Main_Form.Instance?.radioButton_OOB_INIT_CheckedChanged(s, e);
+            };
+
+            radioButton_OOB_ACTIVE.CheckedChanged += (s, e) =>
+            {
+                if (!radioButton_OOB_ACTIVE.Checked)
+                    return;
+
+                Main_Form.Instance?.radioButton_OOB_ACTIVE_CheckedChanged(s, e);
+            };
         }
 
         private void CampaignTab_Selected(object sender, TabControlEventArgs e)
@@ -43,13 +62,27 @@ namespace DCE_Manager.UserControls
 
 
         //Puis : les boutons
+
+        // Une seule méthode pour choisir la version affichée.
+        // Pourquoi : deux setters indépendants permettaient de mettre les deux radios
+        //            à true (ou à false) et de se retrouver dans un état impossible.
+        public void SetOobMode(bool init)
+        {
+            if (init)
+                radioButton_OOB_INIT.Checked = true;
+            else
+                radioButton_OOB_ACTIVE.Checked = true;
+        }
+
+        // Conservées pour ne pas casser les appels existants.
         public void SetOobInitMode(bool init)
         {
-            radioButton_OOB_INIT.Checked = init;
+            SetOobMode(init);
         }
-        public void SetOobActiveMode(bool init)
+
+        public void SetOobActiveMode(bool active)
         {
-            radioButton_OOB_ACTIVE.Checked = init;
+            SetOobMode(!active);
         }
 
         public void EnableSaveButton(bool enabled)
@@ -96,5 +129,14 @@ namespace DCE_Manager.UserControls
             label_Right_Campaign_Name.Visible = visible;
         }
 
+        private void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
+        {
+            Main_Form.Instance.CampaignGridLeft.CurrentCampaignEdit?.buttonSaveChgtCampaign_Click(sender, e);
+        }
+
+        private void buttonResetBackup_Click(object sender, EventArgs e)
+        {
+            Main_Form.Instance.CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
+        }
     }
 }

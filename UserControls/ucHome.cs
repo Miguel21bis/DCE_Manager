@@ -40,6 +40,11 @@ namespace DCE_Manager.UserControls
             label_Accueil_ScriptsMod_Ver.Text = version;
         }
 
+        public void SetInstalledCampaignsCount(int count)
+        {
+            label_Accueil_InstalledCamp_Nb.Text = count.ToString();
+        }
+
 
         private void AjusterLargeurTextBox(TextBox tb)
         {

@@ -44,6 +44,12 @@ namespace DCE_Manager
         //CONSTRUCTEUR
         public SquadEdit_Form(Squad squad, CampaignContext campaignContext, bool cloneMode = false, String txt="")
         {
+            // Un squad null n'a aucun sens ici.
+            // Pourquoi : mieux vaut refuser tout de suite que construire une Form à moitié initialisée.
+            if (squad == null)
+                throw new ArgumentNullException(nameof(squad),
+                    "SquadEdit_Form : squad null (version Init/Active inexistante ?)");
+
             InitializeComponent();
 
             // Affichage barré des bases inactives
@@ -57,26 +63,25 @@ namespace DCE_Manager
             listBoxBasesAlternat.DrawMode = DrawMode.OwnerDrawFixed;
             listBoxBasesAlternat.DrawItem += ListBoxBasesAlternat_DrawItem;
 
-            textBoxName.TextChanged += (s, e) =>
-            {
-                EditedSquad.Name = textBoxName.Text.Trim();
-                EditedSquad.DisplayName = textBoxName.Text.Trim();
-                SquadUpdated?.Invoke();
-            };
-
             _campaignContext = campaignContext;
 
             _isActiveVersion = squad.FolderFile == "Active";
 
-            if (squad == null)
-            {
-                MessageBox.Show("Squad NULL lors de l'ouverture", "Erreur");
-                return;
-            }
-
             // On clone le squad pour éviter de modifier l'original avant Save.
             // Pourquoi : l'utilisateur peut encore annuler.
             EditedSquad = cloneMode ? CloneSquad(squad) : squad;
+
+            // Abonnement APRÈS l'affectation de EditedSquad.
+            // Pourquoi : le handler s'en sert, il ne doit jamais tomber sur un null.
+            textBoxName.TextChanged += (s, e) =>
+            {
+                if (EditedSquad == null)
+                    return;
+
+                EditedSquad.Name = textBoxName.Text.Trim();
+                EditedSquad.DisplayName = textBoxName.Text.Trim();
+                SquadUpdated?.Invoke();
+            };
 
             Text = cloneMode
             ? "Clone Squad - " + EditedSquad.DisplayName

@@ -86,7 +86,7 @@
             // 
             this.pictureBoxOvGME.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pictureBoxOvGME.Image = ((System.Drawing.Image)(resources.GetObject("pictureBoxOvGME.Image")));
-            this.pictureBoxOvGME.Location = new System.Drawing.Point(399, 193);
+            this.pictureBoxOvGME.Location = new System.Drawing.Point(378, 193);
             this.pictureBoxOvGME.Name = "pictureBoxOvGME";
             this.pictureBoxOvGME.Size = new System.Drawing.Size(60, 60);
             this.pictureBoxOvGME.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -108,7 +108,7 @@
             // 
             this.pic_Accueil_DCS.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pic_Accueil_DCS.Image = ((System.Drawing.Image)(resources.GetObject("pic_Accueil_DCS.Image")));
-            this.pic_Accueil_DCS.Location = new System.Drawing.Point(4, 193);
+            this.pic_Accueil_DCS.Location = new System.Drawing.Point(28, 193);
             this.pic_Accueil_DCS.Name = "pic_Accueil_DCS";
             this.pic_Accueil_DCS.Size = new System.Drawing.Size(60, 60);
             this.pic_Accueil_DCS.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -120,7 +120,7 @@
             // 
             this.pic_Accueil_CEFI.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pic_Accueil_CEFI.Image = global::DCE_Manager.Properties.Resources.CEFI_60X60_b;
-            this.pic_Accueil_CEFI.Location = new System.Drawing.Point(70, 193);
+            this.pic_Accueil_CEFI.Location = new System.Drawing.Point(109, 193);
             this.pic_Accueil_CEFI.Name = "pic_Accueil_CEFI";
             this.pic_Accueil_CEFI.Size = new System.Drawing.Size(60, 60);
             this.pic_Accueil_CEFI.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -162,7 +162,7 @@
             // 
             this.pic_Accueil_SPA3.Cursor = System.Windows.Forms.Cursors.Hand;
             this.pic_Accueil_SPA3.Image = global::DCE_Manager.Properties.Resources.SPA3_tissue50b;
-            this.pic_Accueil_SPA3.Location = new System.Drawing.Point(333, 193);
+            this.pic_Accueil_SPA3.Location = new System.Drawing.Point(295, 193);
             this.pic_Accueil_SPA3.Name = "pic_Accueil_SPA3";
             this.pic_Accueil_SPA3.Size = new System.Drawing.Size(60, 60);
             this.pic_Accueil_SPA3.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;

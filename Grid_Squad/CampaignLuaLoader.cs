@@ -21,24 +21,35 @@ namespace DCE_Manager
                 return (CampaignLuaData)cachedData;
             }
 
+            // GARDE-FOU (défense en profondeur) : si le dossier de la campagne a disparu
+            // (supprimée, dossier déplacé, clonage interrompu...), on ne tente même pas le
+            // DoFile Lua, qui lèverait une LuaScriptException brute difficile à gérer
+            // proprement pour l'appelant. Ça protège tout appelant de Load(), pas seulement
+            // le clic dans la grid (déjà filtré en amont côté Campaigns_List_Grid_Left).
+            string campaignPath = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + campaignName;
+            if (!System.IO.Directory.Exists(campaignPath))
+            {
+                FormUtils.LogRegister($"CampaignLuaLoader.Load('{campaignName}') : dossier de campagne introuvable ({campaignPath}), abandon.");
+                return null;
+            }
+
+            // Un objet neuf par campagne. Avant, _data (champ d'instance) était
+            // réutilisé tel quel : deux campagnes chargées par le même loader
+            // finissaient dans _cache en pointant sur le MÊME objet, et TabSquad,
+            // qui n'était jamais vidé, accumulait les squads de toutes les
+            // campagnes ouvertes depuis le démarrage.
+            _data = new CampaignLuaData();
+
             _data.PlayableAircraft = new HashSet<string>();
             _data.AllPlaneHeli = new HashSet<string>();
             _data.TaskByPlane = new Dictionary<string, List<string>>();
             _data.CallsignWest = new Dictionary<string, List<string>>();
             _data.SpecificCallnames = new Dictionary<string, Dictionary<string, Dictionary<string, string>>>();
 
-            using (Lua lua = new Lua())
+            // Globales, bootstrap et compatibilité : tout est dans DcemLua.
+            using (Lua lua = DcemLua.NewCampaignState(campaignName))
             {
-                lua["versionPackageICM"] = "NG";
-                lua["pathScriptsMod"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG";
-                lua["pathCampaign"] = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + campaignName;
-                lua["generator"] = "DCE_Manager";
-                lua["PATH_SavedGames_DCS"] = ParamConf.PATH_SavedGames_DCS;
-                lua["Debug"] = new Dictionary<string, object> { { "debug", false } };
-
-                object[] result = lua.DoFile(
-                    ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\ScriptsMod.NG\DCEM_Function.lua"
-                );
+                object[] result = lua.DoFile(DcemLua.Resolve("DCEM_Function.lua"));
 
                 LuaTable luaTable = (LuaTable)result[0];
 
