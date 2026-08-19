@@ -204,21 +204,28 @@
     <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
     <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
+    <Compile Include="Core\ChildProcessTracker.cs" />
+    <Compile Include="Core\ErrorDialogForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Parser\Parser_BugList.cs" />
     <Compile Include="Core\UserLevel.cs" />
+    <Compile Include="Grid_Campaign\CampaignRepair.cs" />
+    <Compile Include="Parser\Parser_Debriefing_Scoreboard.cs" />
     <Compile Include="Grid_Squad\CampaignContext.cs" />
     <Compile Include="Grid_Campaign\Campaign_Edit_Grid_Right.cs" />
     <Compile Include="appsettings.cs" />
     <Compile Include="Grid_Squad\CampaignLuaLoader.cs" />
-    <Compile Include="Grid_Squad\Saver_Campaign.cs" />
-    <Compile Include="Grid_Squad\Parser_db_airbases.cs" />
-    <Compile Include="Grid_Squad\Parser_triggers.cs" />
+    <Compile Include="Saver\Saver_Campaign.cs" />
+    <Compile Include="Parser\Parser_db_airbases.cs" />
+    <Compile Include="Parser\Parser_triggers.cs" />
     <Compile Include="Grid_Squad\SquadEdit_Form.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Grid_Squad\SquadEdit_Form.Designer.cs">
       <DependentUpon>SquadEdit_Form.cs</DependentUpon>
     </Compile>
-    <Compile Include="Grid_Squad\Parser_OobAir.cs" />
+    <Compile Include="Parser\Parser_OobAir.cs" />
     <Compile Include="Clone\CloneHelper.cs" />
     <Compile Include="ConfMod\ConfModData.cs" />
     <Compile Include="ConfMod\ConfModForm.cs">
@@ -240,7 +247,14 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Core\Statistics.cs" />
+    <Compile Include="MissionGenerator\ScriptsModBatParser.cs" />
     <Compile Include="News\Updater_News.cs" />
+    <Compile Include="MissionGenerator\ProcessConsoleBridge.cs" />
+    <Compile Include="MissionGenerator\ScriptsModRunner_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Parser\Parser_TargetList.cs" />
+    <Compile Include="Saver\Saver_TargetList.cs" />
     <Compile Include="Update\CampaignInfo.cs" />
     <Compile Include="Update\CampaignRepository.cs" />
     <Compile Include="Update\Updater_Campaign.cs" />

@@ -30,8 +30,8 @@
         {
             this.label_Right_Campaign_Name = new System.Windows.Forms.Label();
             this.panel_but_monitoring_campaign = new System.Windows.Forms.Panel();
-            this.radioButton_OOB_INIT = new System.Windows.Forms.RadioButton();
-            this.radioButton_OOB_ACTIVE = new System.Windows.Forms.RadioButton();
+            this.radioButton_INIT_CAMP = new System.Windows.Forms.RadioButton();
+            this.radioButton_ACTIVE_CAMP = new System.Windows.Forms.RadioButton();
             this.buttonSaveChgtCampaign = new System.Windows.Forms.Button();
             this.buttonResetBackup = new System.Windows.Forms.Button();
             this.CampaignTab = new System.Windows.Forms.TabControl();
@@ -42,6 +42,10 @@
             this.dataGridViewBlue = new System.Windows.Forms.DataGridView();
             this.tabPage15 = new System.Windows.Forms.TabPage();
             this.dataGridViewRed = new System.Windows.Forms.DataGridView();
+            this.tabPageTargetsBlue = new System.Windows.Forms.TabPage();
+            this.dataGridViewTargetsBlue = new System.Windows.Forms.DataGridView();
+            this.tabPageTargetsRed = new System.Windows.Forms.TabPage();
+            this.dataGridViewTargetsRed = new System.Windows.Forms.DataGridView();
             this.tabPage11 = new System.Windows.Forms.TabPage();
             this.tabPage12 = new System.Windows.Forms.TabPage();
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
@@ -53,6 +57,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).BeginInit();
             this.tabPage15.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).BeginInit();
+            this.tabPageTargetsBlue.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewTargetsBlue)).BeginInit();
+            this.tabPageTargetsRed.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewTargetsRed)).BeginInit();
             this.tabPage12.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -68,8 +76,8 @@
             // 
             // panel_but_monitoring_campaign
             // 
-            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_OOB_INIT);
-            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_OOB_ACTIVE);
+            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_INIT_CAMP);
+            this.panel_but_monitoring_campaign.Controls.Add(this.radioButton_ACTIVE_CAMP);
             this.panel_but_monitoring_campaign.Controls.Add(this.buttonSaveChgtCampaign);
             this.panel_but_monitoring_campaign.Controls.Add(this.buttonResetBackup);
             this.panel_but_monitoring_campaign.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -78,31 +86,31 @@
             this.panel_but_monitoring_campaign.Size = new System.Drawing.Size(560, 37);
             this.panel_but_monitoring_campaign.TabIndex = 28;
             // 
-            // radioButton_OOB_INIT
+            // radioButton_INIT_CAMP
             // 
-            this.radioButton_OOB_INIT.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.radioButton_OOB_INIT.AutoSize = true;
-            this.radioButton_OOB_INIT.Location = new System.Drawing.Point(97, 6);
-            this.radioButton_OOB_INIT.Margin = new System.Windows.Forms.Padding(2);
-            this.radioButton_OOB_INIT.Name = "radioButton_OOB_INIT";
-            this.radioButton_OOB_INIT.Size = new System.Drawing.Size(65, 17);
-            this.radioButton_OOB_INIT.TabIndex = 16;
-            this.radioButton_OOB_INIT.TabStop = true;
-            this.radioButton_OOB_INIT.Text = "OOB Init";
-            this.radioButton_OOB_INIT.UseVisualStyleBackColor = true;
+            this.radioButton_INIT_CAMP.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.radioButton_INIT_CAMP.AutoSize = true;
+            this.radioButton_INIT_CAMP.Location = new System.Drawing.Point(97, 6);
+            this.radioButton_INIT_CAMP.Margin = new System.Windows.Forms.Padding(2);
+            this.radioButton_INIT_CAMP.Name = "radioButton_INIT_CAMP";
+            this.radioButton_INIT_CAMP.Size = new System.Drawing.Size(65, 17);
+            this.radioButton_INIT_CAMP.TabIndex = 16;
+            this.radioButton_INIT_CAMP.TabStop = true;
+            this.radioButton_INIT_CAMP.Text = "Init";
+            this.radioButton_INIT_CAMP.UseVisualStyleBackColor = true;
             // 
-            // radioButton_OOB_ACTIVE
+            // radioButton_ACTIVE_CAMP
             // 
-            this.radioButton_OOB_ACTIVE.Anchor = System.Windows.Forms.AnchorStyles.Left;
-            this.radioButton_OOB_ACTIVE.AutoSize = true;
-            this.radioButton_OOB_ACTIVE.Location = new System.Drawing.Point(183, 6);
-            this.radioButton_OOB_ACTIVE.Margin = new System.Windows.Forms.Padding(2);
-            this.radioButton_OOB_ACTIVE.Name = "radioButton_OOB_ACTIVE";
-            this.radioButton_OOB_ACTIVE.Size = new System.Drawing.Size(81, 17);
-            this.radioButton_OOB_ACTIVE.TabIndex = 17;
-            this.radioButton_OOB_ACTIVE.TabStop = true;
-            this.radioButton_OOB_ACTIVE.Text = "OOB Active";
-            this.radioButton_OOB_ACTIVE.UseVisualStyleBackColor = true;
+            this.radioButton_ACTIVE_CAMP.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.radioButton_ACTIVE_CAMP.AutoSize = true;
+            this.radioButton_ACTIVE_CAMP.Location = new System.Drawing.Point(183, 6);
+            this.radioButton_ACTIVE_CAMP.Margin = new System.Windows.Forms.Padding(2);
+            this.radioButton_ACTIVE_CAMP.Name = "radioButton_ACTIVE_CAMP";
+            this.radioButton_ACTIVE_CAMP.Size = new System.Drawing.Size(81, 17);
+            this.radioButton_ACTIVE_CAMP.TabIndex = 17;
+            this.radioButton_ACTIVE_CAMP.TabStop = true;
+            this.radioButton_ACTIVE_CAMP.Text = "Active";
+            this.radioButton_ACTIVE_CAMP.UseVisualStyleBackColor = true;
             // 
             // buttonSaveChgtCampaign
             // 
@@ -133,6 +141,8 @@
             this.CampaignTab.Controls.Add(this.tabPage6);
             this.CampaignTab.Controls.Add(this.tabPage14);
             this.CampaignTab.Controls.Add(this.tabPage15);
+            this.CampaignTab.Controls.Add(this.tabPageTargetsBlue);
+            this.CampaignTab.Controls.Add(this.tabPageTargetsRed);
             this.CampaignTab.Controls.Add(this.tabPage11);
             this.CampaignTab.Controls.Add(this.tabPage12);
             this.CampaignTab.Location = new System.Drawing.Point(3, 41);
@@ -223,6 +233,58 @@
             this.dataGridViewRed.Size = new System.Drawing.Size(540, 441);
             this.dataGridViewRed.TabIndex = 15;
             // 
+            // tabPageTargetsBlue
+            // 
+            this.tabPageTargetsBlue.Controls.Add(this.dataGridViewTargetsBlue);
+            this.tabPageTargetsBlue.Location = new System.Drawing.Point(4, 22);
+            this.tabPageTargetsBlue.Margin = new System.Windows.Forms.Padding(2);
+            this.tabPageTargetsBlue.Name = "tabPageTargetsBlue";
+            this.tabPageTargetsBlue.Padding = new System.Windows.Forms.Padding(2);
+            this.tabPageTargetsBlue.Size = new System.Drawing.Size(546, 418);
+            this.tabPageTargetsBlue.TabIndex = 9;
+            this.tabPageTargetsBlue.Text = "Targets Blue";
+            this.tabPageTargetsBlue.UseVisualStyleBackColor = true;
+            // 
+            // dataGridViewTargetsBlue
+            // 
+            this.dataGridViewTargetsBlue.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dataGridViewTargetsBlue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewTargetsBlue.Location = new System.Drawing.Point(2, 2);
+            this.dataGridViewTargetsBlue.Margin = new System.Windows.Forms.Padding(2);
+            this.dataGridViewTargetsBlue.Name = "dataGridViewTargetsBlue";
+            this.dataGridViewTargetsBlue.RowHeadersWidth = 51;
+            this.dataGridViewTargetsBlue.RowTemplate.Height = 24;
+            this.dataGridViewTargetsBlue.Size = new System.Drawing.Size(540, 436);
+            this.dataGridViewTargetsBlue.TabIndex = 16;
+            // 
+            // tabPageTargetsRed
+            // 
+            this.tabPageTargetsRed.Controls.Add(this.dataGridViewTargetsRed);
+            this.tabPageTargetsRed.Location = new System.Drawing.Point(4, 22);
+            this.tabPageTargetsRed.Margin = new System.Windows.Forms.Padding(2);
+            this.tabPageTargetsRed.Name = "tabPageTargetsRed";
+            this.tabPageTargetsRed.Padding = new System.Windows.Forms.Padding(2);
+            this.tabPageTargetsRed.Size = new System.Drawing.Size(546, 418);
+            this.tabPageTargetsRed.TabIndex = 10;
+            this.tabPageTargetsRed.Text = "Targets Red";
+            this.tabPageTargetsRed.UseVisualStyleBackColor = true;
+            // 
+            // dataGridViewTargetsRed
+            // 
+            this.dataGridViewTargetsRed.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dataGridViewTargetsRed.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dataGridViewTargetsRed.Location = new System.Drawing.Point(2, 2);
+            this.dataGridViewTargetsRed.Margin = new System.Windows.Forms.Padding(2);
+            this.dataGridViewTargetsRed.Name = "dataGridViewTargetsRed";
+            this.dataGridViewTargetsRed.RowHeadersWidth = 51;
+            this.dataGridViewTargetsRed.RowTemplate.Height = 24;
+            this.dataGridViewTargetsRed.Size = new System.Drawing.Size(540, 441);
+            this.dataGridViewTargetsRed.TabIndex = 17;
+            // 
             // tabPage11
             // 
             this.tabPage11.Location = new System.Drawing.Point(4, 22);
@@ -273,6 +335,10 @@
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewBlue)).EndInit();
             this.tabPage15.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.dataGridViewRed)).EndInit();
+            this.tabPageTargetsBlue.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewTargetsBlue)).EndInit();
+            this.tabPageTargetsRed.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.dataGridViewTargetsRed)).EndInit();
             this.tabPage12.ResumeLayout(false);
             this.tabPage12.PerformLayout();
             this.ResumeLayout(false);
@@ -284,8 +350,8 @@
 
         public System.Windows.Forms.Label label_Right_Campaign_Name;
         public System.Windows.Forms.Panel panel_but_monitoring_campaign;
-        public System.Windows.Forms.RadioButton radioButton_OOB_INIT;
-        public System.Windows.Forms.RadioButton radioButton_OOB_ACTIVE;
+        public System.Windows.Forms.RadioButton radioButton_INIT_CAMP;
+        public System.Windows.Forms.RadioButton radioButton_ACTIVE_CAMP;
         public System.Windows.Forms.Button buttonSaveChgtCampaign;
         public System.Windows.Forms.Button buttonResetBackup;
         public System.Windows.Forms.TabControl CampaignTab;
@@ -296,6 +362,10 @@
         public System.Windows.Forms.DataGridView dataGridViewBlue;
         public System.Windows.Forms.TabPage tabPage15;
         public System.Windows.Forms.DataGridView dataGridViewRed;
+        public System.Windows.Forms.TabPage tabPageTargetsBlue;
+        public System.Windows.Forms.DataGridView dataGridViewTargetsBlue;
+        public System.Windows.Forms.TabPage tabPageTargetsRed;
+        public System.Windows.Forms.DataGridView dataGridViewTargetsRed;
         public System.Windows.Forms.TabPage tabPage11;
         public System.Windows.Forms.TabPage tabPage12;
         public System.Windows.Forms.TextBox textBox_Bugs;

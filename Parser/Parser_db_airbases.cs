@@ -50,7 +50,14 @@ namespace DCE_Manager
                 foreach (object key in dbAirbasesLua.Keys)
                 {
                     string baseName = key.ToString();
+                   
                     LuaTable baseLua = dbAirbasesLua[key] as LuaTable;
+
+                    if (baseLua == null)
+                    {
+                        FormUtils.LogRegister($"db_airbases: entrée '{baseName}' ignorée (table invalide ou corrompue) dans {pathFile}");
+                        continue;
+                    }
 
                     var info = new AirbaseInfo();
                     info.Name = baseName;

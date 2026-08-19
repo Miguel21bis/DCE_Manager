@@ -28,6 +28,18 @@ namespace DCE_Manager
         // lignes dans la grid à Delete/Folder (voir GridCampaigns_CellClick).
         private readonly HashSet<string> _incompleteOrOrphanNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // Sous-ensemble de _incompleteOrOrphanNames concernant un dossier de campagne incomplet
+        // (pas un fichier orphelin isolé) : seuls ceux-là peuvent afficher l'icône 🔧 Repair,
+        // un fichier orphelin seul n'a pas de "campagne" à réparer derrière.
+        private readonly HashSet<string> _repairableIncompleteNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Liste centralisée pour éviter la divergence entre le test de complétude (LoadCampaignsAsync)
+        // et le calcul "encore manquant après réparation" (RepairCampaignAsync).
+        private static readonly string[] RequiredInitFiles =
+            { "camp_init.lua", "camp_triggers_init.lua", "conf_mod.lua", "db_airbases.lua", "targetlist_init.lua", "oob_air_init.lua", "path.bat" };
+
+        private int _lastQuickActionsMouseX = -1;
+
         // Compte à jour après chaque LoadCampaignsAsync(). Utilisable par Main_Form pour
         // afficher "Installed Campaigns" (voir le panneau INFO).
         public int InstalledCampaignCount { get; private set; }
@@ -89,7 +101,7 @@ namespace DCE_Manager
             {
                 Name = "Name",
                 HeaderText = "Campaign",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+                Width = 250 // avant : AutoSizeMode Fill, qui empêchait le redimensionnement à la souris
             });
 
             // Colonne pour ouvrir le dossier
@@ -120,11 +132,16 @@ namespace DCE_Manager
 
             // ===== BOUTONS =====
 
-            GridCampaigns_AddButtonColumn("First", "▶", 55);
-            GridCampaigns_AddButtonColumn("Skip", "⏭", 55, useColumnTextForButtonValue: false);
+            GridCampaigns_AddQuickActionsColumn(); // First + Skip + Debrief regroupés dans une seule case
+            GridCampaigns_AddButtonColumn("CampaignSetup", "🛠", 55, headerText: "Setup");
             GridCampaigns_AddButtonColumn("Parameters", "⚙", 55);
-            GridCampaigns_AddButtonColumn("CampaignSetup", "🛠", 55);
             GridCampaigns_AddButtonColumn("Delete", "🗑", 55);
+
+            //GridCampaigns_AddButtonColumn("First", "▶", 55);
+            //GridCampaigns_AddButtonColumn("Skip", "⏭", 55, useColumnTextForButtonValue: false);
+            //GridCampaigns_AddButtonColumn("Parameters", "⚙", 55);
+            //GridCampaigns_AddButtonColumn("CampaignSetup", "🛠", 55);
+            //GridCampaigns_AddButtonColumn("Delete", "🗑", 55);
 
             // Case à cocher pour sélectionner plusieurs lignes "problème" (incomplet/orphelin)
             // et les supprimer d'un coup via le bouton Delete existant.
@@ -140,6 +157,15 @@ namespace DCE_Manager
                 HeaderText = "☑",
                 Width = 40,
                 ReadOnly = true
+            });
+
+            // Colonne invisible : mémorise si un debrief est en attente pour la ligne
+            // (fichiers de transition présents). "1" = en attente. Lue par
+            // GridCampaigns_QuickActions_CellPainting et ...CellMouseClick.
+            _mainForm.dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                Name = "DebriefPending",
+                Visible = false
             });
 
 
@@ -212,6 +238,13 @@ namespace DCE_Manager
             GridCampaigns_InitStyle();
 
             _mainForm.dataGridViewCampaigns.CellClick += GridCampaigns_CellClick;
+            _mainForm.dataGridViewCampaigns.CellPainting += GridCampaigns_QuickActions_CellPainting;
+            _mainForm.dataGridViewCampaigns.CellMouseClick += GridCampaigns_QuickActions_CellMouseClickAsync;
+            _mainForm.dataGridViewCampaigns.CellMouseMove += GridCampaigns_QuickActions_CellMouseMove;
+            _mainForm.dataGridViewCampaigns.CellMouseLeave += GridCampaigns_QuickActions_CellMouseLeave;
+
+            _mainForm.dataGridViewCampaigns.ShowCellToolTips = true; // true par défaut, explicite pour être sûr
+            _mainForm.dataGridViewCampaigns.CellToolTipTextNeeded += GridCampaigns_QuickActions_CellToolTipTextNeeded;
 
             _mainForm.dataGridViewCampaigns.RowTemplate.Height = 70;
 
@@ -229,16 +262,271 @@ namespace DCE_Manager
         }
 
 
-        private void GridCampaigns_AddButtonColumn(string name, string text, int width, bool useColumnTextForButtonValue = true)
+        private void GridCampaigns_AddButtonColumn(string name, string text, int width, bool useColumnTextForButtonValue = true, string headerText = null)
         {
             _mainForm.dataGridViewCampaigns.Columns.Add(new DataGridViewButtonColumn()
             {
                 Name = name,
+                HeaderText = headerText ?? name, // si non précisé, garde l'ancien comportement (Name brut)
                 Text = text,
                 UseColumnTextForButtonValue = useColumnTextForButtonValue,
                 Width = width,
                 FlatStyle = FlatStyle.Flat
             });
+        }
+
+        // Colonne "First + Skip + Debrief" regroupée en une seule case (gain de place).
+        // Ce n'est PAS une colonne bouton : les 3 icônes sont dessinées à la main dans
+        // GridCampaigns_QuickActions_CellPainting, et le clic est découpé en 3 zones (tiers
+        // de la largeur de la cellule) dans GridCampaigns_QuickActions_CellMouseClick.
+        private void GridCampaigns_AddQuickActionsColumn()
+        {
+            _mainForm.dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                Name = "QuickActions",
+                HeaderText = "Actions",
+                Width = 100, // avant 130 : resserre les 3 icônes pour laisser de la place à Campaign
+                ReadOnly = true,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+        }
+
+        // Centralise les règles de visibilité des 3 icônes, utilisées par le dessin
+        // (CellPainting), le clic (CellMouseClick) et le survol (CellMouseMove).
+        private void GetQuickActionVisibility(int rowIndex, out bool showFirst, out bool showSkip, out bool showDebrief)
+        {
+            var row = _mainForm.dataGridViewCampaigns.Rows[rowIndex];
+
+            int nbMission;
+            int.TryParse(row.Cells["Missions"].Value?.ToString(), out nbMission);
+
+            showFirst = true;
+            showSkip = nbMission >= 1;
+            showDebrief = "1".Equals(row.Cells["DebriefPending"].Value?.ToString());
+        }
+
+        // Peint les 1 à 3 icônes de la colonne QuickActions. Toujours 3 emplacements de
+        // largeur égale (un tiers de cellule chacun), qu'ils soient utilisés ou non : ça
+        // garde le découpage des clics simple et stable, peu importe la combinaison visible.
+        private void GridCampaigns_QuickActions_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
+                return;
+
+            e.PaintBackground(e.ClipBounds, true);
+            e.Handled = true;
+
+            var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name))
+                return;
+
+            if (_incompleteOrOrphanNames.Contains(name))
+            {
+                if (_repairableIncompleteNames.Contains(name))
+                {
+                    using (var repairFont = new Font("Segoe UI", 14, FontStyle.Bold))
+                    {
+                        DrawQuickActionIcon(e.Graphics, "🔧", true, e.CellBounds.Left, e.CellBounds.Width, e.CellBounds.Top, e.CellBounds.Height, repairFont);
+                    }
+                }
+
+                return; // ligne orpheline non réparable, ou 🔧 déjà dessiné : rien d'autre à peindre ici
+            }
+
+            bool showFirst, showSkip, showDebrief;
+            GetQuickActionVisibility(e.RowIndex, out showFirst, out showSkip, out showDebrief);
+
+            int thirdWidth = e.CellBounds.Width / 3;
+
+            using (var font = new Font("Segoe UI", 14, FontStyle.Bold))
+            {
+                DrawQuickActionIcon(e.Graphics, "▶", showFirst, e.CellBounds.Left, thirdWidth, e.CellBounds.Top, e.CellBounds.Height, font);
+                DrawQuickActionIcon(e.Graphics, "⏭", showSkip, e.CellBounds.Left + thirdWidth, thirdWidth, e.CellBounds.Top, e.CellBounds.Height, font);
+                DrawQuickActionIcon(e.Graphics, "📋", showDebrief, e.CellBounds.Left + 2 * thirdWidth, thirdWidth, e.CellBounds.Top, e.CellBounds.Height, font);
+            }
+        }
+
+        // Vrai si la zone (tiers de cellule) sous la souris correspond à une icône
+        // effectivement affichée pour cette ligne. Sert au clic ET au curseur main.
+        private bool IsQuickActionZoneActive(int rowIndex, int mouseX)
+        {
+            var row = _mainForm.dataGridViewCampaigns.Rows[rowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            if (_incompleteOrOrphanNames.Contains(name))
+                return _repairableIncompleteNames.Contains(name); // toute la cellule = zone "Repair"
+
+            bool showFirst, showSkip, showDebrief;
+            GetQuickActionVisibility(rowIndex, out showFirst, out showSkip, out showDebrief);
+
+            int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
+            int thirdWidth = cellWidth / 3;
+            int zone = Math.Min(mouseX / thirdWidth, 2);
+
+            if (zone == 0) return showFirst;
+            if (zone == 1) return showSkip;
+            return showDebrief;
+        }
+
+        private void DrawQuickActionIcon(Graphics g, string icon, bool visible, int x, int width, int y, int height, Font font)
+        {
+            if (!visible)
+                return;
+
+            var rect = new Rectangle(x, y, width, height);
+            TextRenderer.DrawText(g, icon, font, rect, Color.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        }
+
+        // Découpe le clic sur la colonne QuickActions en 3 zones (mêmes tiers que le dessin).
+        // e.X/e.Y sont relatifs à la cellule dans CellMouseClick (contrairement à CellClick).
+        private async void GridCampaigns_QuickActions_CellMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left)
+                return;
+
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
+                return;
+
+            if (!IsQuickActionZoneActive(e.RowIndex, e.X))
+                return; // zone vide, pas d'action
+
+            var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (_repairableIncompleteNames.Contains(name))
+            {
+                await RepairCampaignAsync(name);
+                return;
+            }
+
+            EnsureCampaignFilesUpToDate(name);
+
+            //var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
+            //string name = row.Cells["Name"].Value?.ToString();
+
+            EnsureCampaignFilesUpToDate(name);
+
+            int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
+            int thirdWidth = cellWidth / 3;
+            int zone = Math.Min(e.X / thirdWidth, 2);
+
+            string folderPath = Path.Combine(ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\", name);
+
+            if (zone == 0)
+            {
+                //OpenScriptsModRunner(folderPath, "FirstMission.bat", name);
+                await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
+            }
+            else if (zone == 1)
+            {
+                //OpenScriptsModRunner(folderPath, "SkipMission.bat", name);
+                await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
+            }
+            else
+            {
+                //OpenScriptsModRunner(folderPath, "DEBUG_DebriefMission.bat", name, "Debrief_Master.lua");
+                await RunScriptsModInteractiveAsync(name, folderPath, "DEBUG_DebriefMission.bat", "Debrief_Master.lua");
+            }
+
+        }
+
+        private void GridCampaigns_QuickActions_CellMouseMove(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
+            {
+                _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
+                _lastQuickActionsMouseX = -1;
+                return;
+            }
+
+            _lastQuickActionsMouseX = e.X; // mémorisé pour GridCampaigns_QuickActions_CellToolTipTextNeeded
+            _mainForm.dataGridViewCampaigns.Cursor = IsQuickActionZoneActive(e.RowIndex, e.X) ? Cursors.Hand : Cursors.Default;
+        }
+
+        // Passe par le mécanisme d'infobulle interne du DataGridView (le seul qui fonctionne
+        // fiablement sur ce contrôle - un ToolTip externe attaché via SetToolTip ne s'affiche
+        // pas dessus). _lastQuickActionsMouseX vient de CellMouseMove : cet event-ci ne donne
+        // pas la position X, seulement la cellule.
+        private void GridCampaigns_QuickActions_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
+        {
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
+                return;
+
+            if (_lastQuickActionsMouseX >= 0 && IsQuickActionZoneActive(e.RowIndex, _lastQuickActionsMouseX))
+                e.ToolTipText = GetQuickActionTooltipText(_lastQuickActionsMouseX);
+        }
+
+        // Texte d'infobulle (en anglais, comme le reste de l'UI visible) pour l'icône
+        // actuellement sous la souris. N'est appelé que si IsQuickActionZoneActive a déjà
+        // confirmé que l'icône concernée est bien affichée pour cette ligne.
+        private string GetQuickActionTooltipText(int mouseX)
+        {
+            int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
+            int thirdWidth = cellWidth / 3;
+            int zone = Math.Min(mouseX / thirdWidth, 2);
+
+            switch (zone)
+            {
+                case 0: return "Generate the first mission of this campaign";
+                case 1: return "Skip the current mission and generate the next one";
+                default: return "Debrief the last played mission";
+            }
+        }
+
+        private void GridCampaigns_QuickActions_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex >= 0 && _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name == "QuickActions")
+            {
+                _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
+                _lastQuickActionsMouseX = -1;
+            }
+        }
+
+        // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat via le GUI
+        // ScriptsModRunner_Form (marqueurs ##DCEM_...##) au lieu d'ouvrir une fenêtre console brute.
+        // luaScriptName : uniquement pour les .bat hors convention BAT_xxx.lua (cf. Debrief).
+        private void OpenScriptsModRunner(string folderPath, string batFileName, string campaignName, string luaScriptName = null)
+        {
+            string batPath = Path.Combine(folderPath, batFileName);
+
+            if (!File.Exists(batPath))
+                return;
+
+            using (var form = new ScriptsModRunner_Form(batPath, folderPath, campaignName, luaScriptName))
+            {
+                form.ShowDialog(_mainForm);
+            }
+        }
+
+        // Extrait de GridCampaigns_CellClick : recale camp_init.lua puis conf_mod.lua sur
+        // leurs fichiers de référence, une fois par campagne et par session. Appelé aussi
+        // bien depuis GridCampaigns_CellClick (Parameters/CampaignSetup) que depuis
+        // GridCampaigns_QuickActions_CellMouseClick (First/Skip/Debrief), qui ne passe plus
+        // par GridCampaigns_CellClick pour ces 3 actions.
+        private void EnsureCampaignFilesUpToDate(string name)
+        {
+            if (!_alreadyUpdated.Add(name))
+                return;
+
+            ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
+            ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
+
+            if (!_referenceWarningShown &&
+                (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing))
+            {
+                _referenceWarningShown = true;
+
+                MessageBox.Show(
+                    "Some reference files used to keep campaign configuration up to date (UTIL_REF_conf_mod.lua and/or UTIL_REF_camp_init.lua) could not be found in your ScriptsMod folder.\r\n\r\nPlease update your ScriptsMod so this feature can work correctly.",
+                    "ScriptsMod update needed",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
         }
 
         public void UpdateCampaignSetupColumnVisibility()
@@ -249,6 +537,29 @@ namespace DCE_Manager
                     ParamConf.UserLevel == UserLevel.CampaignMaker;
             }
         }
+
+        // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat en tâche de fond
+        // (fenêtre cachée) et pilote l'interaction console (ScriptsMod) via une Form dédiée, au
+        // lieu d'une fenêtre console visible.
+        // luaScriptName : uniquement pour les .bat hors convention BAT_xxx.lua (ex: Debriefing,
+        // qui appelle Debrief_Master.lua directement) - laisser null pour First/Skip.
+        private async Task RunScriptsModInteractiveAsync(string campaignName, string folderPath, string batFileName, string luaScriptName = null)
+        {
+            string batPath = Path.Combine(folderPath, batFileName);
+
+            if (!File.Exists(batPath))
+                return;
+
+            using (var runnerForm = new ScriptsModRunner_Form(batPath, folderPath, campaignName, luaScriptName))
+            {
+                runnerForm.ShowDialog(_mainForm);
+            }
+
+            // Que la mission ait été générée ou que l'utilisateur ait fermé en cours de route,
+            // on rafraîchit la liste (nombre de missions, bouton Skip, icône Debriefing... peuvent avoir changé).
+            await LoadCampaignsAsync(selectCampaignName: campaignName);
+        }
+
 
         private async void GridCampaigns_CellClick(object sender, DataGridViewCellEventArgs e)
         {
@@ -334,40 +645,8 @@ namespace DCE_Manager
                 return;
             }
 
-            // Recale camp_init.lua puis conf_mod.lua sur leurs fichiers de référence avant
-            // d'afficher quoi que ce soit pour cette campagne. Une seule fois par campagne
-            // pour la session (voir _alreadyUpdated en haut du fichier).
-            if (_alreadyUpdated.Add(name))
-            {
-                ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
-                ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
 
-                if (!_referenceWarningShown &&
-                    (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing))
-                {
-                    _referenceWarningShown = true;
-
-                    MessageBox.Show(
-                        "Some reference files used to keep campaign configuration up to date (UTIL_REF_conf_mod.lua and/or UTIL_REF_camp_init.lua) could not be found in your ScriptsMod folder.\r\n\r\nPlease update your ScriptsMod so this feature can work correctly.",
-                        "ScriptsMod update needed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                }
-            }
-
-            // Recale camp_init.lua puis conf_mod.lua sur leurs fichiers de référence avant
-            // d'afficher quoi que ce soit pour cette campagne. Une seule fois par campagne
-            // pour la session (voir _alreadyUpdated en haut du fichier).
-            //if (_alreadyUpdated.Add(name))
-            //{
-            //    FormUtils.LogRegister("GridCampaigns_CellClick E Updating campaign '" + name + "' with reference files.");
-
-            //    new CampInitUpdater().UpdateCampaign(name);
-            //    new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
-
-            //    FormUtils.LogRegister("GridCampaigns_CellClick F Update complete for campaign '" + name + "'.");
-            //}
-
+            EnsureCampaignFilesUpToDate(name);
 
             string basePath = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\";
 
@@ -375,58 +654,9 @@ namespace DCE_Manager
 
             Utils.FormUtils.LogRegister($"Clicked on column '{columnName}' for campaign '{name}' folderPath '{folderPath}'");
 
-            if (columnName == "First")
+            if (columnName == "Parameters")
             {
-                string batPath = Path.Combine(folderPath, "FirstMission.bat");
-
-                if (File.Exists(batPath))
-                {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = batPath,
-                        WorkingDirectory = folderPath,
-                        UseShellExecute = true
-                    });
-                }
-
-                return;
-            }
-            else if (columnName == "Skip")
-            {
-                string nbMissionTextSkip = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex].Cells["Missions"].Value?.ToString();
-
-                int nbMissionSkip;
-                int.TryParse(nbMissionTextSkip, out nbMissionSkip);
-
-                if (nbMissionSkip <= 0)
-                    return; // bouton grisé : aucune mission jouée, on ignore le clic
-
-                string batPath = Path.Combine(folderPath, "SkipMission.bat");
-
-                if (File.Exists(batPath))
-                {
-                    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                    {
-                        FileName = batPath,
-                        WorkingDirectory = folderPath,
-                        UseShellExecute = true
-                    });
-                }
-            }
-            else if (columnName == "Parameters")
-            {
-                //string filePath = Path.Combine(folderPath, @"Init\conf_mod.lua");
-
-                //if (File.Exists(filePath))
-                //{
-                //    System.Diagnostics.Process.Start(new ProcessStartInfo()
-                //    {
-                //        FileName = filePath,
-                //        UseShellExecute = true
-                //    });
-                //}
-
-                Utils.FormUtils.LogRegister( Utils.FormUtils.ToTitleCase("Open Parameters for campaign '" + name + "'"));
+                Utils.FormUtils.LogRegister(Utils.FormUtils.ToTitleCase("Open Parameters for campaign '" + name + "'"));
 
                 new ConfModTemplateUpdater().UpdateCampaign(name);
 
@@ -577,6 +807,7 @@ namespace DCE_Manager
 
             ResetCurrentCampaign();
 
+            _repairableIncompleteNames.Clear();
             _mainForm.dataGridViewCampaigns.Rows.Clear();
             _incompleteOrOrphanNames.Clear();
 
@@ -590,12 +821,31 @@ namespace DCE_Manager
 
             bool folderCampExists = System.IO.Directory.Exists(campaignsRoot);
 
-            if (folderCampExists)
+            // Contenu identique pour toutes les campagnes (dépend seulement de ParamConf) :
+            // calculé UNE FOIS ici, plutôt qu'à chaque itération de la boucle.
+            string textPathBatGlobal = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
+                "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                "set \"pathSavedGames=" + ParamConf.PATH_SavedGames_DCS + "\\\"\r\n" +
+                "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
+                "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
+                "\r\n" +
+                "\r\n" +
+                "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
+
+            bool canWritePathBat = ParamConf.PATH_DCS_Root != "" & ParamConf.PATH_SavedGames_DCS != "";
+
+            if (folderCampExists)          
             {
                 foreach (string subFolder in Directory.GetDirectories(campaignsRoot))
                 {
+                    string[] NameCampTab = subFolder.Split('\\');
+                    string NameCamp = NameCampTab[NameCampTab.Count() - 1];
 
-                    // 🔥 cache local des fichiers (1 lecture max)
+                    bool folderLocExists = System.IO.Directory.Exists(subFolder);
+
+                    // 🔥 cache local des fichiers (1 lecture max) - APRÈS le dépannage ci-dessus, pour lire
+                    // un camp_init.lua fraîchement créé le cas échéant, pas un fichier absent.
                     string campInitContent = null;
                     string campStatusContent = null;
                     string oobAirContent = null;
@@ -610,29 +860,20 @@ namespace DCE_Manager
 
                     string path_oob_air;
 
-
-                    //  COPIE ICI TOUT TON CODE ACTUEL DE LA BOUCLE
-                    string[] NameCampTab = subFolder.Split('\\');
-                    string NameCamp = NameCampTab[NameCampTab.Count() - 1];
-
-                    bool folderLocExists = System.IO.Directory.Exists(subFolder);
-
                     // Complétude du dossier : les 6 fichiers Init attendus + les 2 .miz + le .cmp.
-                    // Pourquoi : un dossier créé par un clonage ou une mise à jour interrompue
-                    // peut exister sans être exploitable ; mieux vaut le signaler à l'utilisateur
-                    // (ligne "problème" + bouton Delete) que de le planter silencieusement plus
-                    // tard, ou de le montrer comme une campagne normale et fonctionnelle.
                     string initFolder = subFolder + @"\Init\";
-                    string[] requiredInitFiles = { "camp_init.lua", "camp_triggers_init.lua", "conf_mod.lua", "db_airbases.lua", "targetlist_init.lua", "path.bat" };
+                    string[] requiredInitFiles = RequiredInitFiles;
 
                     var missingFiles = requiredInitFiles.Where(f => !File.Exists(initFolder + f)).ToList();
 
                     string[] requiredMissionFiles = { NameCamp + "_first.miz", NameCamp + "_ongoing.miz", NameCamp + ".cmp" };
                     missingFiles.AddRange(requiredMissionFiles.Where(f => !File.Exists(campaignsRoot + @"\" + f)));
 
+
                     if (missingFiles.Count > 0)
                     {
                         _incompleteOrOrphanNames.Add(NameCamp);
+                        _repairableIncompleteNames.Add(NameCamp); // ce sont les seules lignes où 🔧 sera proposé
                         AddProblemRow(NameCamp, "Dossier incomplet — manque : " + string.Join(", ", missingFiles));
                         continue;
                     }
@@ -643,23 +884,18 @@ namespace DCE_Manager
 
                     if (fileExistPathBat)
                     {
-                        if (ParamConf.PATH_DCS_Root != "" & ParamConf.PATH_SavedGames_DCS != "")
+                        if (canWritePathBat)
                         {
+                            // On ne réécrit que si le contenu a réellement changé (évite une écriture
+                            // disque inutile à chaque affichage de la grid, pour toutes les campagnes).
+                            string existingContent = null;
+                            try { existingContent = File.ReadAllText(PathBatFile); } catch { /* tant pis, on écrira */ }
 
-                            string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
-                           "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
-                           "set \"pathSavedGames=" + ParamConf.PATH_SavedGames_DCS + "\\\"\r\n" +
-                           "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
-                           "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
-                           "\r\n" +
-                           "\r\n" +
-                           "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
-
-                            System.IO.File.WriteAllText(PathBatFile, textPathBat);
+                            if (existingContent != textPathBatGlobal)
+                            {
+                                System.IO.File.WriteAllText(PathBatFile, textPathBatGlobal);
+                            }
                         }
-
-
 
                         nbCampaign++;
 
@@ -709,8 +945,8 @@ namespace DCE_Manager
                         //TODO ? non, il faudra sortir "reset si upadate fait"
                         var campaignNameTab = new Dictionary<string, string>();
 
-                        string colorFM = "";
-                        string colorSM = "";
+                        //string colorFM = "";
+                        //string colorSM = "";
                         if (folderLocExists)
                         {
 
@@ -812,14 +1048,28 @@ namespace DCE_Manager
                             // Pourquoi : File.Copy utilise l'API native Windows et consomme moins de CPU que CopyTo.
                             if (File.Exists(filePNGbyePlane))
                             {
-                                //File.Copy(filePNGbyePlane, filePNG, true);
+                                bool needsCopy = true;
                                 try
                                 {
-                                    File.Copy(filePNGbyePlane, filePNG, true);
+                                    if (File.Exists(filePNG))
+                                    {
+                                        var srcInfo = new FileInfo(filePNGbyePlane);
+                                        var dstInfo = new FileInfo(filePNG);
+                                        needsCopy = srcInfo.Length != dstInfo.Length || srcInfo.LastWriteTimeUtc != dstInfo.LastWriteTimeUtc;
+                                    }
                                 }
-                                catch (IOException)
+                                catch { /* en cas de doute, on recopie */ }
+
+                                if (needsCopy)
                                 {
-                                    // ignore si en cours d'utilisation
+                                    try
+                                    {
+                                        File.Copy(filePNGbyePlane, filePNG, true);
+                                    }
+                                    catch (IOException)
+                                    {
+                                        // ignore si en cours d'utilisation
+                                    }
                                 }
 
                                 if (File.Exists(fileBMP))
@@ -896,7 +1146,16 @@ namespace DCE_Manager
                             // Le bouton Skip ne doit être visible que si au moins une mission a été jouée
                             int nbMissionParsed;
                             int.TryParse(NbMission, out nbMissionParsed);
-                            bool skipVisible = nbMissionParsed > 0;
+
+                            // Détecte un debrief en attente : fichiers de transition écrits par
+                            // EventsTracker.lua en fin de mission, supprimés par DEBRIEF_Master.lua
+                            // une fois traités. Encore là -> le debrief n'a pas (ou pas complètement)
+                            // tourné, on permet de le relancer à la main.
+                            bool debriefPending =
+                                File.Exists(Path.Combine(subFolder, "camp_status.lua")) &&
+                                File.Exists(Path.Combine(subFolder, "MissionEventsLog.lua")) &&
+                                File.Exists(Path.Combine(subFolder, "scen_destroyed.lua")) &&
+                                File.Exists(Path.Combine(subFolder, "zoneSAR.lua"));
 
                             _mainForm.dataGridViewCampaigns.Rows.Add(
                                 null,       // Clone (bouton)
@@ -906,10 +1165,9 @@ namespace DCE_Manager
                                 VerCamp,    // Version
                                 NbMission,  // Missions
                                 type,       // Aircraft
-                                null,       // First
-                                skipVisible ? "⏭" : "",   // Skip (vide = invisible)
-                                null,       // Config
-                                null        // Delete
+                                null,       // QuickActions (dessinée à la main, voir CellPainting)
+                                null,       // Parameters
+                                null        // CampaignSetup
                             );
 
                             int rowIndex = _mainForm.dataGridViewCampaigns.Rows.Count - 1;
@@ -918,22 +1176,47 @@ namespace DCE_Manager
                             // comprises (et pas seulement les lignes "problème").
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
 
-                            // Aucune mission jouée : le bouton reste vide (pas d'icône) et non cliquable
-                            _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].ReadOnly = !skipVisible;
-
-                            // Exemple : bouton Skip rouge si besoin (uniquement si visible)
-                            if (skipVisible && colorSM == "red")
-                            {
-                                _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
-                            }
-
-                            // Exemple : bouton First rouge
-                            if (colorFM == "red")
-                            {
-                                _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
-                            }
-
+                            _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["DebriefPending"].Value = debriefPending ? "1" : "";
                         }
+
+                        //bool skipVisible = nbMissionParsed > 0;
+
+                        //_mainForm.dataGridViewCampaigns.Rows.Add(
+                        //    null,       // Clone (bouton)
+                        //    img,        // Image
+                        //    NameCamp,   // Name
+                        //    null,       // Folder
+                        //    VerCamp,    // Version
+                        //    NbMission,  // Missions
+                        //    type,       // Aircraft
+                        //    null,       // First
+                        //    skipVisible ? "⏭" : "",   // Skip (vide = invisible)
+                        //    null,       // Config
+                        //    null        // Delete
+                        //);
+
+                        //int rowIndex = _mainForm.dataGridViewCampaigns.Rows.Count - 1;
+
+                        //// Case à cocher disponible sur toutes les lignes, campagnes normales
+                        //// comprises (et pas seulement les lignes "problème").
+                        //_mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
+
+                        //// Aucune mission jouée : le bouton reste vide (pas d'icône) et non cliquable
+                        //_mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].ReadOnly = !skipVisible;
+
+                        //// Exemple : bouton Skip rouge si besoin (uniquement si visible)
+                        //if (skipVisible && colorSM == "red")
+                        //{
+                        //    _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
+                        //}
+
+                        //// Exemple : bouton First rouge
+                        //if (colorFM == "red")
+                        //{
+                        //    _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
+                        //}
+
+                    //}
                     }
                 }
 
@@ -1049,15 +1332,14 @@ namespace DCE_Manager
                 "",             // Version
                 "",             // Missions
                 "⚠ " + reason,  // Aircraft (utilisée ici comme colonne de statut)
-                null,           // First
-                "",             // Skip (masqué)
-                null,           // CampaignSetup
-                null            // Delete
+                null,           // QuickActions
+                null,           // Parameters
+                null            // CampaignSetup
             );
 
             int rowIndex = _mainForm.dataGridViewCampaigns.Rows.Count - 1;
-            _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].ReadOnly = true;
             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
+            _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["DebriefPending"].Value = "";
             _mainForm.dataGridViewCampaigns.Rows[rowIndex].DefaultCellStyle.ForeColor = Color.DarkRed;
         }
 
@@ -1188,7 +1470,7 @@ namespace DCE_Manager
 
             // On vide les autres colonnes bouton (Clone, Folder, First, Parameters,
             // CampaignSetup) et la case à cocher : sur cette ligne, seule la corbeille agit.
-            foreach (string colName in new[] { "Clone", "Folder", "First", "Skip", "Parameters", "CampaignSetup", "Select" })
+            foreach (string colName in new[] { "Clone", "Folder", "QuickActions", "Parameters", "CampaignSetup", "Select" })
             {
                 if (grid.Columns.Contains(colName))
                 {
@@ -1622,8 +1904,169 @@ namespace DCE_Manager
 
         }
 
-        
+        // Réparation manuelle d'une campagne "Dossier incomplet", déclenchée par un clic sur 🔧.
+        // Ne touche jamais aux fichiers propres à la campagne qu'on ne sait pas reconstruire
+        // (oob_air_init.lua, db_airbases.lua, targetlist_init.lua, camp_triggers_init.lua).
+        private async Task RepairCampaignAsync(string name)
+        {
+            Utils.FormUtils.LogRegister("Repair demandé par l'utilisateur pour la campagne '" + name + "'");
 
+            string campaignsRoot = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns";
+            string folderPath = Path.Combine(campaignsRoot, name);
+            string initFolderPath = Path.Combine(folderPath, "Init");
+
+            var report = new List<string>();
+
+            // camp_init.lua / conf_mod.lua : créés depuis la référence s'ils sont absents,
+            // sinon simplement recalés (voir CampInitUpdater / ConfModTemplateUpdater).
+            bool campInitExistedBefore = File.Exists(new CampInitUpdater().GetCampInitPath(name));
+            bool confModExistedBefore = File.Exists(new ConfModLoader().GetConfModPath(name));
+
+            ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
+            ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
+
+            report.Add(DescribeResult("camp_init.lua", campInitExistedBefore, campInitResult));
+            report.Add(DescribeResult("conf_mod.lua", confModExistedBefore, confModResult));
+
+            // path.bat : toujours régénéré si les chemins DCS sont configurés, absent ou pas.
+            string pathBatFile = Path.Combine(initFolderPath, "path.bat");
+            bool pathBatExistedBefore = File.Exists(pathBatFile);
+
+            if (ParamConf.PATH_DCS_Root != "" && ParamConf.PATH_SavedGames_DCS != "")
+            {
+                string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                               "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
+                               "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
+                               "set \"pathSavedGames=" + ParamConf.PATH_SavedGames_DCS + "\\\"\r\n" +
+                               "REM DCE ScriptMod version not any / or \\ and no space before and after = \r\n" +
+                               "set \"versionPackageICM=" + TestFile.ScriptsMod + "\"\r\n" +
+                               "\r\n" +
+                               "\r\n" +
+                               "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
+
+                Directory.CreateDirectory(initFolderPath); // au cas où même le dossier Init aurait disparu
+                File.WriteAllText(pathBatFile, textPathBat);
+                report.Add("path.bat: " + (pathBatExistedBefore ? "regenerated" : "created"));
+            }
+            else
+            {
+                report.Add("path.bat: not regenerated (DCS / Saved Games paths not configured in Options)");
+            }
+
+            // .cmp : la convention de nommage est fixe (nameCamp_first.miz / nameCamp_ongoing.miz),
+            // donc on peut l'écrire même si les .miz manquent encore - requiredMissionFiles continue
+            // de les signaler séparément.
+            bool cmpExistedBefore = File.Exists(Path.Combine(campaignsRoot, name + ".cmp"));
+            CampaignRepair.TryRepairCmpFile(campaignsRoot, name);
+            report.Add(".cmp: " + (cmpExistedBefore ? "already present" : "created (references " + name + "_first.miz / " + name + "_ongoing.miz)"));
+
+            // .png : jamais bloquant, juste un visuel de secours.
+            bool pngExistedBefore = File.Exists(Path.Combine(campaignsRoot, name + ".png"));
+            CampaignRepair.TryRepairPictureFile(campaignsRoot, name);
+            report.Add(".png: " + (pngExistedBefore ? "already present" : "placeholder image created"));
+
+            if (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing)
+            {
+                report.Add("");
+                report.Add("⚠ UTIL_REF_conf_mod.lua and/or UTIL_REF_camp_init.lua could not be found in ScriptsMod - please update ScriptsMod.");
+            }
+
+            // .miz manquants : on ne les régénère QUE si base_mission.miz existe (c'est le vrai
+            // template, voir discussion précédente). Approche simple, choisie par Miguel : on
+            // vide Active/ (First Mission n'en a pas besoin pour tourner, mais il la repeuple
+            // lui-même - nécessaire ensuite pour que Skip Mission puisse générer _ongoing.miz),
+            // puis on enchaîne First Mission et Skip Mission. Confirmation obligatoire : vider
+            // Active/ efface toute progression déjà présente.
+            bool hasBaseMission = File.Exists(Path.Combine(initFolderPath, "base_mission.miz"));
+            bool firstMizMissing = !File.Exists(Path.Combine(campaignsRoot, name + "_first.miz"));
+            bool ongoingMizMissing = !File.Exists(Path.Combine(campaignsRoot, name + "_ongoing.miz"));
+
+            report.Add("");
+            report.Add("base_mission.miz: " + (hasBaseMission ? "found" : "not found"));
+
+            if ((firstMizMissing || ongoingMizMissing) && hasBaseMission)
+            {
+                var confirm = MessageBox.Show(
+                    "The mission files for '" + name + "' are missing, but the base mission template (base_mission.miz) is present.\n\n" +
+                    "DCE_Manager can generate them now by clearing the Active folder and running First Mission, then Skip Mission.\n\n" +
+                    "WARNING: this will erase any saved progress currently in the Active folder for this campaign.\n\n" +
+                    "Generate the missing missions now?",
+                    "Generate missing missions — " + name,
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Warning);
+
+                if (confirm == DialogResult.Yes)
+                {
+                    string activeFolderPath = Path.Combine(folderPath, "Active");
+
+                    if (Directory.Exists(activeFolderPath))
+                    {
+                        foreach (string file in Directory.GetFiles(activeFolderPath, "*", SearchOption.AllDirectories))
+                        {
+                            try { File.Delete(file); }
+                            catch (IOException) { /* fichier verrouillé, tant pis, on continue */ }
+                        }
+                    }
+
+                    report.Add("Active folder cleared.");
+                    report.Add("Generating missions from base_mission.miz...");
+
+                    await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
+                    await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
+                }
+            }
+
+            _alreadyUpdated.Add(name); // évite de refaire ce travail juste après, au premier clic normal
+
+            await LoadCampaignsAsync(selectCampaignName: name); // recharge la grid ET se repositionne dessus
+
+            // Ce qui reste manquant après coup - fichiers propres à la campagne qu'on ne sait
+            // jamais régénérer, ou .miz que tu as refusé de générer.
+            var stillMissing = RequiredInitFiles.Where(f => !File.Exists(Path.Combine(initFolderPath, f))).ToList();
+
+            string[] requiredMissionFiles = { name + "_first.miz", name + "_ongoing.miz", name + ".cmp" };
+            stillMissing.AddRange(requiredMissionFiles.Where(f => !File.Exists(Path.Combine(campaignsRoot, f))));
+
+            if (stillMissing.Count > 0)
+            {
+                report.Add("");
+                report.Add("⚠ Still missing, cannot be repaired automatically: " + string.Join(", ", stillMissing));
+            }
+
+            MessageBox.Show(
+                string.Join("\r\n", report),
+                (stillMissing.Count > 0 ? "Partial repair — " : "Repair complete — ") + name,
+                MessageBoxButtons.OK,
+                stillMissing.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+        }
+
+        private static string DescribeResult(string fileLabel, bool existedBefore, ConfUpdateResult result)
+        {
+            if (result == ConfUpdateResult.ReferenceMissing)
+                return fileLabel + ": not regenerated (reference file missing in ScriptsMod)";
+
+            if (result == ConfUpdateResult.MergeAborted)
+                return fileLabel + ": merge failed, local file left unchanged";
+
+            return fileLabel + ": " + (existedBefore ? "checked / updated if needed" : "created from reference template");
+        }
+
+        // Sélectionne et fait défiler la grid jusqu'à la ligne de cette campagne, après un
+        // rechargement complet (LoadCampaignsAsync vide et reconstruit toutes les lignes).
+        private void SelectAndScrollToCampaignRow(string name)
+        {
+            foreach (DataGridViewRow row in _mainForm.dataGridViewCampaigns.Rows)
+            {
+                if (name.Equals(row.Cells["Name"].Value?.ToString(), StringComparison.OrdinalIgnoreCase))
+                {
+                    _mainForm.dataGridViewCampaigns.ClearSelection();
+                    row.Selected = true;
+                    _mainForm.dataGridViewCampaigns.CurrentCell = row.Cells["Name"];
+                    _mainForm.dataGridViewCampaigns.FirstDisplayedScrollingRowIndex = Math.Max(0, row.Index - 2);
+                    break;
+                }
+            }
+        }
 
 
     }

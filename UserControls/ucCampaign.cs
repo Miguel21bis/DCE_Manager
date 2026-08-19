@@ -26,17 +26,17 @@ namespace DCE_Manager.UserControls
             // CheckedChanged part sur les DEUX radios à chaque changement :
             // celui qui se décoche ET celui qui se coche. Sans le filtre ci-dessous,
             // Main_Form recevait donc systématiquement deux appels au lieu d'un.
-            radioButton_OOB_INIT.CheckedChanged += (s, e) =>
+            radioButton_INIT_CAMP.CheckedChanged += (s, e) =>
             {
-                if (!radioButton_OOB_INIT.Checked)
+                if (!radioButton_INIT_CAMP.Checked)
                     return;
 
                 Main_Form.Instance?.radioButton_OOB_INIT_CheckedChanged(s, e);
             };
 
-            radioButton_OOB_ACTIVE.CheckedChanged += (s, e) =>
+            radioButton_ACTIVE_CAMP.CheckedChanged += (s, e) =>
             {
-                if (!radioButton_OOB_ACTIVE.Checked)
+                if (!radioButton_ACTIVE_CAMP.Checked)
                     return;
 
                 Main_Form.Instance?.radioButton_OOB_ACTIVE_CheckedChanged(s, e);
@@ -52,12 +52,12 @@ namespace DCE_Manager.UserControls
         //les RadioButtons
         public bool IsOobInit
         {
-            get { return radioButton_OOB_INIT.Checked; }
+            get { return radioButton_INIT_CAMP.Checked; }
         }
 
         public bool IsOobActive
         {
-            get { return radioButton_OOB_ACTIVE.Checked; }
+            get { return radioButton_ACTIVE_CAMP.Checked; }
         }
 
 
@@ -69,9 +69,9 @@ namespace DCE_Manager.UserControls
         public void SetOobMode(bool init)
         {
             if (init)
-                radioButton_OOB_INIT.Checked = true;
+                radioButton_INIT_CAMP.Checked = true;
             else
-                radioButton_OOB_ACTIVE.Checked = true;
+                radioButton_ACTIVE_CAMP.Checked = true;
         }
 
         // Conservées pour ne pas casser les appels existants.
@@ -119,7 +119,9 @@ namespace DCE_Manager.UserControls
             get
             {
                 return CampaignTab.SelectedTab == tabPage14 ||
-                       CampaignTab.SelectedTab == tabPage15;
+                       CampaignTab.SelectedTab == tabPage15 ||
+                       CampaignTab.SelectedTab == tabPageTargetsBlue ||
+                       CampaignTab.SelectedTab == tabPageTargetsRed;
             }
         }
 

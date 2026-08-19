@@ -1042,8 +1042,8 @@ namespace DCE_Manager
 
                 Main_Form.Instance.CampaignView.buttonSaveChgtCampaign.Visible = false;
                 Main_Form.Instance.CampaignView.buttonResetBackup.Visible = false;
-                Main_Form.Instance.CampaignView.radioButton_OOB_INIT.Visible = false;
-                Main_Form.Instance.CampaignView.radioButton_OOB_ACTIVE.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_INIT_CAMP.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_ACTIVE_CAMP.Visible = false;
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

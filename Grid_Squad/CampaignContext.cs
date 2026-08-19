@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using DCE_Manager.Parameters;
 
 namespace DCE_Manager
@@ -11,11 +11,14 @@ namespace DCE_Manager
 
         public Dictionary<string, AirbaseInfo> Airbases { get; set; }
 
+        public List<TargetAssetInfo> Targets { get; set; }
+
         public Campaign_Edit_Grid_Right CampaignEditRef { get; set; }
 
         public CampaignContext()
         {
             Airbases = new Dictionary<string, AirbaseInfo>();
+            Targets = new List<TargetAssetInfo>();
         }
     }
 }
