@@ -33,6 +33,12 @@ namespace DCE_Manager
         // un fichier orphelin seul n'a pas de "campagne" à réparer derrière.
         private readonly HashSet<string> _repairableIncompleteNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // État déplié/replié des campagnes maîtres (colonne Family). En mémoire
+        // uniquement : remis à zéro à chaque relance de l'appli, pas persisté.
+        private readonly HashSet<string> _expandedMasters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        private int _lastFamilyMouseX = -1;
+
         // Liste centralisée pour éviter la divergence entre le test de complétude (LoadCampaignsAsync)
         // et le calcul "encore manquant après réparation" (RepairCampaignAsync).
         private static readonly string[] RequiredInitFiles =
@@ -168,6 +174,21 @@ namespace DCE_Manager
                 Visible = false
             });
 
+            // ===== COLONNE FAMILLE (maître/fille) =====
+            // Ajoutée en DERNIER exprès : Rows.Add(...) plus bas matche les valeurs par
+            // ordre des colonnes (pas par DisplayIndex), donc l'ajouter ici ne décale
+            // aucun des appels positionnels existants. DisplayIndex la replace juste
+            // après "Clone" visuellement.
+            _mainForm.dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                Name = "Family",
+                HeaderText = "",
+                Width = 75,
+                ReadOnly = true,
+                DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
+            });
+            _mainForm.dataGridViewCampaigns.Columns["Family"].DisplayIndex = 1;
+
 
             // ===== STYLE BOUTONS =====
             foreach (DataGridViewColumn col in _mainForm.dataGridViewCampaigns.Columns)
@@ -242,6 +263,11 @@ namespace DCE_Manager
             _mainForm.dataGridViewCampaigns.CellMouseClick += GridCampaigns_QuickActions_CellMouseClickAsync;
             _mainForm.dataGridViewCampaigns.CellMouseMove += GridCampaigns_QuickActions_CellMouseMove;
             _mainForm.dataGridViewCampaigns.CellMouseLeave += GridCampaigns_QuickActions_CellMouseLeave;
+
+            _mainForm.dataGridViewCampaigns.CellPainting += GridCampaigns_Family_CellPainting;
+            _mainForm.dataGridViewCampaigns.CellMouseClick += GridCampaigns_Family_CellMouseClickAsync;
+            _mainForm.dataGridViewCampaigns.CellMouseMove += GridCampaigns_Family_CellMouseMove;
+            _mainForm.dataGridViewCampaigns.CellMouseLeave += GridCampaigns_Family_CellMouseLeave;
 
             _mainForm.dataGridViewCampaigns.ShowCellToolTips = true; // true par défaut, explicite pour être sûr
             _mainForm.dataGridViewCampaigns.CellToolTipTextNeeded += GridCampaigns_QuickActions_CellToolTipTextNeeded;
@@ -484,6 +510,160 @@ namespace DCE_Manager
             {
                 _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
                 _lastQuickActionsMouseX = -1;
+            }
+        }
+
+        // Détermine le rôle d'une campagne dans la hiérarchie (maître / fille / seule),
+        // recalculé à la volée à chaque peinture/clic - pas de cache ici, CampaignHierarchy
+        // fait déjà le sien en interne.
+        private void GetFamilyRole(string name, out bool isMaster, out bool isChild, out bool expanded)
+        {
+            isChild = CampaignHierarchy.IsChild(name);
+            isMaster = !isChild && CampaignHierarchy.IsMaster(name); // une fille n'est jamais aussi maître (2 niveaux max)
+            expanded = isMaster && _expandedMasters.Contains(name);
+        }
+
+        // Ordonne les noms de dossiers pour l'affichage : les maîtres (et campagnes
+        // seules) gardent un ordre alphabétique global, mais chaque maître est
+        // TOUJOURS immédiatement suivi de ses filles (triées entre elles) - visibles
+        // ou pas, la boucle décidera ensuite ligne par ligne (voir "isHiddenChild").
+        // Un simple tri alphabétique global ne suffit pas : il ne regroupe pas les
+        // familles dont le nom commun est à la FIN de la chaîne (ex: "Falcon over PG"
+        // / "Tomcat over PG"), et éparpille les filles n'importe où une fois dépliées.
+        private List<string> OrderCampaignFoldersForDisplay(IEnumerable<string> allNames)
+        {
+            List<string> allNamesList = allNames.ToList();
+            HashSet<string> nameSet = new HashSet<string>(allNamesList, StringComparer.OrdinalIgnoreCase);
+
+            List<string> topLevel = allNamesList
+                .Where(n => !CampaignHierarchy.IsChild(n) || !nameSet.Contains(CampaignHierarchy.ResolveMaster(n)))
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            List<string> result = new List<string>();
+
+            foreach (string name in topLevel)
+            {
+                result.Add(name);
+
+                IEnumerable<string> children = CampaignHierarchy.GetChildren(name)
+                    .Where(c => nameSet.Contains(c))
+                    .OrderBy(c => c, StringComparer.OrdinalIgnoreCase);
+
+                result.AddRange(children);
+            }
+
+            return result;
+        }
+
+        // Colonne Family : 2 zones, moitié/moitié.
+        // - Gauche : ▸/▾ + ★ sur un maître (bascule déplié/replié). ↳ grisé sur une fille
+        //   (juste indicatif, pas cliquable). Rien sur une campagne seule.
+        // - Droite : "⋯" toujours affiché (même sur une campagne seule) -> ouvre la popup
+        //   "Gérer la famille".
+        private void GridCampaigns_Family_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+                return;
+
+            e.PaintBackground(e.ClipBounds, true);
+            e.Handled = true;
+
+            var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return; // ligne "corbeille" ou "problème" : pas de gestion de famille dessus
+
+            bool isMaster, isChild, expanded;
+            GetFamilyRole(name, out isMaster, out isChild, out expanded);
+
+            int halfWidth = e.CellBounds.Width / 2;
+
+            using (var font = new Font("Segoe UI", 15, FontStyle.Bold))
+            using (var smallFont = new Font("Segoe UI", 13, FontStyle.Bold))
+            {
+                string leftIcon = isMaster ? (expanded ? "▾ ★" : "▸ ★") : (isChild ? "↳" : "");
+
+                if (!string.IsNullOrEmpty(leftIcon))
+                {
+                    var leftRect = new Rectangle(e.CellBounds.Left, e.CellBounds.Top, halfWidth, e.CellBounds.Height);
+                    TextRenderer.DrawText(e.Graphics, leftIcon, font, leftRect, isChild ? Color.Gray : Color.Black,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+
+                var rightRect = new Rectangle(e.CellBounds.Left + halfWidth, e.CellBounds.Top, e.CellBounds.Width - halfWidth, e.CellBounds.Height);
+                TextRenderer.DrawText(e.Graphics, "⋯", smallFont, rightRect, Color.DimGray,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        // e.X est relatif à la cellule dans CellMouseClick (comme pour QuickActions).
+        private async void GridCampaigns_Family_CellMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || e.RowIndex < 0)
+                return;
+
+            if (_mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+                return;
+
+            var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return;
+
+            int halfWidth = _mainForm.dataGridViewCampaigns.Columns["Family"].Width / 2;
+
+            bool isMaster, isChild, expanded;
+            GetFamilyRole(name, out isMaster, out isChild, out expanded);
+
+            if (e.X < halfWidth)
+            {
+                // Zone gauche : bascule déplié/replié, seulement si c'est un maître.
+                if (!isMaster)
+                    return;
+
+                if (expanded)
+                    _expandedMasters.Remove(name);
+                else
+                    _expandedMasters.Add(name);
+
+                await LoadCampaignsAsync(selectCampaignName: name);
+            }
+            else
+            {
+                // Zone droite : ouvre la popup de gestion, pour tout le monde (maître,
+                // fille ou campagne seule - elle peut y être rattachée à une autre).
+                using (var form = new ManageFamily_Form(name))
+                {
+                    form.ShowDialog(_mainForm);
+                }
+
+                await LoadCampaignsAsync(selectCampaignName: name);
+            }
+        }
+
+        private void GridCampaigns_Family_CellMouseMove(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+            {
+                if (_lastFamilyMouseX >= 0)
+                    _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
+                _lastFamilyMouseX = -1;
+                return;
+            }
+
+            _lastFamilyMouseX = e.X;
+            _mainForm.dataGridViewCampaigns.Cursor = Cursors.Hand;
+        }
+
+        private void GridCampaigns_Family_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.ColumnIndex >= 0 && _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name == "Family")
+            {
+                _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
+                _lastFamilyMouseX = -1;
             }
         }
 
@@ -731,6 +911,14 @@ namespace DCE_Manager
                 Campaign_CLONE_ClickOneEvent(null, null, basePath, name);
                 return;
             }
+            else if (columnName == "Family")
+            {
+                // Géré entièrement par GridCampaigns_Family_CellMouseClickAsync (CellMouseClick).
+                // Sans ce return, le code plus bas ouvrirait quand même le panneau de droite
+                // (CampaignEdit1) à chaque clic sur ★/+/⋯ — tout le calcul Lua qui va avec,
+                // pour rien.
+                return;
+            }
             // Si on clique sur la colonne "Folder"
             // Ouvre le dossier de la campagne dans l'explorateur Windows
             else if (columnName == "Folder")
@@ -821,6 +1009,12 @@ namespace DCE_Manager
 
             bool folderCampExists = System.IO.Directory.Exists(campaignsRoot);
 
+            // Classement auto maître/fille (1ère passe seulement, voir CampaignHierarchy) :
+            // doit tourner AVANT la boucle, puisqu'elle a besoin de savoir qui est fille de
+            // qui pour décider quelles lignes masquer.
+            if (folderCampExists)
+                CampaignHierarchy.ClassifyUnknown(Directory.GetDirectories(campaignsRoot).Select(Path.GetFileName));
+
             // Contenu identique pour toutes les campagnes (dépend seulement de ParamConf) :
             // calculé UNE FOIS ici, plutôt qu'à chaque itération de la boucle.
             string textPathBatGlobal = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
@@ -837,10 +1031,11 @@ namespace DCE_Manager
 
             if (folderCampExists)          
             {
-                foreach (string subFolder in Directory.GetDirectories(campaignsRoot))
+                var orderedNames = OrderCampaignFoldersForDisplay(Directory.GetDirectories(campaignsRoot).Select(Path.GetFileName));
+
+                foreach (string NameCamp in orderedNames)
                 {
-                    string[] NameCampTab = subFolder.Split('\\');
-                    string NameCamp = NameCampTab[NameCampTab.Count() - 1];
+                    string subFolder = Path.Combine(campaignsRoot, NameCamp);
 
                     bool folderLocExists = System.IO.Directory.Exists(subFolder);
 
@@ -1143,6 +1338,15 @@ namespace DCE_Manager
                                     Folder = subFolder
                                 });
 
+                            // Fille dont le maître n'est pas déplié : elle compte quand même
+                            // dans nbCampaign (déjà fait plus haut) et dans campaignUpdateList
+                            // (mise à jour possible même masquée), mais pas de ligne dans la grid.
+                            bool isHiddenChild = CampaignHierarchy.IsChild(NameCamp) &&
+                                !_expandedMasters.Contains(CampaignHierarchy.ResolveMaster(NameCamp));
+
+                            if (isHiddenChild)
+                                continue;
+
                             // Le bouton Skip ne doit être visible que si au moins une mission a été jouée
                             int nbMissionParsed;
                             int.TryParse(NbMission, out nbMissionParsed);
@@ -1414,6 +1618,8 @@ namespace DCE_Manager
                     FormUtils.LogRegister($"Suppression de '{folderPath}' : le dossier n'a pas pu être retiré ({exDir.Message}).");
                 }
             }
+
+            CampaignHierarchy.OnCampaignDeleted(name);
 
             return outcome;
         }

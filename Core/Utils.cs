@@ -154,9 +154,26 @@ namespace DCE_Manager.Utils
             return nbErreurs == 0;
         }
 
+        //public static void ShowErrorMessage(string message, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
+        //{
+        //    MessageBox.Show($"Line error {lineNumber}: {message}", "Erreur");
+        //}
+
         public static void ShowErrorMessage(string message, [System.Runtime.CompilerServices.CallerLineNumber] int lineNumber = 0)
         {
             MessageBox.Show($"Line error {lineNumber}: {message}", "Erreur");
+        }
+
+        // Confirmation pour une action IRRÉVERSIBLE (écrase un fichier, perd des
+        // données déjà saisies). Icône rouge "Stop", volontairement plus alarmante
+        // que le triangle jaune habituel de MessageBoxIcon.Warning - à réserver aux
+        // actions dont on ne peut pas revenir. Bouton par défaut : "No".
+        public static bool ShowDangerConfirm(IWin32Window owner, string message, string title)
+        {
+            DialogResult result = MessageBox.Show(owner, message, title,
+                MessageBoxButtons.YesNo, MessageBoxIcon.Error, MessageBoxDefaultButton.Button2);
+
+            return result == DialogResult.Yes;
         }
 
         public static void CommonFunction()

@@ -208,6 +208,10 @@
     <Compile Include="Core\ErrorDialogForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Grid_Campaign\CampaignHierarchy.cs" />
+    <Compile Include="Grid_Campaign\ManageFamily_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Parser\Parser_BugList.cs" />
     <Compile Include="Core\UserLevel.cs" />
     <Compile Include="Grid_Campaign\CampaignRepair.cs" />
@@ -280,6 +284,42 @@
     <Compile Include="UserControls\ucHome.Designer.cs">
       <DependentUpon>ucHome.cs</DependentUpon>
     </Compile>
+    <Compile Include="Wargame\Parser_WargameSpawnAreas.cs" />
+    <Compile Include="Wargame\Parser_WargameTemplate.cs" />
+    <Compile Include="Wargame\Parser_WargameTemplateLayout.cs" />
+    <Compile Include="Wargame\Parser_WargameZones.cs" />
+    <Compile Include="Wargame\Saver_WargameZoneActive.cs" />
+    <Compile Include="Wargame\Saver_WargameZoneInit.cs" />
+    <Compile Include="Wargame\ucWargameMapView.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Wargame\ucWargameZoneEditPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Wargame\WargameCalibration_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Wargame\WargameCampaignInfo.cs" />
+    <Compile Include="Wargame\WargameDrawingReader.cs" />
+    <Compile Include="Wargame\WargameEditor_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Wargame\WargameGeometryCleaner.cs" />
+    <Compile Include="Wargame\WargameHelp_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Wargame\WargameMapCalibration.cs" />
+    <Compile Include="Wargame\WargameNeighborDetector.cs" />
+    <Compile Include="Wargame\WargameSpawnArea.cs" />
+    <Compile Include="Wargame\WargameSpawnSolver.cs" />
+    <Compile Include="Wargame\WargameTemplateCatalog.cs" />
+    <Compile Include="Wargame\WargameTemplateCatalog_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Wargame\WargameZoneActiveLoader.cs" />
+    <Compile Include="Wargame\WargameZoneData.cs" />
+    <Compile Include="Wargame\WargameZoneInitLoader.cs" />
+    <Compile Include="Wargame\WargameZoneRepository.cs" />
     <Content Include="Data\About\changelog_dcemanager.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

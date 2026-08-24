@@ -1297,6 +1297,8 @@ namespace DCE_Manager
                     // fraîchement clonée (plus besoin de la rechercher dans la liste).
                     await _form1.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: NewdNameCamp);
 
+                    CampaignHierarchy.OnCampaignCloned(OldNameCamp, NewdNameCamp);
+
                     this.Close();
                 }              
             }

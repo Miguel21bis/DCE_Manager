@@ -140,5 +140,39 @@ namespace DCE_Manager.UserControls
         {
             Main_Form.Instance.CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
         }
+
+        private void but_MakeWarZone_Click(object sender, EventArgs e)
+        {
+            string campaignName = ParamCampaignSelected.NameCampaign;
+
+            if (string.IsNullOrEmpty(campaignName))
+            {
+                MessageBox.Show("No campaign selected.", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var zones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
+
+            MessageBox.Show(
+                zones.Count + " zone(s) loaded/generated for campaign '" + campaignName + "'.",
+                "Wargame",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
+
+        private void but_wargame_MAP_Click(object sender, EventArgs e)
+        {
+
+            string campaignName = ParamCampaignSelected.NameCampaign;
+
+            if (string.IsNullOrEmpty(campaignName))
+            {
+                MessageBox.Show("No campaign selected.", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            new WargameEditor_Form(campaignName).ShowDialog();
+
+        }
     }
 }
