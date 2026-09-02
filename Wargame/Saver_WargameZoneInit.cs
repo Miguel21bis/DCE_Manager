@@ -79,6 +79,14 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t\t\t[\"side\"] = \"" + Escape(f.Side) + "\",");
                 sb.AppendLine("\t\t\t\t[\"multiplier\"] = " + f.Multiplier + ",");
                 sb.AppendLine("\t\t\t\t[\"forcePower\"] = " + FormatNumber(f.ForcePower) + ",");
+                sb.AppendLine("\t\t\t\t[\"priority\"] = " + f.Priority + ",");
+                sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
+                sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");
+                sb.AppendLine("\t\t\t\t[\"firepowerMax\"] = " + FormatNumber(f.FirepowerMax) + ",");
+                sb.AppendLine("\t\t\t\t[\"priority\"] = " + f.Priority + ",");
+                sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
+                sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");
+                sb.AppendLine("\t\t\t\t[\"firepowerMax\"] = " + FormatNumber(f.FirepowerMax) + ",");
                 sb.AppendLine("\t\t\t},");
                 index++;
             }

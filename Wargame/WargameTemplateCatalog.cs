@@ -24,17 +24,40 @@ namespace DCE_Manager
 
         // Valeurs proposées à la création d'une entrée de catalogue, pour éviter
         // au campaignMaker de partir de zéro.
-        public static void GetDefaults(string type, out double power, out double attack, out double defense, out double supplyCost)
+        public static void GetDefaults(string type, out double power, out double attack, out double defense,
+            out double supplyCost, out int priority, out List<string> attributes,
+            out double firepowerMin, out double firepowerMax)
         {
             switch (type)
             {
-                case Armor: power = 20; attack = 3.0; defense = 2.5; supplyCost = 2.0; break;
-                case Mech: power = 15; attack = 2.2; defense = 2.0; supplyCost = 1.5; break;
-                case Infantry: power = 10; attack = 1.0; defense = 1.8; supplyCost = 0.8; break;
-                case Artillery: power = 12; attack = 3.5; defense = 0.8; supplyCost = 2.5; break;
-                case AirDefense: power = 8; attack = 0.5; defense = 1.2; supplyCost = 1.2; break;
-                case Logistics: power = 4; attack = 0.1; defense = 0.5; supplyCost = 0.5; break;
-                default: power = 10; attack = 1.0; defense = 1.0; supplyCost = 1.0; break;
+                case Armor:
+                    power = 20; attack = 3.0; defense = 2.5; supplyCost = 2.0;
+                    priority = 6; attributes = new List<string> { "Armor" }; firepowerMin = 2; firepowerMax = 4;
+                    break;
+                case Mech:
+                    power = 15; attack = 2.2; defense = 2.0; supplyCost = 1.5;
+                    priority = 6; attributes = new List<string> { "Armor" }; firepowerMin = 2; firepowerMax = 3;
+                    break;
+                case Infantry:
+                    power = 10; attack = 1.0; defense = 1.8; supplyCost = 0.8;
+                    priority = 4; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
+                case Artillery:
+                    power = 12; attack = 3.5; defense = 0.8; supplyCost = 2.5;
+                    priority = 7; attributes = new List<string> { "Armor" }; firepowerMin = 2; firepowerMax = 3;
+                    break;
+                case AirDefense:
+                    power = 8; attack = 0.5; defense = 1.2; supplyCost = 1.2;
+                    priority = 8; attributes = new List<string> { "Armor" }; firepowerMin = 2; firepowerMax = 4;
+                    break;
+                case Logistics:
+                    power = 4; attack = 0.1; defense = 0.5; supplyCost = 0.5;
+                    priority = 3; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
+                default:
+                    power = 10; attack = 1.0; defense = 1.0; supplyCost = 1.0;
+                    priority = 5; attributes = new List<string> { "Vehicles" }; firepowerMin = 2; firepowerMax = 2;
+                    break;
             }
         }
     }
@@ -64,6 +87,18 @@ namespace DCE_Manager
         // objets statiques (bâtiments, décor) qui ne valent pas forcément une
         // unité de combat, donc le campaignMaker doit pouvoir corriger.
         public int VehicleCount;
+
+        // Priorité que l'IA ennemie donne à ce target pour choisir quoi frapper.
+        public int Priority = 5;
+
+        // Attributs DCS qui autorisent/filtrent le loadout capable de détruire ce
+        // target (ex: "Armor", "soft", "Structure").
+        public List<string> Attributes = new List<string> { "Vehicles" };
+
+        // Nombre d'avions (et intensité de leur loadout) nécessaires pour traiter
+        // ce target.
+        public double FirepowerMin = 2;
+        public double FirepowerMax = 2;
 
         // Comptages bruts issus du .stm, pour information seulement (non éditables).
         public int DetectedDynamic;
@@ -161,8 +196,11 @@ namespace DCE_Manager
                 if (Find(kvp.Key) != null)
                     continue;
 
-                double power, attack, defense, supplyCost;
-                WargameUnitType.GetDefaults(WargameUnitType.Infantry, out power, out attack, out defense, out supplyCost);
+                double power, attack, defense, supplyCost, firepowerMin, firepowerMax;
+                int priority;
+                List<string> attributes;
+                WargameUnitType.GetDefaults(WargameUnitType.Infantry, out power, out attack, out defense, out supplyCost,
+                    out priority, out attributes, out firepowerMin, out firepowerMax);
 
                 var newEntry = new WargameTemplateEntry
                 {
@@ -174,6 +212,10 @@ namespace DCE_Manager
                     Defense = defense,
                     SupplyCost = supplyCost,
                     DefaultMultiplier = 1,
+                    Priority = priority,
+                    Attributes = attributes,
+                    FirepowerMin = firepowerMin,
+                    FirepowerMax = firepowerMax,
                 };
 
                 // Comptage initial des unités depuis le .stm

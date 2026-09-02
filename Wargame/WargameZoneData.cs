@@ -180,6 +180,46 @@ namespace DCE_Manager
         public int Multiplier = 1; // xN : le template posé en représente N
         public double ForcePower;  // force courante
 
+        // Surcharges optionnelles pour CETTE formation précise. null = utiliser la
+        // valeur du template dans le catalogue. Même principe que Multiplier/
+        // DefaultMultiplier : le catalogue donne le défaut, l'instance peut s'en
+        // écarter (ex: cette DCA-là est prioritaire car elle protège un point clé).
+        public int Priority;
+        public List<string> Attributes = new List<string> { "Vehicles" };
+        public double FirepowerMin;
+        public double FirepowerMax;
+
+
+        //public int? PriorityOverride;
+        //public List<string> AttributesOverride;
+        //public double? FirepowerMinOverride;
+        //public double? FirepowerMaxOverride;
+
+        //public int GetEffectivePriority(WargameTemplateCatalog catalog)
+        //{
+        //    if (PriorityOverride.HasValue) return PriorityOverride.Value;
+        //    return catalog?.Find(Template)?.Priority ?? 5;
+        //}
+
+        //public List<string> GetEffectiveAttributes(WargameTemplateCatalog catalog)
+        //{
+        //    if (AttributesOverride != null && AttributesOverride.Count > 0) return AttributesOverride;
+        //    return catalog?.Find(Template)?.Attributes ?? new List<string> { "Vehicles" };
+        //}
+
+        //public double GetEffectiveFirepowerMin(WargameTemplateCatalog catalog)
+        //{
+        //    if (FirepowerMinOverride.HasValue) return FirepowerMinOverride.Value;
+        //    return catalog?.Find(Template)?.FirepowerMin ?? 2;
+        //}
+
+        //public double GetEffectiveFirepowerMax(WargameTemplateCatalog catalog)
+        //{
+        //    if (FirepowerMaxOverride.HasValue) return FirepowerMaxOverride.Value;
+        //    return catalog?.Find(Template)?.FirepowerMax ?? 2;
+        //}
+
+
         public double GetNominalForcePower(WargameTemplateCatalog catalog)
         {
             double power = catalog?.GetPower(Template) ?? 10.0;

@@ -4,23 +4,14 @@ using System.Drawing;
 
 namespace DCE_Manager
 {
-    // Ce que le campaignMaker a le droit de faire dans un polygone donné.
-    // Volontairement séparé du tag : le tag dit ce qu'est la surface (une ville,
-    // un bois), la politique dit ce qu'on en fait. Le jour où le trigger de
-    // nettoyage des arbres est validé en jeu, seule la table Policy bouge.
     internal static class WargameSpawnPolicy
     {
-        public const string Free = "free";           // spawn autorisé n'importe où
-        public const string RoadOnly = "roadOnly";   // spawn autorisé seulement sur une ligne
-        public const string Forbidden = "forbidden"; // jamais, même sur une ligne (réservé à l'eau)
+        public const string Free = "free";
+        public const string RoadOnly = "roadOnly";   // gardé pour compatibilité, plus utilisé par le solveur
+        public const string Forbidden = "forbidden";
+        public const string Exception = "exception"; // purement informatif (rapport de test) - le solveur teste le tag directement
     }
 
-    // Nature d'un polygone, lue dans le nom de l'objet dessiné.
-    //
-    // Le tag n'est ni au début ni à la fin du nom : DCS suffixe les copies, donc
-    // "Polygon-town-7-13-2-5" est une copie de copie d'un polygone "town". On
-    // découpe le nom sur -, _ et espace, et on cherche un mot connu dans les
-    // morceaux. Le premier trouvé gagne.
     internal static class WargameSpawnTag
     {
         public const string Town = "town";
@@ -28,53 +19,69 @@ namespace DCE_Manager
         public const string Forest = "forest";
         public const string Mountain = "mountain";
         public const string Base = "base";
+        public const string Exception = "exception";
 
-        // Un polygone dessiné mais mal nommé ne doit pas silencieusement autoriser
-        // le spawn : on le rabat sur le cas le plus contraignant et le plus fréquent.
         public const string Default = Town;
 
-        // Fautes de frappe et synonymes tolérés, pour ne pas obliger à tout
-        // renommer dans l'éditeur DCS.
+        // Casse indifférente (StringComparer.OrdinalIgnoreCase) et pluriel accepté -
+        // pas de dérivation automatique (city -> cities est irrégulier), chaque forme
+        // est listée explicitement.
         internal static readonly Dictionary<string, string> Aliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "town",     Town },
-            { "village",  Town },
-            { "city",     City },
-            { "ville",    Town },
-            { "forest",   Forest },
-            { "foret",    Forest },
-            { "wood",     Forest },
-            { "mountain", Mountain },
-            { "montain",  Mountain },   // faute courante
-            { "montagne", Mountain },
-            { "base",     Base },
+            { "town",       Town },
+            { "towns",      Town },
+            { "village",    Town },
+            { "villages",   Town },
+            { "ville",      Town },
+            { "villes",     Town },
+
+            { "city",       City },
+            { "cities",     City },
+
+            { "forest",     Forest },
+            { "forests",    Forest },
+            { "foret",      Forest },
+            { "forets",     Forest },
+            { "wood",       Forest },
+            { "woods",      Forest },
+
+            { "mountain",   Mountain },
+            { "mountains",  Mountain },
+            { "montain",    Mountain },   // faute courante
+            { "montains",   Mountain },
+            { "montagne",   Mountain },
+            { "montagnes",  Mountain },
+
+            { "base",       Base },
+            { "bases",      Base },
+
+            // Polygone d'exception : autorise le spawn à l'intérieur d'une zone
+            // interdite (town/mountain/city/base) qu'il chevauche.
+            { "exception",  Exception },
+            { "exceptions", Exception },
+            { "spawn",      Exception },
+            { "spawns",     Exception },
         };
 
-        // Politique de spawn associée à chaque tag.
+        // town/city/mountain/base sont interdits de base (sauf route ou exception
+        // à l'intérieur). forest reste libre (mis de côté pour plus tard - un
+        // trigger de nettoyage arbres/bâtiments le rendra vraiment praticable).
         public static readonly Dictionary<string, string> Policy = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { Town,     WargameSpawnPolicy.RoadOnly },
-            { City,     WargameSpawnPolicy.RoadOnly },
-            { Mountain, WargameSpawnPolicy.Forbidden },
-            { Base,     WargameSpawnPolicy.RoadOnly },
-
-            // En forêt un véhicule peut être posé n'importe où À CONDITION qu'un
-            // trigger de nettoyage supprime arbres et bâtiments. Reste à valider
-            // en jeu : si le timing d'apparition rend ça impossible, repasser
-            // cette seule ligne en RoadOnly.
-            { Forest,   WargameSpawnPolicy.Free },
+            { Town,      WargameSpawnPolicy.Forbidden },
+            { City,      WargameSpawnPolicy.Forbidden },
+            { Mountain,  WargameSpawnPolicy.Forbidden },
+            { Base,      WargameSpawnPolicy.Forbidden },
+            { Forest,    WargameSpawnPolicy.Free },
+            { Exception, WargameSpawnPolicy.Exception },
         };
 
-        // Extrait le tag du nom de l'objet dessiné. Retourne Default si rien
-        // de connu n'est trouvé (le parser logue le cas).
         public static string FromObjectName(string objectName)
         {
             if (string.IsNullOrWhiteSpace(objectName))
                 return Default;
 
-            string[] parts = objectName.Split('-', '_', ' ');
-
-            foreach (string part in parts)
+            foreach (string part in objectName.Split('-', '_', ' '))
             {
                 if (Aliases.TryGetValue(part, out string tag))
                     return tag;
@@ -83,8 +90,6 @@ namespace DCE_Manager
             return Default;
         }
 
-        // Distingue "tag town explicite" de "aucun tag trouvé, rabattu sur town",
-        // pour ne loguer que le second cas.
         public static bool HasKnownTag(string objectName)
         {
             if (string.IsNullOrWhiteSpace(objectName))
@@ -104,7 +109,7 @@ namespace DCE_Manager
             if (!string.IsNullOrEmpty(tag) && Policy.TryGetValue(tag, out string policy))
                 return policy;
 
-            return WargameSpawnPolicy.RoadOnly;
+            return WargameSpawnPolicy.Forbidden;
         }
     }
 
@@ -227,5 +232,24 @@ namespace DCE_Manager
 
             return null;
         }
+
+        // Contrairement à FindPolygonAt (le premier trouvé), renvoie TOUS les
+        // polygones qui contiennent ce point - indispensable maintenant qu'un
+        // point peut être à la fois dans un polygone interdit ET dans un
+        // polygone exception qui le chevauche.
+        public List<WargameSpawnPolygon> FindAllPolygonsAt(PointF dcsPoint)
+        {
+            var result = new List<WargameSpawnPolygon>();
+
+            foreach (WargameSpawnPolygon poly in Polygons)
+            {
+                if (poly.Contains(dcsPoint))
+                    result.Add(poly);
+            }
+
+            return result;
+        }
+
+
     }
 }

@@ -174,34 +174,43 @@ namespace DCE_Manager
             return Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns", campaignName);
         }
 
+        // Fichiers déposés par le campaignMaker : directement sous Init/Wargame/.
         internal static string GetMizPath(string campaignName)
         {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_zone.miz");
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "wargame_zone.miz");
         }
 
         internal static string GetSpawnMizPath(string campaignName)
         {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_spawn.miz");
-        }
-
-        internal static string GetInitLuaPath(string campaignName)
-        {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_zones_init.lua");
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "wargame_spawn.miz");
         }
 
         internal static string GetMapImagePath(string campaignName)
         {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_map.jpg");
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "wargame_map.jpg");
+        }
+
+        // Fichiers générés par DCE_Manager : sous Init/Wargame/DCE_Generated/.
+        internal static string GetInitLuaPath(string campaignName)
+        {
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "DCE_Generated", "wargame_zones_init.lua");
         }
 
         internal static string GetCalibrationPath(string campaignName)
         {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_map_calib.json");
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "DCE_Generated", "wargame_map_calib.json");
         }
 
         internal static string GetTemplateCatalogPath(string campaignName)
         {
-            return Path.Combine(GetCampaignFolder(campaignName), "Init", "wargame", "wargame_templates.lua");
+            return Path.Combine(GetCampaignFolder(campaignName), "Init", "Wargame", "DCE_Generated", "wargame_templates.lua");
+        }
+
+        // Etat courant en cours de campagne (control, formations, etc). Voir
+        // Saver_WargameZoneActive / WargameZoneActiveLoader.
+        internal static string GetActiveWargameZonesPath(string campaignName)
+        {
+            return Path.Combine(GetCampaignFolder(campaignName), "Active", "wargame_zones.lua");
         }
     }
 }

@@ -2244,7 +2244,11 @@ namespace DCE_Manager
             ClearQuickOptionsPanel();
             SetStageCaption("Choose a target");
 
-            var panel = new Panel() { Width = 820, Height = 170 };
+            var panel = new Panel()
+            {
+                Width = Math.Max(300, panelQuickOptions.ClientSize.Width - 25),
+                Height = Math.Max(300, panelQuickOptions.ClientSize.Height - 12),
+            };
 
             _txtTargetFilter = new TextBox() { Dock = DockStyle.Top, Height = 24 };
             _txtTargetFilter.TextChanged += (s, e) => FilterTargetList();
@@ -2255,9 +2259,9 @@ namespace DCE_Manager
             _lstTargets = new ListBox() { Dock = DockStyle.Fill, Font = new Font(Font.FontFamily, 9.5F) };
             _lstTargets.DoubleClick += (s, e) => SendSelectedTarget();
 
+            panel.Controls.Add(_lstTargets);
             panel.Controls.Add(_txtTargetFilter);
             panel.Controls.Add(btnSendTarget);
-            panel.Controls.Add(_lstTargets);
 
             panelQuickOptions.Controls.Add(panel);
 

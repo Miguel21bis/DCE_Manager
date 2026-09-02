@@ -72,14 +72,13 @@ namespace DCE_Manager
                         LuaTable countries = coalition?["country"] as LuaTable;
                         if (countries == null) continue;
 
-                        int countryIndex = 1;
-                        while (true)
+                        // Même piège que côté disposition : l'index de pays n'est pas
+                        // forcément séquentiel à partir de 1.
+                        foreach (object countryKey in countries.Keys)
                         {
-                            LuaTable country = countries[countryIndex] as LuaTable;
-                            if (country == null) break;
-
-                            CountCountry(country, result);
-                            countryIndex++;
+                            LuaTable country = countries[countryKey] as LuaTable;
+                            if (country != null)
+                                CountCountry(country, result);
                         }
                     }
                 }

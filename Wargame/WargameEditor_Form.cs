@@ -12,14 +12,17 @@ namespace DCE_Manager
     // Form principale d'édition du wargame pour une campagne : carte en fond +
     // zones cliquables (ucWargameMapView) + panneau d'édition (ucWargameZoneEditPanel).
     //
-    // Deux modes de sélection sur la carte (voir ucWargameMapView) :
-    //  - clic simple : panneau d'édition complet pour cette seule zone
-    //  - Ctrl+clic (plusieurs zones) : panneau réduit "assigner ce camp aux N zones",
-    //    pour ne pas avoir à changer le camp zone par zone
+    // Deux radios en haut, Init / Active : basculent quelle version de l'état
+    // wargame est affichée et modifiée. Le campaignMaker doit pouvoir revenir sur
+    // l'Init pour l'affiner même après avoir commencé à jouer la campagne - rien
+    // n'est deviné automatiquement à sa place.
     //
-    // Si la campagne n'a pas encore de calibration, les zones sont chargées mais
-    // ne peuvent pas être positionnées sur l'image (ucWargameMapView affiche
-    // "Map not calibrated yet") - le bouton "Calibrate map..." ouvre l'outil dédié.
+    //   Init     wargame_zones_init.lua + Init/targetlist_init.lua
+    //   Active   Active/wargame_zones.lua + Active/targetlist.lua
+    //
+    // Changer de radio recharge l'affichage depuis la source correspondante (avec
+    // confirmation si des modifications non enregistrées seraient perdues). Save
+    // écrit toujours dans la paire de fichiers du mode actuellement affiché.
     internal class WargameEditor_Form : Form
     {
         private readonly string _campaignName;
@@ -28,6 +31,7 @@ namespace DCE_Manager
         private readonly string _calibJsonPath;
 
         private List<WargameZoneData> _zones;
+        private List<WargameObjective> _objectives = new List<WargameObjective>();
         private WargameMapCalibration _calibration;
         private WargameCampaignInfo _campaignInfo;
         private WargameTemplateCatalog _templateCatalog;
@@ -35,17 +39,30 @@ namespace DCE_Manager
         // Zone affichée dans le panneau détaillé (uniquement en sélection simple).
         private WargameZoneData _currentZone;
 
+        private WargameObjective _selectedObjective;
+        private Panel _objectiveEditPanel;
+        private NumericUpDown _numObjPriority;
+        private TextBox _txtObjAttributes;
+        private NumericUpDown _numObjFirepowerMin;
+        private NumericUpDown _numObjFirepowerMax;
+
         // Passe à true dès qu'une valeur de zone est modifiée, repasse à false au Save.
-        // Ne couvre PAS le catalogue de templates, qui a sa propre Form et son propre Save.
         private bool _dirty;
         private Image _mapImage;
+
+        // false = Init, true = Active. Piloté par les radios, jamais deviné.
+        private bool _viewingActive;
+        private bool _suppressModeChange;
 
         private ucWargameMapView _mapView;
         private ucWargameZoneEditPanel _editPanel;
 
+        private RadioButton _radioInit;
+        private RadioButton _radioActive;
+        private Button _buttonSave;
+
         // Panneau d'assignation groupée, visible seulement quand 2+ zones sont
-        // sélectionnées (Ctrl+clic sur la carte). Occupe le même espace que
-        // _editPanel, un seul des deux visible à la fois.
+        // sélectionnées (Ctrl+clic sur la carte).
         private Panel _bulkPanel;
         private Label _bulkLabel;
         private ComboBox _bulkComboControl;
@@ -64,10 +81,12 @@ namespace DCE_Manager
             StartPosition = FormStartPosition.CenterParent;
             WindowState = FormWindowState.Maximized;
 
-            LoadData();
+            LoadStaticData();
             BuildUi();
 
+            LoadZonesForCurrentMode();
             _mapView.LoadMap(_mapImage, _calibration, _zones);
+            _mapView.SetObjectives(_objectives);
 
             if (!_calibration.IsCalibrated)
             {
@@ -77,19 +96,42 @@ namespace DCE_Manager
             }
         }
 
-        private void LoadData()
+        // Ce qui ne dépend pas du mode Init/Active : calibration, catalogue, image
+        // de fond. Chargé une seule fois.
+        private void LoadStaticData()
         {
-            _zones = WargameZoneRepository.LoadOrGenerateInit(_campaignName);
             _calibration = WargameMapCalibration.Load(_calibJsonPath);
             _campaignInfo = WargameCampaignInfo.Load(_campaignName);
             _templateCatalog = WargameTemplateCatalog.LoadAndSync(_campaignName, _campaignInfo);
             _mapImage = File.Exists(_mapImagePath) ? Image.FromFile(_mapImagePath) : null;
         }
 
+        // Recharge _zones depuis Init, puis - si on est en mode Active - applique
+        // par-dessus l'état évolutif d'Active/wargame_zones.lua (control,
+        // formations, irregular). Si ce fichier n'existe pas encore, l'état Init
+        // sert de point de départ tel quel (comportement déjà géré par le loader).
+        private void LoadZonesForCurrentMode()
+        {
+            _zones = WargameZoneRepository.LoadOrGenerateInit(_campaignName);
+
+            if (_viewingActive)
+            {
+                string activePath = WargameZoneRepository.GetActiveWargameZonesPath(_campaignName);
+                new WargameZoneActiveLoader().ApplyActiveState(activePath, _zones);
+            }
+
+            string targetlistPath = _viewingActive
+            ? Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Active", "targetlist.lua")
+            : Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua");
+
+            _objectives = File.Exists(targetlistPath) ? new Parser_WargameObjectives().Load(targetlistPath) : new List<WargameObjective>();
+        }
+
         private void BuildUi()
         {
             _mapView = new ucWargameMapView { ReadOnly = false };
             _mapView.SelectionChanged += MapView_SelectionChanged;
+            _mapView.ObjectiveClicked += MapView_ObjectiveClicked;
 
             var mapPanel = new NoAutoScrollPanel { Dock = DockStyle.Fill, AutoScroll = true };
             mapPanel.Controls.Add(_mapView);
@@ -100,11 +142,10 @@ namespace DCE_Manager
 
             _bulkPanel = BuildBulkAssignPanel();
 
-            // Barre du bas, 2 lignes fixes :
-            //  - ligne du haut : les outils, qui peuvent se répartir sur 2 rangées
-            //    si la fenêtre est étroite (WrapContents).
-            //  - ligne du bas : Save seul, ancré à droite, jamais caché par le wrap
-            //    des autres boutons puisqu'il est dans un conteneur séparé.
+            _objectiveEditPanel = BuildObjectiveEditPanel();
+
+            var modeRow = BuildModeSelectorRow();
+
             var bottomPanel = new TableLayoutPanel
             {
                 Dock = DockStyle.Bottom,
@@ -137,11 +178,15 @@ namespace DCE_Manager
             var buttonSpawnSolverTest = new Button { Text = "Test spawn solver", Width = 140, Height = 30 };
             buttonSpawnSolverTest.Click += (s, e) => TestSpawnSolver();
 
+            var buttonTestObjectives = new Button { Text = "Test objectives", Width = 130, Height = 30 };
+            buttonTestObjectives.Click += (s, e) => TestObjectives();
+
             var buttonDetectNeighbors = new Button { Text = "Detect neighbors...", Width = 150, Height = 30 };
             buttonDetectNeighbors.Click += (s, e) => DetectNeighbors();
 
-            // Rouge et volontairement à part du reste : c'est la seule action de
-            // cette barre qui détruit du travail déjà fait sans possibilité de retour.
+            // Rouge et à part : la seule action qui détruit du travail déjà fait
+            // sans possibilité de retour. Force toujours le mode Init au passage
+            // (voir CreateWarzone) puisqu'elle régénère wargame_zones_init.lua.
             var buttonCreateWarzone = new Button
             {
                 Text = "Create Warzone",
@@ -159,23 +204,24 @@ namespace DCE_Manager
             secondaryButtons.Controls.Add(buttonTemplates);
             secondaryButtons.Controls.Add(buttonSpawnTest);
             secondaryButtons.Controls.Add(buttonSpawnSolverTest);
+            secondaryButtons.Controls.Add(buttonTestObjectives);
             secondaryButtons.Controls.Add(buttonDetectNeighbors);
             secondaryButtons.Controls.Add(buttonCreateWarzone);
 
             var saveRow = new Panel { Dock = DockStyle.Fill };
 
-            var buttonSave = new Button
+            _buttonSave = new Button
             {
-                Text = "Save",
-                Width = 100,
+                Width = 120,
                 Height = 30,
                 Anchor = AnchorStyles.Top | AnchorStyles.Right,
             };
-            buttonSave.Click += (s, e) => SaveZones(true);
-            buttonSave.Location = new Point(saveRow.Width - buttonSave.Width - 6, 4);
+            _buttonSave.Click += (s, e) => SaveZones(true);
+            UpdateSaveButtonLabel();
+            _buttonSave.Location = new Point(saveRow.Width - _buttonSave.Width - 6, 4);
 
-            saveRow.Controls.Add(buttonSave);
-            saveRow.Resize += (s, e) => buttonSave.Location = new Point(saveRow.Width - buttonSave.Width - 6, 4);
+            saveRow.Controls.Add(_buttonSave);
+            saveRow.Resize += (s, e) => _buttonSave.Location = new Point(saveRow.Width - _buttonSave.Width - 6, 4);
 
             bottomPanel.Controls.Add(secondaryButtons, 0, 0);
             bottomPanel.Controls.Add(saveRow, 0, 1);
@@ -183,6 +229,8 @@ namespace DCE_Manager
             var rightPanel = new Panel { Dock = DockStyle.Fill };
             rightPanel.Controls.Add(_editPanel);
             rightPanel.Controls.Add(_bulkPanel);
+            rightPanel.Controls.Add(_objectiveEditPanel);
+            rightPanel.Controls.Add(modeRow);
             rightPanel.Controls.Add(bottomPanel);
 
             var splitContainer = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel2 };
@@ -191,17 +239,72 @@ namespace DCE_Manager
 
             Controls.Add(splitContainer);
 
-            // SplitterDistance posé dans l'initialiseur ne tient pas : le contrôle n'a
-            // pas encore sa taille finale, et le SplitContainer réajuste ensuite la
-            // position proportionnellement. On le fixe donc au Load, taille connue.
             Load += (s, e) => splitContainer.SplitterDistance = Math.Max(100, splitContainer.Width - 500);
         }
 
-        // Panneau réduit affiché à la place de _editPanel dès que 2 zones ou plus
-        // sont sélectionnées (Ctrl+clic sur la carte) : assigner un camp à toutes
-        // en un coup, plutôt que de rouvrir le panneau complet zone par zone.
-        // Ne touche qu'au Control - les autres champs (formations, terrain...)
-        // n'ont pas de sens à assigner en masse de la même façon.
+        // Bandeau Init/Active tout en haut du panneau de droite - toujours visible,
+        // quel que soit l'état de sélection sur la carte.
+        private Panel BuildModeSelectorRow()
+        {
+            var panel = new Panel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 6, 10, 0) };
+
+            var label = new Label { Text = "Viewing:", Location = new Point(10, 6), AutoSize = true };
+
+            _radioInit = new RadioButton { Text = "Init", Location = new Point(75, 4), AutoSize = true, Checked = true };
+            _radioActive = new RadioButton { Text = "Active", Location = new Point(140, 4), AutoSize = true };
+
+            _radioInit.CheckedChanged += (s, e) => { if (_radioInit.Checked) TrySwitchMode(false); };
+            _radioActive.CheckedChanged += (s, e) => { if (_radioActive.Checked) TrySwitchMode(true); };
+
+            panel.Controls.Add(label);
+            panel.Controls.Add(_radioInit);
+            panel.Controls.Add(_radioActive);
+
+            return panel;
+        }
+
+        // toActive : le mode vers lequel on essaie de basculer. Si des changements
+        // non enregistrés seraient perdus, on demande confirmation et on revient en
+        // arrière sur les radios en cas de refus (_suppressModeChange évite de
+        // redéclencher TrySwitchMode pendant qu'on remet les radios en place).
+        private void TrySwitchMode(bool toActive)
+        {
+            if (_suppressModeChange) return;
+            if (toActive == _viewingActive) return;
+
+            if (_dirty)
+            {
+                DialogResult answer = MessageBox.Show(
+                    "You have unsaved changes in the current view. Switching will discard them.\n\nSwitch anyway?",
+                    "Wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                if (answer != DialogResult.Yes)
+                {
+                    _suppressModeChange = true;
+                    _radioInit.Checked = !_viewingActive;
+                    _radioActive.Checked = _viewingActive;
+                    _suppressModeChange = false;
+                    return;
+                }
+            }
+
+            _viewingActive = toActive;
+            LoadZonesForCurrentMode();
+
+            _currentZone = null;
+            _dirty = false;
+            UpdateSaveButtonLabel();
+
+            _mapView.ClearSelection();
+            _mapView.LoadMap(_mapImage, _calibration, _zones);
+            _editPanel.LoadZone(null, _zones);
+        }
+
+        private void UpdateSaveButtonLabel()
+        {
+            _buttonSave.Text = _viewingActive ? "Save -> Active" : "Save -> Init";
+        }
+
         private Panel BuildBulkAssignPanel()
         {
             var panel = new Panel { Dock = DockStyle.Fill, Visible = false, Padding = new Padding(10) };
@@ -289,10 +392,10 @@ namespace DCE_Manager
             }
         }
 
-        // Sélection simple (0 ou 1 zone) -> panneau détaillé habituel.
-        // Sélection multiple (2+) -> panneau réduit d'assignation groupée.
         private void MapView_SelectionChanged(List<WargameZoneData> selected)
         {
+            _objectiveEditPanel.Visible = false;
+
             if (selected.Count == 1)
             {
                 _currentZone = selected[0];
@@ -327,33 +430,52 @@ namespace DCE_Manager
             if (_dirty)
             {
                 DialogResult answer = MessageBox.Show(
-                    "You have unsaved zone changes. Save before closing?",
+                    "You have unsaved zone changes. Close without saving?\n\n"
+                    + "Use the Save button first if you want to keep them.",
                     "Wargame",
-                    MessageBoxButtons.YesNoCancel,
+                    MessageBoxButtons.YesNo,
                     MessageBoxIcon.Warning);
 
-                if (answer == DialogResult.Cancel)
+                if (answer == DialogResult.No)
                 {
                     e.Cancel = true;
                     return;
                 }
-
-                if (answer == DialogResult.Yes)
-                    SaveZones(false);
             }
 
             base.OnFormClosing(e);
         }
 
-        // showConfirmation = false quand on enregistre juste avant de fermer :
-        // enchaîner deux boîtes de dialogue serait pénible.
+        // Ecrit toujours dans la paire de fichiers du mode actuellement affiché -
+        // jamais devine, jamais les deux à la fois.
         private void SaveZones(bool showConfirmation)
         {
-            Saver_WargameZoneInit.Save(_initLuaPath, _zones, WargameZoneRepository.State);
+            string target;
+
+            if (_viewingActive)
+            {
+                string activePath = WargameZoneRepository.GetActiveWargameZonesPath(_campaignName);
+                Saver_WargameZoneActive.Save(activePath, _zones);
+                Saver_TargetList_Wargame.WriteNewActiveFormations(_campaignName);
+                WargameObjectiveWriter.ApplyChanges(
+                    Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Active", "targetlist.lua"),
+                    _objectives, BuildObjectiveDesiredSides());
+                target = "Active/wargame_zones.lua + Active/targetlist.lua";
+            }
+            else
+            {
+                Saver_WargameZoneInit.Save(_initLuaPath, _zones, WargameZoneRepository.State);
+                Saver_TargetList_Wargame.WriteInitialFormations(_campaignName);
+                WargameObjectiveWriter.ApplyChanges(
+                    Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua"),
+                    _objectives, BuildObjectiveDesiredSides());
+                target = "Init/wargame_zones_init.lua + Init/targetlist_init.lua";
+            }
+
             _dirty = false;
 
             if (showConfirmation)
-                MessageBox.Show("Zones saved.", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Saved to " + target + ".", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void OpenTemplateCatalog()
@@ -363,8 +485,6 @@ namespace DCE_Manager
                 form.ShowDialog(this);
             }
 
-            // Le catalogue a pu changer (valeurs, xN par défaut) : on le recharge pour
-            // que le panneau d'édition reparte sur les bonnes valeurs.
             _templateCatalog = WargameTemplateCatalog.LoadAndSync(_campaignName, _campaignInfo);
             _editPanel.SetCampaignInfo(_campaignInfo, _templateCatalog);
         }
@@ -383,12 +503,12 @@ namespace DCE_Manager
                 {
                     _calibration = WargameMapCalibration.Load(_calibJsonPath);
                     _mapView.LoadMap(_mapImage, _calibration, _zones);
+                    _mapView.SetObjectives(_objectives);
                 }
             }
         }
 
         // Temporaire : vérifie que wargame_spawn.miz est lu correctement.
-        // A retirer une fois le solveur de placement en place.
         private void TestSpawnAreas()
         {
             string spawnMizPath = WargameZoneRepository.GetSpawnMizPath(_campaignName);
@@ -422,9 +542,8 @@ namespace DCE_Manager
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Temporaire : place le premier template disponible du camp de la zone
-        // sélectionnée, et affiche où chaque unité a atterri. A retirer une fois
-        // le solveur validé et branché sur le vrai saver.
+        // Temporaire : place la première formation de la zone sélectionnée et
+        // affiche où chaque unité a atterri.
         private void TestSpawnSolver()
         {
             if (_currentZone == null)
@@ -452,22 +571,6 @@ namespace DCE_Manager
             }
 
             string stmPath = _campaignInfo.GetTemplateFilePath(templateName);
-
-            //string control = _currentZone.Control == WargameSide.Blue || _currentZone.Control == WargameSide.Red
-            //    ? _currentZone.Control
-            //    : WargameSide.Blue; // zone contestée : on teste avec un template bleu, faute de mieux
-
-            //List<string> candidates = _campaignInfo.GetTemplatesFor(control);
-            //if (candidates.Count == 0)
-            //{
-            //    MessageBox.Show("No template available for this zone's camp.",
-            //        "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            //    return;
-            //}
-
-            //string templateName = candidates[0];
-            //string stmPath = _campaignInfo.GetTemplateFilePath(templateName);
-
             List<WargameTemplateUnit> layout = new Parser_WargameTemplateLayout().LoadLayout(stmPath);
             if (layout.Count == 0)
             {
@@ -504,8 +607,88 @@ namespace DCE_Manager
                 MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Ecrase la liste de voisins de TOUTES les zones par une détection
-        // automatique. Destructif pour les réglages manuels -> icône rouge.
+        // Temporaire : vérifie que les objectifs (wargameObjective = true) sont
+        // bien repérés et lus dans le fichier actuellement affiché (Init ou Active
+        // selon le radio coché).
+        private void TestObjectives()
+        {
+            string pathFile = _viewingActive
+                ? WargameZoneRepository.GetActiveWargameZonesPath(_campaignName).Replace("wargame_zones.lua", "targetlist.lua")
+                : Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua");
+
+            if (!File.Exists(pathFile))
+            {
+                MessageBox.Show("File not found:\n" + pathFile, "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            List<WargameObjective> objectives = new Parser_WargameObjectives().Load(pathFile);
+
+            var report = new StringBuilder();
+            report.AppendLine("File   : " + pathFile);
+            report.AppendLine("Found  : " + objectives.Count + " objective(s) with wargameObjective = true");
+            report.AppendLine();
+
+            foreach (WargameObjective obj in objectives)
+            {
+                report.AppendLine(obj.Name + "  [" + obj.CurrentSide + "]");
+                report.AppendLine("    pos = " + (int)obj.Position.X + ", " + (int)obj.Position.Y);
+                report.AppendLine("    priority=" + obj.Priority + "  attributes=" + string.Join(",", obj.Attributes)
+                    + "  firepower=" + obj.FirepowerMin + "/" + obj.FirepowerMax);
+
+                WargameZoneData zone = _zones.FirstOrDefault(z => z.DcsPoints != null && z.DcsPoints.Count >= 3
+                    && IsPointInPolygon(obj.Position, z.DcsPoints));
+                report.AppendLine("    zone = " + (zone != null ? zone.Id + " (" + zone.Control + ")" : "AUCUNE ZONE NE LE CONTIENT"));
+                report.AppendLine();
+            }
+
+            MessageBox.Show(report.ToString(), "Wargame - objectives test", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        // Camp cible souhaité pour chaque objectif, d'après le contrôle actuel de
+        // la zone qui le contient. Une zone Contested ou sans camp assigné ->
+        // l'objectif est absent du dictionnaire, donc jamais déplacé (voir
+        // WargameObjectiveWriter.ApplyChanges).
+        private Dictionary<string, string> BuildObjectiveDesiredSides()
+        {
+            var result = new Dictionary<string, string>();
+
+            foreach (WargameObjective obj in _objectives)
+            {
+                WargameZoneData zone = _zones.FirstOrDefault(z => z.DcsPoints != null && z.DcsPoints.Count >= 3
+                    && IsPointInPolygon(obj.Position, z.DcsPoints));
+
+                if (zone == null) continue;
+                if (zone.Control != WargameSide.Blue && zone.Control != WargameSide.Red) continue;
+
+                result[obj.Name] = Saver_TargetList_Wargame.TargetTableSide(zone.Control);
+            }
+
+            return result;
+        }
+
+        // Même test point-dans-polygone que celui déjà utilisé côté zones/spawn.
+        private static bool IsPointInPolygon(PointF p, List<PointF> polygon)
+        {
+            bool inside = false;
+            int j = polygon.Count - 1;
+
+            for (int i = 0; i < polygon.Count; i++)
+            {
+                PointF a = polygon[i], b = polygon[j];
+
+                if ((a.Y > p.Y) != (b.Y > p.Y))
+                {
+                    float xCross = (b.X - a.X) * (p.Y - a.Y) / (b.Y - a.Y) + a.X;
+                    if (p.X < xCross) inside = !inside;
+                }
+
+                j = i;
+            }
+
+            return inside;
+        }
+
         private void DetectNeighbors()
         {
             bool confirmed = FormUtils.ShowDangerConfirm(this,
@@ -534,10 +717,10 @@ namespace DCE_Manager
                 "Detect neighbors", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        // Reparse wargame_zone.miz et ECRASE wargame_zones_init.lua depuis zéro :
-        // tout travail déjà fait (camp, formations, voisins, terrain...) est perdu
-        // définitivement. Réservé au cas où le campaignMaker veut repartir propre
-        // après avoir redessiné toute sa carte de zones.
+        // Reparse wargame_zone.miz et ECRASE wargame_zones_init.lua depuis zéro.
+        // Opère toujours sur l'Init, quel que soit le mode affiché au moment du
+        // clic - on force donc le retour en mode Init ensuite pour que ce qui
+        // s'affiche corresponde à ce qui vient d'être écrit.
         private void CreateWarzone()
         {
             bool confirmed = FormUtils.ShowDangerConfirm(this,
@@ -549,16 +732,101 @@ namespace DCE_Manager
             if (!confirmed)
                 return;
 
-            _zones = WargameZoneRepository.ForceRegenerate(_campaignName);
-            _dirty = false;
+            WargameZoneRepository.ForceRegenerate(_campaignName);
 
-            // Vide la sélection ET remet le panneau détaillé (vide) en place via
-            // MapView_SelectionChanged, qui reçoit la liste vide déclenchée ici.
+            _suppressModeChange = true;
+            _radioInit.Checked = true;
+            _radioActive.Checked = false;
+            _suppressModeChange = false;
+
+            _viewingActive = false;
+            LoadZonesForCurrentMode();
+
+            _currentZone = null;
+            _dirty = false;
+            UpdateSaveButtonLabel();
+
             _mapView.ClearSelection();
             _mapView.LoadMap(_mapImage, _calibration, _zones);
+            _editPanel.LoadZone(null, _zones);
 
             MessageBox.Show("Warzone recreated from wargame_zone.miz.",
                 "Create Warzone", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private Panel BuildObjectiveEditPanel()
+        {
+            var panel = new Panel { Dock = DockStyle.Fill, Visible = false, Padding = new Padding(10) };
+
+            var label = new Label { Text = "", Location = new Point(10, 10), AutoSize = true, Font = new Font("Segoe UI", 11f, FontStyle.Bold) };
+            panel.Tag = label; // pour retrouver le label facilement dans MapView_ObjectiveClicked
+
+            var priorityLabel = new Label { Text = "tgt_Priority", Location = new Point(10, 45), AutoSize = true };
+            _numObjPriority = new NumericUpDown { Location = new Point(10, 62), Width = 260, Minimum = 0, Maximum = 100 };
+            _numObjPriority.ValueChanged += (s, e) =>
+            {
+                if (_loadingObjective || _selectedObjective == null) return;
+                _selectedObjective.Priority = (int)_numObjPriority.Value;
+                _dirty = true;
+            };
+
+            var attributesLabel = new Label { Text = "tgt_Attributes (comma separated)", Location = new Point(10, 94), AutoSize = true };
+            _txtObjAttributes = new TextBox { Location = new Point(10, 111), Width = 260 };
+            _txtObjAttributes.TextChanged += (s, e) =>
+            {
+                if (_loadingObjective || _selectedObjective == null) return;
+                _selectedObjective.Attributes = _txtObjAttributes.Text.Split(',').Select(a => a.Trim()).Where(a => a.Length > 0).ToList();
+                _dirty = true;
+            };
+
+            var fpMinLabel = new Label { Text = "tgt_FP_min", Location = new Point(10, 143), AutoSize = true };
+            _numObjFirepowerMin = new NumericUpDown { Location = new Point(10, 160), Width = 120, Minimum = 0, Maximum = 100 };
+            _numObjFirepowerMin.ValueChanged += (s, e) =>
+            {
+                if (_loadingObjective || _selectedObjective == null) return;
+                _selectedObjective.FirepowerMin = (double)_numObjFirepowerMin.Value;
+                _dirty = true;
+            };
+
+            var fpMaxLabel = new Label { Text = "tgt_FP_max", Location = new Point(150, 143), AutoSize = true };
+            _numObjFirepowerMax = new NumericUpDown { Location = new Point(150, 160), Width = 120, Minimum = 0, Maximum = 100 };
+            _numObjFirepowerMax.ValueChanged += (s, e) =>
+            {
+                if (_loadingObjective || _selectedObjective == null) return;
+                _selectedObjective.FirepowerMax = (double)_numObjFirepowerMax.Value;
+                _dirty = true;
+            };
+
+            panel.Controls.Add(label);
+            panel.Controls.Add(priorityLabel);
+            panel.Controls.Add(_numObjPriority);
+            panel.Controls.Add(attributesLabel);
+            panel.Controls.Add(_txtObjAttributes);
+            panel.Controls.Add(fpMinLabel);
+            panel.Controls.Add(_numObjFirepowerMin);
+            panel.Controls.Add(fpMaxLabel);
+            panel.Controls.Add(_numObjFirepowerMax);
+
+            return panel;
+        }
+
+        private bool _loadingObjective;
+
+        private void MapView_ObjectiveClicked(WargameObjective obj)
+        {
+            _selectedObjective = obj;
+
+            _editPanel.Visible = false;
+            _bulkPanel.Visible = false;
+            _objectiveEditPanel.Visible = true;
+
+            _loadingObjective = true;
+            ((Label)_objectiveEditPanel.Tag).Text = "Objective: " + obj.Name;
+            _numObjPriority.Value = Math.Max(_numObjPriority.Minimum, Math.Min(_numObjPriority.Maximum, obj.Priority));
+            _txtObjAttributes.Text = string.Join(", ", obj.Attributes);
+            _numObjFirepowerMin.Value = (decimal)Math.Max((double)_numObjFirepowerMin.Minimum, Math.Min((double)_numObjFirepowerMin.Maximum, obj.FirepowerMin));
+            _numObjFirepowerMax.Value = (decimal)Math.Max((double)_numObjFirepowerMax.Minimum, Math.Min((double)_numObjFirepowerMax.Maximum, obj.FirepowerMax));
+            _loadingObjective = false;
         }
     }
 }

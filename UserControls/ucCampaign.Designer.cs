@@ -212,13 +212,14 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewBlue.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewBlue.Location = new System.Drawing.Point(3, 2);
+            //this.dataGridViewBlue.Location = new System.Drawing.Point(3, 2);
             this.dataGridViewBlue.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.dataGridViewBlue.Name = "dataGridViewBlue";
             this.dataGridViewBlue.RowHeadersWidth = 51;
             this.dataGridViewBlue.RowTemplate.Height = 24;
-            this.dataGridViewBlue.Size = new System.Drawing.Size(720, 537);
+            //this.dataGridViewBlue.Size = new System.Drawing.Size(720, 537);
             this.dataGridViewBlue.TabIndex = 14;
+            this.dataGridViewBlue.Dock = System.Windows.Forms.DockStyle.Fill;
             // 
             // tabPage15
             // 
@@ -238,13 +239,14 @@
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewRed.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dataGridViewRed.Location = new System.Drawing.Point(3, 2);
+            //this.dataGridViewRed.Location = new System.Drawing.Point(3, 2);
             this.dataGridViewRed.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.dataGridViewRed.Name = "dataGridViewRed";
             this.dataGridViewRed.RowHeadersWidth = 51;
             this.dataGridViewRed.RowTemplate.Height = 24;
-            this.dataGridViewRed.Size = new System.Drawing.Size(720, 543);
+            //this.dataGridViewRed.Size = new System.Drawing.Size(720, 543);
             this.dataGridViewRed.TabIndex = 15;
+            this.dataGridViewRed.Dock = System.Windows.Forms.DockStyle.Fill;
             // 
             // tabPageTargetsBlue
             // 

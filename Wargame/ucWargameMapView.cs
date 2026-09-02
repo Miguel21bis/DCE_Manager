@@ -38,6 +38,27 @@ namespace DCE_Manager
 
         private Dictionary<WargameZoneData, PixelShape> _zonePixelShapes = new Dictionary<WargameZoneData, PixelShape>();
 
+        private List<WargameObjective> _objectives = new List<WargameObjective>();
+        private Dictionary<WargameObjective, PointF> _objectivePixelPositions = new Dictionary<WargameObjective, PointF>();
+
+        public void SetObjectives(List<WargameObjective> objectives)
+        {
+            _objectives = objectives ?? new List<WargameObjective>();
+            RebuildObjectivePixelPositions();
+            Invalidate();
+        }
+
+        private void RebuildObjectivePixelPositions()
+        {
+            _objectivePixelPositions.Clear();
+
+            if (_calibration == null || !_calibration.IsCalibrated)
+                return;
+
+            foreach (WargameObjective obj in _objectives)
+                _objectivePixelPositions[obj] = _calibration.DcsToPixel(obj.Position);
+        }
+
         private WargameZoneData _selectedZone;
 
         //// Assignée par la Form au clic. Redessine automatiquement.
@@ -51,6 +72,10 @@ namespace DCE_Manager
         // met que la zone cliquée ; Ctrl+clic ajoute/retire la zone cliquée sans
         // toucher au reste - sélection multiple façon Explorateur Windows.
         private readonly HashSet<WargameZoneData> _selectedZones = new HashSet<WargameZoneData>();
+
+        private WargameObjective _selectedObjective;
+
+        public event Action<WargameObjective> ObjectiveClicked;
 
         public IReadOnlyCollection<WargameZoneData> SelectedZones => _selectedZones;
 
@@ -135,6 +160,7 @@ namespace DCE_Manager
             }
 
             RebuildZonePixelShapes();
+            RebuildObjectivePixelPositions();
             Invalidate();
         }
 
@@ -267,6 +293,19 @@ namespace DCE_Manager
                 return;
             }
 
+            WargameObjective clickedObjective = HitTestObjective(clickPoint);
+
+            if (clickedObjective != null)
+            {
+                _selectedObjective = clickedObjective;
+                _selectedZones.Clear();
+                Invalidate();
+                ObjectiveClicked?.Invoke(clickedObjective);
+                return;
+            }
+
+            _selectedObjective = null;
+
             if (ReadOnly)
                 return;
 
@@ -369,6 +408,23 @@ namespace DCE_Manager
                 DrawZone(e.Graphics, kvp.Key, kvp.Value);
             }
 
+            foreach (WargameObjective obj in _objectives)
+            {
+                if (!_objectivePixelPositions.TryGetValue(obj, out PointF p))
+                    continue;
+
+                DrawObjectiveMarker(e.Graphics, obj, p);
+            }
+
+            if (_selectedObjective != null && _objectivePixelPositions.TryGetValue(_selectedObjective, out PointF selPos))
+            {
+                using (var ring = new Pen(Color.Yellow, 2.5f))
+                {
+                    float r = ObjectiveMarkerRadius + 4f;
+                    e.Graphics.DrawEllipse(ring, selPos.X - r, selPos.Y - r, r * 2, r * 2);
+                }
+            }
+
             foreach (WargameZoneData selected in _selectedZones)
             {
                 if (_zonePixelShapes.TryGetValue(selected, out PixelShape selectedShape))
@@ -391,6 +447,47 @@ namespace DCE_Manager
                     g.DrawEllipse(highlightPen, rect);
                 }
             }
+        }
+
+        private const float ObjectiveMarkerRadius = 6f;
+
+        private void DrawObjectiveMarker(Graphics g, WargameObjective obj, PointF center)
+        {
+            var rect = new RectangleF(center.X - ObjectiveMarkerRadius, center.Y - ObjectiveMarkerRadius,
+                ObjectiveMarkerRadius * 2, ObjectiveMarkerRadius * 2);
+
+            using (var fill = new SolidBrush(Color.OrangeRed))
+            using (var outline = new Pen(Color.White, 1.5f))
+            {
+                g.FillEllipse(fill, rect);
+                g.DrawEllipse(outline, rect);
+            }
+
+            using (var font = new Font("Segoe UI", 7.5f))
+            using (var textBrush = new SolidBrush(Color.White))
+            using (var shadowBrush = new SolidBrush(Color.Black))
+            {
+                var textPos = new PointF(center.X + ObjectiveMarkerRadius + 2, center.Y - 7);
+                g.DrawString(obj.Name, font, shadowBrush, textPos.X + 1, textPos.Y + 1);
+                g.DrawString(obj.Name, font, textBrush, textPos.X, textPos.Y);
+            }
+        }
+
+
+        private const float ObjectiveHitTolerance = 10f;
+
+        private WargameObjective HitTestObjective(PointF clickPointPixel)
+        {
+            foreach (var kvp in _objectivePixelPositions)
+            {
+                float dx = kvp.Value.X - clickPointPixel.X;
+                float dy = kvp.Value.Y - clickPointPixel.Y;
+
+                if (dx * dx + dy * dy <= ObjectiveHitTolerance * ObjectiveHitTolerance)
+                    return kvp.Key;
+            }
+
+            return null;
         }
 
         private void DrawZone(Graphics g, WargameZoneData zone, PixelShape pixelShape)
@@ -488,4 +585,6 @@ namespace DCE_Manager
             return DisplayRectangle.Location; // on garde la position courante
         }
     }
+
+
 }

@@ -34,8 +34,8 @@ namespace DCE_Manager
 
             info.LoadSideLabels(Path.Combine(campaignFolder, "Init", "camp_init.lua"));
 
-            info.BlueFolder = Path.Combine(campaignFolder, "Templates", "wargame_blue");
-            info.RedFolder = Path.Combine(campaignFolder, "Templates", "wargame_red");
+            info.BlueFolder = Path.Combine(campaignFolder, "Init", "Wargame", "Templates_blue");
+            info.RedFolder = Path.Combine(campaignFolder, "Init", "Wargame", "Templates_red");
 
             info.BlueTemplates = ListTemplates(info.BlueFolder);
             info.RedTemplates = ListTemplates(info.RedFolder);

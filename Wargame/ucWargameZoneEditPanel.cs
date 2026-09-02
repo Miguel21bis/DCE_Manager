@@ -231,7 +231,9 @@ namespace DCE_Manager
                 if (!string.IsNullOrEmpty(f.Template) && !_colTemplate.Items.Contains(f.Template))
                     _colTemplate.Items.Add(f.Template);
 
-                int rowIndex = _gridFormations.Rows.Add(f.Template, f.Name, f.Multiplier, f.ForcePower);
+                int rowIndex = _gridFormations.Rows.Add(
+                    f.Template, f.Name, f.Multiplier, f.ForcePower,
+                    f.Priority, string.Join(", ", f.Attributes), f.FirepowerMin, f.FirepowerMax);
 
                 // L'identifiant n'est pas affiché (non modifiable) mais doit suivre sa
                 // ligne : on l'accroche au Tag pour le retrouver à la synchronisation.
@@ -266,6 +268,18 @@ namespace DCE_Manager
 
                 // ForcePower vide (nouvelle ligne) -> initialisée à la valeur nominale
                 f.ForcePower = ParseCellDouble(row.Cells["colForcePower"], f.GetNominalForcePower(_templateCatalog));
+
+                WargameTemplateEntry catalogEntry = _templateCatalog?.Find(template);
+
+                f.Priority = (int)ParseCellDouble(row.Cells["colPriority"], catalogEntry?.Priority ?? 5);
+
+                string attributesText = row.Cells["colAttributes"].Value?.ToString();
+                f.Attributes = string.IsNullOrWhiteSpace(attributesText)
+                    ? (catalogEntry?.Attributes ?? new List<string> { "Vehicles" })
+                    : attributesText.Split(',').Select(a => a.Trim()).Where(a => a.Length > 0).ToList();
+
+                f.FirepowerMin = ParseCellDouble(row.Cells["colFirepowerMin"], catalogEntry?.FirepowerMin ?? 2);
+                f.FirepowerMax = ParseCellDouble(row.Cells["colFirepowerMax"], catalogEntry?.FirepowerMax ?? 2);
 
                 // Identifiant : repris du Tag si la ligne existait déjà, sinon alloué
                 // maintenant. Une fois attribué il ne bouge plus, même si le nom ou le
@@ -384,6 +398,22 @@ namespace DCE_Manager
                     double power = _templateCatalog?.GetPower(template) ?? 10.0;
                     row.Cells["colForcePower"].Value = multiplier * power;
                 }
+
+                if (IsCellEmpty(row.Cells["colPriority"]))
+                    row.Cells["colPriority"].Value = _templateCatalog?.Find(template)?.Priority ?? 5;
+
+                if (IsCellEmpty(row.Cells["colAttributes"]))
+                {
+                    List<string> attrs = _templateCatalog?.Find(template)?.Attributes;
+                    row.Cells["colAttributes"].Value = attrs != null ? string.Join(", ", attrs) : "Vehicles";
+                }
+
+                if (IsCellEmpty(row.Cells["colFirepowerMin"]))
+                    row.Cells["colFirepowerMin"].Value = _templateCatalog?.Find(template)?.FirepowerMin ?? 2;
+
+                if (IsCellEmpty(row.Cells["colFirepowerMax"]))
+                    row.Cells["colFirepowerMax"].Value = _templateCatalog?.Find(template)?.FirepowerMax ?? 2;
+
             }
             finally
             {
@@ -401,7 +431,7 @@ namespace DCE_Manager
         private string SuggestFormationName(string template)
         {
             string side = _campaignInfo?.GetSideOfTemplate(template) ?? "";
-            string sidePrefix = side == WargameSide.Blue ? "BLU" : side == WargameSide.Red ? "RED" : "UNK";
+            string sidePrefix = side == WargameSide.Blue ? "BLUE" : side == WargameSide.Red ? "RED" : "UNK";
 
             WargameTemplateEntry entry = _templateCatalog?.Find(template);
             string typeSuffix = (entry?.Type ?? "unit").ToUpperInvariant();
@@ -567,6 +597,34 @@ namespace DCE_Manager
             ZoneModified?.Invoke();
         }
 
+        // Un seul clic sur la colonne Template ouvre directement la liste déroulante,
+        // au lieu d'exiger un premier clic pour entrer dans la cellule puis un second
+        // pour l'ouvrir.
+        private void GridFormations_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0 || e.ColumnIndex < 0) return;
+            if (_gridFormations.Columns[e.ColumnIndex].Name != "colTemplate") return;
+
+            _gridFormations.BeginEdit(true);
+        }
+
+        private void GridFormations_EditingControlShowing(object sender, DataGridViewEditingControlShowingEventArgs e)
+        {
+            if (_gridFormations.CurrentCell?.OwningColumn?.Name == "colTemplate" && e.Control is ComboBox combo)
+                combo.DroppedDown = true;
+        }
+
+        // Retire la formation actuellement sélectionnée dans la grille.
+        private void ButtonRemoveFormation_Click(object sender, EventArgs e)
+        {
+            if (_gridFormations.CurrentRow == null || _gridFormations.CurrentRow.IsNewRow)
+                return;
+
+            _gridFormations.Rows.Remove(_gridFormations.CurrentRow);
+            SyncFormationsFromGrid();
+            ZoneModified?.Invoke();
+        }
+
         // -------------------- Construction de l'UI --------------------
 
         // FlowLayoutPanel TopDown avec des groupes en Width/Height fixes (pas
@@ -607,18 +665,20 @@ namespace DCE_Manager
             flow.Controls.Add(groupControl);
 
             // ---- Units ----
-            var groupFormations = new GroupBox { Text = "Units", Width = 300, Height = 200 };
+            var groupFormations = new GroupBox { Text = "Units", Width = 300, Height = 280 };
             _groupUnits = groupFormations;
 
             _gridFormations = new DataGridView
             {
                 Location = new Point(10, 20),
                 Width = 280,
-                Height = 145,
+                Height = 220,
                 AllowUserToAddRows = true,
                 AllowUserToDeleteRows = true,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                ScrollBars = ScrollBars.Both,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
             };
 
             _colTemplate = new DataGridViewComboBoxColumn
@@ -631,18 +691,42 @@ namespace DCE_Manager
             _gridFormations.Columns.Add("colName", "Name");
             _gridFormations.Columns.Add("colMultiplier", "xN");
             _gridFormations.Columns.Add("colForcePower", "ForcePower");
-            _gridFormations.Columns["colName"].FillWeight = 28;
-            _gridFormations.Columns["colMultiplier"].FillWeight = 12;
-            _gridFormations.Columns["colForcePower"].FillWeight = 20;
+            _gridFormations.Columns.Add("colPriority", "tgt_Priority");
+            _gridFormations.Columns.Add("colAttributes", "tgt_Attributes");
+            _gridFormations.Columns.Add("colFirepowerMin", "tgt_FP_min");
+            _gridFormations.Columns.Add("colFirepowerMax", "tgt_FP_max");
+
+            _gridFormations.Columns["colTemplate"].Width = 150;
+            _gridFormations.Columns["colName"].Width = 110;
+            _gridFormations.Columns["colMultiplier"].Width = 45;
+            _gridFormations.Columns["colForcePower"].Width = 75;
+            _gridFormations.Columns["colPriority"].Width = 65;
+            _gridFormations.Columns["colAttributes"].Width = 120;
+            _gridFormations.Columns["colFirepowerMin"].Width = 65;
+            _gridFormations.Columns["colFirepowerMax"].Width = 65;
 
             // CurrentCellDirtyStateChanged + CommitEdit : sans ça une ComboBox ne valide
             // sa valeur qu'en quittant la cellule, donc les valeurs par défaut ne se
             // remplissaient qu'après un clic ailleurs dans la grille.
             _gridFormations.CurrentCellDirtyStateChanged += GridFormations_CurrentCellDirtyStateChanged;
+            _gridFormations.EditMode = DataGridViewEditMode.EditOnEnter;
+            _gridFormations.CellClick += GridFormations_CellClick;
+            _gridFormations.EditingControlShowing += GridFormations_EditingControlShowing;
+
             _gridFormations.CellValueChanged += GridFormations_CellValueChanged;
             _gridFormations.UserDeletedRow += GridFormations_UserDeletedRow;
             _gridFormations.DataError += GridFormations_DataError;
             groupFormations.Controls.Add(_gridFormations);
+
+            var buttonRemoveFormation = new Button
+            {
+                Text = "Remove selected formation",
+                Location = new Point(10, _gridFormations.Bottom + 6),
+                Width = _gridFormations.Width,
+                Height = 26,
+            };
+            buttonRemoveFormation.Click += ButtonRemoveFormation_Click;
+            groupFormations.Controls.Add(buttonRemoveFormation);
 
             _labelTotalStock = new Label
             {
@@ -655,7 +739,7 @@ namespace DCE_Manager
             flow.Controls.Add(groupFormations);
 
             // ---- Irregular (asymmetric mode) ----
-            var groupIrregular = new GroupBox { Text = "Irregular (asymmetric mode)", Width = 300, Height = 80 };
+            var groupIrregular = new GroupBox { Text = "Irregular (asymmetric mode)", Width = 300, Height = 110 };
             _groupIrregular = groupIrregular;
 
             _checkIrregularActive = new CheckBox

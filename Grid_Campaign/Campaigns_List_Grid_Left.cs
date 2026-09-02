@@ -445,12 +445,12 @@ namespace DCE_Manager
 
             if (zone == 0)
             {
-                //OpenScriptsModRunner(folderPath, "FirstMission.bat", name);
+                Saver_TargetList_Wargame.WriteInitialFormations(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
             }
             else if (zone == 1)
             {
-                //OpenScriptsModRunner(folderPath, "SkipMission.bat", name);
+                Saver_TargetList_Wargame.WriteNewActiveFormations(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
             }
             else
@@ -2217,7 +2217,10 @@ namespace DCE_Manager
                     report.Add("Active folder cleared.");
                     report.Add("Generating missions from base_mission.miz...");
 
+                    Saver_TargetList_Wargame.WriteInitialFormations(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
+
+                    Saver_TargetList_Wargame.WriteNewActiveFormations(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
                 }
             }

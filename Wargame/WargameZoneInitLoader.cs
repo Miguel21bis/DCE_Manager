@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using DCE_Manager.Utils;
 using NLua;
 
@@ -102,6 +103,11 @@ namespace DCE_Manager
                     Side = entry["side"]?.ToString() ?? "",
                     Multiplier = (int)ToDouble(entry["multiplier"]),
                     ForcePower = ToDouble(entry["forcePower"]),
+                    Priority = (int)ToDouble(entry["priority"]),
+                    Attributes = (entry["attributes"]?.ToString() ?? "Vehicles")
+                        .Split(',').Select(a => a.Trim()).Where(a => a.Length > 0).ToList(),
+                    FirepowerMin = ToDouble(entry["firepowerMin"]),
+                    FirepowerMax = ToDouble(entry["firepowerMax"]),
                 };
 
                 // Garde-fou : un multiplicateur à zéro rendrait la formation inutile

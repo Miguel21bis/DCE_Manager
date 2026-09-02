@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace DCE_Manager
@@ -27,7 +29,7 @@ namespace DCE_Manager
             _catalog = WargameTemplateCatalog.LoadAndSync(campaignName, campaignInfo);
 
             Text = "Wargame templates - " + campaignName;
-            Width = 900;
+            Width = 1150;
             Height = 600;
             StartPosition = FormStartPosition.CenterParent;
 
@@ -43,31 +45,12 @@ namespace DCE_Manager
                 AllowUserToAddRows = false,
                 AllowUserToDeleteRows = false,
                 RowHeadersVisible = false,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
             };
 
-            var colTemplate = new DataGridViewTextBoxColumn
-            {
-                Name = "colTemplate",
-                HeaderText = "Template",
-                ReadOnly = true,   // reflet du disque, pas renommable ici
-                FillWeight = 35,
-            };
-
-            var colSide = new DataGridViewTextBoxColumn
-            {
-                Name = "colSide",
-                HeaderText = "Side",
-                ReadOnly = true,   // déduit du dossier
-                FillWeight = 10,
-            };
-
-            var colType = new DataGridViewComboBoxColumn
-            {
-                Name = "colType",
-                HeaderText = "Type",
-                FillWeight = 15,
-            };
+            var colTemplate = new DataGridViewTextBoxColumn { Name = "colTemplate", HeaderText = "Template", ReadOnly = true, Width = 160 };
+            var colSide = new DataGridViewTextBoxColumn { Name = "colSide", HeaderText = "Side", ReadOnly = true, Width = 50 };
+            var colType = new DataGridViewComboBoxColumn { Name = "colType", HeaderText = "Type", Width = 90 };
             foreach (string type in WargameUnitType.All)
                 colType.Items.Add(type);
 
@@ -80,24 +63,21 @@ namespace DCE_Manager
             _grid.Columns.Add("colSupplyCost", "Supply cost");
             _grid.Columns.Add("colMultiplier", "Default xN");
             _grid.Columns.Add("colVehicles", "Units");
+            _grid.Columns.Add("colPriority", "tgt_Priority");
+            _grid.Columns.Add("colAttributes", "tgt_Attributes");
+            _grid.Columns.Add("colFirepowerMin", "tgt_FP_min");
+            _grid.Columns.Add("colFirepowerMax", "tgt_FP_max");
 
-            // Comptages bruts du .stm : information seulement, la valeur retenue
-            // pour les calculs est la colonne Units, corrigeable à la main.
-            var colDetected = new DataGridViewTextBoxColumn
-            {
-                Name = "colDetected",
-                HeaderText = "Detected (dyn/stat)",
-                ReadOnly = true,
-                FillWeight = 12,
-            };
-            _grid.Columns.Add(colDetected);
-
-            _grid.Columns["colPower"].FillWeight = 8;
-            _grid.Columns["colAttack"].FillWeight = 8;
-            _grid.Columns["colDefense"].FillWeight = 8;
-            _grid.Columns["colSupplyCost"].FillWeight = 10;
-            _grid.Columns["colMultiplier"].FillWeight = 9;
-            _grid.Columns["colVehicles"].FillWeight = 8;
+            _grid.Columns["colPower"].Width = 60;
+            _grid.Columns["colAttack"].Width = 60;
+            _grid.Columns["colDefense"].Width = 60;
+            _grid.Columns["colSupplyCost"].Width = 80;
+            _grid.Columns["colMultiplier"].Width = 70;
+            _grid.Columns["colVehicles"].Width = 60;
+            _grid.Columns["colPriority"].Width = 70;
+            _grid.Columns["colAttributes"].Width = 150;
+            _grid.Columns["colFirepowerMin"].Width = 80;
+            _grid.Columns["colFirepowerMax"].Width = 80;
 
             _grid.CellEndEdit += Grid_CellEndEdit;
             _grid.DataError += Grid_DataError;
@@ -139,6 +119,7 @@ namespace DCE_Manager
             {
                 _grid.Rows.Add(e.Template, e.Side, e.Type, e.Power, e.Attack, e.Defense, e.SupplyCost,
                     e.DefaultMultiplier, e.VehicleCount,
+                    e.Priority, string.Join(", ", e.Attributes), e.FirepowerMin, e.FirepowerMax,
                     e.DetectedDynamic + " / " + e.DetectedStatic);
             }
         }
@@ -153,13 +134,20 @@ namespace DCE_Manager
             DataGridViewRow row = _grid.CurrentRow;
             string type = row.Cells["colType"].Value?.ToString() ?? WargameUnitType.Infantry;
 
-            double power, attack, defense, supplyCost;
-            WargameUnitType.GetDefaults(type, out power, out attack, out defense, out supplyCost);
+            double power, attack, defense, supplyCost, firepowerMin, firepowerMax;
+            int priority;
+            List<string> attributes;
+            WargameUnitType.GetDefaults(type, out power, out attack, out defense, out supplyCost,
+                out priority, out attributes, out firepowerMin, out firepowerMax);
 
             row.Cells["colPower"].Value = power;
             row.Cells["colAttack"].Value = attack;
             row.Cells["colDefense"].Value = defense;
             row.Cells["colSupplyCost"].Value = supplyCost;
+            row.Cells["colPriority"].Value = priority;
+            row.Cells["colAttributes"].Value = string.Join(", ", attributes);
+            row.Cells["colFirepowerMin"].Value = firepowerMin;
+            row.Cells["colFirepowerMax"].Value = firepowerMax;
 
             SyncFromGrid();
         }
@@ -239,6 +227,20 @@ namespace DCE_Manager
                 entry.DefaultMultiplier = multiplier > 0 ? multiplier : 1;
 
                 entry.VehicleCount = (int)ParseDouble(row.Cells["colVehicles"], entry.VehicleCount);
+
+                entry.Priority = (int)ParseDouble(row.Cells["colPriority"], entry.Priority);
+
+                string attributesText = row.Cells["colAttributes"].Value?.ToString() ?? "";
+                entry.Attributes = attributesText
+                    .Split(',')
+                    .Select(a => a.Trim())
+                    .Where(a => a.Length > 0)
+                    .ToList();
+                if (entry.Attributes.Count == 0)
+                    entry.Attributes.Add("Vehicles");
+
+                entry.FirepowerMin = ParseDouble(row.Cells["colFirepowerMin"], entry.FirepowerMin);
+                entry.FirepowerMax = ParseDouble(row.Cells["colFirepowerMax"], entry.FirepowerMax);
             }
         }
 

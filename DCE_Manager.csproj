@@ -284,12 +284,15 @@
     <Compile Include="UserControls\ucHome.Designer.cs">
       <DependentUpon>ucHome.cs</DependentUpon>
     </Compile>
+    <Compile Include="Wargame\Parser_WargameObjectives.cs" />
     <Compile Include="Wargame\Parser_WargameSpawnAreas.cs" />
     <Compile Include="Wargame\Parser_WargameTemplate.cs" />
     <Compile Include="Wargame\Parser_WargameTemplateLayout.cs" />
     <Compile Include="Wargame\Parser_WargameZones.cs" />
+    <Compile Include="Wargame\Saver_TargetList_Wargame.cs" />
     <Compile Include="Wargame\Saver_WargameZoneActive.cs" />
     <Compile Include="Wargame\Saver_WargameZoneInit.cs" />
+    <Compile Include="Wargame\TargetListBlockScanner.cs" />
     <Compile Include="Wargame\ucWargameMapView.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -310,6 +313,7 @@
     </Compile>
     <Compile Include="Wargame\WargameMapCalibration.cs" />
     <Compile Include="Wargame\WargameNeighborDetector.cs" />
+    <Compile Include="Wargame\WargameObjectiveWriter.cs" />
     <Compile Include="Wargame\WargameSpawnArea.cs" />
     <Compile Include="Wargame\WargameSpawnSolver.cs" />
     <Compile Include="Wargame\WargameTemplateCatalog.cs" />

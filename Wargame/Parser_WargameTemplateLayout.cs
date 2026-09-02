@@ -68,14 +68,16 @@ namespace DCE_Manager
                         LuaTable countries = coalition?["country"] as LuaTable;
                         if (countries == null) continue;
 
-                        int countryIndex = 1;
-                        while (true)
+                        // L'index de pays n'est PAS forcément 1, 2, 3... : DCS garde le
+                        // numéro de slot d'origine de la mission dont le template a été
+                        // extrait (vu sur un vrai fichier : un seul pays, à l'index 5).
+                        // Il faut donc parcourir toutes les clés présentes, pas supposer
+                        // une séquence continue à partir de 1.
+                        foreach (object countryKey in countries.Keys)
                         {
-                            LuaTable country = countries[countryIndex] as LuaTable;
-                            if (country == null) break;
-
-                            ReadCountry(country, result);
-                            countryIndex++;
+                            LuaTable country = countries[countryKey] as LuaTable;
+                            if (country != null)
+                                ReadCountry(country, result);
                         }
                     }
                 }
