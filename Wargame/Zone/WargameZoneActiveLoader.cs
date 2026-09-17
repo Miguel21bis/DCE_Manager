@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using DCE_Manager.Utils;
 using NLua;
+using System.Linq;
 
 namespace DCE_Manager
 {
@@ -57,16 +58,21 @@ namespace DCE_Manager
                     if (!string.IsNullOrEmpty(control)) zone.Control = control;
 
                     zone.ResupplyModifier = ToDouble(zoneLua["resupplyModifier"], zone.ResupplyModifier);
-                    zone.Formations = LoadFormations(zoneLua["formations"] as LuaTable);
+                    MergeFormations(zone, zoneLua["formations"] as LuaTable);
                     zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                 }
             }
         }
 
-        private List<WargameFormation> LoadFormations(LuaTable table)
+        // Met à jour les formations déjà chargées depuis l'Init (par FormationId)
+        // plutôt que de les remplacer - sinon Priority/Attributes/Firepower, qui ne
+        // vivent que dans l'Init, seraient perdus à chaque application de l'Active.
+        private void MergeFormations(WargameZoneData zone, LuaTable table)
         {
-            var list = new List<WargameFormation>();
-            if (table == null) return list;
+            if (table == null) return;
+
+            Dictionary<int, WargameFormation> byId = zone.Formations.ToDictionary(f => f.FormationId);
+            var merged = new List<WargameFormation>();
 
             int i = 1;
             while (true)
@@ -74,24 +80,29 @@ namespace DCE_Manager
                 LuaTable entry = table[i] as LuaTable;
                 if (entry == null) break;
 
-                var f = new WargameFormation
+                int formationId = (int)ToDouble(entry["formationId"], 0);
+
+                if (!byId.TryGetValue(formationId, out WargameFormation f))
                 {
-                    FormationId = (int)ToDouble(entry["formationId"], 0),
-                    Name = entry["name"]?.ToString() ?? "",
-                    Template = entry["template"]?.ToString() ?? "",
-                    Side = entry["side"]?.ToString() ?? "",
-                    Multiplier = (int)ToDouble(entry["multiplier"], 1),
-                    ForcePower = ToDouble(entry["forcePower"], 0),
-                };
+                    // Présente dans l'Active mais plus dans l'Init (zone modifiée
+                    // entre-temps) - reconstruite a minima plutôt que perdue.
+                    f = new WargameFormation { FormationId = formationId };
+                }
 
+                f.Name = entry["name"]?.ToString() ?? f.Name;
+                f.Template = entry["template"]?.ToString() ?? f.Template;
+                f.Side = entry["side"]?.ToString() ?? f.Side;
+                f.Multiplier = (int)ToDouble(entry["multiplier"], f.Multiplier);
                 if (f.Multiplier <= 0) f.Multiplier = 1;
+                f.ForcePower = ToDouble(entry["forcePower"], f.ForcePower);
+                f.SpawnGeneration = (int)ToDouble(entry["spawnGeneration"], f.SpawnGeneration);
+                if (f.SpawnGeneration <= 0) f.SpawnGeneration = 1;
 
-                list.Add(f);
-
+                merged.Add(f);
                 i++;
             }
 
-            return list;
+            zone.Formations = merged;
         }
 
         private WargameIrregularMarker LoadIrregular(LuaTable table)

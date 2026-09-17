@@ -126,7 +126,7 @@ namespace DCE_Manager
                             Position = new PointF(
                                 (float)ToDouble(unit["x"]),
                                 (float)ToDouble(unit["y"])),
-                            Heading = ToDouble(unit["heading"]),
+                            Heading = ToDouble(unit["heading"]) * 180.0 / Math.PI, // radians (DCS) -> degrés (interne)
                         });
 
                         unitIndex++;

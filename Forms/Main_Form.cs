@@ -1069,7 +1069,7 @@ namespace DCE_Manager
                 Cursor.Current = Cursors.WaitCursor;
 
                 //groupBoxDroiteAccueil.Visible = false;
-                 _ = CampaignGridLeft.LoadCampaignsAsync();
+                 await CampaignGridLeft.LoadCampaignsAsync();
 
                 Cursor.Current = Cursors.Default;
 

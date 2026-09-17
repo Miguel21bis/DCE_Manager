@@ -5,6 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DCE_Manager.Utils;
+using System.Drawing;
+
 
 namespace DCE_Manager
 {
@@ -35,7 +37,8 @@ namespace DCE_Manager
         private const string DefaultTask = "Strike";
         private const string DefaultClass = "static";
 
-        private static readonly Regex WargameFormationFlagRegex = new Regex(@"\bwargameFormation\b\s*=\s*true");
+
+        private static readonly Regex WargameFormationFlagRegex = new Regex(@"\bwargameFormation\b""?\]?\s*=\s*true");
         private static readonly Regex WargameFormationIdRegex = new Regex(@"wargameFormationId""?\]?\s*=\s*(\d+)");
         private static readonly Regex SideKeyRegex = new Regex(@"\[""(blue|red)""\]");
         private static readonly Regex NumericKeyRegex = new Regex(@"^\s*\[(\d+)\]\s*=");
@@ -57,7 +60,9 @@ namespace DCE_Manager
             if (all.Count == 0)
                 return;
 
+            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
+
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
             var rng = new Random();
 
@@ -73,7 +78,11 @@ namespace DCE_Manager
                 WargameZoneData zone = pair.zone;
                 WargameFormation formation = pair.formation;
 
-                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng);
+                int sectorIndex = zone.Formations.IndexOf(formation);
+                int sectorCount = zone.Formations.Count;
+                PointF? threatPoint = FindNearestEnemyZoneCenter(zone, formation.Side, allZones);
+
+                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
                 if (placed == null) continue;
 
                 if (!newBlocksBySide.TryGetValue(TargetTableSide(formation.Side), out List<string> bucket))
@@ -148,6 +157,7 @@ namespace DCE_Manager
             if (missing.Count == 0)
                 return; // rien de nouveau, on ne touche pas au fichier
 
+            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
             var rng = new Random();
@@ -163,7 +173,11 @@ namespace DCE_Manager
                 WargameZoneData zone = pair.zone;
                 WargameFormation formation = pair.formation;
 
-                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng);
+                int sectorIndex = zone.Formations.IndexOf(formation);
+                int sectorCount = zone.Formations.Count;
+                PointF? threatPoint = FindNearestEnemyZoneCenter(zone, formation.Side, allZones);
+
+                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
                 if (placed == null) continue;
 
                 if (!newBlocksBySide.TryGetValue(TargetTableSide(formation.Side), out List<string> bucket))
@@ -189,7 +203,8 @@ namespace DCE_Manager
         // -------------------- Placement (solveur) --------------------
 
         private static List<WargamePlacedUnit> PlaceFormation(WargameFormation formation, WargameZoneData zone,
-            WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng)
+    WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng, PointF? threatPoint,
+    int sectorIndex, int sectorCount)
         {
             string stmPath = campaignInfo?.GetTemplateFilePath(formation.Template);
             if (string.IsNullOrEmpty(stmPath))
@@ -205,7 +220,7 @@ namespace DCE_Manager
                 return null;
             }
 
-            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng);
+            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
             if (placed == null)
             {
                 FormUtils.LogRegister("Saver_TargetList_Wargame | aucune position trouvée pour la formation '" + formation.Name + "' dans la zone '" + zone.Id + "'");
@@ -215,7 +230,35 @@ namespace DCE_Manager
             return placed;
         }
 
-        private static WargameSpawnAreas LoadSpawnAreas(string campaignName)
+        // Zone contrôlée par le camp adverse la plus proche du centre de "ownZone" -
+        // sans limite de distance (couvre aussi bien l'infanterie que
+        // l'artillerie longue portée, sans logique séparée par type d'unité).
+        // null si aucune zone ennemie identifiable (camp inconnu, carte
+        // entièrement contestée...).
+        internal static PointF? FindNearestEnemyZoneCenter(WargameZoneData ownZone, string ownSide, List<WargameZoneData> allZones)
+        {
+            string enemySide = ownSide == WargameSide.Blue ? WargameSide.Red
+                              : ownSide == WargameSide.Red ? WargameSide.Blue
+                              : null;
+
+            if (enemySide == null || allZones == null)
+                return null;
+
+            WargameZoneData nearest = allZones
+                .Where(z => z.Control == enemySide && z != ownZone)
+                .OrderBy(z => Distance(ownZone.Center, z.Center))
+                .FirstOrDefault();
+
+            return nearest?.Center;
+        }
+
+        private static double Distance(PointF a, PointF b)
+        {
+            double dx = a.X - b.X, dy = a.Y - b.Y;
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        internal static WargameSpawnAreas LoadSpawnAreas(string campaignName)
         {
             string spawnMizPath = WargameZoneRepository.GetSpawnMizPath(campaignName);
             return File.Exists(spawnMizPath) ? new Parser_WargameSpawnAreas().LoadFromMiz(spawnMizPath) : new WargameSpawnAreas();
@@ -273,6 +316,7 @@ namespace DCE_Manager
                 lines.Add("\t\t\t\t\ttemplateUnitName = \"" + EscapeLua(placed[i].Name) + "\",");
                 lines.Add("\t\t\t\t\tx = " + FormatNumber(placed[i].Position.X) + ",");
                 lines.Add("\t\t\t\t\ty = " + FormatNumber(placed[i].Position.Y) + ",");
+                lines.Add("\t\t\t\t\theading = " + FormatNumber(placed[i].Heading * Math.PI / 180.0) + ","); // degrés (interne) -> radians (DCS)
                 lines.Add("\t\t\t\t\tclass = \"" + DefaultClass + "\",");
                 lines.Add("\t\t\t\t},");
             }
@@ -283,19 +327,19 @@ namespace DCE_Manager
             return lines;
         }
 
-        // Active : clés quotées (["task"] = "Strike",), indexé numériquement, avec
-        // titleName - même forme que les cibles réelles déjà présentes dans le fichier.
-        // Active : clés quotées (["task"] = "Strike",), indexé numériquement, avec
-        // titleName - même forme que les cibles réelles déjà présentes dans le fichier.
-        private static List<string> BuildActiveBlockLines(int index, WargameFormation f, List<WargamePlacedUnit> placed)
+        // namePrefix : nom DCS réellement posé (groupe/unités), distinct du nom
+        // logique f.Name quand une génération de relève est reposée - voir
+        // WargameEngineLosses. null = comportement d'origine (f.Name tel quel).
+        internal static List<string> BuildActiveBlockLines(int index, WargameFormation f, List<WargamePlacedUnit> placed, string namePrefix = null)
         {
+            string displayName = namePrefix ?? f.Name;
             (float gx, float gy) = GetCentroid(placed);
             var lines = new List<string>();
 
             lines.Add("\t\t[" + index + "] = ");
             lines.Add("\t\t{");
-            lines.Add("\t\t\t[\"titleName\"] = \"" + f.Name + "\",");
-            lines.Add("\t\t\t[\"name\"] = \"" + f.Name + "\",");
+            lines.Add("\t\t\t[\"titleName\"] = \"" + displayName + "\",");
+            lines.Add("\t\t\t[\"name\"] = \"" + displayName + "\",");
             lines.Add("\t\t\t[\"task\"] = \"" + DefaultTask + "\",");
             lines.Add("\t\t\t[\"priority\"] = " + f.Priority + ",");
             lines.Add("\t\t\t[\"attributes\"] = ");
@@ -323,10 +367,11 @@ namespace DCE_Manager
             {
                 lines.Add("\t\t\t\t[" + (i + 1) + "] = ");
                 lines.Add("\t\t\t\t{");
-                lines.Add("\t\t\t\t\t[\"name\"] = \"" + f.Name + "-" + (i + 1) + "\",");
+                lines.Add("\t\t\t\t\t[\"name\"] = \"" + displayName + "-" + (i + 1) + "\",");
                 lines.Add("\t\t\t\t\t[\"templateUnitName\"] = \"" + EscapeLua(placed[i].Name) + "\",");
                 lines.Add("\t\t\t\t\t[\"x\"] = " + FormatNumber(placed[i].Position.X) + ",");
                 lines.Add("\t\t\t\t\t[\"y\"] = " + FormatNumber(placed[i].Position.Y) + ",");
+                lines.Add("\t\t\t\t\t[\"heading\"] = " + FormatNumber(placed[i].Heading * Math.PI / 180.0) + ","); // degrés (interne) -> radians (DCS)
                 lines.Add("\t\t\t\t\t[\"class\"] = \"" + DefaultClass + "\",");
                 lines.Add("\t\t\t\t},");
             }
@@ -508,7 +553,7 @@ namespace DCE_Manager
         }
 
         // Prochain numéro libre pour chaque camp = plus grand index numérique trouvé + 1.
-        private static Dictionary<string, int> FindNextNumericIndexBySide(List<string> lines)
+        internal static Dictionary<string, int> FindNextNumericIndexBySide(List<string> lines)
         {
             var maxBySide = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
             {

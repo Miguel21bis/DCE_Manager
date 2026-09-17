@@ -180,6 +180,11 @@ namespace DCE_Manager
         public int Multiplier = 1; // xN : le template posé en représente N
         public double ForcePower;  // force courante
 
+        // Incrémenté à chaque fois qu'un nouvel exemplaire est reposé en jeu
+        // (voir WargameEngineLosses) - sert uniquement à générer des noms DCS
+        // uniques d'une génération à l'autre, jamais utilisé dans un calcul.
+        public int SpawnGeneration = 1;
+
         // Surcharges optionnelles pour CETTE formation précise. null = utiliser la
         // valeur du template dans le catalogue. Même principe que Multiplier/
         // DefaultMultiplier : le catalogue donne le défaut, l'instance peut s'en

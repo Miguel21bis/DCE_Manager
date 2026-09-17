@@ -61,6 +61,7 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t\t\t[\"side\"] = \"" + Escape(f.Side) + "\",");
                 sb.AppendLine("\t\t\t\t[\"multiplier\"] = " + f.Multiplier + ",");
                 sb.AppendLine("\t\t\t\t[\"forcePower\"] = " + FormatNumber(f.ForcePower) + ",");
+                sb.AppendLine("\t\t\t\t[\"spawnGeneration\"] = " + f.SpawnGeneration + ",");
                 sb.AppendLine("\t\t\t},");
                 index++;
             }

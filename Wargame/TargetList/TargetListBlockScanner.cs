@@ -142,5 +142,36 @@ namespace DCE_Manager
 
             return output;
         }
+
+        // Après un retrait/insertion de blocs, les clés numériques [N] d'un camp
+        // sont trouées (on a retiré [27] et inséré [61]). Lua ne supporte pas ça :
+        // #targets devient indéfini et un "for i = #targets, 1, -1" finit par
+        // indexer un nil (plantage réel dans DC_UpdateTargetlist.lua).
+        // On remet donc chaque camp en 1..n dans l'ordre du fichier.
+        public static List<string> RenumberBlocks(List<string> lines)
+        {
+            var keyLineRegex = new Regex(@"^(\s*)\[\d+\]\s*=\s*(\{?)\s*$");
+
+            List<TargetListBlock> blocks = ScanBlocks(lines, (l, s, e) => false, out _);
+
+            var output = new List<string>(lines);
+            var counterBySide = new Dictionary<string, int>(System.StringComparer.OrdinalIgnoreCase);
+
+            foreach (TargetListBlock b in blocks)
+            {
+                if (b.Side == null) continue;
+
+                int n = counterBySide.TryGetValue(b.Side, out int c) ? c + 1 : 1;
+                counterBySide[b.Side] = n;
+
+                var m = keyLineRegex.Match(output[b.Start]);
+                if (m.Success)
+                    output[b.Start] = m.Groups[1].Value + "[" + n + "] = " + m.Groups[2].Value;
+            }
+
+            return output;
+        }
+
+
     }
 }

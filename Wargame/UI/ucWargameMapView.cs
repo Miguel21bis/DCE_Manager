@@ -59,6 +59,37 @@ namespace DCE_Manager
                 _objectivePixelPositions[obj] = _calibration.DcsToPixel(obj.Position);
         }
 
+        // Unités de la mission générée (Active/last_Mission.lua), affichées en points.
+        // Purement indicatif : n'alimente rien du modèle de jeu.
+        private List<WargameMissionUnit> _missionUnits = new List<WargameMissionUnit>();
+        private readonly List<KeyValuePair<WargameMissionUnit, PointF>> _missionUnitPixels = new List<KeyValuePair<WargameMissionUnit, PointF>>();
+
+        // Affichage activable : sur une grosse mission ça fait beaucoup de points.
+        public bool ShowMissionUnits { get; set; } = true;
+
+        public int MissionUnitCount => _missionUnits.Count;
+
+        public void SetMissionUnits(List<WargameMissionUnit> units)
+        {
+            _missionUnits = units ?? new List<WargameMissionUnit>();
+            RebuildMissionUnitPixels();
+            Invalidate();
+        }
+
+        private void RebuildMissionUnitPixels()
+        {
+            _missionUnitPixels.Clear();
+
+            if (_calibration == null || !_calibration.IsCalibrated)
+                return;
+
+            foreach (WargameMissionUnit unit in _missionUnits)
+            {
+                _missionUnitPixels.Add(new KeyValuePair<WargameMissionUnit, PointF>(
+                    unit, _calibration.DcsToPixel(unit.Position)));
+            }
+        }
+
         private WargameZoneData _selectedZone;
 
         //// Assignée par la Form au clic. Redessine automatiquement.
@@ -89,6 +120,16 @@ namespace DCE_Manager
         }
 
         private bool _pickingCalibrationPoint = false;
+
+        // Zoom molette. Tout le reste du composant (calibration, polygones, objectifs,
+        // hit-test) raisonne en pixels IMAGE : le zoom n'intervient qu'au dessin et à la
+        // conversion des coordonnées souris. La calibration reste donc valable à tout zoom.
+        private float _zoom = 1.0f;
+        private const float MinZoom = 0.15f;
+        private const float MaxZoom = 6.0f;
+        private const float ZoomStep = 1.15f;
+
+        public float Zoom => _zoom;
 
         // Drag-to-pan : clic maintenu + déplacement = on scrolle la carte dans le
         // Panel parent (celui avec AutoScroll = true) plutôt que d'ouvrir une zone.
@@ -137,11 +178,10 @@ namespace DCE_Manager
                 ControlStyles.ResizeRedraw,
                 true);
 
-            // Selectable = false : sinon le contrôle prend le focus au clic, et le
-            // Panel parent (AutoScroll) fait aussitôt défiler la vue pour "amener le
-            // contrôle focusé à la vue". La carte saute alors entre le moment où on
-            // vise et celui où le clic est traité -> pixels de calibration décalés.
-            SetStyle(ControlStyles.Selectable, false);
+            // Selectable = true : nécessaire pour recevoir les événements molette (zoom).
+            // Le recentrage intempestif au clic qui posait problème est neutralisé en
+            // amont par NoAutoScrollPanel, qui bloque ScrollControlIntoView.
+            SetStyle(ControlStyles.Selectable, true);
 
             BackColor = Color.Black;
         }
@@ -154,13 +194,11 @@ namespace DCE_Manager
             _calibration = calibration;
             _zones = zones ?? new List<WargameZoneData>();
 
-            if (_backgroundImage != null)
-            {
-                ClientSize = _backgroundImage.Size;
-            }
+            ApplyZoomSize();
 
             RebuildZonePixelShapes();
             RebuildObjectivePixelPositions();
+            RebuildMissionUnitPixels();
             Invalidate();
         }
 
@@ -213,11 +251,81 @@ namespace DCE_Manager
             Cursor = Cursors.Default;
         }
 
+        // -------------------- Zoom molette --------------------
+
+        private void ApplyZoomSize()
+        {
+            if (_backgroundImage == null) return;
+
+            ClientSize = new Size(
+                (int)Math.Round(_backgroundImage.Width * _zoom),
+                (int)Math.Round(_backgroundImage.Height * _zoom));
+        }
+
+        // Convertit un point du contrôle (pixels écran) en pixel de l'image d'origine.
+        // C'est cette coordonnée-là que comprennent la calibration et les polygones.
+        private PointF ClientToImage(float clientX, float clientY)
+        {
+            return new PointF(clientX / _zoom, clientY / _zoom);
+        }
+
+        // Revient à l'échelle 1:1 (utile quand on s'est perdu à force de zoomer)
+        public void ResetZoom()
+        {
+            _zoom = 1.0f;
+            ApplyZoomSize();
+            Invalidate();
+        }
+
+        protected override void OnMouseWheel(MouseEventArgs e)
+        {
+            // Sans ça, l'événement remonte au Panel parent qui fait défiler la vue
+            // EN PLUS du zoom : les deux se superposent et la carte part en vrille.
+            if (e is HandledMouseEventArgs handledArgs)
+                handledArgs.Handled = true;
+
+            base.OnMouseWheel(e);
+
+            if (_backgroundImage == null) return;
+
+            float oldZoom = _zoom;
+            float newZoom = e.Delta > 0 ? _zoom * ZoomStep : _zoom / ZoomStep;
+
+            if (newZoom < MinZoom) newZoom = MinZoom;
+            if (newZoom > MaxZoom) newZoom = MaxZoom;
+
+            if (Math.Abs(newZoom - oldZoom) < 0.0001f) return;
+
+            // Point de l'image actuellement sous le curseur : on veut qu'il y reste
+            // après le zoom, sinon la carte fuit sous la souris.
+            PointF imagePoint = ClientToImage(e.X, e.Y);
+
+            // Position du curseur dans la zone visible du panel (Left est négatif
+            // quand le contrôle est déjà scrollé vers la gauche).
+            int viewportX = e.X + Left;
+            int viewportY = e.Y + Top;
+
+            _zoom = newZoom;
+            ApplyZoomSize();
+
+            if (Parent is Panel scrollPanel && scrollPanel.AutoScroll)
+            {
+                scrollPanel.AutoScrollPosition = new Point(
+                    (int)Math.Round(imagePoint.X * _zoom) - viewportX,
+                    (int)Math.Round(imagePoint.Y * _zoom) - viewportY);
+            }
+
+            Invalidate();
+        }
+
         // -------------------- Clic souris / drag-to-pan --------------------
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             base.OnMouseDown(e);
+
+            // Sans le focus, le contrôle ne recevrait pas les événements molette
+            if (!Focused) Focus();
 
             _mouseDownScreenPoint = Cursor.Position;
             _mouseDownClientPoint = new Point(e.X, e.Y);
@@ -235,7 +343,7 @@ namespace DCE_Manager
         {
             base.OnMouseMove(e);
 
-            MapMouseMoved?.Invoke(new PointF(e.X, e.Y));
+            MapMouseMoved?.Invoke(ClientToImage(e.X, e.Y));
 
             if (e.Button != MouseButtons.Left)
                 return;
@@ -283,7 +391,7 @@ namespace DCE_Manager
             // On se fie à la position mémorisée au MouseDown : celle de l'événement
             // Click est relative à la position courante du contrôle, qui a pu bouger
             // entre-temps (scroll), ce qui décalerait le point retenu.
-            PointF clickPoint = new PointF(_mouseDownClientPoint.X, _mouseDownClientPoint.Y);
+            PointF clickPoint = ClientToImage(_mouseDownClientPoint.X, _mouseDownClientPoint.Y);
 
             if (_pickingCalibrationPoint)
             {
@@ -395,46 +503,61 @@ namespace DCE_Manager
                 return;
             }
 
+            // Tout est dessiné en coordonnées IMAGE, le zoom est appliqué globalement
+            // par la matrice : pas besoin de multiplier chaque point à la main.
+            GraphicsState state = e.Graphics.Save();
+            e.Graphics.ScaleTransform(_zoom, _zoom);
+
             e.Graphics.DrawImage(_backgroundImage, 0, 0, _backgroundImage.Width, _backgroundImage.Height);
 
-            if (_calibration == null || !_calibration.IsCalibrated)
+            if (_calibration != null && _calibration.IsCalibrated)
             {
-                DrawCenteredMessage(e.Graphics, "Map not calibrated yet");
-                return;
-            }
-
-            foreach (var kvp in _zonePixelShapes)
-            {
-                DrawZone(e.Graphics, kvp.Key, kvp.Value);
-            }
-
-            foreach (WargameObjective obj in _objectives)
-            {
-                if (!_objectivePixelPositions.TryGetValue(obj, out PointF p))
-                    continue;
-
-                DrawObjectiveMarker(e.Graphics, obj, p);
-            }
-
-            if (_selectedObjective != null && _objectivePixelPositions.TryGetValue(_selectedObjective, out PointF selPos))
-            {
-                using (var ring = new Pen(Color.Yellow, 2.5f))
+                foreach (var kvp in _zonePixelShapes)
                 {
-                    float r = ObjectiveMarkerRadius + 4f;
-                    e.Graphics.DrawEllipse(ring, selPos.X - r, selPos.Y - r, r * 2, r * 2);
+                    DrawZone(e.Graphics, kvp.Key, kvp.Value);
+                }
+
+                if (ShowMissionUnits)
+                    DrawMissionUnits(e.Graphics);
+
+                foreach (WargameObjective obj in _objectives)
+                {
+                    if (!_objectivePixelPositions.TryGetValue(obj, out PointF p))
+                        continue;
+
+                    DrawObjectiveMarker(e.Graphics, obj, p);
+                }
+
+                if (_selectedObjective != null && _objectivePixelPositions.TryGetValue(_selectedObjective, out PointF selPos))
+                {
+                    // Rayon et épaisseur divisés par le zoom : le marqueur garde la même
+                    // taille à l'écran quel que soit le grossissement.
+                    using (var ring = new Pen(Color.Yellow, 2.5f / _zoom))
+                    {
+                        float r = (ObjectiveMarkerRadius + 4f) / _zoom;
+                        e.Graphics.DrawEllipse(ring, selPos.X - r, selPos.Y - r, r * 2, r * 2);
+                    }
+                }
+
+                foreach (WargameZoneData selected in _selectedZones)
+                {
+                    if (_zonePixelShapes.TryGetValue(selected, out PixelShape selectedShape))
+                        DrawSelectionHighlight(e.Graphics, selectedShape);
                 }
             }
 
-            foreach (WargameZoneData selected in _selectedZones)
+            e.Graphics.Restore(state);
+
+            // Message hors transformation, pour rester lisible quel que soit le zoom
+            if (_calibration == null || !_calibration.IsCalibrated)
             {
-                if (_zonePixelShapes.TryGetValue(selected, out PixelShape selectedShape))
-                    DrawSelectionHighlight(e.Graphics, selectedShape);
+                DrawCenteredMessage(e.Graphics, "Map not calibrated yet");
             }
         }
 
         private void DrawSelectionHighlight(Graphics g, PixelShape pixelShape)
         {
-            using (var highlightPen = new Pen(Color.Yellow, 3f) { DashStyle = DashStyle.Dash })
+            using (var highlightPen = new Pen(Color.Yellow, 3f / _zoom) { DashStyle = DashStyle.Dash })
             {
                 if (pixelShape.Shape == WargameZoneShape.Polygon && pixelShape.PolygonPoints != null && pixelShape.PolygonPoints.Length >= 3)
                 {
@@ -449,26 +572,77 @@ namespace DCE_Manager
             }
         }
 
+        // Taille du point d'une unité, en pixels ECRAN (divisée par le zoom au dessin).
+        // Assez gros pour être repérable sur une carte de théâtre, où les unités d'un
+        // même groupe sont espacées de quelques dizaines de mètres seulement.
+        private const float MissionUnitDotSize = 7f;
+
+        // Un point par unité wargame posée dans la mission. Couleur selon le camp,
+        // contour noir pour rester visible sur un fond clair comme sur un fond foncé.
+        private void DrawMissionUnits(Graphics g)
+        {
+            if (_missionUnitPixels.Count == 0) return;
+
+            float size = MissionUnitDotSize / _zoom;
+            float half = size / 2f;
+
+            using (var blueBrush = new SolidBrush(Color.Cyan))
+            using (var redBrush = new SolidBrush(Color.Magenta))
+            using (var neutralBrush = new SolidBrush(Color.White))
+            using (var outline = new Pen(Color.Black, 1f / _zoom))
+            {
+                foreach (var kvp in _missionUnitPixels)
+                {
+                    WargameMissionUnit unit = kvp.Key;
+                    PointF p = kvp.Value;
+
+                    SolidBrush brush =
+                        unit.Side == "blue" ? blueBrush :
+                        unit.Side == "red" ? redBrush : neutralBrush;
+
+                    var rect = new RectangleF(p.X - half, p.Y - half, size, size);
+
+                    // Carré pour les statiques, rond pour les unités mobiles :
+                    // ça distingue les deux sans avoir à jouer sur l'opacité, qui
+                    // devenait illisible sur les fonds clairs.
+                    if (unit.IsStatic)
+                    {
+                        g.FillRectangle(brush, rect);
+                        g.DrawRectangle(outline, rect.X, rect.Y, rect.Width, rect.Height);
+                    }
+                    else
+                    {
+                        g.FillEllipse(brush, rect);
+                        g.DrawEllipse(outline, rect);
+                    }
+                }
+            }
+        }
+
         private const float ObjectiveMarkerRadius = 6f;
 
         private void DrawObjectiveMarker(Graphics g, WargameObjective obj, PointF center)
         {
-            var rect = new RectangleF(center.X - ObjectiveMarkerRadius, center.Y - ObjectiveMarkerRadius,
-                ObjectiveMarkerRadius * 2, ObjectiveMarkerRadius * 2);
+            // Tailles divisées par le zoom pour rester constantes à l'écran : un marqueur
+            // est un repère d'interface, pas un objet de la carte, il ne doit pas grossir.
+            float radius = ObjectiveMarkerRadius / _zoom;
+
+            var rect = new RectangleF(center.X - radius, center.Y - radius, radius * 2, radius * 2);
 
             using (var fill = new SolidBrush(Color.OrangeRed))
-            using (var outline = new Pen(Color.White, 1.5f))
+            using (var outline = new Pen(Color.White, 1.5f / _zoom))
             {
                 g.FillEllipse(fill, rect);
                 g.DrawEllipse(outline, rect);
             }
 
-            using (var font = new Font("Segoe UI", 7.5f))
+            using (var font = new Font("Segoe UI", 7.5f / _zoom))
             using (var textBrush = new SolidBrush(Color.White))
             using (var shadowBrush = new SolidBrush(Color.Black))
             {
-                var textPos = new PointF(center.X + ObjectiveMarkerRadius + 2, center.Y - 7);
-                g.DrawString(obj.Name, font, shadowBrush, textPos.X + 1, textPos.Y + 1);
+                float shadow = 1f / _zoom;
+                var textPos = new PointF(center.X + radius + (2f / _zoom), center.Y - (7f / _zoom));
+                g.DrawString(obj.Name, font, shadowBrush, textPos.X + shadow, textPos.Y + shadow);
                 g.DrawString(obj.Name, font, textBrush, textPos.X, textPos.Y);
             }
         }
@@ -483,7 +657,11 @@ namespace DCE_Manager
                 float dx = kvp.Value.X - clickPointPixel.X;
                 float dy = kvp.Value.Y - clickPointPixel.Y;
 
-                if (dx * dx + dy * dy <= ObjectiveHitTolerance * ObjectiveHitTolerance)
+                // Tolérance ramenée en pixels image : viser un marqueur doit rester
+                // aussi facile quel que soit le zoom.
+                float tolerance = ObjectiveHitTolerance / _zoom;
+
+                if (dx * dx + dy * dy <= tolerance * tolerance)
                     return kvp.Key;
             }
 
@@ -496,7 +674,7 @@ namespace DCE_Manager
             bool isSelected = _selectedZones.Contains(zone);
 
             using (var fillBrush = new SolidBrush(Color.FromArgb(isSelected ? 140 : 90, zoneColor)))
-            using (var outlinePen = new Pen(zoneColor, isSelected ? 3f : 2f))
+            using (var outlinePen = new Pen(zoneColor, (isSelected ? 3f : 2f) / _zoom))
             {
                 if (pixelShape.Shape == WargameZoneShape.Polygon)
                 {
@@ -528,7 +706,7 @@ namespace DCE_Manager
                 ? GetCentroid(pixelShape.PolygonPoints)
                 : pixelShape.CircleCenter;
 
-            using (var font = new Font("Segoe UI", 9f, FontStyle.Bold))
+            using (var font = new Font("Segoe UI", 9f / _zoom, FontStyle.Bold))
             using (var textBrush = new SolidBrush(Color.White))
             {
                 SizeF textSize = g.MeasureString(zone.Id, font);

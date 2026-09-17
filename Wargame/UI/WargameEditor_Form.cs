@@ -32,6 +32,7 @@ namespace DCE_Manager
 
         private List<WargameZoneData> _zones;
         private List<WargameObjective> _objectives = new List<WargameObjective>();
+        private List<WargameMissionUnit> _missionUnits = new List<WargameMissionUnit>();
         private WargameMapCalibration _calibration;
         private WargameCampaignInfo _campaignInfo;
         private WargameTemplateCatalog _templateCatalog;
@@ -87,6 +88,7 @@ namespace DCE_Manager
             LoadZonesForCurrentMode();
             _mapView.LoadMap(_mapImage, _calibration, _zones);
             _mapView.SetObjectives(_objectives);
+            _mapView.SetMissionUnits(_missionUnits);
 
             if (!_calibration.IsCalibrated)
             {
@@ -104,6 +106,13 @@ namespace DCE_Manager
             _campaignInfo = WargameCampaignInfo.Load(_campaignName);
             _templateCatalog = WargameTemplateCatalog.LoadAndSync(_campaignName, _campaignInfo);
             _mapImage = File.Exists(_mapImagePath) ? Image.FromFile(_mapImagePath) : null;
+
+            // Unités de la dernière mission générée. Fichier absent = cas normal
+            // (campagne jamais lancée) : la liste est simplement vide.
+            string lastMissionPath = Path.Combine(
+                WargameZoneRepository.GetCampaignFolder(_campaignName), "Active", "last_Mission.lua");
+
+            _missionUnits = new Parser_WargameMissionUnits().Load(lastMissionPath);
         }
 
         // Recharge _zones depuis Init, puis - si on est en mode Active - applique
@@ -166,6 +175,27 @@ namespace DCE_Manager
             var buttonHelp = new Button { Text = "?", Width = 40, Height = 30 };
             buttonHelp.Click += (s, e) => WargameHelp_Form.ShowHelp(this);
 
+            var buttonZoomReset = new Button { Text = "Zoom 100%", Width = 100, Height = 30 };
+            buttonZoomReset.Click += (s, e) => _mapView.ResetZoom();
+
+            // Affichage des unités de la dernière mission générée, désactivable :
+            // sur une grosse mission ça fait beaucoup de points sur la carte.
+            var checkShowUnits = new CheckBox
+            {
+                Text = "Mission units (" + _missionUnits.Count + ")",
+                Checked = true,
+                AutoSize = false,
+                Width = 150,
+                Height = 30,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Enabled = _missionUnits.Count > 0,
+            };
+            checkShowUnits.CheckedChanged += (s, e) =>
+            {
+                _mapView.ShowMissionUnits = checkShowUnits.Checked;
+                _mapView.Invalidate();
+            };
+
             var buttonCalibrate = new Button { Text = "Calibrate map...", Width = 140, Height = 30 };
             buttonCalibrate.Click += (s, e) => OpenCalibration();
 
@@ -200,6 +230,8 @@ namespace DCE_Manager
             buttonCreateWarzone.Click += (s, e) => CreateWarzone();
 
             secondaryButtons.Controls.Add(buttonHelp);
+            secondaryButtons.Controls.Add(buttonZoomReset);
+            secondaryButtons.Controls.Add(checkShowUnits);
             secondaryButtons.Controls.Add(buttonCalibrate);
             secondaryButtons.Controls.Add(buttonTemplates);
             secondaryButtons.Controls.Add(buttonSpawnTest);
@@ -584,7 +616,10 @@ namespace DCE_Manager
                 ? new Parser_WargameSpawnAreas().LoadFromMiz(spawnMizPath)
                 : new WargameSpawnAreas();
 
-            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(_currentZone, layout, spawnAreas, new Random());
+            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(_campaignName);
+            PointF? threatPoint = Saver_TargetList_Wargame.FindNearestEnemyZoneCenter(_currentZone, formation.Side, allZones);
+
+            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(_currentZone, layout, spawnAreas, new Random(), threatPoint);
 
             if (placed == null)
             {
@@ -601,7 +636,7 @@ namespace DCE_Manager
             report.AppendLine();
 
             foreach (WargamePlacedUnit u in placed)
-                report.AppendLine("  " + u.Name + " (" + u.Category + ") -> " + (int)u.Position.X + ", " + (int)u.Position.Y);
+                report.AppendLine("  " + u.Name + " (" + u.Category + ") -> " + (int)u.Position.X + ", " + (int)u.Position.Y + " | hdg " + (int)u.Heading);
 
             MessageBox.Show(report.ToString(), "Wargame - spawn solver test",
                 MessageBoxButtons.OK, MessageBoxIcon.Information);

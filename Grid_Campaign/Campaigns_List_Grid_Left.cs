@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml.Linq;
@@ -113,6 +114,10 @@ namespace DCE_Manager
             // Colonne pour ouvrir le dossier
             GridCampaigns_AddButtonColumn("Folder", "📂", 55);
 
+            // Colonne pour exporter la campagne en .zip (distribution vers un autre PC)
+            //GridCampaigns_AddButtonColumn("Export", "📦", 55);
+            GridCampaigns_AddButtonColumn("Export", "Export", 70);
+
 
             _mainForm.dataGridViewCampaigns.Columns.Add(new DataGridViewTextBoxColumn()
             {
@@ -203,6 +208,13 @@ namespace DCE_Manager
                     col.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
                     col.DefaultCellStyle.Font = new Font("Segoe UI", 14, FontStyle.Bold);
                 }
+            }
+
+            // "Export" porte du texte, pas une icône : la police 14 Bold commune aux
+            // boutons serait illisible/trop grande ici.
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("Export"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["Export"].DefaultCellStyle.Font = new Font("Segoe UI", 8, FontStyle.Regular);
             }
         }
         private void GridCampaigns_InitStyle()
@@ -450,6 +462,7 @@ namespace DCE_Manager
             }
             else if (zone == 1)
             {
+                WargameEngineLosses.ProcessBeforeMission(name);
                 Saver_TargetList_Wargame.WriteNewActiveFormations(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
             }
@@ -711,10 +724,17 @@ namespace DCE_Manager
 
         public void UpdateCampaignSetupColumnVisibility()
         {
+            bool isCampaignMaker = ParamConf.UserLevel == UserLevel.CampaignMaker;
+
             if (_mainForm.dataGridViewCampaigns.Columns.Contains("CampaignSetup"))
             {
-                _mainForm.dataGridViewCampaigns.Columns["CampaignSetup"].Visible =
-                    ParamConf.UserLevel == UserLevel.CampaignMaker;
+                _mainForm.dataGridViewCampaigns.Columns["CampaignSetup"].Visible = isCampaignMaker;
+            }
+
+            // Export : distribuer une campagne n'a de sens que pour celui qui l'a conçue.
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("Export"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["Export"].Visible = isCampaignMaker;
             }
         }
 
@@ -746,17 +766,15 @@ namespace DCE_Manager
             // Ignore header
             if (e.RowIndex < 0 || e.ColumnIndex < 0)
             {
-                return; 
-                FormUtils.LogRegister("GridCampaigns_CellClick RETURN A");
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN A (header ou index negatif)");
+                return;
             }
-                
 
             if (e.ColumnIndex >= _mainForm.dataGridViewCampaigns.Columns.Count)
             {
-                return; 
-                FormUtils.LogRegister("GridCampaigns_CellClick RETURN B");
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN B (colonne hors limites)");
+                return;
             }
-            
 
             string columnName = _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name;
 
@@ -805,15 +823,8 @@ namespace DCE_Manager
 
             if (string.IsNullOrEmpty(name))
             {
-                return; 
-                FormUtils.LogRegister("GridCampaigns_CellClick RETURN C");
-            }
-            
-
-            if (string.IsNullOrEmpty(name))
-            {
-                return; 
-                FormUtils.LogRegister("GridCampaigns_CellClick RETURN D");
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN C (nom de campagne vide)");
+                return;
             }
 
             // Ligne "problème" (dossier incomplet ou fichier orphelin) : seuls Delete et Folder
@@ -822,9 +833,10 @@ namespace DCE_Manager
             // que de tenter d'agir sur des fichiers qui peuvent ne pas exister.
             if (_incompleteOrOrphanNames.Contains(name) && columnName != "Delete" && columnName != "Folder")
             {
+                FormUtils.LogRegister("GridCampaigns_CellClick RETURN ligne 'probleme' : '" + name +
+                                      "' est dans _incompleteOrOrphanNames (colonne '" + columnName + "')");
                 return;
             }
-
 
             EnsureCampaignFilesUpToDate(name);
 
@@ -943,6 +955,108 @@ namespace DCE_Manager
                 }
             }
 
+            // Si on clique sur la colonne "Export"
+            // Empaquette la campagne dans un .zip distribuable (Active/Debug/Debriefing vidés,
+            // Doc et livrées custom selon les cases cochées par l'utilisateur)
+            // Si on clique sur la colonne "Export"
+            // Empaquette la campagne dans un .zip distribuable (Active/Debug/Debriefing vides,
+            // Doc et livrees custom selon les cases cochees par l'utilisateur)
+            else if (columnName == "Export")
+            {
+                using (var optionsDlg = new CampaignExportOptions_Form(name))
+                {
+                    if (optionsDlg.ShowDialog(_mainForm) != DialogResult.OK)
+                    {
+                        return;
+                    }
+
+                    bool includeLiveries = optionsDlg.IncludeLiveries;
+                    bool includeDoc = optionsDlg.IncludeDoc;
+
+                    using (var dlg = new SaveFileDialog())
+                    {
+                        dlg.Filter = "Campaign package (*.zip)|*.zip";
+                        dlg.FileName = name + ".zip";
+                        dlg.Title = "Export campaign '" + name + "'";
+
+                        if (dlg.ShowDialog() == DialogResult.OK)
+                        {
+                            List<string> liveryReport = null;
+                            bool cancelled = false;
+
+                            // Compression potentiellement tres longue (livrees = centaines de
+                            // Mo) : sur un thread du pool, sinon le thread UI ne pompe plus les
+                            // messages Windows (ContextSwitchDeadlock, appli figee).
+                            using (var progressForm = new CampaignProgress_Form("Export campaign"))
+                            {
+                                progressForm.Show(_mainForm);
+                                _mainForm.Enabled = false;
+
+                                var progress = new Progress<CampaignProgressInfo>(p => progressForm.UpdateProgress(p));
+                                IProgress<CampaignProgressInfo> reporter = progress;
+                                CancellationToken token = progressForm.Token;
+
+                                try
+                                {
+                                    liveryReport = await Task.Run(() => CampaignExporter.ExportCampaign(
+                                        basePath, name, dlg.FileName, includeLiveries, includeDoc,
+                                        p => reporter.Report(p), token), token);
+                                }
+                                catch (OperationCanceledException)
+                                {
+                                    cancelled = true;
+                                }
+                                catch (Exception ex)
+                                {
+                                    FormUtils.ErrorGeneral_BoxOrLog(ex, "Export campaign", name, true, true);
+                                    _mainForm.Enabled = true;
+                                    return;
+                                }
+                                finally
+                                {
+                                    _mainForm.Enabled = true;
+                                }
+                            }
+
+                            if (cancelled)
+                            {
+                                // Zip partiel inutilisable : on le supprime pour ne pas laisser
+                                // trainer une archive incomplete.
+                                try { if (File.Exists(dlg.FileName)) File.Delete(dlg.FileName); }
+                                catch (Exception ex) { FormUtils.LogRegister("Export annule, suppression du zip partiel impossible : " + ex.Message); }
+
+                                MessageBox.Show("Export cancelled.", "Export", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                                return;
+                            }
+
+                            // Compte-rendu dans une fenetre selectionnable/copiable : les chemins
+                            // complets sont longs et l'utilisateur doit pouvoir les recuperer.
+                            var warnings = liveryReport.Where(l => !l.StartsWith("Included:")).ToList();
+                            if (warnings.Count > 0)
+                            {
+                                string reportText = "Export done, but:" + Environment.NewLine + Environment.NewLine
+                                                  + string.Join(Environment.NewLine + Environment.NewLine, warnings);
+
+                                using (var reportForm = new CampaignExportReport_Form("Export - livery warnings", reportText))
+                                {
+                                    reportForm.ShowDialog(_mainForm);
+                                }
+                            }
+
+                            // Ouvre l'explorateur sur le dossier de destination, fichier
+                            // selectionne en surbrillance, sans lancer/ouvrir le zip lui-meme.
+                            Process.Start(new ProcessStartInfo()
+                            {
+                                FileName = "explorer.exe",
+                                Arguments = "/select,\"" + dlg.FileName + "\"",
+                                UseShellExecute = true
+                            });
+                        }
+                    }
+                }
+                return; // pas d'ouverture du panneau de droite apres un export, comme Delete/Clone
+            }
+
             // GARDE-FOU (point unique) : si le dossier de la campagne ou son fichier Init a
             // disparu — suppression en cours/récente, dossier déplacé, clonage interrompu...
             // — on n'essaie pas d'ouvrir le panneau de droite. Sans ça, CampaignEdit1 déclenche
@@ -964,7 +1078,6 @@ namespace DCE_Manager
             int nbMission = 0;
             int.TryParse(nbMissionText, out nbMission);
 
-
             // 1. Charger la campagne AVANT
             CampaignEdit1(null, null, folderPath + "\\" + name, name);
 
@@ -977,7 +1090,6 @@ namespace DCE_Manager
             {
                 Main_Form.Instance.CampaignView.SetOobActiveMode(true);
             }
-
         }
 
         // Charge toutes les campagnes (code existant déplacé ici)
@@ -986,7 +1098,9 @@ namespace DCE_Manager
         // restoreRowIndex : si selectCampaignName est vide, restaure la vue à peu près là où
         // elle était (ex: ligne 34 après suppression de la ligne 35), borné à la nouvelle taille
         // de la grid.
-        public async Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null)
+        // Pas de async : tout le corps est synchrone (accès disque local, remplissage de grid).
+        // On renvoie quand même un Task pour ne rien changer aux appelants qui font "await".
+        public Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null)
         {
             // Different configurations (DCSA/DCSB...) can contain campaigns with the
             // same folder name; the ConfMod cache is only keyed by that name, so it
@@ -1366,6 +1480,7 @@ namespace DCE_Manager
                                 img,        // Image
                                 NameCamp,   // Name
                                 null,       // Folder
+                                null,       // Export (bouton, texte fixe)
                                 VerCamp,    // Version
                                 NbMission,  // Missions
                                 type,       // Aircraft
@@ -1383,44 +1498,7 @@ namespace DCE_Manager
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["DebriefPending"].Value = debriefPending ? "1" : "";
                         }
 
-                        //bool skipVisible = nbMissionParsed > 0;
-
-                        //_mainForm.dataGridViewCampaigns.Rows.Add(
-                        //    null,       // Clone (bouton)
-                        //    img,        // Image
-                        //    NameCamp,   // Name
-                        //    null,       // Folder
-                        //    VerCamp,    // Version
-                        //    NbMission,  // Missions
-                        //    type,       // Aircraft
-                        //    null,       // First
-                        //    skipVisible ? "⏭" : "",   // Skip (vide = invisible)
-                        //    null,       // Config
-                        //    null        // Delete
-                        //);
-
-                        //int rowIndex = _mainForm.dataGridViewCampaigns.Rows.Count - 1;
-
-                        //// Case à cocher disponible sur toutes les lignes, campagnes normales
-                        //// comprises (et pas seulement les lignes "problème").
-                        //_mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
-
-                        //// Aucune mission jouée : le bouton reste vide (pas d'icône) et non cliquable
-                        //_mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].ReadOnly = !skipVisible;
-
-                        //// Exemple : bouton Skip rouge si besoin (uniquement si visible)
-                        //if (skipVisible && colorSM == "red")
-                        //{
-                        //    _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Skip"].Style.BackColor = Color.DarkRed;
-                        //}
-
-                        //// Exemple : bouton First rouge
-                        //if (colorFM == "red")
-                        //{
-                        //    _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["First"].Style.BackColor = Color.DarkRed;
-                        //}
-
-                    //}
+                      
                     }
                 }
 
@@ -1498,6 +1576,9 @@ namespace DCE_Manager
                     SelectAndScrollToRow(target);
                 }
             }
+
+            return Task.CompletedTask;
+
         }
 
         // Sélectionne une ligne et essaie de la centrer dans la vue visible.
@@ -1533,6 +1614,7 @@ namespace DCE_Manager
                 null,           // Image
                 name,           // Name
                 null,           // Folder
+                null,           // Export (bouton, texte fixe)
                 "",             // Version
                 "",             // Missions
                 "⚠ " + reason,  // Aircraft (utilisée ici comme colonne de statut)
@@ -1676,7 +1758,7 @@ namespace DCE_Manager
 
             // On vide les autres colonnes bouton (Clone, Folder, First, Parameters,
             // CampaignSetup) et la case à cocher : sur cette ligne, seule la corbeille agit.
-            foreach (string colName in new[] { "Clone", "Folder", "QuickActions", "Parameters", "CampaignSetup", "Select" })
+            foreach (string colName in new[] { "Clone", "Folder", "Export", "QuickActions", "Parameters", "CampaignSetup", "Select" })
             {
                 if (grid.Columns.Contains(colName))
                 {
@@ -2110,12 +2192,11 @@ namespace DCE_Manager
 
         }
 
-        // Réparation manuelle d'une campagne "Dossier incomplet", déclenchée par un clic sur 🔧.
-        // Ne touche jamais aux fichiers propres à la campagne qu'on ne sait pas reconstruire
-        // (oob_air_init.lua, db_airbases.lua, targetlist_init.lua, camp_triggers_init.lua).
-        private async Task RepairCampaignAsync(string name)
+        // contextLabel : permet de réutiliser cette méthode ailleurs (ex: après un Import)
+        // sans que le message final ne parle à tort de "Repair".
+        internal async Task RepairCampaignAsync(string name, string contextLabel = "Repair")
         {
-            Utils.FormUtils.LogRegister("Repair demandé par l'utilisateur pour la campagne '" + name + "'");
+            Utils.FormUtils.LogRegister(contextLabel + " demandé pour la campagne '" + name + "'");
 
             string campaignsRoot = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns";
             string folderPath = Path.Combine(campaignsRoot, name);
@@ -2220,6 +2301,7 @@ namespace DCE_Manager
                     Saver_TargetList_Wargame.WriteInitialFormations(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
 
+                    WargameEngineLosses.ProcessBeforeMission(name);
                     Saver_TargetList_Wargame.WriteNewActiveFormations(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "SkipMission.bat");
                 }
@@ -2244,7 +2326,7 @@ namespace DCE_Manager
 
             MessageBox.Show(
                 string.Join("\r\n", report),
-                (stillMissing.Count > 0 ? "Partial repair — " : "Repair complete — ") + name,
+                (stillMissing.Count > 0 ? "Partial " + contextLabel.ToLowerInvariant() + " — " : contextLabel + " complete — ") + name,
                 MessageBoxButtons.OK,
                 stillMissing.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
         }

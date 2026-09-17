@@ -208,7 +208,16 @@
     <Compile Include="Core\ErrorDialogForm.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Grid_Campaign\CampaignExporter.cs" />
+    <Compile Include="Grid_Campaign\CampaignExportOptions_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Grid_Campaign\CampaignExportReport_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Grid_Campaign\CampaignHierarchy.cs" />
+    <Compile Include="Grid_Campaign\CampaignImporter.cs" />
+    <Compile Include="Grid_Campaign\CampaignProgress_Form.cs" />
     <Compile Include="Grid_Campaign\ManageFamily_Form.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -284,46 +293,49 @@
     <Compile Include="UserControls\ucHome.Designer.cs">
       <DependentUpon>ucHome.cs</DependentUpon>
     </Compile>
-    <Compile Include="Wargame\Parser_WargameObjectives.cs" />
-    <Compile Include="Wargame\Parser_WargameSpawnAreas.cs" />
-    <Compile Include="Wargame\Parser_WargameTemplate.cs" />
-    <Compile Include="Wargame\Parser_WargameTemplateLayout.cs" />
-    <Compile Include="Wargame\Parser_WargameZones.cs" />
-    <Compile Include="Wargame\Saver_TargetList_Wargame.cs" />
-    <Compile Include="Wargame\Saver_WargameZoneActive.cs" />
-    <Compile Include="Wargame\Saver_WargameZoneInit.cs" />
-    <Compile Include="Wargame\TargetListBlockScanner.cs" />
-    <Compile Include="Wargame\ucWargameMapView.cs">
+    <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
+    <Compile Include="Wargame\Engine\WargameEngineLosses.cs" />
+    <Compile Include="Wargame\UI\Parser_WargameMissionUnits.cs" />
+    <Compile Include="Wargame\Objective\Parser_WargameObjectives.cs" />
+    <Compile Include="Wargame\Spawn\Parser_WargameSpawnAreas.cs" />
+    <Compile Include="Wargame\Template\Parser_WargameTemplate.cs" />
+    <Compile Include="Wargame\Template\Parser_WargameTemplateLayout.cs" />
+    <Compile Include="Wargame\Zone\Parser_WargameZones.cs" />
+    <Compile Include="Wargame\TargetList\Saver_TargetList_Wargame.cs" />
+    <Compile Include="Wargame\Zone\Saver_WargameZoneActive.cs" />
+    <Compile Include="Wargame\Zone\Saver_WargameZoneInit.cs" />
+    <Compile Include="Wargame\TargetList\TargetListBlockScanner.cs" />
+    <Compile Include="Wargame\UI\ucWargameMapView.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Wargame\ucWargameZoneEditPanel.cs">
+    <Compile Include="Wargame\Zone\ucWargameZoneEditPanel.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="Wargame\WargameCalibration_Form.cs">
+    <Compile Include="Wargame\Calibration\WargameCalibration_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Wargame\WargameCampaignInfo.cs" />
-    <Compile Include="Wargame\WargameDrawingReader.cs" />
-    <Compile Include="Wargame\WargameEditor_Form.cs">
+    <Compile Include="Wargame\UI\WargameCampaignInfo.cs" />
+    <Compile Include="Wargame\Calibration\WargameDrawingReader.cs" />
+    <Compile Include="Wargame\UI\WargameEditor_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Wargame\WargameGeometryCleaner.cs" />
-    <Compile Include="Wargame\WargameHelp_Form.cs">
+    <Compile Include="Wargame\Calibration\WargameGeometryCleaner.cs" />
+    <Compile Include="Wargame\UI\WargameHelp_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Wargame\WargameMapCalibration.cs" />
-    <Compile Include="Wargame\WargameNeighborDetector.cs" />
-    <Compile Include="Wargame\WargameObjectiveWriter.cs" />
-    <Compile Include="Wargame\WargameSpawnArea.cs" />
-    <Compile Include="Wargame\WargameSpawnSolver.cs" />
-    <Compile Include="Wargame\WargameTemplateCatalog.cs" />
-    <Compile Include="Wargame\WargameTemplateCatalog_Form.cs">
+    <Compile Include="Wargame\Calibration\WargameMapCalibration.cs" />
+    <Compile Include="Wargame\Calibration\WargameNeighborDetector.cs" />
+    <Compile Include="Wargame\Objective\WargameObjectiveWriter.cs" />
+    <Compile Include="Wargame\Spawn\WargameSpawnArea.cs" />
+    <Compile Include="Wargame\Spawn\WargameSpawnSolver.cs" />
+    <Compile Include="Wargame\Template\WargameTemplateCatalog.cs" />
+    <Compile Include="Wargame\Template\WargameTemplateCatalog_Form.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="Wargame\WargameZoneActiveLoader.cs" />
-    <Compile Include="Wargame\WargameZoneData.cs" />
-    <Compile Include="Wargame\WargameZoneInitLoader.cs" />
-    <Compile Include="Wargame\WargameZoneRepository.cs" />
+    <Compile Include="Wargame\Zone\WargameZoneActiveLoader.cs" />
+    <Compile Include="Wargame\Zone\WargameZoneData.cs" />
+    <Compile Include="Wargame\Zone\WargameZoneInitLoader.cs" />
+    <Compile Include="Wargame\Zone\WargameZoneRepository.cs" />
     <Content Include="Data\About\changelog_dcemanager.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
