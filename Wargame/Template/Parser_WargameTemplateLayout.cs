@@ -18,6 +18,12 @@ namespace DCE_Manager
         // "vehicle", "static", "ship", "plane" ou "helicopter"
         public string Category;
 
+        // Classification DCS interne de l'unité ("Armor", "Fortifications",
+        // "Unarmed"...) - unit["category"] dans le .stm. Sert notamment à
+        // repérer les sacs de sable / fortifications pour les retirer quand
+        // le placement se fait sur route (voir WargameSpawnSolver.PlaceAlongRoad).
+        public string DcsCategory;
+
         public PointF Position;
         public double Heading;
     }
@@ -123,6 +129,7 @@ namespace DCE_Manager
                             Name = unit["name"]?.ToString() ?? (groupName + "-" + unitIndex),
                             GroupName = groupName,
                             Category = categoryName,
+                            DcsCategory = unit["category"]?.ToString() ?? "",
                             Position = new PointF(
                                 (float)ToDouble(unit["x"]),
                                 (float)ToDouble(unit["y"])),
@@ -147,8 +154,9 @@ namespace DCE_Manager
                             Name = groupName,
                             GroupName = groupName,
                             Category = categoryName,
+                            DcsCategory = group["category"]?.ToString() ?? "",
                             Position = new PointF((float)ToDouble(groupX), (float)ToDouble(groupY)),
-                            Heading = ToDouble(group["heading"]),
+                            Heading = ToDouble(group["heading"]) * 180.0 / Math.PI, // radians (DCS) -> degrés (interne)
                         });
                     }
                 }

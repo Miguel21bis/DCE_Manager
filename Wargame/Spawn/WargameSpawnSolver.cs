@@ -301,6 +301,12 @@ namespace DCE_Manager
 
                     foreach (WargameTemplateUnit u in ordered[i].units)
                     {
+                        // Sur route, on n'installe pas les fortifications
+                        // (sacs de sable, murets...) qui accompagnaient le
+                        // véhicule dans le template - demande campaignMaker.
+                        if (string.Equals(u.DcsCategory, "Fortifications", StringComparison.OrdinalIgnoreCase))
+                            continue;
+
                         result.Add(new WargamePlacedUnit
                         {
                             Name = u.Name,
