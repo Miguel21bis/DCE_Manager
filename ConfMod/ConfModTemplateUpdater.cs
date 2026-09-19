@@ -57,11 +57,7 @@ namespace DCE_Manager
             string localPath = _loader.GetConfModPath(campaignName);
             string refPath = GetReferencePath();
 
-            if (!File.Exists(localPath))
-            {
-                FormUtils.LogRegister("ConfModTemplateUpdater | conf_mod.lua introuvable pour " + campaignName);
-                return ConfUpdateResult.Ok; // pas un problème de référence, rien à signaler à ce sujet
-            }
+            bool localFileExists = File.Exists(localPath);
 
             if (!File.Exists(refPath))
             {
@@ -69,11 +65,14 @@ namespace DCE_Manager
                 return ConfUpdateResult.ReferenceMissing;
             }
 
-            List<string> localLines = new List<string>(File.ReadAllLines(localPath));
+            // Fichier local absent : liste vide. MergeBlockBody(..., localExists=false) sait déjà
+            // gérer ce cas (il recopie alors la référence telle quelle) - pas besoin de logique
+            // séparée pour "créer" vs "mettre à jour", c'est le même mécanisme.
+            List<string> localLines = localFileExists ? new List<string>(File.ReadAllLines(localPath)) : new List<string>();
             List<string> refLines = new List<string>(File.ReadAllLines(refPath));
 
             int cursor = 0;
-            List<string> newFile = MergeBlockBody(refLines, ref cursor, localLines, 0, localLines.Count - 1, true);
+            List<string> newFile = MergeBlockBody(refLines, ref cursor, localLines, 0, localLines.Count - 1, localFileExists);
 
             int braceBalance = 0;
 
@@ -86,11 +85,15 @@ namespace DCE_Manager
                 return ConfUpdateResult.MergeAborted;
             }
 
-            if (!SameContent(newFile, localLines))
+            if (!localFileExists || !SameContent(newFile, localLines))
             {
+                string dir = Path.GetDirectoryName(localPath);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir); // au cas où même le dossier Init aurait disparu
+
                 File.WriteAllLines(localPath, newFile.ToArray());
                 _loader.InvalidateCache(campaignName);
-                FormUtils.LogRegister("ConfModTemplateUpdater | conf_mod.lua mis à jour pour " + campaignName);
+                FormUtils.LogRegister("ConfModTemplateUpdater | conf_mod.lua " + (localFileExists ? "mis à jour" : "créé depuis la référence") + " pour " + campaignName);
             }
 
             return ConfUpdateResult.Ok;

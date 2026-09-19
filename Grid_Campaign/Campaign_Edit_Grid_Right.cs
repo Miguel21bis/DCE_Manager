@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -55,8 +55,11 @@ namespace DCE_Manager
                 LoadLuaData();
                 LoadAirbases();
                 LoadTrigger();
+                LoadTargets();
                 SetCampaignImage();
                 LoadSquads();
+                LoadScoreboard();
+                LoadBugList();   // <-- nouvelle ligne
                 DisplayErrors();
             }
             catch (Exception ex)
@@ -96,8 +99,8 @@ namespace DCE_Manager
             grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
             grid.CurrentCellDirtyStateChanged += Grid_CurrentCellDirtyStateChanged;
 
-            grid.DataError -= Grid_DataError;
-            grid.DataError += Grid_DataError;
+            grid.DataError -= TargetsGrid_DataError;
+            grid.DataError += TargetsGrid_DataError;
 
             grid.CellFormatting -= Grid_CellFormatting;
             grid.CellFormatting += Grid_CellFormatting;
@@ -163,6 +166,164 @@ namespace DCE_Manager
             _campaignContext.Airbases = parser.Load_db_airbases(_campaignName);
         }
 
+        // Charge l'état des cibles au sol (Init ET Active, comme les squads) et affiche la
+        // version correspondant au bouton Init/Active actuellement sélectionné.
+        private void LoadTargets()
+        {
+            var parser = new Parser_TargetList();
+            _campaignContext.Targets = parser.LoadTargets(_campaignName);
+
+            // Abonnement aux radios Init/Active pour rafraîchir les grilles Targets quand on
+            // bascule - désabonnement avant pour éviter les doublons (même campagne rouverte).
+            Main_Form.Instance.CampaignView.radioButton_INIT_CAMP.CheckedChanged -= TargetsRadio_CheckedChanged;
+            Main_Form.Instance.CampaignView.radioButton_INIT_CAMP.CheckedChanged += TargetsRadio_CheckedChanged;
+            Main_Form.Instance.CampaignView.radioButton_ACTIVE_CAMP.CheckedChanged -= TargetsRadio_CheckedChanged;
+            Main_Form.Instance.CampaignView.radioButton_ACTIVE_CAMP.CheckedChanged += TargetsRadio_CheckedChanged;
+
+            RefreshTargetsGrids();
+        }
+
+        private void TargetsRadio_CheckedChanged(object sender, EventArgs e)
+        {
+            RefreshTargetsGrids();
+        }
+
+        private void RefreshTargetsGrids()
+        {
+            string state = Main_Form.Instance.CampaignView.IsOobInit ? "Init" : "Active";
+
+            LoadGridTargets(Main_Form.Instance.CampaignView.dataGridViewTargetsBlue, _campaignContext.Targets, "blue", state);
+            LoadGridTargets(Main_Form.Instance.CampaignView.dataGridViewTargetsRed, _campaignContext.Targets, "red", state);
+        }
+
+        // Mémorise, par grille, la colonne et le sens de tri en cours (clic sur l'en-tête).
+        private static readonly Dictionary<DataGridView, (string Column, bool Ascending)> _targetsSortState =
+            new Dictionary<DataGridView, (string, bool)>();
+
+        // Remplit une grille Targets (Blue ou Red, Init ou Active) - lecture seule.
+        public static void LoadGridTargets(DataGridView grid, List<TargetAssetInfo> targets, string side, string state)
+        {
+            var filtered = targets
+                .Where(t => t.Side == side && t.FolderFile == state)
+                .ToList();
+
+            // Réapplique le tri en cours (si l'utilisateur avait cliqué une colonne), pour ne
+            // pas le perdre à chaque bascule Init/Active.
+            if (_targetsSortState.TryGetValue(grid, out var sortState))
+                filtered = SortTargets(filtered, sortState.Column, sortState.Ascending);
+
+            grid.Columns.Clear();
+            grid.AutoGenerateColumns = false;
+            grid.DataSource = null;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+
+            grid.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                HeaderText = "Target",
+                DataPropertyName = "TitleName",
+                Width = 220,
+                SortMode = DataGridViewColumnSortMode.Programmatic
+            });
+            grid.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                HeaderText = "Task",
+                DataPropertyName = "Task",
+                Width = 90,
+                SortMode = DataGridViewColumnSortMode.Programmatic
+            });
+            grid.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                HeaderText = "Alive",
+                DataPropertyName = "DisplayAlive",
+                Width = 60,
+                SortMode = DataGridViewColumnSortMode.Programmatic
+            });
+            grid.Columns.Add(new DataGridViewTextBoxColumn()
+            {
+                HeaderText = "Priority",
+                DataPropertyName = "Priority",
+                Width = 60,
+                SortMode = DataGridViewColumnSortMode.Programmatic,
+                Name = "PriorityColumn"
+            });
+
+            grid.DataSource = filtered;
+
+            foreach (DataGridViewColumn column in grid.Columns)
+                column.ReadOnly = true;
+
+            grid.Columns["PriorityColumn"].ReadOnly = false;
+
+            grid.DataError -= TargetsGrid_DataError;
+            grid.DataError += TargetsGrid_DataError;
+
+            grid.ColumnHeaderMouseClick -= TargetsGrid_ColumnHeaderMouseClick;
+            grid.ColumnHeaderMouseClick += TargetsGrid_ColumnHeaderMouseClick;
+        }
+
+        // Clic sur un en-tête : trie sur cette colonne (inverse le sens si on reclique dessus).
+        private static void TargetsGrid_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var grid = sender as DataGridView;
+            if (grid == null) return;
+
+            string columnName = grid.Columns[e.ColumnIndex].DataPropertyName;
+            if (string.IsNullOrEmpty(columnName)) return;
+
+            bool ascending = true;
+            if (_targetsSortState.TryGetValue(grid, out var previous) && previous.Column == columnName)
+                ascending = !previous.Ascending;
+
+            _targetsSortState[grid] = (columnName, ascending);
+
+            var current = (grid.DataSource as List<TargetAssetInfo>) ?? new List<TargetAssetInfo>();
+            var sorted = SortTargets(current, columnName, ascending);
+
+            grid.DataSource = null;
+            grid.DataSource = sorted;
+
+            foreach (DataGridViewColumn column in grid.Columns)
+                column.ReadOnly = true;
+        }
+
+        // Version static de Grid_DataError, utilisable depuis LoadGridTargets qui est static.
+        // Évite juste l'exception WinForms si l'utilisateur tape un texte non numérique
+        // dans la colonne Priority.
+        private static void TargetsGrid_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.ThrowException = false;
+        }
+
+        private static List<TargetAssetInfo> SortTargets(List<TargetAssetInfo> targets, string columnName, bool ascending)
+        {
+            switch (columnName)
+            {
+                case "TitleName":
+                    return ascending
+                        ? targets.OrderBy(t => t.TitleName).ToList()
+                        : targets.OrderByDescending(t => t.TitleName).ToList();
+
+                case "Task":
+                    return ascending
+                        ? targets.OrderBy(t => t.Task).ToList()
+                        : targets.OrderByDescending(t => t.Task).ToList();
+
+                case "DisplayAlive": // trié sur la vraie valeur numérique, pas le texte "70%"
+                    return ascending
+                        ? targets.OrderBy(t => t.Alive).ToList()
+                        : targets.OrderByDescending(t => t.Alive).ToList();
+
+                case "Priority":
+                    return ascending
+                        ? targets.OrderBy(t => t.Priority).ToList()
+                        : targets.OrderByDescending(t => t.Priority).ToList();
+
+                default:
+                    return targets;
+            }
+        }
+
         // Cette fonction affiche le briefing dans la textbox.
         // Pourquoi : on force un texte vide plutôt qu'un null.
         private void SetBriefingText(string txt)
@@ -205,6 +366,180 @@ namespace DCE_Manager
                 Main_Form.Instance.CampaignView.pictureBoxCampImage.Image = null;
             }
 
+        }
+
+        // Construit le tableau Scoreboard (à partir du dernier fichier Debriefing) et l'affiche
+        // à la place du contenu actuel de l'onglet Options.
+        // TODO Miguel : remplacer "tabPageOptions" par le vrai nom (Properties > Name dans le Designer)
+        private void LoadScoreboard()
+        {
+            TabPage tab = Main_Form.Instance.CampaignView.tabPage11;
+
+            tab.Controls.Clear();
+            tab.Text = "Scoreboard";
+
+            var entries = new Parser_Debriefing_Scoreboard().LoadLatestScoreboard(_campaignName);
+
+            if (entries.Count == 0)
+            {
+                tab.Controls.Add(new Label
+                {
+                    Text = "No Debriefing file found yet for this campaign.",
+                    AutoSize = true,
+                    Padding = new Padding(10)
+                });
+                return;
+            }
+
+            var grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None, // largeurs fixées à la main plus bas
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                BorderStyle = BorderStyle.None,
+                CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
+                ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,
+                EnableHeadersVisualStyles = false,
+                BackgroundColor = Color.White,
+                Font = new Font("Segoe UI", 8.5f) // un peu plus compact que la police par défaut
+            };
+
+            grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(30, 30, 60);
+            grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
+            grid.ColumnHeadersDefaultCellStyle.Font = new Font(grid.Font, FontStyle.Bold);
+            grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(220, 230, 255);
+            grid.DefaultCellStyle.SelectionForeColor = Color.Black;
+
+            // Colonne Player : large, ancrée à gauche. Colonnes de stats : compactes, chiffres centrés.
+            grid.Columns.Add("Player", "Player");
+            grid.Columns["Player"].Width = 170;
+            grid.Columns["Player"].MinimumWidth = 170;
+
+            foreach (string label in new[] { "Missions", "Air", "Ground", "Ship", "Rescue", "Crashed", "Ejected", "MIA", "Rescued", "POW", "Dead" })
+            {
+                grid.Columns.Add(label, label);
+                grid.Columns[label].Width = 55;
+                grid.Columns[label].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                grid.Columns[label].HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleCenter;
+            }
+
+            // Classement par total de kills (air + sol + navire), décroissant
+            var sorted = entries.OrderByDescending(KillsAir).ToList();
+
+            for (int r = 0; r < sorted.Count; r++)
+            {
+                ScoreboardEntry e = sorted[r];
+                string medal = r == 0 ? "🥇 " : r == 1 ? "🥈 " : r == 2 ? "🥉 " : "";
+
+                var row = new object[1 + e.Stats.Count];
+                row[0] = medal + e.PlayerName;
+                for (int c = 0; c < e.Stats.Count; c++)
+                    row[c + 1] = FormatStat(e.Stats[c]);
+
+                int idx = grid.Rows.Add(row);
+
+                // Tooltip = nom complet, au cas où il serait quand même coupé
+                grid.Rows[idx].Cells[0].ToolTipText = e.PlayerName;
+
+                if (r % 2 == 1)
+                    grid.Rows[idx].DefaultCellStyle.BackColor = Color.FromArgb(245, 245, 250);
+
+                // Vert pour les stats qui ont progressé lors de ce debriefing
+                for (int c = 0; c < e.Stats.Count; c++)
+                {
+                    if (e.Stats[c].HasDelta && e.Stats[c].Delta > 0)
+                        grid.Rows[idx].Cells[c + 1].Style.ForeColor = Color.SeaGreen;
+                }
+            }
+
+            tab.Controls.Add(grid);
+        }
+
+        private static int KillsAir(ScoreboardEntry e)
+        {
+            var stat = e.Stats.FirstOrDefault(s => s.Label == "Kills Air");
+            return stat?.Value ?? 0;
+        }
+
+        private static string FormatStat(ScoreboardStat s)
+        {
+            if (s.Raw == "-" || string.IsNullOrWhiteSpace(s.Raw))
+                return "-";
+
+            return s.HasDelta ? $"{s.Value} (+{s.Delta})" : s.Value.ToString();
+        }
+
+        private void LoadBugList()
+        {
+            var bugs = new Parser_BugList().LoadBugList(_campaignName);
+
+            TabPage tab = Main_Form.Instance.CampaignView.tabPage12;
+            tab.Controls.Clear();
+
+            var richTextBox = new RichTextBox
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                WordWrap = false,                          // nécessaire pour l'ascenseur horizontal
+                ScrollBars = RichTextBoxScrollBars.Both,
+                BackColor = Color.White,
+                Font = new Font("Consolas", 9.5f),
+                BorderStyle = BorderStyle.None
+            };
+
+            tab.Controls.Add(richTextBox);
+
+            if (bugs.Count == 0)
+            {
+                richTextBox.Text = "No bugs recorded for this campaign.";
+                return;
+            }
+
+            foreach (string bug in bugs)
+            {
+                AppendBugLine(richTextBox, bug);
+                richTextBox.AppendText(Environment.NewLine + Environment.NewLine);
+            }
+
+            richTextBox.SelectionStart = 0;
+        }
+
+        // Ajoute une ligne colorée selon les mots-clés habituels (Error/Echec, Warning/strange, sinon Info)
+        private void AppendBugLine(RichTextBox rtb, string bug)
+        {
+            string lower = bug.ToLowerInvariant();
+
+            string icon;
+            Color color;
+
+            if (lower.Contains("error") || lower.Contains("echec") || lower.Contains("fail"))
+            {
+                icon = "❌";
+                color = Color.Firebrick;
+            }
+            else if (lower.Contains("warning") || lower.Contains("attention") || lower.Contains("strange") || lower.Contains("unavailable"))
+            {
+                icon = "⚠";
+                color = Color.DarkOrange;
+            }
+            else
+            {
+                icon = "ℹ";
+                color = Color.SteelBlue;
+            }
+
+            rtb.SelectionColor = color;
+            rtb.SelectionFont = new Font(rtb.Font, FontStyle.Bold);
+            rtb.AppendText(icon + " ");
+
+            rtb.SelectionColor = Color.Black;
+            rtb.SelectionFont = rtb.Font;
+            rtb.AppendText(bug);
         }
 
  
@@ -787,8 +1122,40 @@ namespace DCE_Manager
             MessageBox.Show("Changes saved.", "Report");
         }
 
+        // Sauve les priorités des Targets modifiées dans le fichier Lua correspondant
+        // à l'état actuellement affiché (Init ou Active).
+        private void SaveTargetsPriorities()
+        {
+            string folderName = Main_Form.Instance.CampaignView.IsOobInit ? "Init" : "Active";
+
+            if (folderName == "Init")
+            {
+                string pathFile = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns",
+                    _campaignName, "Init", "targetlist_init.lua");
+                Saver_TargetList.SaveInit(pathFile, _campaignContext.Targets);
+            }
+            else
+            {
+                string pathFile = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns",
+                    _campaignName, "Active", "targetlist.lua");
+                Saver_TargetList.SaveActive(pathFile, _campaignContext.Targets);
+            }
+
+            MessageBox.Show("Changes saved.", "Report");
+        }
+
         public void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
         {
+            // Onglets Targets Blue/Red : on sauve les priorités et on s'arrête là,
+            // le reste de la méthode (squads oob_air) ne les concerne pas.
+            var selectedTab = Main_Form.Instance.CampaignView.CampaignTab.SelectedTab;
+            if (selectedTab == Main_Form.Instance.CampaignView.tabPageTargetsBlue ||
+                selectedTab == Main_Form.Instance.CampaignView.tabPageTargetsRed)
+            {
+                SaveTargetsPriorities();
+                return;
+            }
+
             string pathFileBackup = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign + @"\Init\oob_air_init_backup_DTT.lua";
 
             string pathFile = "";
