@@ -44,7 +44,18 @@ namespace DCE_Manager
 
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            
+
+            // Mode debriefing appelé par EventsTracker.lua en fin de mission.
+            // Si DCE_Manager est déjà ouvert, c'est lui qui s'en charge et on ressort.
+            string debriefCampaign;
+            if (DebriefCli.IsRequested(out debriefCampaign))
+            {
+                if (!DebriefCli.SendToRunningInstance(debriefCampaign))
+                    DebriefCli.Run(debriefCampaign);
+
+                return;
+            }
+
 
             // Surveillance de la mémoire toutes les 30 secondes
             System.Threading.Timer memoryCheckTimer = new System.Threading.Timer(_ =>

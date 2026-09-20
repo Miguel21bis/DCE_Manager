@@ -40,9 +40,13 @@ namespace DCE_Manager.Utils
 
         public ProcessConsoleBridge()
         {
-            // Important : construire cet objet depuis le thread UI (ex: dans le constructeur
-            // de la Form) pour que les évènements soient bien relayés sur ce thread.
-            _uiContext = SynchronizationContext.Current;
+            // WinForms n'installe son SynchronizationContext qu'à la création du premier
+            // contrôle. Ce bridge est un initialiseur de champ de ScriptsModRunner_Form,
+            // donc il est construit AVANT le constructeur de la Form : en lancement normal
+            // Main_Form l'a déjà installé, mais en mode ligne de commande il n'y a rien eu
+            // avant et Current est null - les évènements partiraient alors sur un thread de
+            // fond, et l'affichage ne se mettrait jamais à jour.
+            _uiContext = SynchronizationContext.Current ?? new System.Windows.Forms.WindowsFormsSynchronizationContext();
         }
 
         // Démarre l'exécutable (ex: luae.exe), fenêtre cachée, entrée/sortie redirigées.
@@ -124,6 +128,12 @@ namespace DCE_Manager.Utils
 
             _process.Start();
 
+            FormUtils.LogRegister("Bridge | luae.exe lance : PID " + _process.Id
+    + " | exe=" + exePath
+    + " | args=" + arguments
+    + " | wd=" + workingDirectory
+    + " | uiContext=" + (_uiContext == null ? "NULL" : _uiContext.GetType().Name));
+
             ChildProcessTracker.AddProcess(_process.Handle); // rattache luae.exe au Job : tué automatiquement si DCE_Manager.exe meurt, même brutalement (Stop debugger, crash...)
 
             _process.BeginOutputReadLine();
@@ -151,6 +161,8 @@ namespace DCE_Manager.Utils
 
         private void RaiseOutput(string line, bool isError)
         {
+            FormUtils.LogRegister("Bridge | ligne recue : " + line);
+
             if (line == null)
                 return; // .NET envoie une ligne "null" en fin de flux, ce n'est pas une vraie ligne
 
@@ -172,6 +184,7 @@ namespace DCE_Manager.Utils
             }
 
             bool success = _lastExitSuccess;
+            FormUtils.LogRegister("Bridge | process termine, succes=" + success);
 
             if (_uiContext != null)
                 _uiContext.Post(delegate { ProcessExited?.Invoke(success); }, null);

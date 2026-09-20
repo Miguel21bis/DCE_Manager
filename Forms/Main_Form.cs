@@ -147,6 +147,10 @@ namespace DCE_Manager
             // Appel de la méthode de chargement
             LoadConfiguration();
 
+            // Écoute les demandes de debriefing venant de DCS (DCE_Manager.exe --debrief).
+            // Après LoadConfiguration() : le listener a besoin des chemins pour travailler.
+            DebriefCli.StartListener(this);
+
             homeView.SetClientId(Statistics.CreateIdClient());
             homeView.SetDceManagerVersion(GetVersionDceManager());
             homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
