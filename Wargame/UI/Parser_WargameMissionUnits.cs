@@ -24,19 +24,27 @@ namespace DCE_Manager
         public bool IsStatic => Category == "static";
     }
 
-    // Lit Active/last_Mission.lua (la mission extraite du .miz) et en sort la
-    // position des unités POSÉES PAR LE WARGAME, pour les afficher sur la carte.
+    // Lit la position des unités POSÉES PAR LE WARGAME, pour les afficher sur la carte.
     //
-    // Structure réelle, vérifiée sur un fichier de campagne :
-    //   last_Mission.coalition.<camp>.country[n].<catégorie>.group[n].units[n]
+    // Deux sources possibles, même structure interne à un niveau près :
+    //  1) Active/last_Mission.lua (la mission extraite du .miz), si présent :
+    //       last_Mission.coalition.<camp>.country[n].<catégorie>.group[n].units[n]
+    //  2) en secours, Active/oob_ground.lua (toujours présent dès FirstMission) :
+    //       oob_ground.<camp>[n].<catégorie>.group[n].units[n]
+    //     oob_ground.<camp> est une copie directe de mission.coalition.<camp>.country
+    //     (voir UTIL_ResetCampaign.lua) : il manque juste le niveau "country".
+    //
+    // Pourquoi le secours : last_Mission.lua n'est écrit ni par DCE_Manager ni par
+    // les scripts BAT/DEBRIEF - il peut donc manquer alors que la campagne tourne
+    // très bien (cas réel sur Qeshm-Blue), et la carte restait vide sans rien dire.
     //
     // Attention, deux pièges :
     //  - la variable globale s'appelle "last_Mission", pas "mission"
     //  - le marqueur wargameTemplateGroupName est porté par le GROUPE, pas par
     //    l'unité : on filtre au niveau groupe, puis on prend toutes ses unités
     //
-    // L'absence du fichier est un cas NORMAL (campagne jamais lancée) : on renvoie
-    // une liste vide sans rien casser, l'affichage se contente de ne rien montrer.
+    // L'absence des deux fichiers est un cas NORMAL (campagne jamais lancée) : on
+    // renvoie une liste vide sans rien casser, l'affichage se contente de ne rien montrer.
     internal class Parser_WargameMissionUnits
     {
         private static readonly string[] Categories = { "vehicle", "static", "ship", "plane", "helicopter" };
@@ -45,11 +53,26 @@ namespace DCE_Manager
         {
             var result = new List<WargameMissionUnit>();
 
-            if (string.IsNullOrEmpty(missionLuaPath) || !File.Exists(missionLuaPath))
+            string sourcePath = missionLuaPath;
+            bool isOobGround = false;
+
+            if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
             {
-                // Cas normal, pas une erreur : simple trace pour le diagnostic
-                FormUtils.LogRegister("Parser_WargameMissionUnits | pas de mission à afficher : " + missionLuaPath);
-                return result;
+                // last_Mission.lua absent : on se rabat sur oob_ground.lua, dans le même dossier Active
+                string oobPath = string.IsNullOrEmpty(missionLuaPath)
+                    ? null
+                    : Path.Combine(Path.GetDirectoryName(missionLuaPath), "oob_ground.lua");
+
+                if (oobPath == null || !File.Exists(oobPath))
+                {
+                    // Cas normal, pas une erreur : simple trace pour le diagnostic
+                    FormUtils.LogRegister("Parser_WargameMissionUnits | pas de mission ni d'oob_ground à afficher : " + missionLuaPath);
+                    return result;
+                }
+
+                FormUtils.LogRegister("Parser_WargameMissionUnits | last_Mission.lua absent, lecture de oob_ground.lua à la place");
+                sourcePath = oobPath;
+                isOobGround = true;
             }
 
             try
@@ -63,17 +86,25 @@ namespace DCE_Manager
                         debug = nil
                     ");
 
-                    lua.DoFile(missionLuaPath);
+                    lua.DoFile(sourcePath);
 
-                    // "last_Mission" d'abord, "mission" en secours au cas où le
-                    // fichier viendrait d'une autre source
-                    LuaTable root = lua["last_Mission"] as LuaTable ?? lua["mission"] as LuaTable;
-
-                    LuaTable coalitions = root?["coalition"] as LuaTable;
+                    // Table des camps (blue / red / neutrals), selon la source
+                    LuaTable coalitions;
+                    if (isOobGround)
+                    {
+                        coalitions = lua["oob_ground"] as LuaTable;
+                    }
+                    else
+                    {
+                        // "last_Mission" d'abord, "mission" en secours au cas où le
+                        // fichier viendrait d'une autre source
+                        LuaTable root = lua["last_Mission"] as LuaTable ?? lua["mission"] as LuaTable;
+                        coalitions = root?["coalition"] as LuaTable;
+                    }
 
                     if (coalitions == null)
                     {
-                        FormUtils.LogRegister("Parser_WargameMissionUnits | table coalition introuvable dans " + missionLuaPath);
+                        FormUtils.LogRegister("Parser_WargameMissionUnits | table des camps introuvable dans " + sourcePath);
                         return result;
                     }
 
@@ -83,7 +114,10 @@ namespace DCE_Manager
                         string side = coalitionKey.ToString();
 
                         LuaTable coalition = coalitions[coalitionKey] as LuaTable;
-                        LuaTable countries = coalition?["country"] as LuaTable;
+
+                        // oob_ground : le camp EST directement la liste des pays.
+                        // mission : il faut descendre dans ["country"].
+                        LuaTable countries = isOobGround ? coalition : coalition?["country"] as LuaTable;
                         if (countries == null) continue;
 
                         int countryIndex = 1;
@@ -103,10 +137,10 @@ namespace DCE_Manager
             catch (Exception ex)
             {
                 // Un fichier illisible ne doit jamais empêcher d'ouvrir l'éditeur
-                FormUtils.LogRegister("Parser_WargameMissionUnits | erreur lecture " + missionLuaPath + " : " + ex.Message);
+                FormUtils.LogRegister("Parser_WargameMissionUnits | erreur lecture " + sourcePath + " : " + ex.Message);
             }
 
-            FormUtils.LogRegister("Parser_WargameMissionUnits | " + result.Count + " unité(s) wargame lue(s)");
+            FormUtils.LogRegister("Parser_WargameMissionUnits | " + result.Count + " unité(s) wargame lue(s) depuis " + Path.GetFileName(sourcePath));
 
             return result;
         }
@@ -130,6 +164,10 @@ namespace DCE_Manager
                 if (string.IsNullOrEmpty(templateGroup))
                     continue;
 
+                // Groupe entièrement détruit (oob_ground garde les morts) : rien à montrer
+                if (group["dead"] is bool groupDead && groupDead)
+                    continue;
+
                 string groupName = group["name"]?.ToString() ?? "";
                 int formationId = (int)ToDouble(group["wargameFormationId"]);
 
@@ -142,6 +180,13 @@ namespace DCE_Manager
                     LuaTable unit = units[unitIndex] as LuaTable;
                     if (unit == null) break;
 
+                    unitIndex++;
+
+                    // Unité détruite : pas de point, sinon la carte montrerait des
+                    // formations "pleines" alors qu'elles ont pris des pertes
+                    if (unit["dead"] is bool unitDead && unitDead)
+                        continue;
+
                     result.Add(new WargameMissionUnit
                     {
                         Position = new PointF((float)ToDouble(unit["x"]), (float)ToDouble(unit["y"])),
@@ -152,8 +197,6 @@ namespace DCE_Manager
                         TemplateGroup = templateGroup,
                         FormationId = formationId,
                     });
-
-                    unitIndex++;
                 }
             }
         }

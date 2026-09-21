@@ -34,19 +34,34 @@ namespace DCE_Manager
 
             List<string> lines = File.ReadAllLines(pathFile).ToList();
 
-            // 1) Patch des champs édités, en place, sans toucher au reste du bloc
-            foreach (WargameObjective obj in objectives)
-                PatchFields(lines, obj);
-
-            // 2) Déplacements de camp, en une seule passe (retrait + insertion)
+            // Le fichier a pu être réécrit juste avant (formations wargame, voir SaveZones) :
+            // les BlockStart/BlockEnd mémorisés dans chaque obj au chargement du formulaire
+            // ne correspondent donc plus forcément aux lignes actuelles (décalage, voire
+            // IndexOutOfRange si le fichier a raccourci). On re-scanne le fichier TEL QU'IL
+            // EST MAINTENANT et on retrouve chaque bloc par sa clé + son camp, au lieu de
+            // faire confiance à des indices figés.
             List<TargetListBlock> blocks = TargetListBlockScanner.ScanBlocks(lines, (l, s, e) => true, out Dictionary<string, int> sideCloseLine);
 
+            // 1) Patch des champs édités, en place, sans toucher au reste du bloc
+            foreach (WargameObjective obj in objectives)
+            {
+                TargetListBlock currentBlock = blocks.FirstOrDefault(b => b.Key == obj.RawKey && b.Side == obj.CurrentSide);
+                if (currentBlock.Key == null)
+                {
+                    FormUtils.LogRegister("WargameObjectiveWriter | bloc introuvable pour l'objectif '" + obj.Name + "' (fichier changé entre-temps ?), patch ignoré");
+                    continue;
+                }
+
+                PatchFields(lines, obj, currentBlock.Start, currentBlock.End);
+            }
+
+            // 2) Déplacements de camp, en une seule passe (retrait + insertion)
             var linesToRemove = new HashSet<int>();
             var insertBySide = new Dictionary<string, List<string>>(System.StringComparer.OrdinalIgnoreCase)
-            {
-                { "blue", new List<string>() },
-                { "red", new List<string>() },
-            };
+    {
+        { "blue", new List<string>() },
+        { "red", new List<string>() },
+    };
 
             int moved = 0;
 
@@ -97,9 +112,9 @@ namespace DCE_Manager
                 FormUtils.LogRegister("WargameObjectiveWriter | " + moved + " objectif(s) déplacé(s) de camp dans " + Path.GetFileName(pathFile));
         }
 
-        private static void PatchFields(List<string> lines, WargameObjective obj)
+        private static void PatchFields(List<string> lines, WargameObjective obj, int blockStart, int blockEnd)
         {
-            for (int i = obj.BlockStart; i <= obj.BlockEnd; i++)
+            for (int i = blockStart; i <= blockEnd; i++)
             {
                 lines[i] = PatchFieldOnLine(lines[i], "priority", obj.Priority.ToString());
 
@@ -110,8 +125,8 @@ namespace DCE_Manager
                 }
             }
 
-            PatchFirepowerField(lines, obj.BlockStart, obj.BlockEnd, "min", obj.FirepowerMin);
-            PatchFirepowerField(lines, obj.BlockStart, obj.BlockEnd, "max", obj.FirepowerMax);
+            PatchFirepowerField(lines, blockStart, blockEnd, "min", obj.FirepowerMin);
+            PatchFirepowerField(lines, blockStart, blockEnd, "max", obj.FirepowerMax);
         }
 
         // Remplace la VALEUR d'un champ en conservant son style d'origine (quoté ou

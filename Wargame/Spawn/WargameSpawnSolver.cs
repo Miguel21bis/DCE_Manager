@@ -79,10 +79,11 @@ namespace DCE_Manager
         private const int RoadSamplesPerSegment = 20;
         private const double RoadProximityMeters = 8.0;
 
-        // Marge de sécurité vis-à-vis du bord de la zone : une unité peut être
-        // techniquement "dedans" tout en semblant déborder sur la carte à
-        // cause de la taille de son icône. À ajuster selon le rendu réel.
-        private const double ZoneEdgeMarginMeters = 50.0;
+        // Valeur de secours si camp.wargame_config.zone_edge_margin_meters n'est
+        // pas renseignée dans camp_init.lua (voir WargameCampaignInfo). La valeur
+        // réellement utilisée est maintenant passée en paramètre à PlaceTemplate,
+        // par campagne plutôt qu'en dur ici.
+        public const double DefaultZoneEdgeMarginMeters = 1000.0;
 
         // Paliers de compression de la distance ENTRE paquets (jamais à
         // l'intérieur d'un paquet), utilisés pour les trois cas de placement.
@@ -96,8 +97,10 @@ namespace DCE_Manager
         //
         // sectorIndex/sectorCount : voir la Phase 1 ci-dessous.
         public static List<WargamePlacedUnit> PlaceTemplate(
-            WargameZoneData zone, List<WargameTemplateUnit> templateUnits, WargameSpawnAreas spawnAreas, Random rng,
-            PointF? threatPoint = null, int sectorIndex = 0, int sectorCount = 1)
+    WargameZoneData zone, List<WargameTemplateUnit> templateUnits, WargameSpawnAreas spawnAreas, Random rng,
+    PointF? threatPoint = null, int sectorIndex = 0, int sectorCount = 1,
+    string formationSide = null, List<WargameZoneData> allZones = null,
+    double zoneEdgeMarginMeters = DefaultZoneEdgeMarginMeters)
         {
             if (templateUnits == null || templateUnits.Count == 0)
                 return null;
@@ -111,11 +114,8 @@ namespace DCE_Manager
             List<List<WargameTemplateUnit>> clusters = BuildClusters(templateUnits);
             spawnAreas = spawnAreas ?? new WargameSpawnAreas();
 
-            // Phase 1 (optionnelle) : si plusieurs formations se partagent la
-            // zone, on tente d'abord de rester dans le secteur angulaire qui
-            // lui est assigné (la zone est divisée en "parts de tarte" autour
-            // de son centroïde, une part par formation), pour éviter qu'elles
-            // ne s'agglutinent toutes au hasard au même endroit.
+            bool[] enemyEdgeMask = BuildEnemyEdgeMask(zone, formationSide, allZones);
+
             if (sectorCount > 1)
             {
                 PointF centroid = GetCentroid(zone.DcsPoints);
@@ -128,19 +128,17 @@ namespace DCE_Manager
                     PointF? candidate = RandomPointInPolygonSector(zone.DcsPoints, rng, centroid, sectorStart, sectorEnd);
                     if (candidate == null) continue;
 
-                    List<WargamePlacedUnit> sectorResult = TryPlaceAt(candidate.Value, clusters, zone, spawnAreas, threatPoint);
+                    List<WargamePlacedUnit> sectorResult = TryPlaceAt(candidate.Value, clusters, zone, spawnAreas, threatPoint, enemyEdgeMask, zoneEdgeMarginMeters);
                     if (sectorResult != null)
                         return sectorResult;
                 }
             }
 
-            // Phase 2 : secteur infructueux (ou une seule formation dans la
-            // zone) -> on cherche n'importe où dans la zone entière, comme avant.
             for (int attempt = 0; attempt < MaxAttempts; attempt++)
             {
                 PointF candidate = RandomPointInPolygon(zone.DcsPoints, rng);
 
-                List<WargamePlacedUnit> result = TryPlaceAt(candidate, clusters, zone, spawnAreas, threatPoint);
+                List<WargamePlacedUnit> result = TryPlaceAt(candidate, clusters, zone, spawnAreas, threatPoint, enemyEdgeMask, zoneEdgeMarginMeters);
                 if (result != null)
                     return result;
             }
@@ -155,7 +153,7 @@ namespace DCE_Manager
         // point candidat (libre ou dans une zone interdite), applique
         // l'orientation qui va avec, et valide que tout tombe bien dans la zone.
         private static List<WargamePlacedUnit> TryPlaceAt(PointF candidate, List<List<WargameTemplateUnit>> clusters,
-            WargameZoneData zone, WargameSpawnAreas spawnAreas, PointF? threatPoint)
+    WargameZoneData zone, WargameSpawnAreas spawnAreas, PointF? threatPoint, bool[] enemyEdgeMask, double zoneEdgeMarginMeters)
         {
             WargameSpawnPolygon forbidden = spawnAreas.FindAllPolygonsAt(candidate)
                 .FirstOrDefault(p => p.Policy == WargameSpawnPolicy.Forbidden);
@@ -173,7 +171,7 @@ namespace DCE_Manager
                 result = PlaceInsideForbidden(clusters, candidate, forbidden, zone, spawnAreas, threatPoint);
             }
 
-            return (result != null && AllInsideZone(result, zone.DcsPoints)) ? result : null;
+            return (result != null && AllInsideZone(result, zone.DcsPoints, enemyEdgeMask, zoneEdgeMarginMeters)) ? result : null;
         }
 
         private static List<WargamePlacedUnit> PlaceInsideForbidden(List<List<WargameTemplateUnit>> clusters,
@@ -522,36 +520,63 @@ namespace DCE_Manager
             return false;
         }
 
-        private static bool AllInsideZone(List<WargamePlacedUnit> placed, List<PointF> zonePoly)
+        // Pour chaque côté du polygone de la zone, détermine s'il donne sur une
+        // zone ENNEMIE (camp adverse à formationSide). Sonde un point à 50m de
+        // chaque côté du bord (perpendiculaire) et regarde s'il tombe dans un
+        // voisin déclaré - le camp de ce voisin tranche.
+        private static bool[] BuildEnemyEdgeMask(WargameZoneData zone, string formationSide, List<WargameZoneData> allZones)
         {
-            foreach (WargamePlacedUnit u in placed)
+            List<PointF> polygon = zone.DcsPoints;
+            var mask = new bool[polygon.Count];
+
+            // Pas d'info camp/voisins (vieil appelant, tests...) : comportement
+            // d'avant, marge partout - on ne change rien si on ne sait pas.
+            if (string.IsNullOrEmpty(formationSide) || allZones == null || zone.Neighbors == null || zone.Neighbors.Count == 0)
             {
-                if (!IsPointInPolygonWithMargin(u.Position, zonePoly, ZoneEdgeMarginMeters))
-                    return false;
+                for (int i = 0; i < mask.Length; i++) mask[i] = true;
+                return mask;
             }
 
-            return true;
-        }
-
-        // Comme IsPointInPolygon, mais rejette aussi un point trop proche du
-        // bord (même techniquement "dedans") : évite qu'une unité affichée
-        // sur la carte ne semble déborder visuellement de la zone.
-        private static bool IsPointInPolygonWithMargin(PointF p, List<PointF> polygon, double marginMeters)
-        {
-            if (!IsPointInPolygon(p, polygon))
-                return false;
+            List<WargameZoneData> neighborZones = allZones.Where(z => zone.Neighbors.Contains(z.Id)).ToList();
 
             int j = polygon.Count - 1;
             for (int i = 0; i < polygon.Count; i++)
             {
-                if (DistancePointToSegment(p, polygon[i], polygon[j]) < marginMeters)
-                    return false;
+                PointF mid = new PointF((polygon[i].X + polygon[j].X) / 2f, (polygon[i].Y + polygon[j].Y) / 2f);
 
+                float edgeDx = polygon[i].X - polygon[j].X;
+                float edgeDy = polygon[i].Y - polygon[j].Y;
+                float len = (float)Math.Sqrt(edgeDx * edgeDx + edgeDy * edgeDy);
+
+                bool isEnemy = false;
+
+                if (len > 0.01f)
+                {
+                    // normale au côté - le sens (intérieur/extérieur) dépend de
+                    // l'orientation du polygone, donc on teste les deux et on
+                    // garde celui qui tombe chez un voisin connu
+                    float nx = -edgeDy / len;
+                    float ny = edgeDx / len;
+                    const float probe = 50f; // mètres, juste assez pour sortir du bord
+
+                    PointF outsideA = new PointF(mid.X + nx * probe, mid.Y + ny * probe);
+                    PointF outsideB = new PointF(mid.X - nx * probe, mid.Y - ny * probe);
+
+                    WargameZoneData neighbor = neighborZones.FirstOrDefault(z => IsPointInPolygon(outsideA, z.DcsPoints))
+                        ?? neighborZones.FirstOrDefault(z => IsPointInPolygon(outsideB, z.DcsPoints));
+
+                    if (neighbor != null && neighbor.Control != WargameSide.Contested && neighbor.Control != formationSide)
+                        isEnemy = true;
+                }
+
+                mask[i] = isEnemy;
                 j = i;
             }
 
-            return true;
+            return mask;
         }
+
+
 
         // -------------------- Regroupement des éléments proches --------------------
 
@@ -727,6 +752,41 @@ namespace DCE_Manager
             }
 
             return inside;
+        }
+
+        private static bool AllInsideZone(List<WargamePlacedUnit> placed, List<PointF> zonePoly, bool[] enemyEdgeMask, double zoneEdgeMarginMeters)
+        {
+            foreach (WargamePlacedUnit u in placed)
+            {
+                if (!IsPointInPolygonWithMargin(u.Position, zonePoly, zoneEdgeMarginMeters, enemyEdgeMask))
+                    return false;
+            }
+
+            return true;
+        }
+
+        // Comme IsPointInPolygon, mais rejette aussi un point trop proche d'un bord
+        // ENNEMI (même techniquement "dedans") - evite le corps à corps avec la
+        // zone adverse. enemyEdgeMask[i] correspond au côté (polygon[i-1], polygon[i]) ;
+        // null = pas d'info dispo, on applique la marge partout comme avant.
+        private static bool IsPointInPolygonWithMargin(PointF p, List<PointF> polygon, double marginMeters, bool[] enemyEdgeMask)
+        {
+            if (!IsPointInPolygon(p, polygon))
+                return false;
+
+            int j = polygon.Count - 1;
+            for (int i = 0; i < polygon.Count; i++)
+            {
+                bool applyMargin = enemyEdgeMask == null || enemyEdgeMask[i];
+                double margin = applyMargin ? marginMeters : 0;
+
+                if (DistancePointToSegment(p, polygon[i], polygon[j]) < margin)
+                    return false;
+
+                j = i;
+            }
+
+            return true;
         }
     }
 }

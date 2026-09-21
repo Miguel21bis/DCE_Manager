@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using DCE_Manager.Utils;
 using NLua;
+using System.Globalization;
 
 namespace DCE_Manager
 {
@@ -25,6 +26,18 @@ namespace DCE_Manager
         // chemin d'un .stm et le parser (comptage des unités).
         public string BlueFolder = "";
         public string RedFolder = "";
+        // true si camp.wargame_config a été trouvée dans camp_init.lua - sert à
+        // distinguer "wargame jamais configuré pour cette campagne" d'un simple
+        // souci de libellés par défaut.
+        public bool HasWargameConfig = false;
+
+        // Marge de sécurité (mètres) entre une formation posée et le bord de sa
+        // zone, appliquée seulement côté ennemi (voir WargameSpawnSolver). Lue
+        // dans camp.wargame_config.zone_edge_margin_meters ; à défaut, la valeur
+        // par défaut du solveur est utilisée. Par campagne plutôt qu'en dur dans
+        // le code : chaque théâtre/échelle de carte peut avoir besoin d'une
+        // valeur différente.
+        public double ZoneEdgeMarginMeters = WargameSpawnSolver.DefaultZoneEdgeMarginMeters;
 
         public static WargameCampaignInfo Load(string campaignName)
         {
@@ -124,11 +137,21 @@ namespace DCE_Manager
                         return;
                     }
 
+                    HasWargameConfig = true;
+
                     string blue = wargameConfig["country_blue"]?.ToString();
                     string red = wargameConfig["country_red"]?.ToString();
 
                     if (!string.IsNullOrWhiteSpace(blue)) BlueLabel = blue;
                     if (!string.IsNullOrWhiteSpace(red)) RedLabel = red;
+
+                    object marginRaw = wargameConfig["zone_edge_margin_meters"];
+                    if (marginRaw != null
+                        && double.TryParse(marginRaw.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double margin)
+                        && margin >= 0)
+                    {
+                        ZoneEdgeMarginMeters = margin;
+                    }
                 }
             }
             catch (Exception ex)

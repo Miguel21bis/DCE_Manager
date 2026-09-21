@@ -90,12 +90,51 @@ namespace DCE_Manager
             _mapView.SetObjectives(_objectives);
             _mapView.SetMissionUnits(_missionUnits);
 
-            if (!_calibration.IsCalibrated)
+            List<string> warnings = BuildPrerequisiteWarnings();
+            if (warnings.Count > 0)
             {
                 MessageBox.Show(
-                    "This campaign has no map calibration yet. Zones won't be visible until it's calibrated.",
+                    "This campaign may not be fully ready for the wargame:\n\n- " + string.Join("\n\n- ", warnings),
                     "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
+        }
+
+        // Rassemble les avertissements "il manque quelque chose pour que le wargame
+        // fonctionne correctement", pour ne plus avoir à comparer un dossier et le
+        // log.txt à la main pour comprendre pourquoi rien ne s'affiche (cas réel
+        // rencontré : le chemin Saved Games actif dans la config DCE_Manager ne
+        // correspondait pas à l'installation DCS réellement utilisée en jeu).
+        private List<string> BuildPrerequisiteWarnings()
+        {
+            var warnings = new List<string>();
+
+            string campaignFolder = WargameZoneRepository.GetCampaignFolder(_campaignName);
+
+            if (!Directory.Exists(campaignFolder))
+            {
+                warnings.Add("Campaign folder not found:\n" + campaignFolder
+                    + "\n\nThe active Saved Games path in DCE_Manager's configuration may not match "
+                    + "the DCS install actually used in-game (multiple DCS installs?).");
+                return warnings; // tout le reste en découle, inutile d'empiler les messages
+            }
+
+            if (!_campaignInfo.HasWargameConfig)
+                warnings.Add("Wargame is not configured for this campaign (camp.wargame_config missing from Init/camp_init.lua).");
+
+            if (!_calibration.IsCalibrated)
+                warnings.Add("Map is not calibrated: zones won't be visible.");
+
+            string activeZonesPath = WargameZoneRepository.GetActiveWargameZonesPath(_campaignName);
+            bool wargameAlreadyRan = File.Exists(activeZonesPath);
+
+            if (wargameAlreadyRan && _missionUnits.Count == 0)
+            {
+                warnings.Add("The wargame has already run for this campaign, but no wargame unit was found "
+                    + "in the last generated mission.\nCheck that the active Saved Games path matches the "
+                    + "one actually used in-game (see log.txt).");
+            }
+
+            return warnings;
         }
 
         // Ce qui ne dépend pas du mode Init/Active : calibration, catalogue, image
@@ -483,12 +522,13 @@ namespace DCE_Manager
         private void SaveZones(bool showConfirmation)
         {
             string target;
+            List<string> placementFailures;
 
             if (_viewingActive)
             {
                 string activePath = WargameZoneRepository.GetActiveWargameZonesPath(_campaignName);
                 Saver_WargameZoneActive.Save(activePath, _zones);
-                Saver_TargetList_Wargame.WriteNewActiveFormations(_campaignName);
+                placementFailures = Saver_TargetList_Wargame.WriteNewActiveFormations(_campaignName);
                 WargameObjectiveWriter.ApplyChanges(
                     Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Active", "targetlist.lua"),
                     _objectives, BuildObjectiveDesiredSides());
@@ -497,7 +537,7 @@ namespace DCE_Manager
             else
             {
                 Saver_WargameZoneInit.Save(_initLuaPath, _zones, WargameZoneRepository.State);
-                Saver_TargetList_Wargame.WriteInitialFormations(_campaignName);
+                placementFailures = Saver_TargetList_Wargame.WriteInitialFormations(_campaignName);
                 WargameObjectiveWriter.ApplyChanges(
                     Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua"),
                     _objectives, BuildObjectiveDesiredSides());
@@ -506,8 +546,19 @@ namespace DCE_Manager
 
             _dirty = false;
 
-            if (showConfirmation)
+            if (placementFailures.Count > 0)
+            {
+                MessageBox.Show(
+                    "Saved to " + target + ", but " + placementFailures.Count + " formation(s) could not be placed "
+                    + "(no valid spot found in their zone, even compressed):\n\n- " + string.Join("\n- ", placementFailures)
+                    + "\n\nThey are missing from the map and won't spawn in the next mission. Try a smaller/lighter "
+                    + "template for these, or check the zone's free space.",
+                    "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            else if (showConfirmation)
+            {
                 MessageBox.Show("Saved to " + target + ".", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
         }
 
         private void OpenTemplateCatalog()
