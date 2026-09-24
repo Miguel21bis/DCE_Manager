@@ -10,6 +10,7 @@ using DCE_Manager.Parameters;
 using DCE_Manager.UserControls;
 using DCE_Manager.Utils;
 using Ookii.Dialogs.WinForms;
+using System.Threading.Tasks;
 
 namespace DCE_Manager
 {
@@ -292,7 +293,7 @@ namespace DCE_Manager
 
         }
 
-        private void button_InstallCampaign_Click(object sender, EventArgs e)
+        private async void button_InstallCampaign_Click(object sender, EventArgs e)
         {
 
             string combPathDCS = Path.Combine(textBox_PATH_DCS_Root.Text, "bin");
@@ -330,16 +331,79 @@ namespace DCE_Manager
 
             Cursor.Current = Cursors.WaitCursor;
 
-            //bool findNameCampaign = false;
-            //bool findScriptsMod = false;
-
             string NameCampaign = "";
-            //string zipPath = textBox_Campaign.Text;
 
             string zipPath = _selectedCampaignZipPath;
 
             if (File.Exists(_selectedCampaignZipPath))
             {
+                // Format léger "Export campagne" (bouton Export de la grid, une seule campagne) :
+                // pris en charge à part, tout le reste de cette méthode est conçu pour l'autre
+                // format, le paquet de distribution complet (ScriptsMod + Mods\tech\... + SavedGames).
+                if (CampaignImporter.LooksLikeExportedCampaignZip(zipPath))
+                {
+                    string campaignsRootImport = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
+                    string savedGamesRootImport = textBox_SavedGames.Text;
+
+                    string importedName = null;
+                    Exception extractionError = null;
+
+                    // Extraction sur un thread du pool + petite form de progression maison.
+                    // Le "await" rend la main à la boucle de messages pendant l'opération :
+                    // c'est ce qui évite le ContextSwitchDeadlock sur les gros packages.
+                    FormUtils.LogRegister("Import | format 'Export campagne' détecté, extraction de " + zipPath);
+
+                    using (var progressForm = new CampaignProgress_Form("Import campaign"))
+                    {
+                        progressForm.Show(this);
+                        this.Enabled = false;   // évite les clics parasites pendant l'extraction
+
+                        var progress = new Progress<Tuple<int, string>>(
+                            p => progressForm.UpdateProgress(new CampaignProgressInfo
+                            {
+                                OverallPercent = p.Item1,
+                                OverallText = "Extracting campaign package...",
+                                DetailPercent = p.Item1,
+                                DetailText = p.Item2
+                            }));
+
+                        IProgress<Tuple<int, string>> reporter = progress;
+
+                        try
+                        {
+                            importedName = await Task.Run(() =>
+                                CampaignImporter.ExtractExportedCampaignZip(
+                                    zipPath, campaignsRootImport, savedGamesRootImport,
+                                    (percent, parentFolder) => reporter.Report(Tuple.Create(percent, parentFolder))));
+                        }
+                        catch (Exception ex)
+                        {
+                            extractionError = ex;
+                        }
+                        finally
+                        {
+                            this.Enabled = true;
+                        }
+                    }
+
+                    Cursor.Current = Cursors.Default;
+
+                    if (extractionError != null)
+                    {
+                        FormUtils.ErrorGeneral_BoxOrLog(extractionError, "Import campaign package", zipPath, true, true);
+                        return;
+                    }
+
+                    // Régénère path.bat/.cmp/.png avec les chemins DCS locaux et rafraîchit la
+                    // grid - même mécanique que le bouton 🔧 Repair.
+                    await CampaignGridLeft.RepairCampaignAsync(importedName, "Import");
+
+                    _selectedCampaignZipPath = "";
+                    dropZoneControl1.ResetState();
+
+                    Cursor.Current = Cursors.Default;
+                    return;
+                }
 
                 //cherche le nom de la campagne dans le fichier zip
                 using (ZipArchive archive = ZipFile.OpenRead(zipPath))
@@ -361,8 +425,6 @@ namespace DCE_Manager
                                         lineNumber++;
                                         if (line.Contains("title"))
                                         {
-                                            //	title = "Crisis in PG-Blue",		--Title of campaign (name of missions)
-
                                             string tempTXT = (string)line;
                                             string[] words_A = tempTXT.Split(',');
                                             string[] words = words_A[0].Split('=');
@@ -371,7 +433,6 @@ namespace DCE_Manager
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimStart();
                                             ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimEnd();
                                             NameCampaign = ParamCampaign.NameCampaign;
-                                            //findNameCampaign = true;
                                             break;
                                         }
                                     }
@@ -381,26 +442,29 @@ namespace DCE_Manager
                     }
                 }
 
+                // <-- AJOUT : vérifie qu'on a bien trouvé le nom de la campagne avant de continuer
+                if (string.IsNullOrWhiteSpace(ParamCampaign.NameCampaign))
+                {
+                    MessageBox.Show(
+                        "Unable to find the campaign title in this ZIP file (camp_init.lua not found or 'title' line missing).\r\nMake sure this is a valid campaign package.",
+                        "Error");
+                    Cursor.Current = Cursors.Default;
+                    return;
+                }
 
-                //if (ParamConf.DCE_alreadyInstalled == false && TestFile.structureValide == false  && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
                 if (ParamConf.test_DCE_alreadyInstalled == false && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
                 {
-                    // Assurez-vous que l'application Windows Forms est configurée
-
-                    // Afficher la boîte de message avec les boutons Yes et No
                     DialogResult result = MessageBox.Show(
-                        "There are no DCE directories, so you need to create them.",    // Message à afficher
-                        "Create DCE directory",               // Titre de la boîte de message
-                        MessageBoxButtons.YesNo,      // Boutons à afficher
-                        MessageBoxIcon.Question       // Icône à afficher
+                        "There are no DCE directories, so you need to create them.",
+                        "Create DCE directory",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question
                     );
 
-                    // Vérifier le résultat de la boîte de message
                     if (result == DialogResult.Yes)
                     {
                         FormUtils.CreateDCE_Folder();
 
-                        //string combPathDCE_2 = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns");
                         if (Directory.Exists(combPathDCE))
                         {
                             ParamConf.test_DCE_alreadyInstalled = true;
@@ -418,19 +482,15 @@ namespace DCE_Manager
 
                 ParamCampaign.PathCampaign = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign;
 
-                //MessageBox.Show(ParamCampaign.PathCampaign, "info");
-
                 if (Directory.Exists(ParamCampaign.PathCampaign))
                 {
-                    // Afficher la boîte de message avec les boutons Yes et No
                     DialogResult result = MessageBox.Show(
-                    "The campaign already seems to be already installed. Do you want to overrun it?.",    // Message à afficher
-                    "Attention",               // Titre de la boîte de message
-                    MessageBoxButtons.YesNo,      // Boutons à afficher
-                    MessageBoxIcon.Question       // Icône à afficher
+                    "The campaign already seems to be already installed. Do you want to overrun it?.",
+                    "Attention",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
                  );
 
-                    // Vérifier le résultat de la boîte de message
                     if (result == DialogResult.No)
                     {
                         return;
@@ -443,24 +503,9 @@ namespace DCE_Manager
 
                 ExtractZipFileToDirectory(_selectedCampaignZipPath, true);
 
-                 TestFile.ScriptsMod = "NG";
-
-
-
-                //ecrit dans le fichier path.bat de la campagne installée:
-
-
-                //REM Core or Main DCS ou DCS.beta path, always end the line with \
-                //set "pathDCS=D:\___DCS___\"
-
-                //REM DCS or DCS.beta saved game path, always end the line with \
-                //set "pathSavedGames=Saved Games\DCS.openbeta\" 
-
-                //REM DCE ScriptMod version not any / or \ and no space before and after =
-                //set "versionPackageICM=20.43.59"
+                TestFile.ScriptsMod = "NG";
 
                 string pathFile = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaign.NameCampaign + @"\Init\path.bat";
-
 
                 string textPathBat = "REM Core or Main DCS ou DCS.beta path, always end the line with \\ \r\n" +
                                "set \"pathDCS=" + ParamConf.PATH_DCS_Root + "\\\"\r\n" +
@@ -472,6 +517,8 @@ namespace DCE_Manager
                                "\r\n" +
                                "REM After each change, You must launch the FirsMission.bat for it to be taken into account.";
 
+                Directory.CreateDirectory(Path.GetDirectoryName(pathFile));
+
                 System.IO.File.WriteAllText(pathFile, textPathBat);
 
                 //******************new system
@@ -479,35 +526,27 @@ namespace DCE_Manager
                 string pathStatus = textBox_SavedGames.Text.Replace(@"\", "/") + "/";
                 string fileNameA = ParamCampaign.NameCampaign + "_first.miz";
                 string pathFirstMission = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns", fileNameA);
-                string tempFilePath = Path.Combine(Path.GetTempPath(), "camp_status.lua"); // Chemin temporaire pour extraire et modifier le fichier
+                string tempFilePath = Path.Combine(Path.GetTempPath(), "camp_status.lua");
 
 
                 if (File.Exists(pathFirstMission))
                 {
-
-                    // Ouverture du fichier zip en mode Update pour modifier son contenu
                     using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
                     {
-
-                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
                         ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
 
                         if (entry != null)
                         {
-                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
                             entry.ExtractToFile(tempFilePath, true);
 
-                            // 2. Modification du fichier temporaire
                             int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
                             if (nbLigneMod < 1)
                             {
                                 nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
                             }
 
-                            // 3. Suppression de l'ancienne entrée dans le fichier zip
                             entry.Delete();
 
-                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
                             archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
                         }
                         else
@@ -516,7 +555,6 @@ namespace DCE_Manager
                         }
                     }
 
-                    // Nettoyage : Suppression du fichier temporaire après modification
                     if (File.Exists(tempFilePath))
                     {
                         File.Delete(tempFilePath);
@@ -536,29 +574,22 @@ namespace DCE_Manager
 
                 if (File.Exists(pathFirstMission))
                 {
-
-                    // Ouverture du fichier zip en mode Update pour modifier son contenu
                     using (ZipArchive archive = ZipFile.Open(pathOngoingMission, ZipArchiveMode.Update))
                     {
-                        // Chercher le fichier "camp_status.lua" dans le sous-dossier "l10n" à l'intérieur de l'archive
                         ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
 
                         if (entry != null)
                         {
-                            // 1. Extraction du fichier "camp_status.lua" vers un emplacement temporaire
                             entry.ExtractToFile(tempFilePath, true);
 
-                            // 2. Modification du fichier temporaire
                             int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
                             if (nbLigneMod < 1)
                             {
                                 nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
                             }
 
-                            // 3. Suppression de l'ancienne entrée dans le fichier zip
                             entry.Delete();
 
-                            // 4. Réintégration du fichier modifié dans le zip dans le même sous-dossier "l10n"
                             archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
                         }
                         else
@@ -567,7 +598,6 @@ namespace DCE_Manager
                         }
                     }
 
-                    // Nettoyage : Suppression du fichier temporaire après modification
                     if (File.Exists(tempFilePath))
                     {
                         File.Delete(tempFilePath);
@@ -595,8 +625,6 @@ namespace DCE_Manager
             }
 
             Cursor.Current = Cursors.Default;
-
-            //button_InstallCampaign.Visible = false;
 
             //affiche la ligne campagne en enlevant la derniere campagne, (folder seul sans fichier)
             string[] wordsBarre = _selectedCampaignZipPath.Split('\\');

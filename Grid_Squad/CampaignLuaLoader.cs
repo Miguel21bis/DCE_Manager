@@ -33,6 +33,27 @@ namespace DCE_Manager
                 return null;
             }
 
+            // Vérification ciblée AVANT le DoFile : quand DCEM_Function.lua plante, le message
+            // Lua ("attempt to index a nil value (field 'type')") ne dit jamais QUEL fichier est
+            // en cause côté utilisateur. On vérifie nous-mêmes en amont pour remonter un message
+            // clair au lieu de laisser l'erreur Lua brute remonter telle quelle.
+            string initFolder = campaignPath + @"\Init\";
+            string[] requiredForLuaLoad = { "conf_mod.lua", "camp_init.lua", "db_airbases.lua", "targetlist_init.lua", "oob_air_init.lua" };
+
+            foreach (string fileName in requiredForLuaLoad)
+            {
+                string filePath = initFolder + fileName;
+
+                if (!System.IO.File.Exists(filePath))
+                    throw new System.IO.FileNotFoundException(
+                        "Required file '" + fileName + "' is missing for campaign '" + campaignName + "'.", filePath);
+
+                if (new System.IO.FileInfo(filePath).Length == 0)
+                    throw new System.InvalidOperationException(
+                        "Required file '" + fileName + "' is empty for campaign '" + campaignName + "'.");
+            }
+
+
             // Un objet neuf par campagne. Avant, _data (champ d'instance) était
             // réutilisé tel quel : deux campagnes chargées par le même loader
             // finissaient dans _cache en pointant sur le MÊME objet, et TabSquad,

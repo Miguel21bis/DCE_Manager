@@ -347,6 +347,23 @@ namespace DCE_Manager.Parameters
         public bool Occupied { get; set; }
     }
 
+    // Une cible au sol (vehicle/static/airbase/ship) issue de targetlist_init.lua / targetlist.lua.
+    // On exclut volontairement les entrées sans "class" (CAP, AWACS, SAR, Refueling...) car
+    // ce ne sont pas des cibles physiques mais des tâches aériennes.
+    public class TargetAssetInfo
+    {
+        public string Side { get; set; }       // "blue" ou "red"
+        public string FolderFile { get; set; } // "Init" ou "Active"
+        public string TitleName { get; set; }  // clé/nom dans targetlist_init.lua
+        public string Task { get; set; }
+        public string Class { get; set; }      // vehicle / static / airbase / ship
+        public int Priority { get; set; }
+        public bool Inactive { get; set; }
+        public int Alive { get; set; } = 100;  // 100% tant qu'aucune mission n'a été jouée
+
+        public string DisplayAlive => Alive + "%";
+    }
+
 
     public class CampaignLuaData
     {

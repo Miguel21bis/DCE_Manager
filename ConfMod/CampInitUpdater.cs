@@ -56,11 +56,7 @@ namespace DCE_Manager
             string localPath = GetCampInitPath(campaignName);
             string refPath = GetReferencePath();
 
-            if (!File.Exists(localPath))
-            {
-                FormUtils.LogRegister("CampInitUpdater | camp_init.lua introuvable pour " + campaignName);
-                return ConfUpdateResult.Ok; // pas un problème de référence, rien à signaler à ce sujet
-            }
+            bool localFileExists = File.Exists(localPath);
 
             if (!File.Exists(refPath))
             {
@@ -69,10 +65,13 @@ namespace DCE_Manager
             }
 
             // 1) reverse vers conf_mod.lua les vieilles variables connues, avant de les perdre
-            MigrateObsoleteFields(campaignName, localPath, refPath);
+            //    (rien à migrer depuis un fichier qui n'existe pas)
+            if (localFileExists)
+                MigrateObsoleteFields(campaignName, localPath, refPath);
 
-            // 2) recale camp_init.lua sur la référence (ordre, clés manquantes, obsolètes...)
-            List<string> localLines = new List<string>(File.ReadAllLines(localPath));
+            // 2) recale camp_init.lua sur la référence. Fichier local absent -> liste vide,
+            //    le bloc "camp = { ... }" complet sera construit plus bas (branche else existante).
+            List<string> localLines = localFileExists ? new List<string>(File.ReadAllLines(localPath)) : new List<string>();
             List<string> refLines = new List<string>(File.ReadAllLines(refPath));
 
             int refStart, refEnd;
@@ -83,8 +82,8 @@ namespace DCE_Manager
                 return ConfUpdateResult.ReferenceMissing;
             }
 
-            int localStart, localEnd;
-            bool localExists = TryFindBlock(localLines, "camp", 0, localLines.Count - 1, out localStart, out localEnd);
+            int localStart = -1, localEnd = -1;
+            bool localExists = localFileExists && TryFindBlock(localLines, "camp", 0, localLines.Count - 1, out localStart, out localEnd);
 
             int cursor = refStart + 1;
             List<string> merged = MergeBlockBody(refLines, ref cursor, localLines, localStart, localEnd, localExists);
@@ -113,8 +112,12 @@ namespace DCE_Manager
                 return ConfUpdateResult.MergeAborted;
             }
 
+            string dirCampInit = Path.GetDirectoryName(localPath);
+            if (!string.IsNullOrEmpty(dirCampInit))
+                Directory.CreateDirectory(dirCampInit);
+
             File.WriteAllLines(localPath, localLines.ToArray());
-            FormUtils.LogRegister("CampInitUpdater | camp_init.lua mis à jour pour " + campaignName);
+            FormUtils.LogRegister("CampInitUpdater | camp_init.lua " + (localFileExists ? "mis à jour" : "créé depuis la référence") + " pour " + campaignName);
             return ConfUpdateResult.Ok;
         }
 

@@ -147,6 +147,10 @@ namespace DCE_Manager
             // Appel de la méthode de chargement
             LoadConfiguration();
 
+            // Écoute les demandes de debriefing venant de DCS (DCE_Manager.exe --debrief).
+            // Après LoadConfiguration() : le listener a besoin des chemins pour travailler.
+            DebriefCli.StartListener(this);
+
             homeView.SetClientId(Statistics.CreateIdClient());
             homeView.SetDceManagerVersion(GetVersionDceManager());
             homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
@@ -1042,8 +1046,8 @@ namespace DCE_Manager
 
                 Main_Form.Instance.CampaignView.buttonSaveChgtCampaign.Visible = false;
                 Main_Form.Instance.CampaignView.buttonResetBackup.Visible = false;
-                Main_Form.Instance.CampaignView.radioButton_OOB_INIT.Visible = false;
-                Main_Form.Instance.CampaignView.radioButton_OOB_ACTIVE.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_INIT_CAMP.Visible = false;
+                Main_Form.Instance.CampaignView.radioButton_ACTIVE_CAMP.Visible = false;
             }
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1069,7 +1073,7 @@ namespace DCE_Manager
                 Cursor.Current = Cursors.WaitCursor;
 
                 //groupBoxDroiteAccueil.Visible = false;
-                 _ = CampaignGridLeft.LoadCampaignsAsync();
+                 await CampaignGridLeft.LoadCampaignsAsync();
 
                 Cursor.Current = Cursors.Default;
 
