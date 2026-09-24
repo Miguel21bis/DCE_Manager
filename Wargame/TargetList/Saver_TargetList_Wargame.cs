@@ -45,20 +45,22 @@ namespace DCE_Manager
 
         // -------------------- Point d'entrée 1 : Init, une seule fois --------------------
 
-        public static void WriteInitialFormations(string campaignName)
+        public static List<string> WriteInitialFormations(string campaignName)
         {
+            var failures = new List<string>();
+
             string initPath = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Init", "targetlist_init.lua");
             if (!File.Exists(initPath))
             {
                 FormUtils.LogRegister("Saver_TargetList_Wargame | targetlist_init.lua introuvable pour " + campaignName);
-                return;
+                return failures;
             }
 
             RemoveAllWargameBlocksFromActive(campaignName);
 
             List<(WargameZoneData zone, WargameFormation formation)> all = LoadAllFormations(campaignName);
             if (all.Count == 0)
-                return;
+                return failures;
 
             List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
@@ -68,10 +70,10 @@ namespace DCE_Manager
 
             // side -> lignes Lua déjà indentées, prêtes à insérer telles quelles
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                { WargameSide.Blue, new List<string>() },
-                { WargameSide.Red, new List<string>() },
-            };
+    {
+        { WargameSide.Blue, new List<string>() },
+        { WargameSide.Red, new List<string>() },
+    };
 
             foreach (var pair in all)
             {
@@ -82,8 +84,12 @@ namespace DCE_Manager
                 int sectorCount = zone.Formations.Count;
                 PointF? threatPoint = FindNearestEnemyZoneCenter(zone, formation.Side, allZones);
 
-                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
-                if (placed == null) continue;
+                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, allZones);
+                if (placed == null)
+                {
+                    failures.Add(formation.Name + " (zone '" + zone.Id + "')");
+                    continue;
+                }
 
                 if (!newBlocksBySide.TryGetValue(TargetTableSide(formation.Side), out List<string> bucket))
                 {
@@ -101,6 +107,8 @@ namespace DCE_Manager
 
             FormUtils.LogRegister("Saver_TargetList_Wargame | targetlist_init.lua régénéré pour '" + campaignName
                 + "' (" + all.Count + " formation(s) wargame)");
+
+            return failures;
         }
 
         // Retire tout bloc wargame (wargameFormation = true) de Active/targetlist.lua,
@@ -132,18 +140,20 @@ namespace DCE_Manager
 
         // -------------------- Point d'entrée 2 : Active, à chaque mission suivante --------------------
 
-        public static void WriteNewActiveFormations(string campaignName)
+        public static List<string> WriteNewActiveFormations(string campaignName)
         {
+            var failures = new List<string>();
+
             string activePath = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Active", "targetlist.lua");
             if (!File.Exists(activePath))
             {
                 FormUtils.LogRegister("Saver_TargetList_Wargame | Active/targetlist.lua introuvable pour " + campaignName);
-                return;
+                return failures;
             }
 
             List<(WargameZoneData zone, WargameFormation formation)> all = LoadAllFormations(campaignName);
             if (all.Count == 0)
-                return;
+                return failures;
 
             List<string> lines = File.ReadAllLines(activePath).ToList();
 
@@ -155,7 +165,7 @@ namespace DCE_Manager
                 .ToList();
 
             if (missing.Count == 0)
-                return; // rien de nouveau, on ne touche pas au fichier
+                return failures; // rien de nouveau, on ne touche pas au fichier
 
             List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
@@ -163,10 +173,10 @@ namespace DCE_Manager
             var rng = new Random();
 
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                { WargameSide.Blue, new List<string>() },
-                { WargameSide.Red, new List<string>() },
-            };
+    {
+        { WargameSide.Blue, new List<string>() },
+        { WargameSide.Red, new List<string>() },
+    };
 
             foreach (var pair in missing)
             {
@@ -177,8 +187,12 @@ namespace DCE_Manager
                 int sectorCount = zone.Formations.Count;
                 PointF? threatPoint = FindNearestEnemyZoneCenter(zone, formation.Side, allZones);
 
-                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
-                if (placed == null) continue;
+                List<WargamePlacedUnit> placed = PlaceFormation(formation, zone, campaignInfo, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, allZones);
+                if (placed == null)
+                {
+                    failures.Add(formation.Name + " (zone '" + zone.Id + "')");
+                    continue;
+                }
 
                 if (!newBlocksBySide.TryGetValue(TargetTableSide(formation.Side), out List<string> bucket))
                 {
@@ -198,13 +212,15 @@ namespace DCE_Manager
             File.WriteAllLines(activePath, rewritten);
 
             FormUtils.LogRegister("Saver_TargetList_Wargame | " + missing.Count + " nouvelle(s) formation(s) ajoutée(s) à Active/targetlist.lua pour '" + campaignName + "'");
+
+            return failures;
         }
 
         // -------------------- Placement (solveur) --------------------
 
         private static List<WargamePlacedUnit> PlaceFormation(WargameFormation formation, WargameZoneData zone,
-    WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng, PointF? threatPoint,
-    int sectorIndex, int sectorCount)
+            WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng, PointF? threatPoint,
+            int sectorIndex, int sectorCount, List<WargameZoneData> allZones)
         {
             string stmPath = campaignInfo?.GetTemplateFilePath(formation.Template);
             if (string.IsNullOrEmpty(stmPath))
@@ -220,7 +236,10 @@ namespace DCE_Manager
                 return null;
             }
 
-            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
+            List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(
+     zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, formation.Side, allZones,
+     campaignInfo?.ZoneEdgeMarginMeters ?? WargameSpawnSolver.DefaultZoneEdgeMarginMeters);
+
             if (placed == null)
             {
                 FormUtils.LogRegister("Saver_TargetList_Wargame | aucune position trouvée pour la formation '" + formation.Name + "' dans la zone '" + zone.Id + "'");
@@ -229,7 +248,6 @@ namespace DCE_Manager
 
             return placed;
         }
-
         // Zone contrôlée par le camp adverse la plus proche du centre de "ownZone" -
         // sans limite de distance (couvre aussi bien l'infanterie que
         // l'artillerie longue portée, sans logique séparée par type d'unité).
@@ -575,7 +593,7 @@ namespace DCE_Manager
                     pendingSide = sideMatch.Groups[1].Value;
 
                 var numMatch = NumericKeyRegex.Match(line);
-                if (numMatch.Success && depth == 1 && currentSideAtDepth2 != null &&
+                if (numMatch.Success && depth == 2 && currentSideAtDepth2 != null &&
                     int.TryParse(numMatch.Groups[1].Value, out int n))
                 {
                     if (n > maxBySide[currentSideAtDepth2])

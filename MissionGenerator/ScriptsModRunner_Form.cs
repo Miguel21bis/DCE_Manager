@@ -340,6 +340,11 @@ namespace DCE_Manager
                 // donc n'affichera jamais ces lignes techniques.
                 launchInfo.EnvironmentVariables["DCEM_MACHINE_MODE"] = "1";
 
+                // Chemin de DCE_Manager, transmis jusqu'à campL pour qu'EventsTracker puisse
+                // lui rendre la main pour le debriefing. Absent si lancement manuel du .bat.
+                // Slashes normaux obligatoires : TableSerialization n'échappe pas les antislashs.
+                launchInfo.EnvironmentVariables["DCEM_EXE_PATH"] = Application.ExecutablePath.Replace('\\', '/');
+
                 _bridge.Start(launchInfo.ExePath, launchInfo.Arguments, _workingDirectory, launchInfo.EnvironmentVariables);
                 lblStatus.Text = "Running...";
                 progressRunning.Visible = true;

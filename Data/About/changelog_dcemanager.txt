@@ -1,3 +1,12 @@
+V12.24.70
+ADD: mission generation (now supervised by DCE_Manager)
+ADD: debriefing and next mission generation (now supervised by DCE_Manager)
+ADD: 3 icons as shortcuts to FirstMission.bat, SkipMission.bat, and DEBUG_DebriefMission.bat (still supervised by DCE_Manager)
+ADD: Scoreboard + Targetlist tab
+ADD: Wargame environment (future Qeshm Island invasion campaign), with map divided into zones, spawn zones, auto-advance, etc.
+(work in progress, far from complete)
+
+
 V10.19.61
 ADD: Viewing and editing conf_mod and camp_init
 ADD: Displays campaigns and/or orphaned files, so you can delete them if you wish.

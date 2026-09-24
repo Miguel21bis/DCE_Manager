@@ -827,11 +827,20 @@ namespace DCE_Manager
                 return;
             }
 
-            // Ligne "problème" (dossier incomplet ou fichier orphelin) : seuls Delete et Folder
-            // ont un sens ici. Les autres colonnes (First/Skip/Parameters/CampaignSetup, ou
-            // l'ouverture normale du panneau de droite en fin de méthode) sont ignorées, plutôt
-            // que de tenter d'agir sur des fichiers qui peuvent ne pas exister.
-            if (_incompleteOrOrphanNames.Contains(name) && columnName != "Delete" && columnName != "Folder")
+            // Ligne "problème" (dossier incomplet ou fichier orphelin) : Delete et Folder sont
+            // toujours permis. Parameters et CampaignSetup le sont aussi si c'est un vrai dossier
+            // de campagne (pas un simple fichier orphelin sans dossier) : ConfModTemplateUpdater
+            // et CampInitUpdater savent créer conf_mod.lua/camp_init.lua depuis la référence si le
+            // fichier local manque encore, pas besoin d'attendre que la campagne soit complète.
+            // Les autres colonnes (First/Skip, ouverture normale du panneau de droite) restent
+            // bloquées : elles ont besoin de bien plus de fichiers (oob_air_init.lua, targetlist...)
+            // pour ne pas planter.
+            bool isRepairableFolder = _repairableIncompleteNames.Contains(name);
+
+            bool allowedOnProblemRow = columnName == "Delete" || columnName == "Folder"
+                || ((columnName == "Parameters" || columnName == "CampaignSetup") && isRepairableFolder);
+
+            if (_incompleteOrOrphanNames.Contains(name) && !allowedOnProblemRow)
             {
                 FormUtils.LogRegister("GridCampaigns_CellClick RETURN ligne 'probleme' : '" + name +
                                       "' est dans _incompleteOrOrphanNames (colonne '" + columnName + "')");
