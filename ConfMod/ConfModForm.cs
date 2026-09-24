@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
+using DCE_Manager.Utils;
+using NLua;
 
 namespace DCE_Manager
 {
@@ -34,6 +37,16 @@ namespace DCE_Manager
         private Button buttonSave;
         private Button buttonCancel;
         private readonly ToolTip _toolTip = new ToolTip();
+
+        // Préréglages de timing proposés par le campaignMaker (camp.timing_presets
+        // dans Init/camp_init.lua). Liste vide = pas de combo affiché.
+        private readonly List<TimingPreset> _presets = new List<TimingPreset>();
+        // Groupe (onglet) où le combo apparaît : celui du premier champ visé par
+        // les préréglages (normalement "Time"). null = pas de combo.
+        private string _presetGroup;
+        private ComboBox _presetCombo;
+        // Évite que le remplissage des champs par un préréglage relance le combo.
+        private bool _applyingPreset;
 
         public ConfModForm(string campaignName)
             : this(campaignName, null, "Config", null)
@@ -71,12 +84,19 @@ namespace DCE_Manager
                 return;
             }
 
+            // Préréglages seulement pour conf_mod.lua (filePath null) : la même Form
+            // sert aussi à éditer camp_init.lua ("Campaign Setup"), où ils n'ont
+            // rien à faire.
+            if (filePath == null)
+                LoadTimingPresets();
+
             BuildForm();
 
             if (!string.IsNullOrEmpty(warningBanner))
                 AddWarningBanner(warningBanner);
 
             BindValues();
+            SyncPresetCombo();
         }
 
         // Bandeau d'avertissement en haut de la Form (ex: "changes here require
@@ -117,6 +137,8 @@ namespace DCE_Manager
             var matrixControlsByGroup = new Dictionary<string, List<Control>>();
             var groupHasRestricted = new Dictionary<string, bool>();
             var groupOrder = new List<string>();
+
+            _presetGroup = FindPresetGroup();
 
             // Preserve the file's own order: a group's button appears where its first
             // field appears, and fields within a group keep the file's own order.
@@ -164,6 +186,13 @@ namespace DCE_Manager
                     groupPanel.Controls.Add(groupLayout);
                     scalarLayoutByGroup[field.Group] = groupLayout;
                     rowByGroup[field.Group] = 0;
+
+                    // Le combo des préréglages prend la première ligne du groupe.
+                    if (field.Group == _presetGroup)
+                    {
+                        AddPresetRow(groupLayout, 0);
+                        rowByGroup[field.Group] = 1;
+                    }
                 }
 
                 int row = rowByGroup[field.Group];
@@ -316,6 +345,242 @@ namespace DCE_Manager
 
             DialogResult = DialogResult.OK;
             Close();
+        }
+
+        // ---------------------------------------------------------------
+        // Préréglages de timing (camp.timing_presets dans camp_init.lua)
+        //
+        //   timing_presets = {
+        //       [1] = { label = "Mission 2h, one sortie per mission", mission_duration = 7200, idle_time_min = 3600, idle_time_max = 3600 },
+        //       ...
+        //   },
+        //
+        // "label" = texte du combo ; toute autre clé = nom d'un champ de conf_mod
+        // (Key du schéma). Si plusieurs champs ont le même nom, le premier du
+        // fichier gagne (donc mission_ini_check, qui est en tête). Une clé qui ne
+        // correspond à aucun champ affiché est ignorée.
+        // Le préréglage n'est stocké nulle part : il ne fait que remplir les
+        // champs, et c'est Save qui écrit conf_mod.lua comme d'habitude.
+        // ---------------------------------------------------------------
+
+        private void LoadTimingPresets()
+        {
+            string campInitPath = DcemLua.CampaignInitFile(_campaignName, "camp_init.lua");
+
+            if (!File.Exists(campInitPath))
+                return;
+
+            try
+            {
+                using (Lua lua = DcemLua.NewState())
+                {
+                    lua.DoString(@"
+                        os = nil
+                        io = nil
+                        file = nil
+                        debug = nil
+                    ");
+
+                    lua.DoFile(campInitPath);
+
+                    LuaTable camp = lua["camp"] as LuaTable;
+                    if (camp == null)
+                        return;
+
+                    LuaTable presetsTable = camp["timing_presets"] as LuaTable;
+                    if (presetsTable == null)
+                        return;
+
+                    // On trie sur l'index Lua ([1], [2]...) pour garder l'ordre voulu
+                    // par le campaignMaker, l'ordre d'énumération n'étant pas garanti.
+                    var sorted = new List<KeyValuePair<double, TimingPreset>>();
+
+                    foreach (object key in presetsTable.Keys)
+                    {
+                        LuaTable presetTable = presetsTable[key] as LuaTable;
+                        if (presetTable == null)
+                            continue;
+
+                        TimingPreset preset = ReadPreset(presetTable);
+                        if (preset.Values.Count == 0)
+                            continue;
+
+                        double order;
+                        if (!double.TryParse(Convert.ToString(key, CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out order))
+                            order = 9999;
+
+                        sorted.Add(new KeyValuePair<double, TimingPreset>(order, preset));
+                    }
+
+                    foreach (KeyValuePair<double, TimingPreset> kv in sorted.OrderBy(x => x.Key))
+                        _presets.Add(kv.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ConfModForm | lecture de camp.timing_presets impossible dans " + campInitPath + " : " + ex.Message);
+                _presets.Clear();
+            }
+        }
+
+        private static TimingPreset ReadPreset(LuaTable presetTable)
+        {
+            var preset = new TimingPreset();
+
+            foreach (object key in presetTable.Keys)
+            {
+                string k = Convert.ToString(key, CultureInfo.InvariantCulture);
+                object v = presetTable[key];
+
+                if (k == "label")
+                {
+                    preset.Label = Convert.ToString(v, CultureInfo.InvariantCulture);
+                    continue;
+                }
+
+                if (v is double || v is long || v is int)
+                    preset.Values[k] = Convert.ToDouble(v, CultureInfo.InvariantCulture);
+            }
+
+            if (string.IsNullOrEmpty(preset.Label))
+                preset.Label = "Preset";
+
+            return preset;
+        }
+
+        // Premier champ visible (niveau utilisateur respecté) visé par un
+        // préréglage -> son groupe accueille le combo.
+        private string FindPresetGroup()
+        {
+            if (_presets.Count == 0)
+                return null;
+
+            List<ConfUiFieldSchema> visible = _data.Schema
+                .Where(f => f.MinLevel <= ParamConf.UserLevel && f.Type != UiFieldType.Matrix)
+                .OrderBy(f => f.LineIndex)
+                .ToList();
+
+            foreach (TimingPreset preset in _presets)
+            {
+                foreach (string key in preset.Values.Keys)
+                {
+                    ConfUiFieldSchema field = visible.FirstOrDefault(f => f.Key == key);
+                    if (field != null)
+                        return field.Group;
+                }
+            }
+
+            FormUtils.LogRegister("ConfModForm | camp.timing_presets : aucune clé ne correspond à un champ de conf_mod pour " + _campaignName);
+            return null;
+        }
+
+        private void AddPresetRow(TableLayoutPanel layout, int row)
+        {
+            layout.RowCount = row + 1;
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var nameLabel = new Label
+            {
+                Text = "Timing preset",
+                AutoSize = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left,
+                Margin = new Padding(0, 8, 0, 0),
+                Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            };
+            layout.Controls.Add(nameLabel, 0, row);
+
+            _toolTip.SetToolTip(nameLabel,
+                "Timing presets suggested by the campaign maker for this campaign. " +
+                "Picking one fills the fields below; you can still adjust them before saving.");
+
+            _presetCombo = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Width = 320,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 5, 0, 8)
+            };
+
+            _presetCombo.Items.Add("Custom");
+            foreach (TimingPreset preset in _presets)
+                _presetCombo.Items.Add(preset);
+
+            _presetCombo.SelectedIndexChanged += PresetCombo_SelectedIndexChanged;
+
+            layout.Controls.Add(_presetCombo, 1, row);
+            layout.SetColumnSpan(_presetCombo, 2);
+        }
+
+        private void PresetCombo_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_applyingPreset)
+                return;
+
+            TimingPreset preset = _presetCombo.SelectedItem as TimingPreset;
+            if (preset == null)
+                return; // "Custom" : on ne touche à rien
+
+            _applyingPreset = true;
+
+            foreach (KeyValuePair<string, double> kv in preset.Values)
+            {
+                UiFieldControl fc = _controls.FirstOrDefault(c => c.Schema.Key == kv.Key);
+                if (fc != null)
+                    fc.SetValue(kv.Value);
+            }
+
+            _applyingPreset = false;
+        }
+
+        // À l'ouverture : sélectionne le préréglage qui correspond aux valeurs
+        // actuelles de conf_mod, sinon "Custom".
+        private void SyncPresetCombo()
+        {
+            if (_presetCombo == null)
+                return;
+
+            _applyingPreset = true;
+            _presetCombo.SelectedIndex = 0;
+
+            foreach (TimingPreset preset in _presets)
+            {
+                if (PresetMatchesCurrentValues(preset))
+                {
+                    _presetCombo.SelectedItem = preset;
+                    break;
+                }
+            }
+
+            _applyingPreset = false;
+        }
+
+        private bool PresetMatchesCurrentValues(TimingPreset preset)
+        {
+            bool atLeastOne = false;
+
+            foreach (KeyValuePair<string, double> kv in preset.Values)
+            {
+                UiFieldControl fc = _controls.FirstOrDefault(c => c.Schema.Key == kv.Key);
+                if (fc == null)
+                    continue;
+
+                double current;
+                try
+                {
+                    current = Convert.ToDouble(fc.GetValue(), CultureInfo.InvariantCulture);
+                }
+                catch
+                {
+                    return false;
+                }
+
+                if (Math.Abs(current - kv.Value) > 0.001)
+                    return false;
+
+                atLeastOne = true;
+            }
+
+            return atLeastOne;
         }
 
         // ---------------------------------------------------------------
@@ -667,6 +932,17 @@ namespace DCE_Manager
             public ConfUiFieldSchema Schema;
             public Func<object> GetValue;
             public Action<object> SetValue;
+        }
+
+        private class TimingPreset
+        {
+            public string Label;
+            public Dictionary<string, double> Values = new Dictionary<string, double>();
+
+            public override string ToString()
+            {
+                return Label;
+            }
         }
 
         private class UiMatrixControl

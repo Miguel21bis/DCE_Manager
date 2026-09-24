@@ -34,6 +34,9 @@ namespace DCE_Manager
         private bool _isRefreshingCallsign;
 
         private readonly bool _isActiveVersion;
+        // Vrai pendant le remplissage initial des contrôles.
+        // Pourquoi : éviter que l'ouverture du form écrase le roster de la campagne.
+        private bool _isLoading;
 
 
         // Event déclenché à chaque modification importante du squad
@@ -88,7 +91,9 @@ namespace DCE_Manager
             : "Edit Squad - " + EditedSquad.DisplayName;
 
             LoadStaticLists();
+            _isLoading = true;
             FillControls();
+            _isLoading = false;
             BuildGenericTables();
             BuildBase();
             BuildBasesAlternative();
@@ -1428,10 +1433,15 @@ namespace DCE_Manager
 
         private void numericNumber_ValueChanged(object sender, EventArgs e)
         {
+            if (_isLoading)
+                return;
+
             EditedSquad.Number = (int)numericNumber.Value;
             EditedSquad.InitNumber = (int)numericNumber.Value;
 
-            if (checkBoxActive.Checked)
+            // Le roster n'existe que dans Active\oob_air.lua
+            // Pourquoi : c'est lui que DCE lit, peu importe que le squad soit actif ou non
+            if (_isActiveVersion)
             {
                 if (EditedSquad.Roster == null)
                 {
@@ -1441,18 +1451,24 @@ namespace DCE_Manager
                 EditedSquad.Roster["ready"] = (int)numericNumber.Value;
 
                 // Refresh UI live du roster
-                // Pourquoi : afficher immédiatement la nouvelle valeur
                 BuildScoreArea();
             }
+
+            SquadUpdated?.Invoke();
         }
 
 
         private void numericReserve_ValueChanged(object sender, EventArgs e)
         {
+            if (_isLoading)
+                return;
+
             EditedSquad.Reserve = (int)numericReserve.Value;
             EditedSquad.InitReserve = (int)numericReserve.Value;
 
-            if (checkBoxActive.Checked)
+            // Le roster n'existe que dans Active\oob_air.lua
+            // Pourquoi : c'est lui que DCE lit, peu importe que le squad soit actif ou non
+            if (_isActiveVersion)
             {
                 if (EditedSquad.Roster == null)
                 {
@@ -1462,9 +1478,10 @@ namespace DCE_Manager
                 EditedSquad.Roster["reserve"] = (int)numericReserve.Value;
 
                 // Refresh UI live du roster
-                // Pourquoi : afficher immédiatement la nouvelle valeur
                 BuildScoreArea();
             }
+
+            SquadUpdated?.Invoke();
         }
 
 
