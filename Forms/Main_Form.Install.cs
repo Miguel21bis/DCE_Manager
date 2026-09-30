@@ -87,25 +87,25 @@ namespace DCE_Manager
             if (!string.IsNullOrWhiteSpace(ovGMEPath) && Directory.Exists(ovGMEPath))
             {
                 // Le chemin est valide !
-                pic_OVGME.Image = Properties.Resources.icons8_ok_24;
+                //pic_OVGME.Image = Properties.Resources.icons8_ok_24;
                 label_sub_OVGME.Text = ovGMEPath;
                 ParamConf.PATH_OVGME_MOD = ovGMEPath;
 
                 // Si tu as une variable de test comme pour DCS, n'oublie pas de la mettre à true :
                 // ParamConf.OvGME_Root = true;
-                homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_ok_24;
-                homeView.label_Accueil_PATH_ovgme.Text = TruncatePathLeft(ovGMEPath);
+                homeView.pic_Accueil_sanitize_status.Image = Properties.Resources.icons8_ok_24;
+                //homeView.label_Accueil_PATH_ovgme.Text = TruncatePathLeft(ovGMEPath);
             }
             else
             {
                 // Le chemin est vide ou invalide
-                pic_OVGME.Image = Properties.Resources.icons8_warning_blue_30;
+                //pic_OVGME.Image = Properties.Resources.icons8_warning_blue_30;
                 label_sub_OVGME.Text = ""; // Ou laisser vide "" si tu préfères
                 ParamConf.PATH_OVGME_MOD = "";
 
                 // ParamConf.OvGME_Root = false;
-                homeView.pic_Accueil_ovgme_status.Image = Properties.Resources.icons8_warning_blue_30;
-                homeView.label_Accueil_PATH_ovgme.Text = "";
+                homeView.pic_Accueil_sanitize_status.Image = Properties.Resources.icons8_warning_blue_30;
+                //homeView.label_Accueil_PATH_ovgme.Text = "";
             }
         }
 
@@ -277,14 +277,14 @@ namespace DCE_Manager
                     textBox_OvGME.Text = folderPath;
 
                     // Le chemin est valide !
-                    pic_OVGME.Image = Properties.Resources.icons8_ok_24;
+                    //pic_OVGME.Image = Properties.Resources.icons8_ok_24;
                     label_sub_OVGME.Text = folderPath;
 
                 }
                 else
                 {
                     // Le chemin est vide ou invalide
-                    pic_OVGME.Image = Properties.Resources.icons8_warning_blue_30;
+                    //pic_OVGME.Image = Properties.Resources.icons8_warning_blue_30;
                     label_sub_OVGME.Text = ""; // Ou laisser vide "" si tu préfères
 
                     //FormUtils.ShowErrorMessage("No folder selected");
@@ -608,11 +608,12 @@ namespace DCE_Manager
                     MessageBox.Show($"The file {fileNameB} cannot be found in this directory: " + ParamConf.PATH_SavedGames_DCS + @"Mods\tech\DCE\Missions\Campaigns");
                 }
 
-                MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with PATH_OVGME_MOD ", "Information");
+                string rappel = DcsPatcher.IsPatched(ParamConf.PATH_DCS_Root)
+    ? ""
+    : "\r\n\r\nReminder: enable the 'MissionScripting' option on the Home page.";
 
-                FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed.\r\n \r\n" +
-                    "   Don't forget to activate the ‘MissionScript’ mod with PATH_OVGME_MOD ");
+                MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed." + rappel, "Information");
+                FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed." + rappel);
 
                 //******************FIN du new system
 
@@ -682,6 +683,8 @@ namespace DCE_Manager
             HidePathEditingControls();
 
             InitializeDCS_Installation_Path();
+
+            checkBoxMod();
         }
 
         // Factorise le retour au mode "lecture seule", commun à Save et Cancel.

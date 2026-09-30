@@ -47,6 +47,12 @@ namespace DCE_Manager
 
         private int _lastQuickActionsMouseX = -1;
 
+        // Infobulle des icônes QuickActions, pilotée à la main (voir CellMouseMove).
+        // _lastQuickActionsZone = ligne * 3 + zone sous la souris, pour ne ré-afficher que si on change d'icône.
+        // Infobulle maison : un simple Label posé sur la grid (le ToolTip standard ne s'affiche pas sur ce contrôle)
+        private Label _quickActionsTip;
+        private int _lastQuickActionsZone = -1;
+
         // Compte à jour après chaque LoadCampaignsAsync(). Utilisable par Main_Form pour
         // afficher "Installed Campaigns" (voir le panneau INFO).
         public int InstalledCampaignCount { get; private set; }
@@ -194,6 +200,11 @@ namespace DCE_Manager
             });
             _mainForm.dataGridViewCampaigns.Columns["Family"].DisplayIndex = 1;
 
+            // ===== COLONNE RENAME (✏) =====
+            // Ajoutée en dernier (comme Family) pour ne pas décaler les Rows.Add positionnels.
+            GridCampaigns_AddButtonColumn("Rename", "✏", 45, headerText: "");
+            _mainForm.dataGridViewCampaigns.Columns["Rename"].DisplayIndex = 4; // juste après Name
+
 
             // ===== STYLE BOUTONS =====
             foreach (DataGridViewColumn col in _mainForm.dataGridViewCampaigns.Columns)
@@ -282,7 +293,7 @@ namespace DCE_Manager
             _mainForm.dataGridViewCampaigns.CellMouseLeave += GridCampaigns_Family_CellMouseLeave;
 
             _mainForm.dataGridViewCampaigns.ShowCellToolTips = true; // true par défaut, explicite pour être sûr
-            _mainForm.dataGridViewCampaigns.CellToolTipTextNeeded += GridCampaigns_QuickActions_CellToolTipTextNeeded;
+            
 
             _mainForm.dataGridViewCampaigns.RowTemplate.Height = 70;
 
@@ -433,6 +444,8 @@ namespace DCE_Manager
             if (!IsQuickActionZoneActive(e.RowIndex, e.X))
                 return; // zone vide, pas d'action
 
+            HideQuickActionsToolTip();
+
             var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
             string name = row.Cells["Name"].Value?.ToString();
 
@@ -444,11 +457,6 @@ namespace DCE_Manager
 
             EnsureCampaignFilesUpToDate(name);
 
-            //var row = _mainForm.dataGridViewCampaigns.Rows[e.RowIndex];
-            //string name = row.Cells["Name"].Value?.ToString();
-
-            EnsureCampaignFilesUpToDate(name);
-
             int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
             int thirdWidth = cellWidth / 3;
             int zone = Math.Min(e.X / thirdWidth, 2);
@@ -457,6 +465,26 @@ namespace DCE_Manager
 
             if (zone == 0)
             {
+                // First Mission repart de zéro : si des missions ont déjà été jouées,
+                // on prévient avant d'écraser la progression.
+                int nbMissionPlayed;
+                int.TryParse(row.Cells["Missions"].Value?.ToString(), out nbMissionPlayed);
+
+                if (nbMissionPlayed >= 1)
+                {
+                    var confirm = MessageBox.Show(
+                        "Campaign '" + name + "' already has " + nbMissionPlayed + " mission(s) played.\r\n\r\n" +
+                        "Running First Mission will restart the campaign from the beginning and ERASE all its current progress.\r\n\r\n" +
+                        "Are you sure?",
+                        "Restart campaign — " + name,
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning,
+                        MessageBoxDefaultButton.Button2);
+
+                    if (confirm != DialogResult.Yes)
+                        return;
+                }
+
                 Saver_TargetList_Wargame.WriteInitialFormations(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
             }
@@ -468,36 +496,8 @@ namespace DCE_Manager
             }
             else
             {
-                //OpenScriptsModRunner(folderPath, "DEBUG_DebriefMission.bat", name, "Debrief_Master.lua");
                 await RunScriptsModInteractiveAsync(name, folderPath, "DEBUG_DebriefMission.bat", "Debrief_Master.lua");
             }
-
-        }
-
-        private void GridCampaigns_QuickActions_CellMouseMove(object sender, DataGridViewCellMouseEventArgs e)
-        {
-            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
-            {
-                _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
-                _lastQuickActionsMouseX = -1;
-                return;
-            }
-
-            _lastQuickActionsMouseX = e.X; // mémorisé pour GridCampaigns_QuickActions_CellToolTipTextNeeded
-            _mainForm.dataGridViewCampaigns.Cursor = IsQuickActionZoneActive(e.RowIndex, e.X) ? Cursors.Hand : Cursors.Default;
-        }
-
-        // Passe par le mécanisme d'infobulle interne du DataGridView (le seul qui fonctionne
-        // fiablement sur ce contrôle - un ToolTip externe attaché via SetToolTip ne s'affiche
-        // pas dessus). _lastQuickActionsMouseX vient de CellMouseMove : cet event-ci ne donne
-        // pas la position X, seulement la cellule.
-        private void GridCampaigns_QuickActions_CellToolTipTextNeeded(object sender, DataGridViewCellToolTipTextNeededEventArgs e)
-        {
-            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "QuickActions")
-                return;
-
-            if (_lastQuickActionsMouseX >= 0 && IsQuickActionZoneActive(e.RowIndex, _lastQuickActionsMouseX))
-                e.ToolTipText = GetQuickActionTooltipText(_lastQuickActionsMouseX);
         }
 
         // Texte d'infobulle (en anglais, comme le reste de l'UI visible) pour l'icône
@@ -517,13 +517,120 @@ namespace DCE_Manager
             }
         }
 
+      
+
+        private void GridCampaigns_QuickActions_CellMouseMove(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
+            {
+                grid.Cursor = Cursors.Default;
+                _lastQuickActionsMouseX = -1;
+                HideQuickActionsToolTip();
+                return;
+            }
+
+            _lastQuickActionsMouseX = e.X;
+
+            bool zoneActive = IsQuickActionZoneActive(e.RowIndex, e.X);
+            grid.Cursor = zoneActive ? Cursors.Hand : Cursors.Default;
+
+            if (!zoneActive)
+            {
+                HideQuickActionsToolTip();
+                return;
+            }
+
+            // Ligne "problème" réparable : toute la cellule = Repair, pas de découpage en tiers
+            string name = grid.Rows[e.RowIndex].Cells["Name"].Value?.ToString();
+            int zone;
+            string text;
+
+            if (_incompleteOrOrphanNames.Contains(name))
+            {
+                zone = 0;
+                text = "Repair this campaign (recreate the missing files)";
+            }
+            else
+            {
+                int thirdWidth = grid.Columns["QuickActions"].Width / 3;
+                zone = Math.Min(e.X / thirdWidth, 2);
+                text = GetQuickActionTooltipText(e.X);
+            }
+
+            int key = e.RowIndex * 3 + zone;
+
+            if (key == _lastQuickActionsZone)
+                return; // même icône, l'infobulle est déjà affichée
+
+            _lastQuickActionsZone = key;
+
+            Rectangle cell = grid.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
+            ShowQuickActionsTip(text, cell.Left + e.X + 12, cell.Top + e.Y + 22);
+        }
+
         private void GridCampaigns_QuickActions_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
         {
             if (e.ColumnIndex >= 0 && _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name == "QuickActions")
             {
                 _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
                 _lastQuickActionsMouseX = -1;
+                HideQuickActionsToolTip();
             }
+        }
+
+        //private void HideQuickActionsToolTip()
+        //{
+        //    if (_lastQuickActionsZone == -1)
+        //        return;
+
+        //    _lastQuickActionsZone = -1;
+        //    _quickActionsToolTip.Hide(_mainForm.dataGridViewCampaigns);
+        //}
+
+        private void HideQuickActionsToolTip()
+        {
+            if (_lastQuickActionsZone == -1)
+                return;
+
+            _lastQuickActionsZone = -1;
+
+            if (_quickActionsTip != null)
+                _quickActionsTip.Visible = false;
+        }
+
+        // Affiche le Label d'infobulle aux coordonnées (x, y) de la grid.
+        // Créé au premier appel, puis simplement déplacé.
+        private void ShowQuickActionsTip(string text, int x, int y)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (_quickActionsTip == null)
+            {
+                _quickActionsTip = new Label
+                {
+                    AutoSize = true,
+                    BackColor = Color.LightYellow,
+                    ForeColor = Color.Black,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Font = new Font("Segoe UI", 9),
+                    Padding = new Padding(4, 2, 4, 2),
+                    Visible = false
+                };
+                grid.Controls.Add(_quickActionsTip);
+            }
+
+            _quickActionsTip.Text = text;
+
+            // Empêche l'infobulle de dépasser du bord droit de la grid
+            int width = _quickActionsTip.PreferredSize.Width;
+            if (x + width > grid.ClientSize.Width)
+                x = Math.Max(0, grid.ClientSize.Width - width);
+
+            _quickActionsTip.Location = new Point(x, y);
+            _quickActionsTip.Visible = true;
+            _quickActionsTip.BringToFront();
         }
 
         // Détermine le rôle d'une campagne dans la hiérarchie (maître / fille / seule),
@@ -930,6 +1037,11 @@ namespace DCE_Manager
             else if (columnName == "Clone")
             {
                 Campaign_CLONE_ClickOneEvent(null, null, basePath, name);
+                return;
+            }
+            else if (columnName == "Rename")
+            {
+                await RenameCampaignAsync(name);
                 return;
             }
             else if (columnName == "Family")
@@ -1767,7 +1879,7 @@ namespace DCE_Manager
 
             // On vide les autres colonnes bouton (Clone, Folder, First, Parameters,
             // CampaignSetup) et la case à cocher : sur cette ligne, seule la corbeille agit.
-            foreach (string colName in new[] { "Clone", "Folder", "Export", "QuickActions", "Parameters", "CampaignSetup", "Select" })
+            foreach (string colName in new[] { "Clone", "Folder", "Export", "QuickActions", "Parameters", "CampaignSetup", "Select", "Rename" })
             {
                 if (grid.Columns.Contains(colName))
                 {
@@ -1974,6 +2086,194 @@ namespace DCE_Manager
                 problems.Count > 0 ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
         }
 
+        // Petite fenêtre de saisie construite en code (pas de Form dédiée pour si peu).
+        // Renvoie le nom saisi, ou null si annulé.
+        private string AskNewCampaignName(string oldName)
+        {
+            using (var form = new Form())
+            {
+                form.Text = "Rename campaign";
+                form.FormBorderStyle = FormBorderStyle.FixedDialog;
+                form.StartPosition = FormStartPosition.CenterParent;
+                form.MinimizeBox = false;
+                form.MaximizeBox = false;
+                form.ShowInTaskbar = false;
+                form.ClientSize = new Size(440, 120);
+
+                var label = new Label { Text = "New name for '" + oldName + "' :", Left = 12, Top = 12, Width = 416, AutoEllipsis = true };
+                var textBox = new TextBox { Text = oldName, Left = 12, Top = 38, Width = 416 };
+                var buttonOk = new Button { Text = "Rename", Left = 252, Top = 76, Width = 84, DialogResult = DialogResult.OK };
+                var buttonCancel = new Button { Text = "Cancel", Left = 344, Top = 76, Width = 84, DialogResult = DialogResult.Cancel };
+
+                form.Controls.AddRange(new Control[] { label, textBox, buttonOk, buttonCancel });
+                form.AcceptButton = buttonOk;
+                form.CancelButton = buttonCancel;
+
+                return form.ShowDialog(_mainForm) == DialogResult.OK ? textBox.Text.Trim() : null;
+            }
+        }
+
+        // Remplace le "title" dans Active\camp_status.lua (format sérialisé ['title'] = '...').
+        // Seule la 1ère occurrence est touchée. Sans effet si le fichier n'existe pas encore.
+        // Remplace le "title" dans le texte d'un camp_status.lua (format sérialisé ['title'] = '...').
+        // Seule la 1ère occurrence est touchée.
+        private static string PatchTitleInCampStatusText(string text, string newName)
+        {
+            var regex = new Regex(@"((?:\[\s*[""']title[""']\s*\]|(?<!\w)title)\s*=\s*)([""'])(.*?)\2");
+            return regex.Replace(text, m => m.Groups[1].Value + m.Groups[2].Value + newName + m.Groups[2].Value, 1);
+        }
+
+        // Active\camp_status.lua sur disque. Sans effet si le fichier n'existe pas encore.
+        private static void RenameTitleInCampStatus(string file, string newName)
+        {
+            if (!File.Exists(file))
+                return;
+
+            string text = File.ReadAllText(file, Encoding.UTF8);
+            string patched = PatchTitleInCampStatusText(text, newName);
+
+            if (patched != text)
+                File.WriteAllText(file, patched, new UTF8Encoding(false));
+        }
+
+        // camp_status.lua embarqué dans un .miz (l10n/DEFAULT/camp_status.lua).
+        // Un .miz est un zip : on réécrit juste cette entrée.
+        private static void RenameTitleInMiz(string mizPath, string newName)
+        {
+            if (!File.Exists(mizPath))
+                return;
+
+            try
+            {
+                using (var fs = new FileStream(mizPath, FileMode.Open, FileAccess.ReadWrite))
+                using (var archive = new System.IO.Compression.ZipArchive(fs, System.IO.Compression.ZipArchiveMode.Update))
+                {
+                    var entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
+
+                    if (entry == null)
+                    {
+                        FormUtils.LogRegister("Rename : pas de camp_status.lua dans '" + mizPath + "'");
+                        return;
+                    }
+
+                    string text;
+                    using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
+                    {
+                        text = reader.ReadToEnd();
+                    }
+
+                    string patched = PatchTitleInCampStatusText(text, newName);
+
+                    if (patched == text)
+                        return;
+
+                    entry.Delete();
+
+                    var newEntry = archive.CreateEntry("l10n/DEFAULT/camp_status.lua");
+                    using (var writer = new StreamWriter(newEntry.Open(), new UTF8Encoding(false)))
+                    {
+                        writer.Write(patched);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Rename : échec sur '" + mizPath + "' : " + ex.Message);
+            }
+        }
+
+        // Renomme la campagne : dossier, .miz, .cmp, .png + contenus qui portent le nom.
+        private async Task RenameCampaignAsync(string oldName)
+        {
+            string campaignsRoot = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns";
+
+            string newName = AskNewCampaignName(oldName);
+
+            if (string.IsNullOrEmpty(newName) || newName == oldName)
+                return;
+
+            // ' interdit en plus des caractères de fichier invalides : il casserait les chaînes Lua '...'
+            if (newName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || newName.Contains("'"))
+            {
+                MessageBox.Show("This name contains forbidden characters (\\ / : * ? \" < > | ').", "Rename", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Windows ne fait pas la différence de casse : Directory.Move refuserait
+            if (string.Equals(newName, oldName, StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show("The new name must differ by more than upper/lower case.", "Rename", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            string[] suffixes = { "_first.miz", "_ongoing.miz", ".cmp", ".png", ".bmp" };
+
+            string oldFolder = Path.Combine(campaignsRoot, oldName);
+            string newFolder = Path.Combine(campaignsRoot, newName);
+
+            if (Directory.Exists(newFolder) || suffixes.Any(s => File.Exists(Path.Combine(campaignsRoot, newName + s))))
+            {
+                MessageBox.Show("A campaign (or leftover file) named '" + newName + "' already exists.", "Rename", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // On note chaque déplacement réussi pour pouvoir tout annuler si l'un échoue.
+            var done = new List<(string From, string To)>();
+
+            try
+            {
+                Directory.Move(oldFolder, newFolder);
+                done.Add((oldFolder, newFolder));
+
+                foreach (string suffix in suffixes)
+                {
+                    string src = Path.Combine(campaignsRoot, oldName + suffix);
+
+                    if (!File.Exists(src))
+                        continue;
+
+                    string dst = Path.Combine(campaignsRoot, newName + suffix);
+                    File.Move(src, dst);
+                    done.Add((src, dst));
+                }
+            }
+            catch (Exception ex)
+            {
+                for (int i = done.Count - 1; i >= 0; i--)
+                {
+                    try
+                    {
+                        if (Directory.Exists(done[i].To))
+                            Directory.Move(done[i].To, done[i].From);
+                        else
+                            File.Move(done[i].To, done[i].From);
+                    }
+                    catch (Exception exUndo)
+                    {
+                        FormUtils.LogRegister("Rename : annulation impossible de '" + done[i].To + "' : " + exUndo.Message);
+                    }
+                }
+
+                MessageBox.Show(
+                    "Rename failed, nothing was changed.\r\n\r\n" + ex.Message + "\r\n\r\nClose DCS and any Explorer window on this campaign, then try again.",
+                    "Rename", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Contenus qui portent le nom
+            DCE_Manager.Clone.CloneHelper.UpdateCmpFile(Path.Combine(campaignsRoot, newName + ".cmp"), oldName, newName);
+            DCE_Manager.Clone.CloneHelper.UpdateCampInit(newFolder, oldName, newName);
+            RenameTitleInCampStatus(Path.Combine(newFolder, "Active", "camp_status.lua"), newName);
+
+            RenameTitleInMiz(Path.Combine(campaignsRoot, newName + "_first.miz"), newName);
+            RenameTitleInMiz(Path.Combine(campaignsRoot, newName + "_ongoing.miz"), newName);
+
+            CampaignHierarchy.OnCampaignRenamed(oldName, newName);
+
+            FormUtils.LogRegister("Rename : '" + oldName + "' -> '" + newName + "'");
+
+            await LoadCampaignsAsync(selectCampaignName: newName);
+        }
 
         public void Campaign_CLONE_ClickOneEvent(object sender, EventArgs e, string path, string OldNameCamp)
         {

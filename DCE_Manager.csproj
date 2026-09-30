@@ -94,7 +94,7 @@
     <ManifestKeyFile>Test_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <GenerateManifests>true</GenerateManifests>
+    <GenerateManifests>false</GenerateManifests>
   </PropertyGroup>
   <PropertyGroup>
     <SignManifests>false</SignManifests>
@@ -105,7 +105,7 @@
     <TargetZone>Internet</TargetZone>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationManifest>Grid_Campaign\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Google.Apis, Version=1.68.0.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
@@ -205,6 +205,7 @@
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
     <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
     <Compile Include="Core\ChildProcessTracker.cs" />
+    <Compile Include="Core\DcsPatcher.cs" />
     <Compile Include="Core\ErrorDialogForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -381,6 +382,7 @@
     <EmbeddedResource Include="UserControls\ucHome.resx">
       <DependentUpon>ucHome.cs</DependentUpon>
     </EmbeddedResource>
+    <None Include="Grid_Campaign\app.manifest" />
     <None Include="News\campaigns_catalog.json" />
     <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>

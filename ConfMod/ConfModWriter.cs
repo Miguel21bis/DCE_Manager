@@ -44,6 +44,10 @@ namespace DCE_Manager
                 if (field.Type == UiFieldType.List)
                     continue; // traité en passe 2
 
+
+                if (field.Type == UiFieldType.Presets)
+                    continue; // TODO étape 2 : écriture du tableau des préréglages
+
                 object value;
 
                 if (!data.Values.TryGetValue(field.Path, out value))

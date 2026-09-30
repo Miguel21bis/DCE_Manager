@@ -20,16 +20,17 @@ namespace DCE_Manager
     // l'ancienne fenetre console DOS.
     //
     // --saved-games est optionnel mais fortement conseille : la meme campagne peut
-    // exister dans plusieurs installations de DCS (DCS, DCS_PartB, DCS.openbeta...)
-    // et le nom seul ne dit pas laquelle debriefer. EventsTracker tourne DANS une
-    // installation precise et connait son chemin (campL.path), donc il n'a rien a
-    // deviner. Sans l'argument, on se rabat sur une recherche decrite plus bas.
+    // exister dans plusieurs installations de DCS (DCS, DCS_PartB, DCS.openbeta,
+    // serveur dedie...) et le nom seul ne dit pas laquelle debriefer. EventsTracker
+    // tourne DANS une installation precise et connait son chemin (campL.path), donc
+    // il n'a rien a deviner. Sans l'argument, on se rabat sur une recherche decrite
+    // plus bas.
     //
     // DEUX CAS, selon que DCE_Manager tourne deja ou non :
     //
     //   - DCE_Manager est deja ouvert : on lui passe la demande par un tuyau nomme
-    //     et on ressort immediatement. C'est lui qui ouvre le runner, avec sa
-    //     configuration deja chargee. Pas de deuxieme instance.
+    //     (nom de campagne + Saved Games) et on ressort immediatement. C'est lui qui
+    //     ouvre le runner. Pas de deuxieme instance.
     //
     //   - personne ne repond sur le tuyau : on est seul, on charge une config
     //     allegee depuis options.txt et on ouvre le runner nous-memes, sans jamais
@@ -102,6 +103,12 @@ namespace DCE_Manager
         // Essaie de passer la demande a l'instance deja lancee.
         // Retourne false si personne n'ecoute : c'est le cas normal quand
         // DCE_Manager n'est pas ouvert, pas une erreur.
+        //
+        // Message envoye : "NomCampagne\nSavedGames" (Saved Games vide si absent).
+        // Le Saved Games DOIT suivre : sans lui, l'instance ouverte debriefe la
+        // campagne de l'installation qu'elle affiche, qui n'est pas forcement celle
+        // ou la mission a tourne (ex : Manager sur la config client, mission jouee
+        // sur le serveur dedie).
         public static bool SendToRunningInstance(string campaignName)
         {
             try
@@ -110,7 +117,12 @@ namespace DCE_Manager
                 {
                     pipe.Connect(500); // ms : si personne n'ecoute, on abandonne vite
 
-                    byte[] data = Encoding.UTF8.GetBytes(campaignName);
+                    string savedGames = GetArgValue(FlagSavedGames) ?? "";
+                    string message = campaignName + "\n" + savedGames;
+
+                    FormUtils.LogRegister("DebriefCli | envoi dans le pipe : [" + message.Replace("\n", " | ") + "]");
+
+                    byte[] data = Encoding.UTF8.GetBytes(message);
                     pipe.Write(data, 0, data.Length);
                     pipe.Flush();
                 }
@@ -151,20 +163,27 @@ namespace DCE_Manager
                     {
                         pipe.WaitForConnection();
 
-                        var buffer = new byte[1024];
+                        var buffer = new byte[4096]; // assez pour un nom + un chemin long
                         int read = pipe.Read(buffer, 0, buffer.Length);
 
                         if (read <= 0)
                             continue;
 
-                        string campaignName = Encoding.UTF8.GetString(buffer, 0, read).Trim();
+                        // "NomCampagne\nSavedGames". Une ancienne version n'envoie que le
+                        // nom : parts.Length == 1, savedGames reste vide, comportement d'avant.
+                        string message = Encoding.UTF8.GetString(buffer, 0, read);
+                        FormUtils.LogRegister("DebriefCli | recu dans le pipe : [" + message.Replace("\n", " | ") + "]");
+                        string[] parts = message.Split('\n');
+
+                        string campaignName = parts[0].Trim();
+                        string savedGames = parts.Length > 1 ? parts[1].Trim() : "";
 
                         if (string.IsNullOrEmpty(campaignName) || owner.IsDisposed)
                             continue;
 
                         // On est sur un thread de fond : interdit de toucher a une
                         // Form directement, d'ou le BeginInvoke.
-                        owner.BeginInvoke((MethodInvoker)(() => RunInsideMainInstance(owner, campaignName)));
+                        owner.BeginInvoke((MethodInvoker)(() => RunInsideMainInstance(owner, campaignName, savedGames)));
                     }
                 }
                 catch (Exception ex)
@@ -179,18 +198,48 @@ namespace DCE_Manager
         // 3. LANCEMENT DU DEBRIEFING
         // -----------------------------------------------------------------------
 
-        // Cas "DCE_Manager etait deja ouvert". Sa configuration est deja chargee :
-        // on n'y touche surtout pas, sinon on lui ecraserait ses chemins.
-        private static void RunInsideMainInstance(Form owner, string campaignName)
+        // Cas "DCE_Manager etait deja ouvert".
+        //
+        // askedSavedGames = le Saved Games d'ou vient la mission (--saved-games).
+        // S'il differe de l'installation affichee, c'est LUI qui a raison : on
+        // bascule ParamConf dessus le temps du debriefing (le runner, ConfModLoader,
+        // Parser_OobAir... lisent ParamConf), puis on remet tout comme avant pour ne
+        // pas ecraser la config de l'utilisateur.
+        private static void RunInsideMainInstance(Form owner, string campaignName, string askedSavedGames)
         {
-            FormUtils.LogRegister("DebriefCli | debriefing demande depuis DCS pour " + campaignName);
+            FormUtils.LogRegister("DebriefCli | debriefing demande depuis DCS pour " + campaignName +
+                " | Saved Games annonce : " + (string.IsNullOrEmpty(askedSavedGames) ? "(aucun)" : askedSavedGames));
 
-            string folderPath = CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName);
+            string oldSavedGames = ParamConf.PATH_SavedGames_DCS;
+            string oldDcsRoot = ParamConf.PATH_DCS_Root;
+
+            string savedGames = oldSavedGames;
+            string dcsRoot = oldDcsRoot;
+
+            bool otherInstall = !string.IsNullOrWhiteSpace(askedSavedGames) && !SamePath(askedSavedGames, oldSavedGames);
+
+            if (otherInstall)
+            {
+                savedGames = askedSavedGames.TrimEnd('\\', '/');
+
+                // Le chemin DCS qui va avec ce Saved Games, s'il est connu dans options.txt.
+                // Sinon on laisse vide : le runner, lui, prend pathDCS dans Init\path.bat
+                // de la campagne, donc il n'en a pas besoin pour lancer luae.exe.
+                dcsRoot = FindDcsRootForSavedGames(savedGames);
+
+                FormUtils.LogRegister("DebriefCli | la mission vient d'une autre installation que celle affichee (" +
+                    ParamConf.CurrentConfigName + ") : " + savedGames);
+            }
+
+            string folderPath = CampaignFolder(savedGames, campaignName);
+
+            FormUtils.LogRegister("DebriefCli | config affichee = " + ParamConf.CurrentConfigName + " | Saved Games affiche = " + oldSavedGames);
+            LogEndOfMissionFiles(folderPath);
 
             if (!Directory.Exists(folderPath))
             {
                 MessageBox.Show(owner,
-                    "Campaign folder not found in the current configuration (" + ParamConf.CurrentConfigName + "):\r\n" + folderPath +
+                    "Campaign folder not found:\r\n" + folderPath +
                     "\r\n\r\nSwitch DCE_Manager to the right configuration, then use the Debriefing button.",
                     "DCE_Manager - Debriefing",
                     MessageBoxButtons.OK,
@@ -204,14 +253,52 @@ namespace DCE_Manager
 
             owner.Activate();
 
-            OpenRunner(campaignName, folderPath, owner);
+            try
+            {
+                if (otherInstall)
+                {
+                    ParamConf.PATH_SavedGames_DCS = savedGames;
+                    ParamConf.PATH_DCS_Root = dcsRoot;
+                }
+
+                OpenRunner(campaignName, folderPath, owner);
+            }
+            finally
+            {
+                // Toujours remettre la config affichee, meme si le runner a plante.
+                ParamConf.PATH_SavedGames_DCS = oldSavedGames;
+                ParamConf.PATH_DCS_Root = oldDcsRoot;
+            }
 
             // La mission a change : nombre de missions, bouton Skip, icone de
-            // debriefing... la grille doit etre relue.
+            // debriefing... la grille doit etre relue. Inutile si la campagne
+            // debriefee n'est pas celle de l'installation affichee.
             var mainForm = owner as Main_Form;
 
-            if (mainForm != null && mainForm.CampaignGridLeft != null)
+            if (!otherInstall && mainForm != null && mainForm.CampaignGridLeft != null)
                 _ = mainForm.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: campaignName);
+        }
+
+        // Cherche dans options.txt (deja charge dans configDictionary) la config dont
+        // le Saved Games correspond, et renvoie son chemin DCS. "" si inconnu.
+        private static string FindDcsRootForSavedGames(string savedGames)
+        {
+            foreach (KeyValuePair<string, string> kvp in ParamConf.configDictionary)
+            {
+                if (!kvp.Key.StartsWith("config_") || !kvp.Key.EndsWith("_pathSavedGames"))
+                    continue;
+
+                if (!SamePath(kvp.Value, savedGames))
+                    continue;
+
+                string prefix = kvp.Key.Substring(0, kvp.Key.Length - "pathSavedGames".Length); // "config_<id>_"
+
+                string dcsRoot;
+                if (ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out dcsRoot))
+                    return dcsRoot;
+            }
+
+            return "";
         }
 
         // Cas "DCE_Manager n'etait pas ouvert" : appele directement par Program.cs.
@@ -240,14 +327,48 @@ namespace DCE_Manager
                 return;
             }
 
+            LogEndOfMissionFiles(CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName));
+
             OpenRunner(campaignName, CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName), null);
 
             FormUtils.LogRegister("DebriefCli | fin du debriefing de " + campaignName);
         }
 
+        // LOG DEBRIEF (temporaire) : dit si les fichiers de fin de mission ecrits par
+        // EventsTracker sont bien la ou on va lancer le debriefing, et de quand ils datent.
+        private static void LogEndOfMissionFiles(string folderPath)
+        {
+            FormUtils.LogRegister("DebriefCli | dossier de campagne vise : " + folderPath +
+                (Directory.Exists(folderPath) ? " (existe)" : " (N'EXISTE PAS)"));
+
+            string[] files = { "camp_status.lua", "scen_destroyed.lua", "MissionEventsLog.lua", "zoneSAR.lua", @"Init\path.bat" };
+
+            foreach (string f in files)
+            {
+                string full = Path.Combine(folderPath, f);
+
+                if (File.Exists(full))
+                    FormUtils.LogRegister("DebriefCli |    " + f + " present, modifie le " + File.GetLastWriteTime(full).ToString("yyyy-MM-dd HH:mm:ss"));
+                else
+                    FormUtils.LogRegister("DebriefCli |    " + f + " ABSENT");
+            }
+
+            // Contenu de path.bat : c'est lui qui donne a luae.exe les chemins DCS / Saved Games.
+            string pathBat = Path.Combine(folderPath, "Init", "path.bat");
+            if (File.Exists(pathBat))
+            {
+                foreach (string line in File.ReadAllLines(pathBat))
+                {
+                    if (line.TrimStart().StartsWith("set ", StringComparison.OrdinalIgnoreCase))
+                        FormUtils.LogRegister("DebriefCli |    path.bat : " + line.Trim());
+                }
+            }
+        }
+
         private static void OpenRunner(string campaignName, string folderPath, IWin32Window owner)
         {
             string batPath = Path.Combine(folderPath, BatFile);
+            FormUtils.LogRegister("DebriefCli | " + BatFile + (File.Exists(batPath) ? " present : " : " ABSENT : ") + batPath);
 
             if (!File.Exists(batPath))
             {

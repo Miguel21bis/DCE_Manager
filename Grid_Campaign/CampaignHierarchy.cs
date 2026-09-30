@@ -262,6 +262,25 @@ namespace DCE_Manager
             Save();
         }
 
+        // Renommage : la campagne garde sa place dans la famille (maître ou fille).
+        public static void OnCampaignRenamed(string oldName, string newName)
+        {
+            Dictionary<string, string> map = CurrentMap();
+
+            // Cas fille : sa clé change, son maître reste le même
+            if (map.TryGetValue(oldName, out string master))
+            {
+                map.Remove(oldName);
+                map[newName] = master;
+            }
+
+            // Cas maître : ses filles pointent vers le nouveau nom
+            foreach (string child in GetChildren(oldName))
+                map[child] = newName;
+
+            Save();
+        }
+
         // ------------------------------------------------------------------
         // Classement automatique (1ère passe uniquement)
         // ------------------------------------------------------------------
