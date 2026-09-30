@@ -1,4 +1,4 @@
-﻿namespace DCE_Manager.UserControls
+namespace DCE_Manager.UserControls
 {
     partial class ucHome
     {
@@ -47,16 +47,16 @@
             this.label2 = new System.Windows.Forms.Label();
             this.panel_accueil_Icones = new System.Windows.Forms.Panel();
             this.panel_Accueil_Syst_Status = new System.Windows.Forms.Panel();
-            this.label_Accueil_PATH_ovgme = new System.Windows.Forms.Label();
             this.label_Accueil_PATH_SavedGames = new System.Windows.Forms.Label();
             this.label_Accueil_PATH_DCS = new System.Windows.Forms.Label();
-            this.pic_Accueil_ovgme_status = new System.Windows.Forms.PictureBox();
+            this.pic_Accueil_sanitize_status = new System.Windows.Forms.PictureBox();
             this.pic_Accueil_SavedGames_Satus = new System.Windows.Forms.PictureBox();
             this.pic_Accueil_DCS_Status = new System.Windows.Forms.PictureBox();
-            this.label6 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
             this.label_Systeme_Status = new System.Windows.Forms.Label();
+            this.chkMissionScripting = new System.Windows.Forms.CheckBox();
+            this.label_accueil_satinize = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBoxOvGME)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_DCS)).BeginInit();
@@ -65,7 +65,7 @@
             this.panel_accueil_Info.SuspendLayout();
             this.panel_accueil_Icones.SuspendLayout();
             this.panel_Accueil_Syst_Status.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_ovgme_status)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_sanitize_status)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_SavedGames_Satus)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_DCS_Status)).BeginInit();
             this.SuspendLayout();
@@ -180,9 +180,9 @@
             this.panel_accueil_Info.Controls.Add(this.label9);
             this.panel_accueil_Info.Controls.Add(this.label2);
             this.panel_accueil_Info.Controls.Add(this.label_Accueil_DceManager_Ver);
-            this.panel_accueil_Info.Location = new System.Drawing.Point(11, 428);
+            this.panel_accueil_Info.Location = new System.Drawing.Point(13, 425);
             this.panel_accueil_Info.Name = "panel_accueil_Info";
-            this.panel_accueil_Info.Size = new System.Drawing.Size(466, 127);
+            this.panel_accueil_Info.Size = new System.Drawing.Size(464, 107);
             this.panel_accueil_Info.TabIndex = 48;
             // 
             // label_Accueil_InstalledCamp_Nb
@@ -263,36 +263,26 @@
             // panel_Accueil_Syst_Status
             // 
             this.panel_Accueil_Syst_Status.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.panel_Accueil_Syst_Status.Controls.Add(this.label_Accueil_PATH_ovgme);
+            this.panel_Accueil_Syst_Status.Controls.Add(this.label_accueil_satinize);
+            this.panel_Accueil_Syst_Status.Controls.Add(this.chkMissionScripting);
             this.panel_Accueil_Syst_Status.Controls.Add(this.label_Accueil_PATH_SavedGames);
             this.panel_Accueil_Syst_Status.Controls.Add(this.label_Accueil_PATH_DCS);
-            this.panel_Accueil_Syst_Status.Controls.Add(this.pic_Accueil_ovgme_status);
+            this.panel_Accueil_Syst_Status.Controls.Add(this.pic_Accueil_sanitize_status);
             this.panel_Accueil_Syst_Status.Controls.Add(this.pic_Accueil_SavedGames_Satus);
             this.panel_Accueil_Syst_Status.Controls.Add(this.pic_Accueil_DCS_Status);
-            this.panel_Accueil_Syst_Status.Controls.Add(this.label6);
             this.panel_Accueil_Syst_Status.Controls.Add(this.label5);
             this.panel_Accueil_Syst_Status.Controls.Add(this.label4);
             this.panel_Accueil_Syst_Status.Controls.Add(this.label_Systeme_Status);
             this.panel_Accueil_Syst_Status.Location = new System.Drawing.Point(13, 295);
             this.panel_Accueil_Syst_Status.Name = "panel_Accueil_Syst_Status";
-            this.panel_Accueil_Syst_Status.Size = new System.Drawing.Size(464, 127);
+            this.panel_Accueil_Syst_Status.Size = new System.Drawing.Size(464, 124);
             this.panel_Accueil_Syst_Status.TabIndex = 50;
-            // 
-            // label_Accueil_PATH_ovgme
-            // 
-            this.label_Accueil_PATH_ovgme.AutoSize = true;
-            this.label_Accueil_PATH_ovgme.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label_Accueil_PATH_ovgme.Location = new System.Drawing.Point(247, 86);
-            this.label_Accueil_PATH_ovgme.Name = "label_Accueil_PATH_ovgme";
-            this.label_Accueil_PATH_ovgme.Size = new System.Drawing.Size(17, 17);
-            this.label_Accueil_PATH_ovgme.TabIndex = 53;
-            this.label_Accueil_PATH_ovgme.Text = "...";
             // 
             // label_Accueil_PATH_SavedGames
             // 
             this.label_Accueil_PATH_SavedGames.AutoSize = true;
             this.label_Accueil_PATH_SavedGames.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label_Accueil_PATH_SavedGames.Location = new System.Drawing.Point(247, 63);
+            this.label_Accueil_PATH_SavedGames.Location = new System.Drawing.Point(190, 63);
             this.label_Accueil_PATH_SavedGames.Name = "label_Accueil_PATH_SavedGames";
             this.label_Accueil_PATH_SavedGames.Size = new System.Drawing.Size(17, 17);
             this.label_Accueil_PATH_SavedGames.TabIndex = 52;
@@ -302,26 +292,26 @@
             // 
             this.label_Accueil_PATH_DCS.AutoSize = true;
             this.label_Accueil_PATH_DCS.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label_Accueil_PATH_DCS.Location = new System.Drawing.Point(247, 36);
+            this.label_Accueil_PATH_DCS.Location = new System.Drawing.Point(190, 36);
             this.label_Accueil_PATH_DCS.Name = "label_Accueil_PATH_DCS";
             this.label_Accueil_PATH_DCS.Size = new System.Drawing.Size(17, 17);
             this.label_Accueil_PATH_DCS.TabIndex = 51;
             this.label_Accueil_PATH_DCS.Text = "...";
             // 
-            // pic_Accueil_ovgme_status
+            // pic_Accueil_sanitize_status
             // 
-            this.pic_Accueil_ovgme_status.Image = global::DCE_Manager.Properties.Resources.icons8_warning_blue_30;
-            this.pic_Accueil_ovgme_status.Location = new System.Drawing.Point(193, 79);
-            this.pic_Accueil_ovgme_status.Name = "pic_Accueil_ovgme_status";
-            this.pic_Accueil_ovgme_status.Size = new System.Drawing.Size(28, 20);
-            this.pic_Accueil_ovgme_status.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pic_Accueil_ovgme_status.TabIndex = 11;
-            this.pic_Accueil_ovgme_status.TabStop = false;
+            this.pic_Accueil_sanitize_status.Image = global::DCE_Manager.Properties.Resources.icons8_warning_blue_30;
+            this.pic_Accueil_sanitize_status.Location = new System.Drawing.Point(125, 84);
+            this.pic_Accueil_sanitize_status.Name = "pic_Accueil_sanitize_status";
+            this.pic_Accueil_sanitize_status.Size = new System.Drawing.Size(28, 20);
+            this.pic_Accueil_sanitize_status.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
+            this.pic_Accueil_sanitize_status.TabIndex = 11;
+            this.pic_Accueil_sanitize_status.TabStop = false;
             // 
             // pic_Accueil_SavedGames_Satus
             // 
             this.pic_Accueil_SavedGames_Satus.Image = global::DCE_Manager.Properties.Resources.icons8_warning_blue_30;
-            this.pic_Accueil_SavedGames_Satus.Location = new System.Drawing.Point(193, 56);
+            this.pic_Accueil_SavedGames_Satus.Location = new System.Drawing.Point(125, 58);
             this.pic_Accueil_SavedGames_Satus.Name = "pic_Accueil_SavedGames_Satus";
             this.pic_Accueil_SavedGames_Satus.Size = new System.Drawing.Size(28, 20);
             this.pic_Accueil_SavedGames_Satus.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
@@ -331,22 +321,12 @@
             // pic_Accueil_DCS_Status
             // 
             this.pic_Accueil_DCS_Status.Image = global::DCE_Manager.Properties.Resources.icons8_warning_blue_30;
-            this.pic_Accueil_DCS_Status.Location = new System.Drawing.Point(193, 36);
+            this.pic_Accueil_DCS_Status.Location = new System.Drawing.Point(125, 33);
             this.pic_Accueil_DCS_Status.Name = "pic_Accueil_DCS_Status";
             this.pic_Accueil_DCS_Status.Size = new System.Drawing.Size(28, 20);
             this.pic_Accueil_DCS_Status.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
             this.pic_Accueil_DCS_Status.TabIndex = 9;
             this.pic_Accueil_DCS_Status.TabStop = false;
-            // 
-            // label6
-            // 
-            this.label6.AutoSize = true;
-            this.label6.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label6.Location = new System.Drawing.Point(12, 86);
-            this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(46, 13);
-            this.label6.TabIndex = 3;
-            this.label6.Text = "OvGME";
             // 
             // label5
             // 
@@ -379,6 +359,30 @@
             this.label_Systeme_Status.Text = "SYSTEME STATUS";
             this.label_Systeme_Status.Click += new System.EventHandler(this.label_Systeme_Status_Click);
             // 
+            // chkMissionScripting
+            // 
+            this.chkMissionScripting.AutoSize = true;
+            this.chkMissionScripting.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.chkMissionScripting.Location = new System.Drawing.Point(15, 87);
+            this.chkMissionScripting.Margin = new System.Windows.Forms.Padding(2);
+            this.chkMissionScripting.Name = "chkMissionScripting";
+            this.chkMissionScripting.Size = new System.Drawing.Size(65, 17);
+            this.chkMissionScripting.TabIndex = 54;
+            this.chkMissionScripting.Text = "satinize";
+            this.chkMissionScripting.UseVisualStyleBackColor = true;
+            this.chkMissionScripting.Click += new System.EventHandler(this.chkMissionScripting_Click);
+            //
+            // label_accueil_satinize
+            // 
+            this.label_accueil_satinize.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Italic, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_accueil_satinize.Location = new System.Drawing.Point(190, 84);
+            this.label_accueil_satinize.Name = "label_accueil_satinize";
+            this.label_accueil_satinize.Size = new System.Drawing.Size(192, 20);
+            this.label_accueil_satinize.TabIndex = 55;
+            this.label_accueil_satinize.Text = "Mod MissionScripting (os/io)";
+            this.label_accueil_satinize.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            this.label_accueil_satinize.Click += new System.EventHandler(this.pict_accueil_satinize_Click);
+            // 
             // ucHome
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -402,7 +406,7 @@
             this.panel_accueil_Icones.PerformLayout();
             this.panel_Accueil_Syst_Status.ResumeLayout(false);
             this.panel_Accueil_Syst_Status.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_ovgme_status)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_sanitize_status)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_SavedGames_Satus)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_Accueil_DCS_Status)).EndInit();
             this.ResumeLayout(false);
@@ -426,7 +430,6 @@
         private System.Windows.Forms.Panel panel_Accueil_Syst_Status;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label_Systeme_Status;
-        private System.Windows.Forms.Label label6;
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
         public System.Windows.Forms.Label label_Accueil_InstalledCamp_Nb;
@@ -434,11 +437,12 @@
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.Label label8;
         private System.Windows.Forms.Label label9;
-        public System.Windows.Forms.Label label_Accueil_PATH_ovgme;
         public System.Windows.Forms.Label label_Accueil_PATH_SavedGames;
         public System.Windows.Forms.Label label_Accueil_PATH_DCS;
-        public System.Windows.Forms.PictureBox pic_Accueil_ovgme_status;
+        public System.Windows.Forms.PictureBox pic_Accueil_sanitize_status;
         public System.Windows.Forms.PictureBox pic_Accueil_SavedGames_Satus;
         public System.Windows.Forms.PictureBox pic_Accueil_DCS_Status;
+        private System.Windows.Forms.CheckBox chkMissionScripting;
+        public System.Windows.Forms.Label label_accueil_satinize;
     }
 }

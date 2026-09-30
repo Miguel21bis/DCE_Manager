@@ -10,7 +10,8 @@ namespace DCE_Manager.Parameters
         Combo,
         Text,
         Matrix,
-        List
+        List,
+        Presets
     }
 
     // One selectable choice for a Combo field. ToString() returns the label so it
@@ -30,6 +31,14 @@ namespace DCE_Manager.Parameters
         {
             return Label;
         }
+    }
+
+    // Une ligne d'un champ "presets" (ex: un préréglage de camp.timing_presets) :
+    // le libellé affiché au joueur + les valeurs (clé du champ conf_mod -> nombre).
+    internal class UiPresetRow
+    {
+        public string Label = "";
+        public Dictionary<string, double> Values = new Dictionary<string, double>();
     }
 
     // Parsed representation of one "-- @ui ..." tag found in conf_mod.lua.
@@ -55,6 +64,9 @@ namespace DCE_Manager.Parameters
         public string Help { get; set; }
         // True if a value of 0 must round-trip as the Lua literal "false"
         public bool ZeroIsFalse { get; set; }
+        // Affichage particulier d'un champ numeric. "hhmm" : secondes affichées en HH:MM
+        // (la valeur dans le .lua reste en secondes). null = affichage normal.
+        public string Format { get; set; }
         public List<UiOption> Options { get; set; }
 
         // Minimum DCE_Manager.UserLevel required to see this field. Defaults to

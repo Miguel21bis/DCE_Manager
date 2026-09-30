@@ -1,3 +1,9 @@
+
+V12.27.xx
+ADD: "MissionScripting" option on the Home page: one click to enable/disable the os/io
+CHANGE: OvGME folder is now optional
+ADD: campaigns can now be renamed
+
 V12.24.70
 ADD: mission generation (now supervised by DCE_Manager)
 ADD: debriefing and next mission generation (now supervised by DCE_Manager)

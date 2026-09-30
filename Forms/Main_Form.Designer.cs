@@ -51,7 +51,6 @@ namespace DCE_Manager
             this.but_PATH_SAVE = new System.Windows.Forms.Button();
             this.box_OVGME = new System.Windows.Forms.GroupBox();
             this.label_sub_OVGME = new System.Windows.Forms.Label();
-            this.pic_OVGME = new System.Windows.Forms.PictureBox();
             this.label_OVGME_b = new System.Windows.Forms.Label();
             this.Box_DCS_SavedGame = new System.Windows.Forms.GroupBox();
             this.label_subLabel_SavedGame_Folder = new System.Windows.Forms.Label();
@@ -152,7 +151,6 @@ namespace DCE_Manager
             this.panel_install_campaign.SuspendLayout();
             this.panel_PATH.SuspendLayout();
             this.box_OVGME.SuspendLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pic_OVGME)).BeginInit();
             this.Box_DCS_SavedGame.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pic_SavedGame)).BeginInit();
             this.Box_DCS_Root.SuspendLayout();
@@ -271,9 +269,8 @@ namespace DCE_Manager
             // 
             // tabControl_LEFT
             // 
-            this.tabControl_LEFT.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
-            | System.Windows.Forms.AnchorStyles.Right)));
+            this.tabControl_LEFT.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left)));
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Install);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Campaigns);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Update);
@@ -284,7 +281,7 @@ namespace DCE_Manager
             this.tabControl_LEFT.Location = new System.Drawing.Point(3, 53);
             this.tabControl_LEFT.Name = "tabControl_LEFT";
             this.tabControl_LEFT.SelectedIndex = 0;
-            this.tabControl_LEFT.Size = new System.Drawing.Size(816, 627);
+            this.tabControl_LEFT.Size = new System.Drawing.Size(809, 627);
             this.tabControl_LEFT.TabIndex = 18;
             // 
             // tabPageLeft_Install
@@ -295,7 +292,7 @@ namespace DCE_Manager
             this.tabPageLeft_Install.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Install.Name = "tabPageLeft_Install";
             this.tabPageLeft_Install.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeft_Install.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_Install.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_Install.TabIndex = 0;
             this.tabPageLeft_Install.Text = "Install";
             // 
@@ -305,7 +302,7 @@ namespace DCE_Manager
             this.panel_install_campaign.Controls.Add(this.label_install_campaign);
             this.panel_install_campaign.Controls.Add(this.dropZoneControl1);
             this.panel_install_campaign.Controls.Add(this.button_InstallCampaign);
-            this.panel_install_campaign.Location = new System.Drawing.Point(74, 299);
+            this.panel_install_campaign.Location = new System.Drawing.Point(74, 336);
             this.panel_install_campaign.Name = "panel_install_campaign";
             this.panel_install_campaign.Size = new System.Drawing.Size(658, 186);
             this.panel_install_campaign.TabIndex = 28;
@@ -348,7 +345,7 @@ namespace DCE_Manager
             this.panel_PATH.Location = new System.Drawing.Point(74, 26);
             this.panel_PATH.Margin = new System.Windows.Forms.Padding(2);
             this.panel_PATH.Name = "panel_PATH";
-            this.panel_PATH.Size = new System.Drawing.Size(658, 250);
+            this.panel_PATH.Size = new System.Drawing.Size(658, 263);
             this.panel_PATH.TabIndex = 26;
             // 
             // but_PATH_CANCEL
@@ -380,7 +377,6 @@ namespace DCE_Manager
             this.box_OVGME.Controls.Add(this.label_sub_OVGME);
             this.box_OVGME.Controls.Add(this.m_but_Install_Browse_OVGME);
             this.box_OVGME.Controls.Add(this.textBox_OvGME);
-            this.box_OVGME.Controls.Add(this.pic_OVGME);
             this.box_OVGME.Controls.Add(this.label_OVGME_b);
             this.box_OVGME.Location = new System.Drawing.Point(12, 172);
             this.box_OVGME.Margin = new System.Windows.Forms.Padding(2);
@@ -400,25 +396,15 @@ namespace DCE_Manager
             this.label_sub_OVGME.TabIndex = 10;
             this.label_sub_OVGME.Text = "...";
             // 
-            // pic_OVGME
-            // 
-            this.pic_OVGME.Image = global::DCE_Manager.Properties.Resources.icons8_warning_blue_30;
-            this.pic_OVGME.Location = new System.Drawing.Point(5, 15);
-            this.pic_OVGME.Name = "pic_OVGME";
-            this.pic_OVGME.Size = new System.Drawing.Size(28, 20);
-            this.pic_OVGME.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom;
-            this.pic_OVGME.TabIndex = 9;
-            this.pic_OVGME.TabStop = false;
-            // 
             // label_OVGME_b
             // 
-            this.label_OVGME_b.AutoSize = true;
             this.label_OVGME_b.Font = new System.Drawing.Font("Segoe UI Semibold", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label_OVGME_b.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
             this.label_OVGME_b.Location = new System.Drawing.Point(62, 17);
             this.label_OVGME_b.Name = "label_OVGME_b";
-            this.label_OVGME_b.Size = new System.Drawing.Size(153, 15);
+            this.label_OVGME_b.Size = new System.Drawing.Size(200, 21);
             this.label_OVGME_b.TabIndex = 6;
-            this.label_OVGME_b.Text = "PATH_OVGME_MOD Folder";
+            this.label_OVGME_b.Text = "Mod manager (OvGME, others...)";
             // 
             // Box_DCS_SavedGame
             // 
@@ -528,15 +514,15 @@ namespace DCE_Manager
             this.tabPageLeft_Campaigns.Margin = new System.Windows.Forms.Padding(2);
             this.tabPageLeft_Campaigns.Name = "tabPageLeft_Campaigns";
             this.tabPageLeft_Campaigns.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPageLeft_Campaigns.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_Campaigns.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_Campaigns.TabIndex = 6;
             this.tabPageLeft_Campaigns.Text = "Campaigns";
             this.tabPageLeft_Campaigns.UseVisualStyleBackColor = true;
             // 
             // dataGridViewCampaigns
             // 
-            this.dataGridViewCampaigns.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
-            | System.Windows.Forms.AnchorStyles.Left)
+            this.dataGridViewCampaigns.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.dataGridViewCampaigns.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dataGridViewCampaigns.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
@@ -559,7 +545,7 @@ namespace DCE_Manager
             this.tabPageLeft_Update.Controls.Add(this.groupBox_Update_ScriptMod);
             this.tabPageLeft_Update.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Update.Name = "tabPageLeft_Update";
-            this.tabPageLeft_Update.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_Update.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_Update.TabIndex = 2;
             this.tabPageLeft_Update.Text = "Update";
             // 
@@ -935,7 +921,7 @@ namespace DCE_Manager
             this.tabPageLeftNews.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeftNews.Name = "tabPageLeftNews";
             this.tabPageLeftNews.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeftNews.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeftNews.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeftNews.TabIndex = 4;
             this.tabPageLeftNews.Text = "News";
             // 
@@ -969,7 +955,7 @@ namespace DCE_Manager
             this.tabPageLeft_Tools.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_Tools.Name = "tabPageLeft_Tools";
             this.tabPageLeft_Tools.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPageLeft_Tools.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_Tools.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_Tools.TabIndex = 5;
             this.tabPageLeft_Tools.Text = "Tools";
             // 
@@ -1034,7 +1020,7 @@ namespace DCE_Manager
             this.tabPageLeft_Options.Margin = new System.Windows.Forms.Padding(2);
             this.tabPageLeft_Options.Name = "tabPageLeft_Options";
             this.tabPageLeft_Options.Padding = new System.Windows.Forms.Padding(2);
-            this.tabPageLeft_Options.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_Options.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_Options.TabIndex = 7;
             this.tabPageLeft_Options.Text = "Options";
             // 
@@ -1246,7 +1232,7 @@ namespace DCE_Manager
             this.tabPageLeft_About.Controls.Add(this.panel_About_Credit_Icon);
             this.tabPageLeft_About.Location = new System.Drawing.Point(4, 22);
             this.tabPageLeft_About.Name = "tabPageLeft_About";
-            this.tabPageLeft_About.Size = new System.Drawing.Size(808, 601);
+            this.tabPageLeft_About.Size = new System.Drawing.Size(801, 601);
             this.tabPageLeft_About.TabIndex = 3;
             this.tabPageLeft_About.Text = "About";
             // 
@@ -1439,10 +1425,10 @@ namespace DCE_Manager
             // 
             // panelRightView
             // 
-            this.panelRightView.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            this.panelRightView.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.panelRightView.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.panelRightView.Location = new System.Drawing.Point(862, 53);
+            this.panelRightView.Location = new System.Drawing.Point(855, 53);
             this.panelRightView.Name = "panelRightView";
             this.panelRightView.Size = new System.Drawing.Size(496, 593);
             this.panelRightView.TabIndex = 29;
@@ -1451,7 +1437,7 @@ namespace DCE_Manager
             // 
             this.panel_Down.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.panel_Down.Controls.Add(this.button_EXIT);
-            this.panel_Down.Location = new System.Drawing.Point(862, 651);
+            this.panel_Down.Location = new System.Drawing.Point(855, 651);
             this.panel_Down.Margin = new System.Windows.Forms.Padding(2);
             this.panel_Down.Name = "panel_Down";
             this.panel_Down.Size = new System.Drawing.Size(496, 37);
@@ -1473,7 +1459,7 @@ namespace DCE_Manager
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
-            this.ClientSize = new System.Drawing.Size(1377, 699);
+            this.ClientSize = new System.Drawing.Size(1360, 687);
             this.Controls.Add(this.panel_Down);
             this.Controls.Add(this.panelRightView);
             this.Controls.Add(this.panel_top);
@@ -1490,7 +1476,6 @@ namespace DCE_Manager
             this.panel_PATH.PerformLayout();
             this.box_OVGME.ResumeLayout(false);
             this.box_OVGME.PerformLayout();
-            ((System.ComponentModel.ISupportInitialize)(this.pic_OVGME)).EndInit();
             this.Box_DCS_SavedGame.ResumeLayout(false);
             this.Box_DCS_SavedGame.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pic_SavedGame)).EndInit();
@@ -1644,7 +1629,6 @@ namespace DCE_Manager
         private System.Windows.Forms.Label label_SavedGame_Folder;
         private System.Windows.Forms.GroupBox box_OVGME;
         private System.Windows.Forms.Label label_sub_OVGME;
-        public System.Windows.Forms.PictureBox pic_OVGME;
         private System.Windows.Forms.Label label_OVGME_b;
         public System.Windows.Forms.Button but_PATH_CANCEL;
         public System.Windows.Forms.Button but_PATH_SAVE;

@@ -577,6 +577,7 @@ namespace DCE_Manager
                     string prefix = $"config_{ParamConf.NumSelectConfig}_";
                     ParamConf.PATH_DCS_Root = ParamConf.configDictionary.TryGetValue(prefix + "pathDCS", out var pDcs) ? pDcs : "";
                     textBox_PATH_DCS_Root.Text = ParamConf.PATH_DCS_Root;
+                    //RefreshMissionScriptingCheck();
 
                     ParamConf.PATH_SavedGames_DCS = ParamConf.configDictionary.TryGetValue(prefix + "pathSavedGames", out var pSaved) ? pSaved : "";
                     textBox_SavedGames.Text = ParamConf.PATH_SavedGames_DCS;
@@ -662,6 +663,8 @@ namespace DCE_Manager
 
             InitializeDCS_Installation_Path();
 
+            checkBoxMod();
+
             // Si l'onglet Campaign est actif, on recharge sa grille avec les campagnes
             // de la config qui vient d'être sélectionnée (sinon elle reste affichée avec les anciennes)
             if (tabControl_LEFT.SelectedTab == tabPageLeft_Campaigns)
@@ -719,61 +722,67 @@ namespace DCE_Manager
             }
         }
 
-        //check sanitizeModule ?
+        // Met à jour la case MissionScripting de la page d'accueil (ucHome)
         public void checkBoxMod()
         {
-            string pathFile = textBox_PATH_DCS_Root.Text + @"\Scripts\MissionScripting.lua";
-
-            Boolean find_OS = false;
-            Boolean find_IO = false;
-
-            if (File.Exists(pathFile))
-            {
-                
-                //checkBoxSanitize.Enabled = true;
-                using (StreamReader reader = new StreamReader(pathFile))
-                {
-                    string line;
-                    
-                    while ((line = reader.ReadLine()) != null)
-                    {
-                        int nbcaractereOS = line.IndexOf("sanitizeModule('os");
-                        if (nbcaractereOS > -1)
-                        {
-
-                            //MessageBox.Show("passe _o_",  nbcaractere.ToString());
-                            int nbCaractTiret = line.IndexOf("--");
-                            if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereOS)
-                            {
-                                find_OS = true;
-                            }
-                        }
-                        int nbcaractereIO = line.IndexOf("sanitizeModule('io");
-                        if (nbcaractereIO > -1)
-                        {
-                            int nbCaractTiret = line.IndexOf("--");
-                            if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereIO)
-                            {
-                                find_IO = true;
-                            }
-                        }
-                    }
-                }
-
-                if (find_OS && find_IO)
-                {
-                    //checkBoxSanitize.Checked = true;
-                }
-                else
-                {
-                    //checkBoxSanitize.Checked = false;
-                }
-            }
-            else
-            {
-                //checkBoxSanitize.Enabled = false;
-            }
+            homeView.RefreshMissionScriptingCheck();
         }
+
+        ////check sanitizeModule ?
+        //public void checkBoxMod()
+        //{
+        //    string pathFile = textBox_PATH_DCS_Root.Text + @"\Scripts\MissionScripting.lua";
+
+        //    Boolean find_OS = false;
+        //    Boolean find_IO = false;
+
+        //    if (File.Exists(pathFile))
+        //    {
+
+        //        //checkBoxSanitize.Enabled = true;
+        //        using (StreamReader reader = new StreamReader(pathFile))
+        //        {
+        //            string line;
+
+        //            while ((line = reader.ReadLine()) != null)
+        //            {
+        //                int nbcaractereOS = line.IndexOf("sanitizeModule('os");
+        //                if (nbcaractereOS > -1)
+        //                {
+
+        //                    //MessageBox.Show("passe _o_",  nbcaractere.ToString());
+        //                    int nbCaractTiret = line.IndexOf("--");
+        //                    if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereOS)
+        //                    {
+        //                        find_OS = true;
+        //                    }
+        //                }
+        //                int nbcaractereIO = line.IndexOf("sanitizeModule('io");
+        //                if (nbcaractereIO > -1)
+        //                {
+        //                    int nbCaractTiret = line.IndexOf("--");
+        //                    if (nbCaractTiret > -1 && nbCaractTiret < nbcaractereIO)
+        //                    {
+        //                        find_IO = true;
+        //                    }
+        //                }
+        //            }
+        //        }
+
+        //        if (find_OS && find_IO)
+        //        {
+        //            //checkBoxSanitize.Checked = true;
+        //        }
+        //        else
+        //        {
+        //            //checkBoxSanitize.Checked = false;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        //checkBoxSanitize.Enabled = false;
+        //    }
+        //}
 
         public void CopyFilesRecursively(string sourcePath, string targetPath)
         {
@@ -1919,6 +1928,53 @@ namespace DCE_Manager
 
             Close();
         }
+
+        //private void chkMissionScripting_CheckedChanged(object sender, EventArgs e)
+        //{
+
+        //}
+
+
+
+        //private void chkMissionScripting_Click(object sender, EventArgs e)
+        //{
+        //    bool veutAppliquer = chkMissionScripting.Checked;   // déjà changé au moment du clic
+
+        //    if (veutAppliquer)
+        //    {
+        //        DialogResult rep = MessageBox.Show(
+        //            "Cette option commente les lignes sanitizeModule('os') et sanitizeModule('io') " +
+        //            "dans DCS\\Scripts\\MissionScripting.lua.\n\n" +
+        //            "Elle est nécessaire à certaines fonctions des campagnes (lecture/écriture de fichiers " +
+        //            "depuis les missions).\n\n" +
+        //            "Attention : une mission téléchargée peut alors exécuter du code sur ton PC. " +
+        //            "N'ouvre que des missions de confiance.\n\n" +
+        //            "Chaque mise à jour de DCS remet le fichier d'origine : la case sera alors décochée " +
+        //            "et il faudra la recocher.\n\n" +
+        //            "Appliquer la modification ?",
+        //            "MissionScripting", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+        //        if (rep != DialogResult.Yes)
+        //        {
+        //            RefreshMissionScriptingCheck();   // remet la case sur l'état réel
+        //            return;
+        //        }
+        //    }
+
+        //    string msg;
+        //    bool ok = veutAppliquer
+        //        ? DcsPatcher.Patch(ParamConf.PATH_DCS_Root, out msg)
+        //        : DcsPatcher.Unpatch(ParamConf.PATH_DCS_Root, out msg);
+
+        //    if (!ok)
+        //        MessageBox.Show(msg, "MissionScripting", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        //    else if (DcsPatcher.IsDcsRunning())
+        //        MessageBox.Show("DCS est en cours d'exécution : le changement ne sera pris en compte " +
+        //                        "qu'au prochain lancement de mission.", "MissionScripting");
+
+        //    RefreshMissionScriptingCheck();
+        //}
+
 
     }
 

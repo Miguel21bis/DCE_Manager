@@ -171,6 +171,9 @@ namespace DCE_Manager
                     case "cols":
                         schema.ColSpecs = ParseOptions(value);
                         break;
+                    case "format":
+                        schema.Format = value;
+                        break;
                     case "audience":
                         schema.MinLevel = value == "campaignMaker" ? UserLevel.CampaignMaker : UserLevel.Player;
                         break;
@@ -191,6 +194,7 @@ namespace DCE_Manager
                 case "text": return UiFieldType.Text;
                 case "matrix": return UiFieldType.Matrix;
                 case "list": return UiFieldType.List;
+                case "presets": return UiFieldType.Presets;
                 default: return UiFieldType.Text;
             }
         }

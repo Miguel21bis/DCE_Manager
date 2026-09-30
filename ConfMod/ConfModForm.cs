@@ -39,14 +39,13 @@ namespace DCE_Manager
         private readonly ToolTip _toolTip = new ToolTip();
 
         // Préréglages de timing proposés par le campaignMaker (camp.timing_presets
-        // dans Init/camp_init.lua). Liste vide = pas de combo affiché.
+        // dans Init/camp_init.lua). Liste vide = pas de boutons affichés.
         private readonly List<TimingPreset> _presets = new List<TimingPreset>();
-        // Groupe (onglet) où le combo apparaît : celui du premier champ visé par
-        // les préréglages (normalement "Time"). null = pas de combo.
+        // Groupe (onglet) où les boutons apparaissent : celui du premier champ visé
+        // par les préréglages (normalement "Time"). null = pas de boutons.
         private string _presetGroup;
-        private ComboBox _presetCombo;
-        // Évite que le remplissage des champs par un préréglage relance le combo.
-        private bool _applyingPreset;
+        // Un bouton par préréglage, Tag = le TimingPreset correspondant.
+        private readonly List<Button> _presetButtons = new List<Button>();
 
         public ConfModForm(string campaignName)
             : this(campaignName, null, "Config", null)
@@ -96,7 +95,7 @@ namespace DCE_Manager
                 AddWarningBanner(warningBanner);
 
             BindValues();
-            SyncPresetCombo();
+            SyncPresetButtons();
         }
 
         // Bandeau d'avertissement en haut de la Form (ex: "changes here require
@@ -162,6 +161,25 @@ namespace DCE_Manager
                 if (field.MinLevel > UserLevel.Player)
                     groupHasRestricted[field.Group] = true;
 
+                // Tableau des préréglages (camp_init, onglet "Timing presets") : il
+                // occupe tout son panneau comme une matrice, mais sa valeur passe par
+                // _controls comme un champ normal (BindValues / Save inchangés).
+                if (field.Type == UiFieldType.Presets)
+                {
+                    List<Control> presetsControls;
+
+                    if (!matrixControlsByGroup.TryGetValue(field.Group, out presetsControls))
+                    {
+                        presetsControls = new List<Control>();
+                        matrixControlsByGroup[field.Group] = presetsControls;
+                    }
+
+                    var presetsFc = new UiFieldControl { Schema = field };
+                    presetsControls.Add(CreatePresetsControl(field, presetsFc));
+                    _controls.Add(presetsFc);
+                    continue;
+                }
+
                 if (field.Type == UiFieldType.Matrix)
                 {
                     List<Control> matrixControls;
@@ -186,13 +204,6 @@ namespace DCE_Manager
                     groupPanel.Controls.Add(groupLayout);
                     scalarLayoutByGroup[field.Group] = groupLayout;
                     rowByGroup[field.Group] = 0;
-
-                    // Le combo des préréglages prend la première ligne du groupe.
-                    if (field.Group == _presetGroup)
-                    {
-                        AddPresetRow(groupLayout, 0);
-                        rowByGroup[field.Group] = 1;
-                    }
                 }
 
                 int row = rowByGroup[field.Group];
@@ -204,6 +215,11 @@ namespace DCE_Manager
 
                 rowByGroup[field.Group] = row + 1;
             }
+
+            // Boutons des préréglages : sous les champs de leur groupe.
+            TableLayoutPanel presetLayout;
+            if (_presetGroup != null && scalarLayoutByGroup.TryGetValue(_presetGroup, out presetLayout))
+                AddPresetRows(presetLayout, rowByGroup[_presetGroup]);
 
             // Absorbs the leftover vertical space so the AutoSize content rows stay
             // packed at the top instead of the last one stretching.
@@ -355,7 +371,7 @@ namespace DCE_Manager
         //       ...
         //   },
         //
-        // "label" = texte du combo ; toute autre clé = nom d'un champ de conf_mod
+        // "label" = texte affiché à côté du bouton ; toute autre clé = nom d'un champ de conf_mod
         // (Key du schéma). Si plusieurs champs ont le même nom, le premier du
         // fichier gagne (donc mission_ini_check, qui est en tête). Une clé qui ne
         // correspond à aucun champ affiché est ignorée.
@@ -474,53 +490,67 @@ namespace DCE_Manager
             return null;
         }
 
-        private void AddPresetRow(TableLayoutPanel layout, int row)
+        // Une ligne par préréglage sous les champs : libellé à gauche, bouton
+        // "Apply" à droite. La première ligne a une marge au-dessus pour la
+        // séparer des champs.
+        private void AddPresetRows(TableLayoutPanel layout, int firstRow)
         {
-            layout.RowCount = row + 1;
-            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            int row = firstRow;
 
-            var nameLabel = new Label
-            {
-                Text = "Timing preset",
-                AutoSize = true,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-                Margin = new Padding(0, 8, 0, 0),
-                Font = new Font("Segoe UI", 9, FontStyle.Bold)
-            };
-            layout.Controls.Add(nameLabel, 0, row);
-
-            _toolTip.SetToolTip(nameLabel,
-                "Timing presets suggested by the campaign maker for this campaign. " +
-                "Picking one fills the fields below; you can still adjust them before saving.");
-
-            _presetCombo = new ComboBox
-            {
-                DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 320,
-                Anchor = AnchorStyles.Left,
-                Margin = new Padding(0, 5, 0, 8)
-            };
-
-            _presetCombo.Items.Add("Custom");
             foreach (TimingPreset preset in _presets)
-                _presetCombo.Items.Add(preset);
+            {
+                layout.RowCount = row + 1;
+                layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            _presetCombo.SelectedIndexChanged += PresetCombo_SelectedIndexChanged;
+                int topMargin = row == firstRow ? 30 : 6;
 
-            layout.Controls.Add(_presetCombo, 1, row);
-            layout.SetColumnSpan(_presetCombo, 2);
+                var presetLabel = new Label
+                {
+                    Text = preset.Label,
+                    AutoSize = true,
+                    MaximumSize = new Size(190, 0), // retour à la ligne si le libellé est long
+                    Anchor = AnchorStyles.Left,
+                    Margin = new Padding(0, topMargin, 0, 0)
+                };
+                layout.Controls.Add(presetLabel, 0, row);
+
+                var button = new Button
+                {
+                    Text = "Apply",
+                    Width = 110,
+                    Height = 28,
+                    Anchor = AnchorStyles.Left,
+                    Margin = new Padding(0, topMargin, 0, 0),
+                    Tag = preset
+                };
+                button.Click += PresetButton_Click;
+                layout.Controls.Add(button, 1, row);
+
+                string tip = "Preset suggested by the campaign maker: " + preset.Label + ". " +
+                             "Fills the timing fields above; you can still adjust them before saving.";
+                _toolTip.SetToolTip(presetLabel, tip);
+                _toolTip.SetToolTip(button, tip);
+
+                _presetButtons.Add(button);
+                row++;
+            }
+
+            // Si le joueur retouche un champ numérique de ce groupe à la main, le
+            // bouton "Active" suit tout de suite (plus besoin de rouvrir la form).
+            // Les champs HH:MM s'en chargent eux-mêmes (voir BuildTime).
+            foreach (Control c in layout.Controls)
+            {
+                NumericUpDown num = c as NumericUpDown;
+                if (num != null)
+                    num.ValueChanged += (s, e) => SyncPresetButtons();
+            }
         }
 
-        private void PresetCombo_SelectedIndexChanged(object sender, EventArgs e)
+        private void PresetButton_Click(object sender, EventArgs e)
         {
-            if (_applyingPreset)
-                return;
-
-            TimingPreset preset = _presetCombo.SelectedItem as TimingPreset;
+            TimingPreset preset = ((Button)sender).Tag as TimingPreset;
             if (preset == null)
-                return; // "Custom" : on ne touche à rien
-
-            _applyingPreset = true;
+                return;
 
             foreach (KeyValuePair<string, double> kv in preset.Values)
             {
@@ -529,29 +559,31 @@ namespace DCE_Manager
                     fc.SetValue(kv.Value);
             }
 
-            _applyingPreset = false;
+            SyncPresetButtons();
         }
 
-        // À l'ouverture : sélectionne le préréglage qui correspond aux valeurs
-        // actuelles de conf_mod, sinon "Custom".
-        private void SyncPresetCombo()
+        // Le bouton du préréglage qui correspond aux valeurs actuelles passe en
+        // vert avec "Active" ; les autres restent en "Apply".
+        private void SyncPresetButtons()
         {
-            if (_presetCombo == null)
-                return;
-
-            _applyingPreset = true;
-            _presetCombo.SelectedIndex = 0;
-
-            foreach (TimingPreset preset in _presets)
+            foreach (Button button in _presetButtons)
             {
+                TimingPreset preset = (TimingPreset)button.Tag;
+
                 if (PresetMatchesCurrentValues(preset))
                 {
-                    _presetCombo.SelectedItem = preset;
-                    break;
+                    button.Text = "✓ Active";
+                    button.BackColor = Color.FromArgb(200, 235, 200);
+                    button.Font = new Font(Font, FontStyle.Bold);
+                }
+                else
+                {
+                    button.Text = "Apply";
+                    button.BackColor = SystemColors.Control;
+                    button.UseVisualStyleBackColor = true;
+                    button.Font = Font;
                 }
             }
-
-            _applyingPreset = false;
         }
 
         private bool PresetMatchesCurrentValues(TimingPreset preset)
@@ -615,7 +647,11 @@ namespace DCE_Manager
                     BuildSlider(layout, row, schema, fc);
                     break;
                 case UiFieldType.Numeric:
-                    BuildNumeric(layout, row, schema, fc);
+                    // format=hhmm : valeur en secondes dans le .lua, affichée en HH:MM
+                    if (schema.Format == "hhmm")
+                        BuildTime(layout, row, schema, fc);
+                    else
+                        BuildNumeric(layout, row, schema, fc);
                     break;
                 case UiFieldType.Combo:
                     BuildCombo(layout, row, schema, fc);
@@ -694,6 +730,57 @@ namespace DCE_Manager
             };
         }
 
+        // Champ en secondes (tag "format=hhmm") affiché en HH:MM dans une seule case
+        // avec ses flèches, comme les autres champs numériques (voir HhMmUpDown en
+        // bas du fichier). La valeur écrite dans le .lua reste en secondes, seul
+        // l'affichage change.
+        // Tant que le joueur ne touche pas au champ, la valeur d'origine est rendue
+        // telle quelle, même si elle n'est pas un multiple de 60.
+        private void BuildTime(TableLayoutPanel layout, int row, ConfUiFieldSchema schema, UiFieldControl fc)
+        {
+            double min = schema.Min ?? 0;
+            double max = schema.Max ?? 86400;
+            double current = min; // valeur en secondes
+            bool busy = false;    // évite que SetValue soit pris pour une modif du joueur
+
+            var box = new HhMmUpDown
+            {
+                Minimum = (decimal)Math.Ceiling(min / 60),
+                Maximum = (decimal)Math.Floor(max / 60),
+                Width = 90,
+                Anchor = AnchorStyles.Left,
+                Margin = new Padding(0, 5, 0, 0)
+            };
+            layout.Controls.Add(box, 1, row);
+
+            _toolTip.SetToolTip(box, "Hours:minutes. Click the hours or the minutes, then use the arrows or the mouse wheel.");
+
+            box.ValueChanged += (s, e) =>
+            {
+                if (busy)
+                    return;
+                current = (double)box.Value * 60;
+                SyncPresetButtons();
+            };
+
+            fc.GetValue = () =>
+            {
+                // Lire Value valide une saisie clavier pas encore prise en compte
+                // (ex: Entrée sur Save sans quitter la case) -> ValueChanged -> current
+                decimal force = box.Value;
+                return current;
+            };
+
+            fc.SetValue = v =>
+            {
+                busy = true;
+                current = Math.Max(min, Math.Min(max, Convert.ToDouble(v, CultureInfo.InvariantCulture)));
+                decimal minutes = (decimal)Math.Round(current / 60);
+                box.Value = Math.Max(box.Minimum, Math.Min(box.Maximum, minutes));
+                busy = false;
+            };
+        }
+
         private static void BuildCombo(TableLayoutPanel layout, int row, ConfUiFieldSchema schema, UiFieldControl fc)
         {
             var combo = new ComboBox
@@ -763,6 +850,276 @@ namespace DCE_Manager
         // are editable; any other position in the underlying array is preserved
         // untouched on save (see the closures below).
         // ---------------------------------------------------------------
+
+        // ---------------------------------------------------------------
+        // Tableau éditable des préréglages (tag "@ui presets" sur la ligne
+        // "timing_presets = {" de camp_init.lua), pour le campaignMaker.
+        //
+        //   timing_presets = { -- @ui presets format=hhmm cols="mission_duration:Mission,..." ...
+        //
+        // - 1re colonne : le libellé du bouton côté joueur (modifiable)
+        // - une colonne par entrée de cols= (clé du champ conf_mod : titre)
+        // - format=hhmm : les cellules sont saisies/affichées en HH:MM, stockées en
+        //   secondes ; sinon ce sont des nombres simples
+        // - cellule vide = ce préréglage ne touche pas à ce champ
+        // - une clé présente dans le fichier mais absente de cols= n'est pas
+        //   affichée, mais elle est conservée (Tag de la ligne)
+        // ---------------------------------------------------------------
+
+        private Control CreatePresetsControl(ConfUiFieldSchema schema, UiFieldControl fc)
+        {
+            bool hhmm = schema.Format == "hhmm";
+
+            var container = new Panel { Dock = DockStyle.Fill };
+
+            var title = new Label
+            {
+                Text = schema.Label,
+                Font = new Font("Segoe UI", 10, FontStyle.Bold),
+                Dock = DockStyle.Top,
+                Height = 26,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Padding = new Padding(4, 0, 0, 0)
+            };
+
+            var helpLabel = new Label
+            {
+                Text = (string.IsNullOrEmpty(schema.Help) ? "" : schema.Help + "\r\n") +
+                       (hhmm ? "Times are entered as HH:MM (e.g. 2:30, 4h, 3). " : "") +
+                       "Leave a cell empty to leave that setting unchanged.",
+                ForeColor = Color.DimGray,
+                Dock = DockStyle.Top,
+                Height = 44,
+                Padding = new Padding(4, 0, 0, 4)
+            };
+
+            var grid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible = false,
+                MultiSelect = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.CellSelect,
+                BackgroundColor = SystemColors.Window
+            };
+
+            grid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "__label",
+                HeaderText = "Label (button text)",
+                FillWeight = 180
+            });
+
+            foreach (UiOption col in schema.ColSpecs)
+            {
+                var column = new DataGridViewTextBoxColumn
+                {
+                    Name = "col_" + col.Value,
+                    HeaderText = col.Label,
+                    FillWeight = 60
+                };
+                column.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+                grid.Columns.Add(column);
+            }
+
+            // Saisie d'une cellule de valeur : refusée si illisible (le joueur peut
+            // corriger ou faire Échap), sinon remise au propre en quittant la cellule.
+            grid.CellValidating += (s, e) =>
+            {
+                if (e.ColumnIndex == 0)
+                    return;
+
+                string text = Convert.ToString(e.FormattedValue).Trim();
+                if (text == "" || PresetCellToNumber(text, hhmm) != null)
+                {
+                    grid.Rows[e.RowIndex].ErrorText = "";
+                    return;
+                }
+
+                grid.Rows[e.RowIndex].ErrorText = hhmm ? "Use HH:MM, e.g. 2:30" : "Use a number";
+                System.Media.SystemSounds.Beep.Play();
+                e.Cancel = true;
+            };
+
+            grid.CellEndEdit += (s, e) =>
+            {
+                grid.Rows[e.RowIndex].ErrorText = "";
+
+                if (e.ColumnIndex == 0)
+                    return;
+
+                DataGridViewCell cell = grid.Rows[e.RowIndex].Cells[e.ColumnIndex];
+                double? v = PresetCellToNumber(Convert.ToString(cell.Value), hhmm);
+                cell.Value = v == null ? "" : NumberToPresetCell(v.Value, hhmm);
+            };
+
+            // Boutons sous le tableau
+            var buttons = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 38,
+                Padding = new Padding(0, 6, 0, 0)
+            };
+
+            var addButton = new Button { Text = "+ Add preset", AutoSize = true };
+            var removeButton = new Button { Text = "Remove", AutoSize = true };
+            var upButton = new Button { Text = "▲ Up", AutoSize = true };
+            var downButton = new Button { Text = "▼ Down", AutoSize = true };
+
+            buttons.Controls.Add(addButton);
+            buttons.Controls.Add(removeButton);
+            buttons.Controls.Add(upButton);
+            buttons.Controls.Add(downButton);
+
+            _toolTip.SetToolTip(upButton, "Move the selected preset up (order of the buttons in the player's Config window).");
+            _toolTip.SetToolTip(downButton, "Move the selected preset down.");
+
+            addButton.Click += (s, e) =>
+            {
+                if (!grid.EndEdit())
+                    return;
+
+                int index = grid.Rows.Add();
+                grid.Rows[index].Cells[0].Value = "New preset";
+                grid.CurrentCell = grid.Rows[index].Cells[0];
+                grid.BeginEdit(true);
+            };
+
+            removeButton.Click += (s, e) =>
+            {
+                if (grid.CurrentRow == null)
+                    return;
+
+                grid.CancelEdit();
+                grid.Rows.Remove(grid.CurrentRow);
+            };
+
+            upButton.Click += (s, e) => MovePresetRow(grid, -1);
+            downButton.Click += (s, e) => MovePresetRow(grid, +1);
+
+            // Ordre d'ajout important avec Dock : Fill d'abord, puis Top/Bottom
+            container.Controls.Add(grid);
+            container.Controls.Add(buttons);
+            container.Controls.Add(helpLabel);
+            container.Controls.Add(title);
+
+            fc.SetValue = v =>
+            {
+                grid.Rows.Clear();
+
+                List<UiPresetRow> rows = v as List<UiPresetRow>;
+                if (rows == null)
+                    return;
+
+                foreach (UiPresetRow presetRow in rows)
+                {
+                    int index = grid.Rows.Add();
+                    DataGridViewRow gridRow = grid.Rows[index];
+                    gridRow.Tag = presetRow; // garde les clés hors colonnes
+                    gridRow.Cells[0].Value = presetRow.Label;
+
+                    for (int c = 0; c < schema.ColSpecs.Count; c++)
+                    {
+                        double value;
+                        if (presetRow.Values.TryGetValue(schema.ColSpecs[c].Value, out value))
+                            gridRow.Cells[c + 1].Value = NumberToPresetCell(value, hhmm);
+                    }
+                }
+            };
+
+            fc.GetValue = () =>
+            {
+                grid.EndEdit();
+
+                var result = new List<UiPresetRow>();
+
+                foreach (DataGridViewRow gridRow in grid.Rows)
+                {
+                    var presetRow = new UiPresetRow();
+                    presetRow.Label = Convert.ToString(gridRow.Cells[0].Value).Trim();
+
+                    // Repart des valeurs d'origine pour ne pas perdre les clés qui
+                    // n'ont pas de colonne, puis applique celles du tableau.
+                    UiPresetRow original = gridRow.Tag as UiPresetRow;
+                    if (original != null)
+                    {
+                        foreach (KeyValuePair<string, double> kv in original.Values)
+                            presetRow.Values[kv.Key] = kv.Value;
+                    }
+
+                    for (int c = 0; c < schema.ColSpecs.Count; c++)
+                    {
+                        string key = schema.ColSpecs[c].Value;
+                        double? v = PresetCellToNumber(Convert.ToString(gridRow.Cells[c + 1].Value), hhmm);
+
+                        if (v == null)
+                            presetRow.Values.Remove(key);
+                        else
+                            presetRow.Values[key] = v.Value;
+                    }
+
+                    // Ligne complètement vide : ignorée
+                    if (presetRow.Label == "" && presetRow.Values.Count == 0)
+                        continue;
+
+                    if (presetRow.Label == "")
+                        presetRow.Label = "Preset " + (result.Count + 1);
+
+                    result.Add(presetRow);
+                }
+
+                return result;
+            };
+
+            return container;
+        }
+
+        private static void MovePresetRow(DataGridView grid, int direction)
+        {
+            if (grid.CurrentRow == null || !grid.EndEdit())
+                return;
+
+            int from = grid.CurrentRow.Index;
+            int to = from + direction;
+            if (to < 0 || to >= grid.Rows.Count)
+                return;
+
+            int column = grid.CurrentCell.ColumnIndex;
+            DataGridViewRow row = grid.Rows[from];
+            grid.Rows.RemoveAt(from);
+            grid.Rows.Insert(to, row);
+            grid.CurrentCell = grid.Rows[to].Cells[column];
+        }
+
+        // Texte d'une cellule -> nombre (secondes si HH:MM). null si vide ou illisible.
+        private static double? PresetCellToNumber(string text, bool hhmm)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+                return null;
+
+            if (hhmm)
+            {
+                int? minutes = HhMmUpDown.ParseMinutes(text);
+                return minutes == null ? (double?)null : minutes.Value * 60.0;
+            }
+
+            double d;
+            if (double.TryParse(text.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out d))
+                return d;
+            return null;
+        }
+
+        private static string NumberToPresetCell(double value, bool hhmm)
+        {
+            if (!hhmm)
+                return value.ToString(CultureInfo.InvariantCulture);
+
+            int totalMinutes = (int)Math.Round(value / 60.0);
+            return (totalMinutes / 60).ToString("00") + ":" + (totalMinutes % 60).ToString("00");
+        }
 
         private UiMatrixControl CreateMatrixControl(ConfUiFieldSchema schema)
         {
@@ -932,6 +1289,195 @@ namespace DCE_Manager
             public ConfUiFieldSchema Schema;
             public Func<object> GetValue;
             public Action<object> SetValue;
+        }
+
+        // Case "HH:MM" avec flèches, pour les champs format=hhmm.
+        // Value = nombre total de minutes ; l'affichage est converti en HH:MM.
+        // Comme un DateTimePicker : on clique sur les heures ou sur les minutes, et
+        // les flèches (boutons, clavier ou molette) changent la partie sélectionnée.
+        // Les minutes débordent toutes seules sur les heures (00:59 +1 = 01:00).
+        // Tab passe des heures aux minutes, puis au champ suivant (Maj+Tab : l'inverse).
+        // Gauche/droite passent aussi d'une partie à l'autre.
+        // Contrairement au DateTimePicker, les heures peuvent dépasser 24.
+        // Saisie directe acceptée : "4:55", "04:55", "4h55" ou "4" (= 4 heures).
+        private class HhMmUpDown : NumericUpDown
+        {
+            private TextBox _edit;        // la zone de texte interne du NumericUpDown
+            private bool _onHours = true; // partie sélectionnée : heures ou minutes
+
+            public HhMmUpDown()
+            {
+                TextAlign = HorizontalAlignment.Center;
+                _edit = Controls.OfType<TextBox>().FirstOrDefault();
+
+                if (_edit != null)
+                {
+                    // Gauche/droite passent d'une partie à l'autre
+                    _edit.KeyDown += (s, e) =>
+                    {
+                        if (e.KeyCode == Keys.Left || e.KeyCode == Keys.Right)
+                        {
+                            _onHours = e.KeyCode == Keys.Left;
+                            HighlightPart();
+                            e.Handled = true;
+                            e.SuppressKeyPress = true;
+                        }
+                    };
+                }
+            }
+
+            // Un clic choisit la partie (heures ou minutes) et la surligne.
+            // Piège WinForms : la zone de texte interne du NumericUpDown ne déclenche
+            // PAS son propre événement MouseUp, elle le fait remonter au
+            // NumericUpDown (coordonnées converties). D'où cet override ici plutôt
+            // qu'un _edit.MouseUp += ... qui n'était jamais appelé.
+            protected override void OnMouseUp(MouseEventArgs e)
+            {
+                base.OnMouseUp(e);
+
+                // Les flèches remontent aussi ici : on ne réagit qu'au clic dans le texte
+                if (_edit == null || !_edit.Bounds.Contains(e.Location))
+                    return;
+
+                int colon = _edit.Text.IndexOf(':');
+                _onHours = colon < 0 || _edit.SelectionStart <= colon;
+                HighlightPart();
+            }
+
+            // Tab : des heures on passe aux minutes, des minutes on sort de la case.
+            // Maj+Tab : l'inverse.
+            protected override bool ProcessDialogKey(Keys keyData)
+            {
+                if (_edit != null && _edit.Focused)
+                {
+                    if (keyData == Keys.Tab && _onHours)
+                    {
+                        if (UserEdit)
+                            ValidateEditText();
+                        _onHours = false;
+                        HighlightPart();
+                        return true;
+                    }
+
+                    if (keyData == (Keys.Tab | Keys.Shift) && !_onHours)
+                    {
+                        if (UserEdit)
+                            ValidateEditText();
+                        _onHours = true;
+                        HighlightPart();
+                        return true;
+                    }
+                }
+
+                return base.ProcessDialogKey(keyData);
+            }
+
+            // En arrivant dans la case au clavier (Tab), on part sur les heures.
+            // Si c'est un clic, on ne fait rien ici : OnMouseUp choisit la partie
+            // cliquée (sinon on écraserait le clic sur les minutes).
+            // BeginInvoke : Windows sélectionne tout le texte juste après l'entrée,
+            // on repasse derrière pour ne surligner que les heures.
+            protected override void OnEnter(EventArgs e)
+            {
+                base.OnEnter(e);
+
+                if (Control.MouseButtons != MouseButtons.None)
+                    return;
+
+                _onHours = true;
+                if (IsHandleCreated)
+                    BeginInvoke((Action)HighlightPart);
+            }
+
+            protected override void UpdateEditText()
+            {
+                int total = (int)Value;
+                Text = (total / 60).ToString("00") + ":" + (total % 60).ToString("00");
+            }
+
+            // Le NumericUpDown de base refuse tout sauf les chiffres : on autorise
+            // aussi ":" et "h" pour pouvoir taper "4:55" ou "4h55".
+            protected override void OnTextBoxKeyPress(object source, KeyPressEventArgs e)
+            {
+                char c = e.KeyChar;
+                bool allowed = char.IsDigit(c) || c == ':' || c == 'h' || c == 'H' || char.IsControl(c);
+                if (!allowed)
+                    e.Handled = true;
+            }
+
+            // Appelé quand le joueur a tapé quelque chose au clavier
+            protected override void ValidateEditText()
+            {
+                int? minutes = ParseMinutes(Text);
+                UserEdit = false;
+
+                if (minutes != null)
+                    Value = Math.Max(Minimum, Math.Min(Maximum, minutes.Value));
+
+                UpdateEditText();
+            }
+
+            public override void UpButton()
+            {
+                StepBy(+1);
+            }
+
+            public override void DownButton()
+            {
+                StepBy(-1);
+            }
+
+            private void StepBy(int direction)
+            {
+                if (UserEdit)
+                    ValidateEditText();
+
+                decimal step = _onHours ? 60 : 1;
+                Value = Math.Max(Minimum, Math.Min(Maximum, Value + direction * step));
+                HighlightPart();
+            }
+
+            // Surligne la partie active, seulement si la case a le focus (sinon
+            // toutes les cases de l'onglet auraient un bout surligné)
+            private void HighlightPart()
+            {
+                if (_edit == null || !_edit.Focused)
+                    return;
+
+                int colon = _edit.Text.IndexOf(':');
+                if (colon < 0)
+                    return;
+
+                if (_onHours)
+                    _edit.Select(0, colon);
+                else
+                    _edit.Select(colon + 1, _edit.Text.Length - colon - 1);
+            }
+
+            // "4:55", "04:55", "4h55", "4h", "4" -> minutes totales. null si illisible.
+            // internal : resservi par le tableau des préréglages (PresetCellToNumber).
+            internal static int? ParseMinutes(string text)
+            {
+                if (text == null)
+                    return null;
+
+                string[] parts = text.Trim().Replace('h', ':').Replace('H', ':').Split(':');
+                if (parts.Length > 2)
+                    return null;
+
+                int hours;
+                if (!int.TryParse(parts[0].Trim(), out hours) || hours < 0)
+                    return null;
+
+                int minutes = 0;
+                if (parts.Length == 2 && parts[1].Trim() != "")
+                {
+                    if (!int.TryParse(parts[1].Trim(), out minutes) || minutes < 0 || minutes > 59)
+                        return null;
+                }
+
+                return hours * 60 + minutes;
+            }
         }
 
         private class TimingPreset

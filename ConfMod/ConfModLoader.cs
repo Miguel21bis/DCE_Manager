@@ -139,9 +139,60 @@ namespace DCE_Manager
                 case UiFieldType.List:
                     return ListFromLua(luaValue);
 
+
+                case UiFieldType.Presets:
+                    return PresetsFromLua(luaValue);
+
                 default:
                     return luaValue;
             }
+        }
+
+        // Tableau de préréglages (type "presets", ex: camp.timing_presets) :
+        //   { [1] = { label = "...", mission_duration = 7200, ... }, [2] = {...} }
+        // -> une UiPresetRow par entrée, dans l'ordre [1], [2]... Toutes les clés
+        // numériques sont lues, même celles qui n'ont pas de colonne dans le tag
+        // (elles seront conservées à l'écriture).
+        private static List<UiPresetRow> PresetsFromLua(object luaValue)
+        {
+            var result = new List<UiPresetRow>();
+            LuaTable table = luaValue as LuaTable;
+
+            if (table == null)
+                return result;
+
+            int i = 1;
+
+            while (true)
+            {
+                LuaTable rowTable = table[i] as LuaTable;
+
+                if (rowTable == null)
+                    break;
+
+                var row = new UiPresetRow();
+
+                foreach (object key in rowTable.Keys)
+                {
+                    string k = Convert.ToString(key, CultureInfo.InvariantCulture);
+                    object v = rowTable[key];
+
+                    if (k == "label")
+                    {
+                        row.Label = v != null ? v.ToString() : "";
+                        continue;
+                    }
+
+                    double? d = ToDouble(v);
+                    if (d.HasValue)
+                        row.Values[k] = d.Value;
+                }
+
+                result.Add(row);
+                i++;
+            }
+
+            return result;
         }
 
         // Lit un tableau Lua de chaînes (1-indexé) en List<string>, ex:
