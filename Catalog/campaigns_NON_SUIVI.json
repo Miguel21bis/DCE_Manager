@@ -1,0 +1,325 @@
+{
+  "updated": "2026-10-04",
+  "message": "",
+  "campaigns": [
+ 
+    {
+      "id": "NAM-Blue",
+      "name": "NAM-Blue",
+      "author": "CEF",
+      "map": "Kola",
+      "version": "22.3",
+    "planeType": [
+      "A-4E-C",
+      "C-130J-30",
+      "CH-47Fbl1",
+      "F-100D",
+      "F-4E-45MC",
+      "VSN_F104C",
+      "VSN_F105D",
+      "VSN_F4B",
+      "UH-1H"
+    ],
+      "added": "2026-08-10",
+      "changes": "New F-111 Mod update with new skin and bomb bay. New weapons loads.",
+      "url_download": "https://github.com/CEF-DCE/DCE-NAM-Blue-Campaign",
+	  "url_detail": "https://github.com/CEF-DCE",
+      "description": "DCS Vietnam campaign (1965–74) centered on the F-4E (SP/MP), featuring evolving gear and restrictive rules of engagement."
+    },
+  {
+    "id": "NAM-Red",
+    "name": "NAM-Red",
+    "author": "CEF",
+    "map": "Kola",
+    "version": "22.5",
+      "planeType": [
+        "MiG-15bis",
+        "MiG-21Bis"
+      ],
+    "added": "2026-08-10",
+    "changes": "New F-111C update with intern bomb bay and new skin",
+    "url_download": "https://github.com/CEF-DCE/DCE-NAM-Red-Campaign",
+    "url_detail": "https://github.com/CEF-DCE",
+    "description": "DCS Vietnam campaign (1965–74) played from the North Vietnamese side, offering a tough fight against US forces with evolving gear."
+  },
+    {
+      "id": "war_over_beirut_blue",
+      "name": "War over Beirut-Blue",
+      "author": "CEF",
+      "map": "Syria",
+      "version": "9.0",
+      "planeType": [
+        "A-10C",
+        "A-10C_2",
+        "AJS37",
+        "Mirage-F1EE",
+        "M-2000C",
+        "AV8BNA",
+        "F-4E-45MC",
+        "F-14B",
+        "F-15C",
+        "F-15ESE",
+        "F-16C_50",
+        "FA-18C_hornet",
+        "Mi-8MT",
+        "Mi-24P",
+        "Ka-50",
+        "Ka-50_3",
+        "AH-64D_BLK_II",
+        "SA342L",
+        "SA342M",
+        "OH58D",
+        "UH-1H"
+      ],
+      "added": "2024-06-27",
+      "changes": "Released",
+      "url_download": "https://files.digitalcombatsimulator.com/userfiles/44e/l3x7p84kfx94s21lc3d0ol7xugj6dz2j/War_over_Beirut-Blue-NG.zip",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3339255/",
+      "description": "Syrian invasion of Lebanon in the 2000s. Beirut resists while Western forces intervene to halt the Syrian advance."
+    },
+    {
+      "id": "crisis_in_pg_blue",
+      "name": "Crisis in Persian Gulf",
+	  "aliases": ["Crisis in PG-Blue", "Crisis in Persian Gulf Blue"],
+      "author": "CEF",
+      "map": "PersianGulf",
+      "version": "9.4",
+      "planeType": [
+        "A-10C_2",
+        "AV8BNA",
+        "F-14B",
+        "F-16C_50",
+        "F-4E-45MC",
+        "FA-18C_hornet",
+        "M-2000C",
+        "AH-64D_BLK_II",
+        "OH58D",
+        "SA342M",
+        "UH-1H"
+      ],
+      "added": "2023-12-29",
+      "changes": "Major campaign update. New modules: OH-58D Kiowa, F-4E-45MC, ...",
+      "url_download": "https://files.digitalcombatsimulator.com/userfiles/9c3/rls9c4wao2wtnjc4fdzxfg7lnrrc6iwo/Crisis_in_PG-Blue-NG.zip",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3335187/",
+      "description": "Iran has invaded northern Oman and threatens to push south into the UAE by surprise. Your mission is to repel the Iranian forces from Oman."
+    },
+    {
+      "id": "iran_iraq_war_IRIAF",
+      "name": "Iran-Iraq War IRIAF",
+      "author": "CEF",
+      "map": "PersianGulf",
+      "version": "9.6",
+      "planeType": [
+        "F-14A-95-GR",
+        "F-4E-45MC",
+        "F-5E-3",
+        "UH-1H"
+      ],
+      "added": "2024-06-16",
+      "changes": "Reworked Iran Iraq war campaign with AAA barrage for each side and the Iranian F-14 Export version",
+      "url_download": "",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3338667/",
+      "description": "April 1983: the IRIAF defends Iran against Iraqi bombings, protects industrial targets, and conducts counter-strikes along the front line."
+    },
+	
+	{
+      "id": "iran_iraq_war_iraq",
+      "name": "Iran-Iraq War Iraq",
+      "author": "CEF",
+      "map": "PersianGulf",
+      "version": "9.3",
+      "planeType": [
+        "MiG-21Bis",
+        "Mi-24P",
+        "Mi-8MT"
+      ],
+      "added": "2024-06-16",
+      "changes": "",
+      "url_download": "",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3338668/",
+      "description": "April 1983: the Iraqi Air Force targets Iranian industry, degrades enemy air capabilities, and strikes troops along the stabilized front line."
+    },
+
+	{
+      "id": "TF_71_blue",
+      "name": "TF-71-Blue",
+      "author": "CEF",
+      "map": "Caucasus",
+      "version": "7.5",
+      "planeType": [
+        "F-14BU",
+        "FA-18C_hornet"
+      ],
+      "added": "2024-06-17",
+      "changes": "",
+      "url_download": "",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3338681/",
+      "description": "Russian invasion of Georgia: a US Navy Task Force deploys offshore to halt Russian forces and compel their withdrawal."
+    },
+	
+	{
+      "id": "TF80s_blue",
+      "name": "TF80s-Blue",
+      "author": "CEF",
+      "map": "Caucasus",
+      "version": "8.2",
+      "planeType": [
+        "AV8BNA",
+        "F-14A-135-GR",
+        "FA-18C_hornet"
+      ],
+      "added": "2024-06-19",
+      "changes": "",
+      "url_download": "",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3339063/",
+      "description": "1986: a US Navy Task Force deploys off the coast of Georgia to halt violent crackdowns by Russian and loyalist forces."
+    },
+	
+    {
+      "id": "war_over_tchad_1987_blue",
+      "name": "War over Tchad 1987-Blue",
+      "author": "CEF",
+      "map": "PersianGulf",
+      "version": "4.9",
+      "planeType": [
+        "Mirage-F1CE",
+        "Mirage-F1EE",
+        "SA342M",
+        "UH-1H",
+        "F-5E-3",
+        "Mi-24P"
+      ],
+      "added": "2022-07-12",
+      "changes": "Released",
+      "url_download": "",
+	  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3327817/",
+      "description": "Optimized DCE dynamic campaign (Mirage F1 / Gazelle) depicting the Chad-Libya conflict (1987), featuring diverse missions and easy setup via DCE Manager."
+    },
+	
+	{
+	  "id": "cyprus_incident",
+	  "name": "Cyprus Incident",
+	  "author": "CEF",
+	  "map": "Syria",
+	  "version": "2.16",
+	  "added": "2022-02-11",
+	  "planeType": ["Mi-24P", "SA342M", "M-2000C", "F-5E-3"],
+	  "changes": "",
+	  "description": "June 2004 (Cyprus): pilot a Mi-24P/Gazelle/... to repel pro-Turkish columns attempting to encircle Nicosia in a dynamic campaign.",
+	  "variants": [
+		{ "id": "cyprus_incident_hind", "name": "Cyprus Incident-Hind",
+		  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3320608/" },
+		{ "id": "cyprus_incident_gazelle", "name": "Cyprus Incident-Gazelle", 
+		  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3320609/" },
+		{ "id": "cyprus_incident_mirage", "name": "Cyprus Incident-Mirage", 
+		  "url_detail": "https://files.digitalcombatsimulator.com/en/files/3320881/" },
+    {
+      "id": "cyprus_incident_tiger",
+      "name": "Cyprus Incident-Tiger",
+      "url_detail": "https://files.digitalcombatsimulator.com/fr/files/3321350/"
+    }
+	  ]
+	},
+
+    {
+      "id": "iriaf_tanker_war",
+      "name": "IRIAF Tanker War",
+      "author": "Polia",
+      "map": "",
+      "version": "1.0",
+      "added": "2021-06-15",
+      "changes": "Updated to NG by Polia",
+      "url_download": "",
+      "url_detail": "",
+      "description": ""
+    },
+
+    {
+      "id": "over_caucasus",
+      "name": "Over Caucasus",
+      "author": "CEF",
+      "map": "Caucasus",
+      "version": "5.1",
+      "added": "2021-03-14",
+      "planeType": ["F-14B", "FA-18C_hornet", "AV8BNA", "F-16C_50", "M-2000C", "F-15ESE", "AJS37"],
+      "changes": "",
+      "description": "2003 air war along the Georgia-Russia border: US Naval Aviation deploys to counter Russian air strikes and protect Georgia.",
+      "variants": [
+      { "id": "hornet_over_caucasus", "name": "Hornet over Caucasus",
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3315515/" },
+      { "id": "tomcat_over_caucasus", "name": "Tomcat over Caucasus", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3316765/" },
+      { "id": "harrier_over_caucasus", "name": "Harrier over Caucasus", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3316767/" },
+      { "id": "mirage_over_caucasus", "name": "Mirage over Caucasus",
+        "url_detail": "https://www.digitalcombatsimulator.com/en/files/3316768/" },
+      { "id": "falcon_over_caucasus", "name": "Falcon over Caucasus",
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3316769/" },
+      { "id": "eagle_over_caucasus", "name": "Eagle over Caucasus", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3316766/" },
+      { "id": "viggen_over_caucasus", "name": "Viggen over Caucasus", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3316773/" }
+      ]
+    },
+
+
+   {
+      "id": "india_pak_war_71",
+      "name": "India-Pak War-71",
+      "author": "CEF",
+      "map": "Caucasus",
+      "version": "5.1",
+      "added": "2020-04-15",
+      "planeType": ["MiG-19P", "F-86F Sabre", "MiG-21Bis"],
+      "changes": "",
+      "description": "1971 Indo-Pakistani War: a dynamic campaign featuring diverse combat missions throughout the conflict.",
+      "variants": [
+      { "id": "india_pak_war_71_mig_19", "name": "India-Pak War-71 - MiG-19",
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3309101/" },
+      { "id": "india_pak_war_71_mig_21", "name": "India-Pak War-71 - MiG-21", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3309134/" },
+      { "id": "india_pak_war_71_sabre", "name": "India-Pak War-71 - Sabre", 
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3309133/" }
+      ]
+    },
+
+    
+    {
+      "id": "afghan_bear_trap",
+      "name": "Afghan Bear Trap",
+      "planeType": [
+        "F-16C_50"
+      ],
+      "author": "Eagle_01/bonforacing",
+      "map": "Nevada",
+      "version": "1.2",
+      "added": "2021-10-21",
+      "changes": "Updated by bonforacing",
+      "url_download": "",
+      "url_detail": "https://files.digitalcombatsimulator.com/fr/files/3318993/",
+      "description": "Soviet-Afghan War: an asymmetric war of attrition pitting regular forces against MANPADS-equipped insurgents amid a growing refugee crisis."
+    },
+
+   {
+      "id": "hot_war_in_the_cold",
+      "name": "Hot War in The Cold - Fishbed",
+      "author": "Roll",
+      "map": "Caucasus",
+      "version": "2.0",
+      "added": "2021-02-02",
+      "planeType": [ "MiG-21Bis", "Su-25", "F-5E-3", "Mi-24P"],
+      "changes": "",
+      "description": "Late 1981: following the collapse of the USSR, independent Georgia faces a two-front war against simultaneous invasions by Iran and Turkey.",
+      "variants": [
+      { "id": "hot_war_in_the_cold_fishbed", "name": "Hot War in The Cold - Fishbed",
+        "url_detail": "https://files.digitalcombatsimulator.com/en/files/3314879/" },
+      { "id": "hot_war_in_the_cold_frogfoot", "name": "Hot War in The Cold - Frogfoot", 
+        "url_detail": "https://www.digitalcombatsimulator.com/en/files/3314880/" },
+      { "id": "hot_war_in_the_cold_tiger", "name": "Hot War in The Cold - Tiger", 
+        "url_detail": "https://www.digitalcombatsimulator.com/en/files/3314881/" },
+      { "id": "hot_war_in_the_cold_hind", "name": "Hot War in The Cold - Hind", 
+        "url_detail": "https://www.digitalcombatsimulator.com/en/files/3314881/" }
+      ]
+    }
+  ]
+}

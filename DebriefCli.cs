@@ -233,8 +233,8 @@ namespace DCE_Manager
 
             string folderPath = CampaignFolder(savedGames, campaignName);
 
-            FormUtils.LogRegister("DebriefCli | config affichee = " + ParamConf.CurrentConfigName + " | Saved Games affiche = " + oldSavedGames);
-            LogEndOfMissionFiles(folderPath);
+            //FormUtils.LogRegister("DebriefCli | config affichee = " + ParamConf.CurrentConfigName + " | Saved Games affiche = " + oldSavedGames);
+            //LogEndOfMissionFiles(folderPath);
 
             if (!Directory.Exists(folderPath))
             {
@@ -327,43 +327,43 @@ namespace DCE_Manager
                 return;
             }
 
-            LogEndOfMissionFiles(CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName));
+            //LogEndOfMissionFiles(CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName));
 
             OpenRunner(campaignName, CampaignFolder(ParamConf.PATH_SavedGames_DCS, campaignName), null);
 
             FormUtils.LogRegister("DebriefCli | fin du debriefing de " + campaignName);
         }
 
-        // LOG DEBRIEF (temporaire) : dit si les fichiers de fin de mission ecrits par
-        // EventsTracker sont bien la ou on va lancer le debriefing, et de quand ils datent.
-        private static void LogEndOfMissionFiles(string folderPath)
-        {
-            FormUtils.LogRegister("DebriefCli | dossier de campagne vise : " + folderPath +
-                (Directory.Exists(folderPath) ? " (existe)" : " (N'EXISTE PAS)"));
+        //// LOG DEBRIEF (temporaire) : dit si les fichiers de fin de mission ecrits par
+        //// EventsTracker sont bien la ou on va lancer le debriefing, et de quand ils datent.
+        //private static void LogEndOfMissionFiles(string folderPath)
+        //{
+        //    FormUtils.LogRegister("DebriefCli | dossier de campagne vise : " + folderPath +
+        //        (Directory.Exists(folderPath) ? " (existe)" : " (N'EXISTE PAS)"));
 
-            string[] files = { "camp_status.lua", "scen_destroyed.lua", "MissionEventsLog.lua", "zoneSAR.lua", @"Init\path.bat" };
+        //    string[] files = { "camp_status.lua", "scen_destroyed.lua", "MissionEventsLog.lua", "zoneSAR.lua", @"Init\path.bat" };
 
-            foreach (string f in files)
-            {
-                string full = Path.Combine(folderPath, f);
+        //    foreach (string f in files)
+        //    {
+        //        string full = Path.Combine(folderPath, f);
 
-                if (File.Exists(full))
-                    FormUtils.LogRegister("DebriefCli |    " + f + " present, modifie le " + File.GetLastWriteTime(full).ToString("yyyy-MM-dd HH:mm:ss"));
-                else
-                    FormUtils.LogRegister("DebriefCli |    " + f + " ABSENT");
-            }
+        //        if (File.Exists(full))
+        //            FormUtils.LogRegister("DebriefCli |    " + f + " present, modifie le " + File.GetLastWriteTime(full).ToString("yyyy-MM-dd HH:mm:ss"));
+        //        else
+        //            FormUtils.LogRegister("DebriefCli |    " + f + " ABSENT");
+        //    }
 
-            // Contenu de path.bat : c'est lui qui donne a luae.exe les chemins DCS / Saved Games.
-            string pathBat = Path.Combine(folderPath, "Init", "path.bat");
-            if (File.Exists(pathBat))
-            {
-                foreach (string line in File.ReadAllLines(pathBat))
-                {
-                    if (line.TrimStart().StartsWith("set ", StringComparison.OrdinalIgnoreCase))
-                        FormUtils.LogRegister("DebriefCli |    path.bat : " + line.Trim());
-                }
-            }
-        }
+        //    // Contenu de path.bat : c'est lui qui donne a luae.exe les chemins DCS / Saved Games.
+        //    string pathBat = Path.Combine(folderPath, "Init", "path.bat");
+        //    if (File.Exists(pathBat))
+        //    {
+        //        foreach (string line in File.ReadAllLines(pathBat))
+        //        {
+        //            if (line.TrimStart().StartsWith("set ", StringComparison.OrdinalIgnoreCase))
+        //                FormUtils.LogRegister("DebriefCli |    path.bat : " + line.Trim());
+        //        }
+        //    }
+        //}
 
         private static void OpenRunner(string campaignName, string folderPath, IWin32Window owner)
         {

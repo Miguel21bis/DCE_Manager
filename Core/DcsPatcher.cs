@@ -113,7 +113,9 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
             {
                 if (!File.Exists(fichier))
                 {
-                    message = "Fichier introuvable : " + fichier;
+                    message = "MissionScripting.lua not found.\n" +
+                                "Check the \"DCS Root Folder\" of the current configuration: " +
+                                "it must be the DCS installation folder (the one containing bin and Scripts).";
                     return false;
                 }
 
@@ -127,7 +129,7 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
 
                 if (nouveau == contenu)
                 {
-                    message = "Deja modifie, rien a faire.";
+                    message = "Already modified, nothing to do.";
                     return true;
                 }
 
@@ -136,22 +138,22 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
                 File.Copy(fichier, fichier + ".dcemanager.bak", true);
 
                 Ecrire(fichier, nouveau, bom);
-                message = "MissionScripting.lua modifie.";
+                message = "MissionScripting.lua modified.";
                 return true;
             }
             catch (UnauthorizedAccessException)
             {
-                message = "Acces refuse : DCE_Manager doit etre lance en administrateur.";
+                message = "Access denied: DCE_Manager must be run as administrator.";
                 return false;
             }
             catch (IOException ex)
             {
-                message = "Fichier utilise par un autre programme (DCS ou son updater ?). Ferme DCS et recommence.\n" + ex.Message;
+                message = "File in use by another program (DCS or its updater?). Close DCS and try again.\n" + ex.Message;
                 return false;
             }
             catch (Exception ex)
             {
-                message = "Erreur : " + ex.Message;
+                message = "Error: " + ex.Message;
                 return false;
             }
         }
@@ -164,7 +166,9 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
             {
                 if (!File.Exists(fichier))
                 {
-                    message = "Fichier introuvable : " + fichier;
+                    message = "MissionScripting.lua not found.\n" +
+                                "Check the \"DCS Root Folder\" of the current configuration: " +
+                                "it must be the DCS installation folder (the one containing bin and Scripts).";
                     return false;
                 }
 
@@ -178,27 +182,27 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
 
                 if (nouveau == contenu)
                 {
-                    message = "Deja a l'origine, rien a faire.";
+                    message = "Already original, nothing to do.";
                     return true;
                 }
 
                 Ecrire(fichier, nouveau, bom);
-                message = "MissionScripting.lua remis a l'origine.";
+                message = "MissionScripting.lua restored to original.";
                 return true;
             }
             catch (UnauthorizedAccessException)
             {
-                message = "Acces refuse : DCE_Manager doit etre lance en administrateur.";
+                message = "Access denied: DCE_Manager must be run as administrator.";
                 return false;
             }
             catch (IOException ex)
             {
-                message = "Fichier utilise par un autre programme (DCS ou son updater ?). Ferme DCS et recommence.\n" + ex.Message;
+                message = "File in use by another program (DCS or its updater?). Close DCS and try again.\n" + ex.Message;
                 return false;
             }
             catch (Exception ex)
             {
-                message = "Erreur : " + ex.Message;
+                message = "Error: " + ex.Message;
                 return false;
             }
         }
@@ -212,21 +216,21 @@ namespace DCE_Manager   // <-- meme namespace que tes autres fichiers
             {
                 if (!File.Exists(backup))
                 {
-                    message = "Pas de sauvegarde trouvee.";
+                    message = "No backup found.";
                     return false;
                 }
                 File.Copy(backup, fichier, true);
-                message = "Fichier d'origine restaure.";
+                message = "Original file restored.";
                 return true;
             }
             catch (UnauthorizedAccessException)
             {
-                message = "Acces refuse : DCE_Manager doit etre lance en administrateur.";
+                message = "Access denied: DCE_Manager must be run as administrator.";
                 return false;
             }
             catch (Exception ex)
             {
-                message = "Erreur : " + ex.Message;
+                message = "Error: " + ex.Message;
                 return false;
             }
         }

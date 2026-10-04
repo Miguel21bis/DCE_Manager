@@ -199,6 +199,7 @@
       <DependentUpon>ASTI_Form.cs</DependentUpon>
     </Compile>
     <Compile Include="Bridge_LUA_ScriptsMod\DcemLua.cs" />
+    <Compile Include="Catalog\Updater_Catalog.cs" />
     <Compile Include="ConfMod\CampInitUpdater.cs" />
     <Compile Include="ConfMod\ConfModDynamicData.cs" />
     <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
@@ -263,7 +264,6 @@
     </Compile>
     <Compile Include="Core\Statistics.cs" />
     <Compile Include="MissionGenerator\ScriptsModBatParser.cs" />
-    <Compile Include="News\Updater_News.cs" />
     <Compile Include="MissionGenerator\ProcessConsoleBridge.cs" />
     <Compile Include="MissionGenerator\ScriptsModRunner_Form.cs">
       <SubType>Form</SubType>
@@ -383,7 +383,6 @@
       <DependentUpon>ucHome.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="Grid_Campaign\app.manifest" />
-    <None Include="News\campaigns_catalog.json" />
     <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>
     </None>
