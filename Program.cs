@@ -51,13 +51,13 @@ namespace DCE_Manager
             if (DebriefCli.IsRequested(out debriefCampaign))
             {
                 // LOG DEBRIEF (temporaire) : prouve que DCS a bien lancé DCE_Manager, et avec quoi.
-                FormUtils.LogRegister("Program | lancé en mode debrief | PID " + Process.GetCurrentProcess().Id +
-                    " | ligne de commande : " + Environment.CommandLine);
-                FormUtils.LogRegister("Program | dossier courant : " + Environment.CurrentDirectory);
+                //FormUtils.LogRegister("Program | lancé en mode debrief | PID " + Process.GetCurrentProcess().Id +
+                //    " | ligne de commande : " + Environment.CommandLine);
+                //FormUtils.LogRegister("Program | dossier courant : " + Environment.CurrentDirectory);
 
                 if (!DebriefCli.SendToRunningInstance(debriefCampaign))
                 {
-                    FormUtils.LogRegister("Program | aucune instance ouverte : debriefing en mode autonome");
+                    //FormUtils.LogRegister("Program | aucune instance ouverte : debriefing en mode autonome");
                     DebriefCli.Run(debriefCampaign);
                 }
 

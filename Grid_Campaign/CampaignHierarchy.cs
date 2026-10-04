@@ -10,8 +10,8 @@ namespace DCE_Manager
 {
     // Gère le lien maître/fille entre campagnes (ex: "Crisis in PG-Blue" est le
     // maître de "Crisis in PG-Blue-GC22"). Stocké dans dce_manager_settings.json,
-    // section "CampaignHierarchy", séparément du reste (les autres sections du
-    // fichier ne sont jamais touchées par cette classe).
+    // sections "CampaignHierarchy" et "CampaignStandalone", séparément du reste (les
+    // autres sections du fichier ne sont jamais touchées par cette classe).
     //
     // Cloisonné par configuration (ParamConf.NumSelectConfig) : deux configs
     // (DCSA/DCSB...) peuvent avoir des campagnes qui portent le même nom de
@@ -23,6 +23,12 @@ namespace DCE_Manager
     // une fille ne peut jamais avoir de fille elle-même. Toutes les méthodes qui
     // pourraient créer un 3e niveau redirigent automatiquement vers le vrai maître
     // (voir ResolveMaster).
+    //
+    // "Standalone" = campagnes que l'utilisateur a RENDUES indépendantes à la main
+    // (popup Campaign family). Sans cette liste, une campagne détachée n'a plus aucune
+    // trace dans le dico, donc ClassifyUnknown la prend pour une campagne jamais
+    // classée et la regroupe de nouveau d'après son nom (typiquement avec son ancienne
+    // mère, devenue elle aussi "inconnue" si elle n'avait plus de fille).
     internal static class CampaignHierarchy
     {
         // Longueur minimum du préfixe commun pour considérer deux noms comme
@@ -32,11 +38,15 @@ namespace DCE_Manager
 
         private const string SettingsFileName = "dce_manager_settings.json";
         private const string SectionName = "CampaignHierarchy";
+        private const string StandaloneSectionName = "CampaignStandalone";
 
         // configId -> (fille -> maître). Une campagne absente du dico de sa
         // config (ni clé, ni valeur) est soit un maître sans fille, soit une
         // campagne "seule" (standalone) : comportement inchangé pour elle.
         private static Dictionary<int, Dictionary<string, string>> _dataByConfig;
+
+        // configId -> noms des campagnes rendues indépendantes à la main (voir plus haut).
+        private static Dictionary<int, HashSet<string>> _standaloneByConfig;
 
         private static string SettingsFilePath =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "DCE_Manager", SettingsFileName);
@@ -51,6 +61,7 @@ namespace DCE_Manager
                 return;
 
             _dataByConfig = new Dictionary<int, Dictionary<string, string>>();
+            _standaloneByConfig = new Dictionary<int, HashSet<string>>();
 
             try
             {
@@ -58,25 +69,49 @@ namespace DCE_Manager
                     return;
 
                 JObject root = JObject.Parse(File.ReadAllText(SettingsFilePath));
+
+                // --- fille -> maître ---
                 JObject section = root[SectionName] as JObject;
 
-                if (section == null)
-                    return;
-
-                foreach (var configProp in section.Properties())
+                if (section != null)
                 {
-                    if (!int.TryParse(configProp.Name, out int configId))
-                        continue; // clé inattendue, on ignore plutôt que de planter
+                    foreach (var configProp in section.Properties())
+                    {
+                        if (!int.TryParse(configProp.Name, out int configId))
+                            continue; // clé inattendue, on ignore plutôt que de planter
 
-                    JObject inner = configProp.Value as JObject;
-                    if (inner == null)
-                        continue;
+                        JObject inner = configProp.Value as JObject;
+                        if (inner == null)
+                            continue;
 
-                    var map = new Dictionary<string, string>();
-                    foreach (var childProp in inner.Properties())
-                        map[childProp.Name] = childProp.Value.ToString();
+                        var map = new Dictionary<string, string>();
+                        foreach (var childProp in inner.Properties())
+                            map[childProp.Name] = childProp.Value.ToString();
 
-                    _dataByConfig[configId] = map;
+                        _dataByConfig[configId] = map;
+                    }
+                }
+
+                // --- campagnes rendues indépendantes à la main ---
+                JObject standaloneSection = root[StandaloneSectionName] as JObject;
+
+                if (standaloneSection != null)
+                {
+                    foreach (var configProp in standaloneSection.Properties())
+                    {
+                        if (!int.TryParse(configProp.Name, out int configId))
+                            continue;
+
+                        JArray names = configProp.Value as JArray;
+                        if (names == null)
+                            continue;
+
+                        var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (JToken token in names)
+                            set.Add(token.ToString());
+
+                        _standaloneByConfig[configId] = set;
+                    }
                 }
             }
             catch (Exception ex)
@@ -86,6 +121,7 @@ namespace DCE_Manager
                 // relancera au prochain LoadCampaignsAsync.
                 FormUtils.LogRegister("CampaignHierarchy | erreur de lecture " + SettingsFilePath + " : " + ex.Message);
                 _dataByConfig = new Dictionary<int, Dictionary<string, string>>();
+                _standaloneByConfig = new Dictionary<int, HashSet<string>>();
             }
         }
 
@@ -104,6 +140,22 @@ namespace DCE_Manager
             }
 
             return map;
+        }
+
+        // Campagnes rendues indépendantes à la main, pour la configuration actuelle.
+        private static HashSet<string> CurrentStandalone()
+        {
+            EnsureLoaded();
+
+            int configId = ParamConf.NumSelectConfig;
+
+            if (!_standaloneByConfig.TryGetValue(configId, out HashSet<string> set))
+            {
+                set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                _standaloneByConfig[configId] = set;
+            }
+
+            return set;
         }
 
         private static void Save()
@@ -141,6 +193,18 @@ namespace DCE_Manager
 
                 root[SectionName] = section;
 
+                // Même principe pour les campagnes indépendantes (toutes les configs).
+                var standaloneSection = new JObject();
+                foreach (var configEntry in _standaloneByConfig)
+                {
+                    if (configEntry.Value.Count == 0)
+                        continue; // rien à écrire pour cette config
+
+                    standaloneSection[configEntry.Key.ToString()] = new JArray(configEntry.Value.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
+                }
+
+                root[StandaloneSectionName] = standaloneSection;
+
                 File.WriteAllText(SettingsFilePath, root.ToString());
             }
             catch (Exception ex)
@@ -175,6 +239,12 @@ namespace DCE_Manager
             return CurrentMap().ContainsValue(campaignName);
         }
 
+        // Tous les maîtres de la config actuelle (campagnes qui ont au moins une fille).
+        public static List<string> GetAllMasters()
+        {
+            return CurrentMap().Values.Distinct().OrderBy(n => n, StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
         // Filles directes d'un maître (config actuelle), triées alphabétiquement
         // (ordre stable pour l'affichage et pour la promotion automatique en cas
         // de suppression).
@@ -188,12 +258,13 @@ namespace DCE_Manager
         }
 
         // ------------------------------------------------------------------
-        // Modification manuelle (popup "Gérer la famille")
+        // Modification manuelle (popup "Campaign family")
         // ------------------------------------------------------------------
 
         // Rattache childName à masterName (dans la config actuelle). Si
         // masterName est lui-même une fille, on redirige automatiquement vers
-        // SON maître (pas de 3e niveau possible).
+        // SON maître (pas de 3e niveau possible). Écrase l'ancien lien de childName
+        // s'il en avait un.
         public static void SetChild(string childName, string masterName)
         {
             if (string.IsNullOrEmpty(childName) || string.IsNullOrEmpty(masterName) || childName == masterName)
@@ -212,13 +283,28 @@ namespace DCE_Manager
                 map[grandChild] = realMaster;
 
             map[childName] = realMaster;
+
+            // Les deux ont maintenant une famille : ils ne sont plus "indépendants".
+            HashSet<string> standalone = CurrentStandalone();
+            standalone.Remove(childName);
+            standalone.Remove(realMaster);
+
             Save();
         }
 
-        // Détache campaignName de son maître (config actuelle) : redevient seule.
+        // Détache campaignName de son maître (config actuelle) : redevient seule, et on le
+        // mémorise pour que le classement automatique (ClassifyUnknown) ne la regroupe pas
+        // de nouveau d'après son nom.
+        // Sans effet sur le dico si c'est un maître : voir ManageFamily_Form.ApplyIndependent,
+        // qui promeut une fille avant d'appeler Detach sur l'ancien maître.
         public static void Detach(string campaignName)
         {
-            if (CurrentMap().Remove(campaignName))
+            bool removed = CurrentMap().Remove(campaignName);
+
+            // Un maître qui a encore des filles n'est pas "indépendant" : on ne le marque pas.
+            bool marked = !IsMaster(campaignName) && CurrentStandalone().Add(campaignName);
+
+            if (removed || marked)
                 Save();
         }
 
@@ -233,13 +319,10 @@ namespace DCE_Manager
             SetChild(newCampaignName, ResolveMaster(sourceCampaignName));
         }
 
-        // ------------------------------------------------------------------
         // Suppression : appelée par le workflow de suppression existant.
         // Si campaignName était un maître avec des filles, la première fille
         // restante (ordre alphabétique) est promue maître et récupère les autres.
         // Si campaignName était une simple fille, on la détache juste.
-        // ------------------------------------------------------------------
-
         public static void OnCampaignDeleted(string campaignName)
         {
             Dictionary<string, string> map = CurrentMap();
@@ -259,6 +342,7 @@ namespace DCE_Manager
             }
 
             map.Remove(campaignName);
+            CurrentStandalone().Remove(campaignName); // plus de dossier, plus rien à mémoriser
             Save();
         }
 
@@ -278,6 +362,11 @@ namespace DCE_Manager
             foreach (string child in GetChildren(oldName))
                 map[child] = newName;
 
+            // Cas indépendante : elle le reste sous son nouveau nom
+            HashSet<string> standalone = CurrentStandalone();
+            if (standalone.Remove(oldName))
+                standalone.Add(newName);
+
             Save();
         }
 
@@ -289,13 +378,14 @@ namespace DCE_Manager
         // noms de campagnes présentes sur le disque (config actuelle). Les
         // campagnes déjà connues (clé ou valeur du dico) sont ignorées : le
         // classement auto ne repasse jamais sur une campagne déjà traitée ou
-        // corrigée à la main.
+        // corrigée à la main. Idem pour celles rendues indépendantes à la main.
         public static void ClassifyUnknown(IEnumerable<string> allCampaignNames)
         {
             Dictionary<string, string> map = CurrentMap();
+            HashSet<string> standalone = CurrentStandalone();
 
             List<string> unknown = allCampaignNames
-                .Where(n => !map.ContainsKey(n) && !map.ContainsValue(n))
+                .Where(n => !map.ContainsKey(n) && !map.ContainsValue(n) && !standalone.Contains(n))
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 

@@ -50,7 +50,7 @@ namespace DCE_Manager
         private string _cachedOvGmePath;
         private Updater_ScriptsMod scriptsModUpdater;
         private Updater_DCEManager dceManagerUpdater;
-        private Updater_News newsUpdater;
+        private Updater_Catalog catalogUpdater;
         private ucHome homeView;
 
         private ucCampaign campaignView;
@@ -114,7 +114,7 @@ namespace DCE_Manager
 
             scriptsModUpdater = new Updater_ScriptsMod(this);
             dceManagerUpdater = new Updater_DCEManager(this);
-            newsUpdater = new Updater_News(this);
+            catalogUpdater = new Updater_Catalog(this);
 
             //*************************
             CampaignGridLeft.GridCampaigns_Init_DataGridView();
@@ -163,7 +163,7 @@ namespace DCE_Manager
             _ = dceManagerUpdater.CheckGithubDCEManagerVersionAsync();
 
             _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
-            _ = newsUpdater.CheckNewsAsync();
+            _ = catalogUpdater.CheckCatalogAsync();
 
             _ = Statistics.EnvoiStatsAsync(checkBox_Stat_anonym.Checked);
 
@@ -1170,7 +1170,7 @@ namespace DCE_Manager
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             else if (e.TabPage == tabPageLeftNews)
             {
-                newsUpdater.DisplayNews();
+                catalogUpdater.DisplayCatalog();
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
@@ -1452,28 +1452,7 @@ namespace DCE_Manager
             }
         }
 
-        private void but_ASTI_Click(object sender, EventArgs e)
-        {
-            // On crée une nouvelle instance de la fenêtre ASTI_Form
-            using (ASTI_Form astiWindow = new ASTI_Form())
-            {
-                // ShowDialog() ouvre la fenêtre de manière bloquante (modale)
-                astiWindow.ShowDialog(this);
-            } // La fenêtre est proprement détruite en mémoire une fois fermée grâce au "using"
-        }
-
-        //private void buttonSaveChgtCampaign_Click(object sender, EventArgs e)
-        //{
-        //    CampaignGridLeft.CurrentCampaignEdit?.buttonSaveChgtCampaign_Click(sender, e);
-        //}
-
-        //private void buttonResetBackup_Click(object sender, EventArgs e)
-        //{
-        //    CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
-        //}
-
-
-
+       
         public void ShowHome()
         {
             homeView.BringToFront();
@@ -1929,51 +1908,7 @@ namespace DCE_Manager
             Close();
         }
 
-        //private void chkMissionScripting_CheckedChanged(object sender, EventArgs e)
-        //{
-
-        //}
-
-
-
-        //private void chkMissionScripting_Click(object sender, EventArgs e)
-        //{
-        //    bool veutAppliquer = chkMissionScripting.Checked;   // déjà changé au moment du clic
-
-        //    if (veutAppliquer)
-        //    {
-        //        DialogResult rep = MessageBox.Show(
-        //            "Cette option commente les lignes sanitizeModule('os') et sanitizeModule('io') " +
-        //            "dans DCS\\Scripts\\MissionScripting.lua.\n\n" +
-        //            "Elle est nécessaire à certaines fonctions des campagnes (lecture/écriture de fichiers " +
-        //            "depuis les missions).\n\n" +
-        //            "Attention : une mission téléchargée peut alors exécuter du code sur ton PC. " +
-        //            "N'ouvre que des missions de confiance.\n\n" +
-        //            "Chaque mise à jour de DCS remet le fichier d'origine : la case sera alors décochée " +
-        //            "et il faudra la recocher.\n\n" +
-        //            "Appliquer la modification ?",
-        //            "MissionScripting", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-
-        //        if (rep != DialogResult.Yes)
-        //        {
-        //            RefreshMissionScriptingCheck();   // remet la case sur l'état réel
-        //            return;
-        //        }
-        //    }
-
-        //    string msg;
-        //    bool ok = veutAppliquer
-        //        ? DcsPatcher.Patch(ParamConf.PATH_DCS_Root, out msg)
-        //        : DcsPatcher.Unpatch(ParamConf.PATH_DCS_Root, out msg);
-
-        //    if (!ok)
-        //        MessageBox.Show(msg, "MissionScripting", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        //    else if (DcsPatcher.IsDcsRunning())
-        //        MessageBox.Show("DCS est en cours d'exécution : le changement ne sera pris en compte " +
-        //                        "qu'au prochain lancement de mission.", "MissionScripting");
-
-        //    RefreshMissionScriptingCheck();
-        //}
+       
 
 
     }

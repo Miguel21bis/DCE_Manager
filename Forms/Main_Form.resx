@@ -120,40 +120,6 @@
   <metadata name="toolTip1.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>17, 17</value>
   </metadata>
-  <data name="textBox_ASTI.Text" xml:space="preserve">
-    <value>with DCS (the mission editor) it's almost impossible to import templates with a large number of statics, and even more impossible to move or orientate them or even delete them.
-This is why Cef wanted a tool to do all these things: import one or more templates made of Static, orientate them, move them, delete them, whatever the original MAP.
-
-To do this, you need to identify the location(s) where you want to place these templates using a ‘marker’ whose name begins with ASTI_ .
-
-To increase precision, you can rename a group in the template file(s) so that it becomes the template's point of origin. Rename it starting with REF_.
-
-Step 1: [optional] [in the template file] 
-define a group/unit that will be the template's point of origin. To do this, rename the name of the group (not the unit) so that it begins with REF_.
-
-Step 2: [in the target mission file (.miz)] 
-define one or more markers (any group) for which you will start the group name (not the unit) with ASTI_, if you want to call the same template several times on different locations, do it in the following way:
-group.name = ‘ASTI_nameOftemplate-1’.
-group.name = ‘ASTI_nameOftemplate-2
-and so on. 
-The orientation and hidden of the marker group will automatically be transmitted to the copied template.
-
-Step 3: [on the right, with the ‘select templates folder’ button].
-select a folder where you have placed all the templates you wish to use.
-
-Step 4: [right, with the button ‘select mission file .miz’]
-select your mission file .miz to which you want to paste the template(s)
-
-Step 5: [right, using the ‘Process’ button].
-make the modification.
-You can then open the file with the mission editor, make a few adjustments (moving/orienting/hiding the marker) and repeat the operation.
-Deleting the marker will delete the associated template.
-
-nota:
-- the countries used will automatically be CJTF Blue and CJTF Red. This will avoid any conflict ^^
-- unitId, groupId, group.name and unit.name will automatically be renamed to avoid duplication.
-- you can use Tools/ASTI independently of DCE, no need to fill in the path on the first tab.</value>
-  </data>
   <metadata name="toolTip3.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>112, 18</value>
   </metadata>

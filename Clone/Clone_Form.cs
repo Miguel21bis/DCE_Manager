@@ -1293,6 +1293,8 @@ namespace DCE_Manager
                     //Suppression des fichiers dans Debug:
                     FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debug", false);
 
+                    CampaignHierarchy.OnCampaignCloned(OldNameCamp, NewdNameCamp);
+
                     // Recharge la grid de gauche en se plaçant directement sur la campagne
                     // fraîchement clonée (plus besoin de la rechercher dans la liste).
                     await _form1.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: NewdNameCamp);

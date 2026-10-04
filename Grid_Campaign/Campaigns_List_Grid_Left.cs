@@ -40,6 +40,9 @@ namespace DCE_Manager
 
         private int _lastFamilyMouseX = -1;
 
+        // Largeur de la zone "⋯" tout à droite de la colonne Family (le reste = flèche/étoile)
+        private const int FamilyMenuZoneWidth = 32;
+
         // Liste centralisée pour éviter la divergence entre le test de complétude (LoadCampaignsAsync)
         // et le calcul "encore manquant après réparation" (RepairCampaignAsync).
         private static readonly string[] RequiredInitFiles =
@@ -194,8 +197,12 @@ namespace DCE_Manager
             {
                 Name = "Family",
                 HeaderText = "",
-                Width = 75,
+                ToolTipText = "Left button: collapse all families. Right button: expand all families.",
+                //HeaderText = "▶▼",
+                //ToolTipText = "Click here to expand / collapse ALL families",
+                Width = 105,
                 ReadOnly = true,
+                SortMode = DataGridViewColumnSortMode.NotSortable, // sinon cliquer l'en-tête trierait les lignes
                 DefaultCellStyle = { Alignment = DataGridViewContentAlignment.MiddleCenter }
             });
             _mainForm.dataGridViewCampaigns.Columns["Family"].DisplayIndex = 1;
@@ -250,7 +257,9 @@ namespace DCE_Manager
             _mainForm.dataGridViewCampaigns.DefaultCellStyle.Padding = new Padding(0);
             //_mainForm.dataGridViewCampaigns.DefaultCellStyle.Padding = new Padding(10);
 
-            _mainForm.dataGridViewCampaigns.ColumnHeadersHeight = 35;
+            // DisableResizing : sans ça, le mode auto du Designer ignore la hauteur demandée
+            _mainForm.dataGridViewCampaigns.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
+            _mainForm.dataGridViewCampaigns.ColumnHeadersHeight = 45;
 
             // SCROLL
             _mainForm.dataGridViewCampaigns.ScrollBars = ScrollBars.Both;
@@ -291,6 +300,8 @@ namespace DCE_Manager
             _mainForm.dataGridViewCampaigns.CellMouseClick += GridCampaigns_Family_CellMouseClickAsync;
             _mainForm.dataGridViewCampaigns.CellMouseMove += GridCampaigns_Family_CellMouseMove;
             _mainForm.dataGridViewCampaigns.CellMouseLeave += GridCampaigns_Family_CellMouseLeave;
+            _mainForm.dataGridViewCampaigns.ColumnHeaderMouseClick += GridCampaigns_Family_HeaderMouseClickAsync;
+            _mainForm.dataGridViewCampaigns.CellPainting += GridCampaigns_Family_HeaderPainting;
 
             _mainForm.dataGridViewCampaigns.ShowCellToolTips = true; // true par défaut, explicite pour être sûr
             
@@ -308,8 +319,47 @@ namespace DCE_Manager
             _mainForm.dataGridViewCampaigns.BorderStyle = BorderStyle.None;
 
             UpdateCampaignSetupColumnVisibility();
+
+            GridCampaigns_ApplyColumnWidths();
         }
 
+
+        // Remet les largeurs de colonnes voulues, quel que soit le mode de redimensionnement
+        // que le Designer ou un autre réglage aurait imposé à la grid.
+        private void GridCampaigns_ApplyColumnWidths()
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None;
+
+            var widths = new Dictionary<string, int>
+            {
+                { "Clone", 40 },
+                { "Family", 105 },
+                { "Image", 90 },
+                { "Name", 250 },
+                { "Rename", 45 },
+                { "Folder", 55 },
+                { "Export", 70 },
+                { "Version", 60 },
+                { "Missions", 50 },
+                { "Aircraft", 90 },
+                { "QuickActions", 100 },
+                { "CampaignSetup", 55 },
+                { "Parameters", 55 },
+                { "Delete", 55 },
+                { "Select", 40 }
+            };
+
+            foreach (var kvp in widths)
+            {
+                if (grid.Columns.Contains(kvp.Key))
+                {
+                    grid.Columns[kvp.Key].AutoSizeMode = DataGridViewAutoSizeColumnMode.None;
+                    grid.Columns[kvp.Key].Width = kvp.Value;
+                }
+            }
+        }
 
         private void GridCampaigns_AddButtonColumn(string name, string text, int width, bool useColumnTextForButtonValue = true, string headerText = null)
         {
@@ -523,11 +573,21 @@ namespace DCE_Manager
         {
             var grid = _mainForm.dataGridViewCampaigns;
 
+            //if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
+            //{
+            //    grid.Cursor = Cursors.Default;
+            //    _lastQuickActionsMouseX = -1;
+            //    HideQuickActionsToolTip();
+            //    return;
+            //}
             if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
             {
                 grid.Cursor = Cursors.Default;
                 _lastQuickActionsMouseX = -1;
-                HideQuickActionsToolTip();
+
+                if (e.ColumnIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Family") // Family gère sa propre infobulle
+                    HideQuickActionsToolTip();
+
                 return;
             }
 
@@ -676,11 +736,10 @@ namespace DCE_Manager
             return result;
         }
 
-        // Colonne Family : 2 zones, moitié/moitié.
-        // - Gauche : ▸/▾ + ★ sur un maître (bascule déplié/replié). ↳ grisé sur une fille
-        //   (juste indicatif, pas cliquable). Rien sur une campagne seule.
-        // - Droite : "⋯" toujours affiché (même sur une campagne seule) -> ouvre la popup
-        //   "Gérer la famille".
+        // Colonne Family :
+        // - Gauche : sur un maître "▶ ★ 3" (déplié : "▼ ★ 3", le chiffre = nombre de filles).
+        //   "↳" grisé sur une fille. Rien sur une campagne seule.
+        // - Droite (FamilyMenuZoneWidth px) : bouton "⋯" encadré -> popup "Campaign family".
         private void GridCampaigns_Family_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
         {
             if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
@@ -698,23 +757,64 @@ namespace DCE_Manager
             bool isMaster, isChild, expanded;
             GetFamilyRole(name, out isMaster, out isChild, out expanded);
 
-            int halfWidth = e.CellBounds.Width / 2;
+            // Ligne sélectionnée = fond bleu, donc texte clair pour rester lisible
+            bool selected = (e.State & DataGridViewElementStates.Selected) != 0;
+            Color mainColor = selected ? Color.White : Color.FromArgb(40, 40, 40);
+            Color softColor = selected ? Color.FromArgb(220, 230, 245) : Color.Gray;
 
-            using (var font = new Font("Segoe UI", 15, FontStyle.Bold))
-            using (var smallFont = new Font("Segoe UI", 13, FontStyle.Bold))
+            var flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
+
+            var leftRect = new Rectangle(e.CellBounds.Left, e.CellBounds.Top, e.CellBounds.Width - FamilyMenuZoneWidth, e.CellBounds.Height);
+
+            // Petit bouton encadré, centré verticalement, pour que "⋯" ressemble à un vrai bouton
+            var menuBox = new Rectangle(e.CellBounds.Right - FamilyMenuZoneWidth + 3,
+                                        e.CellBounds.Top + (e.CellBounds.Height - 28) / 2,
+                                        FamilyMenuZoneWidth - 6, 28);
+
+            using (var arrowFont = new Font("Segoe UI Symbol", 12, FontStyle.Bold))
+            using (var dotsFont = new Font("Segoe UI", 13, FontStyle.Bold))
+            using (var borderPen = new Pen(softColor))
             {
-                string leftIcon = isMaster ? (expanded ? "▾ ★" : "▸ ★") : (isChild ? "↳" : "");
-
-                if (!string.IsNullOrEmpty(leftIcon))
+                if (isMaster)
                 {
-                    var leftRect = new Rectangle(e.CellBounds.Left, e.CellBounds.Top, halfWidth, e.CellBounds.Height);
-                    TextRenderer.DrawText(e.Graphics, leftIcon, font, leftRect, isChild ? Color.Gray : Color.Black,
-                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                    int familySize = CampaignHierarchy.GetChildren(name).Count + 1; // +1 = la campagne mère elle-même
+                    string text = (expanded ? "▼ " : "▶ ") + "★ " + familySize;
+                    TextRenderer.DrawText(e.Graphics, text, arrowFont, leftRect, mainColor, flags);
+                }
+                else if (isChild)
+                {
+                    TextRenderer.DrawText(e.Graphics, "↳", arrowFont, leftRect, softColor, flags);
                 }
 
-                var rightRect = new Rectangle(e.CellBounds.Left + halfWidth, e.CellBounds.Top, e.CellBounds.Width - halfWidth, e.CellBounds.Height);
-                TextRenderer.DrawText(e.Graphics, "⋯", smallFont, rightRect, Color.DimGray,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                e.Graphics.DrawRectangle(borderPen, menuBox);
+                TextRenderer.DrawText(e.Graphics, "⋯", dotsFont, menuBox, mainColor, flags);
+            }
+        }
+
+        // Dessine l'en-tête de la colonne Family : 2 petits boutons, ▶ (tout replier) et ▼ (tout déplier).
+        private void GridCampaigns_Family_HeaderPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            if (e.RowIndex != -1 || e.ColumnIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+                return;
+
+            e.Paint(e.ClipBounds, DataGridViewPaintParts.Background | DataGridViewPaintParts.Border);
+            e.Handled = true;
+
+            int half = e.CellBounds.Width / 2;
+            var flags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter;
+
+            var leftBox = new Rectangle(e.CellBounds.Left + 6, e.CellBounds.Top + 5, half - 9, e.CellBounds.Height - 10);
+            var rightBox = new Rectangle(e.CellBounds.Left + half + 3, e.CellBounds.Top + 5, half - 9, e.CellBounds.Height - 10);
+
+            //using (var font = new Font("Segoe UI Symbol", 10, FontStyle.Bold))
+            using (var font = new Font("Segoe UI Symbol", 9, FontStyle.Bold))
+            using (var pen = new Pen(Color.Gray))
+            {
+                e.Graphics.DrawRectangle(pen, leftBox);
+                e.Graphics.DrawRectangle(pen, rightBox);
+
+                TextRenderer.DrawText(e.Graphics, "▶", font, leftBox, Color.Black, flags);
+                TextRenderer.DrawText(e.Graphics, "▼", font, rightBox, Color.Black, flags);
             }
         }
 
@@ -733,21 +833,35 @@ namespace DCE_Manager
             if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
                 return;
 
-            int halfWidth = _mainForm.dataGridViewCampaigns.Columns["Family"].Width / 2;
+            int colWidth = _mainForm.dataGridViewCampaigns.Columns["Family"].Width;
+            bool inMenuZone = e.X >= colWidth - FamilyMenuZoneWidth;
 
             bool isMaster, isChild, expanded;
             GetFamilyRole(name, out isMaster, out isChild, out expanded);
 
-            if (e.X < halfWidth)
+            if (!inMenuZone)
             {
                 // Zone gauche : bascule déplié/replié, seulement si c'est un maître.
                 if (!isMaster)
                     return;
 
                 if (expanded)
+                {
                     _expandedMasters.Remove(name);
+                }
                 else
+                {
+                    _expandedMasters.Clear(); // une seule famille dépliée à la fois
                     _expandedMasters.Add(name);
+                }
+
+                // Si elle est devenue fille, on déplie sa nouvelle famille (et seulement elle)
+                // pour ne pas la faire disparaître de la liste.
+                if (CampaignHierarchy.IsChild(name))
+                {
+                    _expandedMasters.Clear();
+                    _expandedMasters.Add(CampaignHierarchy.ResolveMaster(name));
+                }
 
                 await LoadCampaignsAsync(selectCampaignName: name);
             }
@@ -755,27 +869,93 @@ namespace DCE_Manager
             {
                 // Zone droite : ouvre la popup de gestion, pour tout le monde (maître,
                 // fille ou campagne seule - elle peut y être rattachée à une autre).
+                bool applied;
+
                 using (var form = new ManageFamily_Form(name))
                 {
-                    form.ShowDialog(_mainForm);
+                    applied = form.ShowDialog(_mainForm) == DialogResult.OK;
+                }
+
+                if (applied)
+                {
+                    // On déplie la famille de cette campagne (et seulement elle) pour qu'elle
+                    // reste visible : celle de sa mère si elle est fille, la sienne si elle est mère.
+                    string familyToShow = CampaignHierarchy.IsChild(name) ? CampaignHierarchy.ResolveMaster(name)
+                                        : (CampaignHierarchy.IsMaster(name) ? name : null);
+
+                    if (familyToShow != null)
+                    {
+                        _expandedMasters.Clear();
+                        _expandedMasters.Add(familyToShow);
+                    }
                 }
 
                 await LoadCampaignsAsync(selectCampaignName: name);
             }
         }
 
+        // Curseur main uniquement sur ce qui est vraiment cliquable + infobulle maison
+        // (on réutilise celle de QuickActions, voir ShowQuickActionsTip).
         private void GridCampaigns_Family_CellMouseMove(object sender, DataGridViewCellMouseEventArgs e)
         {
-            if (e.RowIndex < 0 || _mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Family")
             {
                 if (_lastFamilyMouseX >= 0)
-                    _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
+                {
+                    grid.Cursor = Cursors.Default;
+                    HideQuickActionsToolTip();
+                }
+
                 _lastFamilyMouseX = -1;
                 return;
             }
 
             _lastFamilyMouseX = e.X;
-            _mainForm.dataGridViewCampaigns.Cursor = Cursors.Hand;
+
+            var row = grid.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+            {
+                grid.Cursor = Cursors.Default;
+                HideQuickActionsToolTip();
+                return;
+            }
+
+            bool isMaster, isChild, expanded;
+            GetFamilyRole(name, out isMaster, out isChild, out expanded);
+
+            bool inMenuZone = e.X >= grid.Columns["Family"].Width - FamilyMenuZoneWidth;
+
+            string text = null;
+
+            if (inMenuZone)
+                text = "Open the family window";
+            else if (isMaster)
+                text = (expanded ? "Click to hide the " : "Click to show the ") + CampaignHierarchy.GetChildren(name).Count + " child campaign(s)";
+            else if (isChild)
+                text = "Child of: " + CampaignHierarchy.ResolveMaster(name);
+
+            grid.Cursor = (inMenuZone || isMaster) ? Cursors.Hand : Cursors.Default;
+
+            if (text == null)
+            {
+                HideQuickActionsToolTip();
+                return;
+            }
+
+            // Clé propre à Family (>= 1000000) pour ne pas se mélanger avec celles de QuickActions
+            int key = 1000000 + e.RowIndex * 2 + (inMenuZone ? 1 : 0);
+
+            if (key == _lastQuickActionsZone)
+                return; // même zone, l'infobulle est déjà affichée
+
+            _lastQuickActionsZone = key;
+
+            Rectangle cell = grid.GetCellDisplayRectangle(e.ColumnIndex, e.RowIndex, false);
+            ShowQuickActionsTip(text, cell.Left + e.X + 12, cell.Top + e.Y + 22);
         }
 
         private void GridCampaigns_Family_CellMouseLeave(object sender, DataGridViewCellEventArgs e)
@@ -784,7 +964,33 @@ namespace DCE_Manager
             {
                 _mainForm.dataGridViewCampaigns.Cursor = Cursors.Default;
                 _lastFamilyMouseX = -1;
+                HideQuickActionsToolTip();
             }
+        }
+
+        // Clic sur l'en-tête de la colonne Family : tout déplier, ou tout replier si
+        // tout est déjà déplié.
+        // Clic sur l'en-tête de la colonne Family : moitié gauche (▶) = tout replier,
+        // moitié droite (▼) = tout déplier. e.X est relatif à la cellule d'en-tête.
+        private async void GridCampaigns_Family_HeaderMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || e.ColumnIndex < 0)
+                return;
+
+            if (_mainForm.dataGridViewCampaigns.Columns[e.ColumnIndex].Name != "Family")
+                return;
+
+            bool expandAll = e.X >= _mainForm.dataGridViewCampaigns.Columns["Family"].Width / 2;
+
+            _expandedMasters.Clear();
+
+            if (expandAll)
+            {
+                foreach (string master in CampaignHierarchy.GetAllMasters())
+                    _expandedMasters.Add(master);
+            }
+
+            await LoadCampaignsAsync();
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat via le GUI
