@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,14 +11,17 @@ namespace DCE_Manager
     // Consomme le résultat de la dernière mission jouée pour chaque formation
     // wargame déjà posée, et prépare la suivante :
     //
-    //   - lit alive% (Parser_WargameFormationLosses) pour en déduire combien de
-    //     ForcePower l'exemplaire actuellement posé a perdu
-    //   - tant qu'il reste au moins un exemplaire complet en réserve, repose un
-    //     exemplaire tout frais (100%) - le joueur ne voit jamais la formation
-    //     s'affaiblir tant que la réserve tient
-    //   - en dessous d'un exemplaire complet, pose exactement ce qu'il reste
-    //     (dégradation réelle et visible, proportionnelle)
-    //   - à 0, ne repose rien : la formation est épuisée
+    //   1. lit alive% (Parser_WargameFormationLosses) pour en déduire combien de
+    //      ForcePower l'exemplaire actuellement posé a perdu
+    //   2. lance le COMBAT entre zones (WargameEngineCombat) sur les axes actifs :
+    //      des zones peuvent changer de camp, les perdants se replient ou sont détruits
+    //   3. tant qu'il reste au moins un exemplaire complet en réserve, repose un
+    //      exemplaire tout frais (100%) - le joueur ne voit jamais la formation
+    //      s'affaiblir tant que la réserve tient
+    //   4. en dessous d'un exemplaire complet, pose exactement ce qu'il reste
+    //      (dégradation réelle et visible, proportionnelle)
+    //   5. à 0, ne repose rien : la formation est épuisée
+    //   6. les objectifs situés dans une zone qui a basculé changent de camp
     //
     // Appelé AVANT de lancer la mission suivante, au même endroit que
     // Saver_TargetList_Wargame.WriteNewActiveFormations (qui lui s'occupe des
@@ -31,7 +34,8 @@ namespace DCE_Manager
 
         public static void ProcessBeforeMission(string campaignName)
         {
-            string activePath = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Active", "targetlist.lua");
+            string campaignFolder = WargameZoneRepository.GetCampaignFolder(campaignName);
+            string activePath = Path.Combine(campaignFolder, "Active", "targetlist.lua");
             if (!File.Exists(activePath))
                 return; // rien encore posé, WriteNewActiveFormations s'en chargera pour la toute première fois
 
@@ -60,15 +64,7 @@ namespace DCE_Manager
                 if (id > 0) blockByFormationId[id] = block;
             }
 
-            var linesToRemove = new HashSet<int>();
-            var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-            {
-                { WargameSide.Blue, new List<string>() },
-                { WargameSide.Red, new List<string>() },
-            };
-            Dictionary<string, int> nextIndexBySide = Saver_TargetList_Wargame.FindNextNumericIndexBySide(lines);
-
-            int refreshed = 0, degraded = 0, retired = 0;
+            // ---- 1. Pertes de la mission qui vient de se jouer ----
 
             foreach (WargameZoneData zone in zones)
             {
@@ -86,6 +82,49 @@ namespace DCE_Manager
                     double postedPower = Math.Min(formation.ForcePower, powerPerExemplar);
                     double lostPower = postedPower * (1 - alive / 100.0);
                     formation.ForcePower = Math.Max(0, formation.ForcePower - lostPower);
+                }
+            }
+
+            // ---- 2. Combat entre zones (axes actifs uniquement) ----
+
+            WargameCombatResult combat = new WargameCombatResult();
+            try
+            {
+                HashSet<string> activeFlags = WargameCampFlags.LoadActiveFlags(Path.Combine(campaignFolder, "Active", "camp_status.lua"));
+                List<WargameAxis> axes = WargameZoneRepository.State != null ? WargameZoneRepository.State.Axes : null;
+
+                combat = WargameEngineCombat.Resolve(zones, axes, activeFlags, WargameCombatConfig.Current, rng);
+            }
+            catch (Exception ex)
+            {
+                // Le combat ne doit jamais empêcher la mission de se générer
+                FormUtils.LogRegister("WargameEngineCombat | échec de la résolution, combat ignoré ce tour : " + ex.Message);
+                combat = new WargameCombatResult();
+            }
+
+            // ---- 3. Retrait / repose des blocs, dans la zone où chaque formation se trouve MAINTENANT ----
+
+            var linesToRemove = new HashSet<int>();
+            var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+            {
+                { WargameSide.Blue, new List<string>() },
+                { WargameSide.Red, new List<string>() },
+            };
+            Dictionary<string, int> nextIndexBySide = Saver_TargetList_Wargame.FindNextNumericIndexBySide(lines);
+
+            int refreshed = 0, degraded = 0, retired = 0;
+
+            foreach (WargameZoneData zone in zones)
+            {
+                foreach (WargameFormation formation in zone.Formations)
+                {
+                    if (!losses.ContainsKey(formation.FormationId))
+                        continue; // jamais encore posée, laissée à WriteNewActiveFormations
+
+                    bool moved = combat.MovedFormationIds.Contains(formation.FormationId);
+
+                    double powerPerExemplar = catalog.GetPower(formation.Template);
+                    if (powerPerExemplar <= 0) powerPerExemplar = 10.0;
 
                     if (formation.ForcePower <= 0)
                     {
@@ -94,7 +133,7 @@ namespace DCE_Manager
                                 linesToRemove.Add(i);
 
                         retired++;
-                        continue; // épuisée, rien à reposer
+                        continue; // épuisée (ou détruite par le combat), rien à reposer
                     }
 
                     List<WargameTemplateUnit> layout = new Parser_WargameTemplateLayout()
@@ -103,7 +142,8 @@ namespace DCE_Manager
                     if (layout.Count == 0)
                     {
                         FormUtils.LogRegister("WargameEngineLosses | template introuvable pour '" + formation.Name + "', repose annulée ce tour");
-                        continue; // ancien bloc laissé tel quel, on retentera au prochain tour
+                        if (moved) RemoveOldBlock(blockByFormationId, formation, linesToRemove); // sinon elle resterait dans la zone perdue
+                        continue; // sinon ancien bloc laissé tel quel, on retentera au prochain tour
                     }
 
                     double fraction = Math.Min(1.0, formation.ForcePower / powerPerExemplar);
@@ -121,12 +161,11 @@ namespace DCE_Manager
                     if (placed == null)
                     {
                         FormUtils.LogRegister("WargameEngineLosses | aucune position trouvée pour '" + formation.Name + "', repose annulée ce tour (réserve conservée)");
-                        continue; // ancien bloc laissé tel quel, on retentera au prochain tour
+                        if (moved) RemoveOldBlock(blockByFormationId, formation, linesToRemove);
+                        continue; // sinon ancien bloc laissé tel quel, on retentera au prochain tour
                     }
 
-                    if (blockByFormationId.TryGetValue(formation.FormationId, out TargetListBlock replacedBlock))
-                        for (int i = replacedBlock.Start; i <= replacedBlock.End; i++)
-                            linesToRemove.Add(i);
+                    RemoveOldBlock(blockByFormationId, formation, linesToRemove);
 
                     formation.SpawnGeneration++;
                     string namePrefix = formation.Name + "_G" + formation.SpawnGeneration;
@@ -151,8 +190,57 @@ namespace DCE_Manager
 
             Saver_WargameZoneActive.Save(WargameZoneRepository.GetActiveWargameZonesPath(campaignName), zones);
 
+            // ---- 4. Objectifs des zones qui ont basculé ----
+
+            if (combat.FlippedZones.Count > 0)
+                MoveObjectivesOfFlippedZones(activePath, zones, combat.FlippedZones);
+
             FormUtils.LogRegister("WargameEngineLosses | " + campaignName + " : " + refreshed + " rafraîchie(s), "
-                + degraded + " dégradée(s), " + retired + " épuisée(s)");
+                + degraded + " dégradée(s), " + retired + " épuisée(s)"
+                + (combat.FlippedZones.Count > 0 || combat.Destroyed > 0
+                    ? " | combat : " + combat.FlippedZones.Count + " zone(s) basculée(s), "
+                      + combat.MovedFormationIds.Count + " repli(s), " + combat.Destroyed + " détruite(s)"
+                    : ""));
+        }
+
+        private static void RemoveOldBlock(Dictionary<int, TargetListBlock> blockByFormationId, WargameFormation formation, HashSet<int> linesToRemove)
+        {
+            if (blockByFormationId.TryGetValue(formation.FormationId, out TargetListBlock oldBlock))
+                for (int i = oldBlock.Start; i <= oldBlock.End; i++)
+                    linesToRemove.Add(i);
+        }
+
+        // Les objectifs situés dans une zone qui vient de changer de main passent dans la
+        // table de l'autre camp. Même convention que l'éditeur (WargameObjectiveWriter) :
+        // on ne touche qu'aux zones bleues/rouges, jamais aux zones contestées.
+        private static void MoveObjectivesOfFlippedZones(string activePath, List<WargameZoneData> zones, List<WargameZoneData> flipped)
+        {
+            try
+            {
+                List<WargameObjective> objectives = new Parser_WargameObjectives().Load(activePath);
+                if (objectives.Count == 0)
+                    return;
+
+                var desiredSides = new Dictionary<string, string>();
+
+                foreach (WargameObjective obj in objectives)
+                {
+                    WargameZoneData zone = WargameEngineCombat.FindZoneContaining(zones, obj.Position);
+                    if (zone == null || !flipped.Contains(zone))
+                        continue;
+                    if (zone.Control != WargameSide.Blue && zone.Control != WargameSide.Red)
+                        continue;
+
+                    desiredSides[obj.Name] = Saver_TargetList_Wargame.TargetTableSide(zone.Control);
+                }
+
+                if (desiredSides.Count > 0)
+                    WargameObjectiveWriter.ApplyChanges(activePath, objectives, desiredSides);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("WargameEngineLosses | objectifs non déplacés après le combat : " + ex.Message);
+            }
         }
 
         private static int ReadFormationId(List<string> lines, TargetListBlock block)

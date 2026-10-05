@@ -90,6 +90,20 @@ namespace DCE_Manager
 
             InitializeComponent();
 
+            //// Barre du haut : suit la largeur de la fenêtre, le combo Config reste collé à droite
+            //panel_top.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            //label_Config.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            //comboBox_Config.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            //but_Configuration_Edit.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            //// La fenêtre démarre toujours à la taille de l'écran, quelle que soit l'échelle Windows
+            //this.Load += (s, e) => { this.WindowState = FormWindowState.Maximized; };
+
+            //// La partie gauche prend la place qui reste entre elle et le panneau de droite
+            //this.Resize += (s, e) => AjusterLargeurGauche();
+            //this.Load += (s, e) => AjusterLargeurGauche();
+
+
             homeView = new ucHome();
             homeView.Dock = DockStyle.Fill;
             panelRightView.Controls.Add(homeView);
@@ -235,229 +249,16 @@ namespace DCE_Manager
             panelRightView.Controls.Add(campaignView);
         }
 
-            //*******************************************************************************************************************************
-            //telecharge news.lua pour afficher les news***********************************************************************************
-            //*******************************************************************************************************************************
-
-            //bool DownloadRequis = true;
-
-            //string pathManager = System.Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\DCE_Manager\";
-            //bool pathManagerExists = System.IO.Directory.Exists(pathManager);
-            //string newsLocFile = "news.lua";
-
-            //bool newsLocFileExists = File.Exists(pathManager + newsLocFile);
-            //if (newsLocFileExists)
-            //{
-            //    //DateTime fInfo = DateTime.Now;
-            //    FileInfo fInfo = new FileInfo(pathManager + newsLocFile);
-            //    int size = unchecked((int)fInfo.Length);                                    //taille en octets 
-            //    //if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddMinutes(1))
-            //    if (size < 10 | DateTime.Now >= fInfo.LastWriteTime.AddDays(1))
-            //    {
-            //        DownloadRequis = true;
-            //    }
-            //    else
-            //    {
-            //        DownloadRequis = false;
-            //    }
-            //}
-
-            ////https://drive.google.com/uc?export=download&id=
-            ////https://drive.google.com/file/d/1yjkhowWJbourfAqdSD2V1xqLo8E4E4C1/view?usp=sharing
-
-            //string googleLinkThisFile = "1yjkhowWJbourfAqdSD2V1xqLo8E4E4C1";
-
-            //if (!newsLocFileExists | DownloadRequis)
-            //{
-            //    //telecharge le fichier contenant les news
-            //    using (WebClient client = new WebClient())
-            //    {
-            //        try
-            //        {
- 
-            //            if (ParamServ.ServerSelected == ParamServ.FileServerName02)
-            //            {
-            //                client.DownloadFile(ParamServ.ServerSelected + googleLinkThisFile, pathManager + newsLocFile);
-            //            }
-            //            else
-            //            {
-            //                client.DownloadFile(ParamServ.ServerSelected + @"\news.lua", pathManager + newsLocFile);
-            //            }
-
-            //            FormUtils.LogRegister("LogRegister 2418 Download news.lua " + "\r\n");
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            try
-            //            {
-            //                //MessageBox.Show("Please select another server, this one is too long.", "Report");
-            //                client.DownloadFile(ParamServ.FileServerName03 + @"\news.lua", pathManager + newsLocFile);
-            //            }
-            //            catch (Exception ex2)
-            //            {
-            //                FormUtils.ErrorGeneral_BoxOrLog(ex2, "Failed server:", ParamServ.ServerSelected, false, true);                          
-            //            }
-            //            FormUtils.ErrorGeneral_BoxOrLog(ex, "Failed server:", ParamServ.ServerSelected, false, true);
-
-            //        }
-            //        client.Dispose();
-            //    }
-            //}
-
-            //newsLocFileExists = File.Exists(pathManager + newsLocFile);
-
-            //if (newsLocFileExists)
-            //{
-
-            //    //Affiche la fenetre News POPUP
-            //    string NewsBox0 = "";
-            //    bool newsRegBox0 = false;
-            //    bool textBox_NewsAffiche0 = false;
-            //    string NewsFile0 = ParamManager.pathManager + @"\news.lua";
-            //    bool NewsFilexist0 = File.Exists(NewsFile0);
-
-            //    string line;
-            //    //System.IO.IOException : 'Le processus ne peut pas accéder au fichier 'D:\_D_Documents\DCE_Manager\news.lua', car il est en cours d'utilisation par un autre processus.'
-            //    StreamReader sr = new StreamReader(NewsFile0);
-
-            //    while ((line = sr.ReadLine()) != null)
-            //    {
-            //        if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionNews"))
-            //        {
-            //            if (newsRegBox0 & !System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-            //            {
-            //                NewsBox0 = NewsBox0 + line + "\r\n";
-            //            }
-            //            if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStart"))
-            //            {
-            //                newsRegBox0 = true;
-            //            }
-            //            else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-            //            {
-            //                newsRegBox0 = false;
-            //            }
-            //            else if (newsRegBox0 == false)
-            //            {
-            //                //textBox_News.Text = textBox_News.Text + line + "\r\n";
-            //            }
-            //        }
-            //        else if (System.Text.RegularExpressions.Regex.IsMatch(line, "versionNews"))
-            //        {
-            //            string[] words = line.Split('=');
-            //            words[1] = words[1].Replace("\"", "");
-            //            words[1] = words[1].Replace(" ", "");
-            //            string v1_newsLua = words[1];
-            //            string v2_optionsTxt = DceNews.LastNewsVersion;
-            //            //v1>v2?
-            //            bool resultVersion = FormUtils.CompareVersion(v1_newsLua, v2_optionsTxt);
-
-            //            //regarde si la version du fichier News est supérieur à LastNewsVersion
-            //            if (resultVersion)
-            //            {
-            //                textBox_NewsAffiche0 = true;
-            //                DceNews.LastNewsVersion = v1_newsLua;
-                            
-            //            }
-            //        }
-            //    }
-
-            //    sr.Close();
 
 
-            //    if (textBox_NewsAffiche0)
-            //    {
-            //        //MessageBox.Show(NewsBox0, "News");
+        // Évite l'écart (ou le chevauchement) entre la partie gauche et le panneau de droite
+        private void AjusterLargeurGauche()
+        {
+            if (tabControl_LEFT == null || panelRightView == null) return;
 
-            //        tabPageLeftNews.Text = "News (1)";
-            //        //tabPage5.Refresh();
-
-            //        FormUtils.ModifierLigneBis(NewsFile0, "lastNewsAffiche=true", "lastNewsAffiche=false");
-
-            //        FormUtils.ModifierLigneBis(NewsFile0, "lastNewsAffiche = true", "lastNewsAffiche = false");
-
-            //    }
-            //}
-
-            ////Affiche le taB News
-            //string NewsBox = "";
-            //bool newsRegBox = false;
-            ////bool textBox_NewsAffiche = false;
-            //string NewsFile = ParamManager.pathManager + @"\news.lua";
-            //bool NewsFilexist = File.Exists(NewsFile);
-
-            //if (NewsFilexist)
-            //{
-            //    string line;
-            //    StreamReader sr = new StreamReader(NewsFile);
-
-            //    panel_News.Controls.Clear(); // Nettoyer les anciens contrôles du panel
-            //    panel_News.AutoScroll = true; // Activer le défilement si nécessaire
-
-            //    int yPos = 0; // Position de départ pour les contrôles dans le panel
-
-            //    while ((line = sr.ReadLine()) != null)
-            //    {
-            //        if (!System.Text.RegularExpressions.Regex.IsMatch(line, "versionNews"))
-            //        {
-            //            if (newsRegBox & !System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-            //            {
-            //                NewsBox = NewsBox + line + "\r\n";
-            //            }
-            //            if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStart"))
-            //            {
-            //                newsRegBox = true;
-            //            }
-            //            else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsStop"))
-            //            {
-            //                newsRegBox = false;
-            //            }
-            //            else if (System.Text.RegularExpressions.Regex.IsMatch(line, "lastNewsAffiche"))
-            //            {
-            //                //string[] words = line.Split('=');
-            //                //if (words[1].Contains("true"))
-            //                //textBox_NewsAffiche = true;
-            //            }
-            //            else if (newsRegBox == false)
-            //            {
-            //                if (System.Text.RegularExpressions.Regex.IsMatch(line, "="))
-            //                {
-            //                    string[] words = line.Split('=');
-            //                    string txtLink = words[0];
-            //                    string linkFull = words[1];
-
-            //                    // Créer et configurer le LinkLabel
-            //                    LinkLabel linkLabel = new LinkLabel();
-            //                    linkLabel.Text = txtLink;
-            //                    linkLabel.LinkArea = new LinkArea(0, txtLink.Length); // Rendre tout le texte cliquable
-            //                    linkLabel.AutoSize = true;
-            //                    linkLabel.Location = new Point(0, yPos); // Définir l'emplacement dans le panel
-            //                    linkLabel.LinkClicked += (sender, e) => System.Diagnostics.Process.Start(linkFull);
-
-            //                    // Ajouter le LinkLabel au panel
-            //                    panel_News.Controls.Add(linkLabel);
-            //                    yPos += linkLabel.Height + 5; // Mettre à jour la position y pour le prochain contrôle
-            //                }
-            //                else
-            //                {
-            //                    Label textLabel = new Label();
-            //                    textLabel.Text = line;
-            //                    textLabel.AutoSize = true;
-            //                    textLabel.Location = new Point(0, yPos);
-            //                    panel_News.Controls.Add(textLabel);
-            //                    yPos += textLabel.Height + 5; // Mettre à jour la position y pour le prochain contrôle
-            //                }
-            //            }
-            //        }
-            //    }
-
-            //    sr.Close();
-
-            //}
-
-
-       
-        //}//public Main_Form()
-
+            int w = panelRightView.Left - tabControl_LEFT.Left - 8;
+            if (w > 300) tabControl_LEFT.Width = w;
+        }
 
         private void LoadConfiguration()
         {
@@ -1139,36 +940,12 @@ namespace DCE_Manager
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
-            //else if (e.TabPage == tabPageLeft_About)
-            //{
-            //    //groupBoxDroiteAccueil.Visible = true;
-
-            //    //CampaignTab.Visible = false;
-            //    ShowHome();
-
-            //    tabPageLeft_About.Controls.Clear(); // enlève textBox_changelog etc. existants
-            //    ucAbout aboutView = new ucAbout();
-            //    aboutView.Dock = DockStyle.Fill;
-            //    tabPageLeft_About.Controls.Add(aboutView);
-
-            //    var panelAboutDce = new Panel();
-            //    panelAboutDce.Dock = DockStyle.Bottom;
-            //    panelAboutDce.Height = 60;
-            //    // ... tes labels/icône dedans ...
-
-            //    tabPageLeft_About.Controls.Add(aboutView); // ucAbout, en Dock=Fill
-            //    aboutView.Controls.Add(panelAboutDce); // ajouté APRÈS -> vient se caler en bas sans rien casser
-
-
-            //    CampaignGridLeft.UpdateCampaignButtonsVisibility();
-
-
-            //}
+           
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage?   NEWS    +++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-            else if (e.TabPage == tabPageLeftNews)
+            else if (e.TabPage == tabPageLeftCatalog)
             {
                 catalogUpdater.DisplayCatalog();
 

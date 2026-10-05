@@ -25,6 +25,8 @@ namespace DCE_Manager
             sb.AppendLine("}");
             sb.AppendLine();
 
+            WriteAxes(sb, state);
+
             sb.AppendLine("wargame_zones = ");
             sb.AppendLine("{");
 
@@ -38,6 +40,29 @@ namespace DCE_Manager
             File.WriteAllText(pathFile, sb.ToString());
 
             FormUtils.LogRegister("Saver_WargameZoneInit | " + zones.Count + " zone(s) écrite(s) dans " + pathFile);
+        }
+
+        private static void WriteAxes(StringBuilder sb, WargameState state)
+        {
+            sb.AppendLine("wargame_axes = ");
+            sb.AppendLine("{");
+            if (state != null)
+            {
+                int index = 1;
+                foreach (WargameAxis axis in state.Axes)
+                {
+                    sb.AppendLine("\t[" + index + "] = ");
+                    sb.AppendLine("\t{");
+                    sb.AppendLine("\t\t[\"name\"] = \"" + Escape(axis.Name) + "\",");
+                    sb.AppendLine("\t\t[\"start\"] = \"" + Escape(axis.StartZoneId) + "\",");
+                    sb.AppendLine("\t\t[\"end\"] = \"" + Escape(axis.EndZoneId) + "\",");
+                    sb.AppendLine("\t\t[\"flag\"] = \"" + Escape(axis.ActivationFlag) + "\",");
+                    sb.AppendLine("\t},");
+                    index++;
+                }
+            }
+            sb.AppendLine("}");
+            sb.AppendLine();
         }
 
         private static void WriteZone(StringBuilder sb, WargameZoneData zone)

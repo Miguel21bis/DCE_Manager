@@ -37,6 +37,7 @@ namespace DCE_Manager
                 var loader = new WargameZoneInitLoader();
                 List<WargameZoneData> loaded = loader.Load(initLuaPath);
                 State = loader.State;
+                WargameAxisPathFinder.RecomputeAll(State.Axes, loaded);
                 return loaded;
             }
 
