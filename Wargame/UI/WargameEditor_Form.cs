@@ -57,6 +57,7 @@ namespace DCE_Manager
 
         private ucWargameMapView _mapView;
         private ucWargameZoneEditPanel _editPanel;
+        private ucWargameAxisPanel _axisPanel;
 
         private RadioButton _radioInit;
         private RadioButton _radioActive;
@@ -173,6 +174,10 @@ namespace DCE_Manager
             : Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua");
 
             _objectives = File.Exists(targetlistPath) ? new Parser_WargameObjectives().Load(targetlistPath) : new List<WargameObjective>();
+
+            // Axes : ceux de l'Init (WargameZoneRepository.State), éditables seulement en vue Init
+            _axisPanel.Bind(WargameZoneRepository.State.Axes, _zones, !_viewingActive);
+            _mapView.SetAxes(WargameZoneRepository.State.Axes);
         }
 
         private void BuildUi()
@@ -187,6 +192,12 @@ namespace DCE_Manager
             _editPanel = new ucWargameZoneEditPanel { Dock = DockStyle.Fill };
             _editPanel.ZoneModified += EditPanel_ZoneModified;
             _editPanel.SetCampaignInfo(_campaignInfo, _templateCatalog);
+
+            _axisPanel = new ucWargameAxisPanel { Dock = DockStyle.Fill, Visible = false };
+            _axisPanel.AxesChanged += () => { _dirty = true; _mapView.Invalidate(); };
+            _axisPanel.SelectedAxisChanged += axis => { _mapView.SelectedAxis = axis; };
+            _axisPanel.PickZoneRequested += isStart =>
+                _mapView.BeginPickZone(zone => _axisPanel.SetPickedZone(isStart, zone.Id));
 
             _bulkPanel = BuildBulkAssignPanel();
 
@@ -277,6 +288,10 @@ namespace DCE_Manager
             secondaryButtons.Controls.Add(buttonSpawnSolverTest);
             secondaryButtons.Controls.Add(buttonTestObjectives);
             secondaryButtons.Controls.Add(buttonDetectNeighbors);
+
+            var buttonAxes = new Button { Text = "Axes...", Width = 90, Height = 30 };
+            buttonAxes.Click += (s, e) => ToggleAxisPanel();
+            secondaryButtons.Controls.Add(buttonAxes);
             secondaryButtons.Controls.Add(buttonCreateWarzone);
 
             var saveRow = new Panel { Dock = DockStyle.Fill };
@@ -301,6 +316,7 @@ namespace DCE_Manager
             rightPanel.Controls.Add(_editPanel);
             rightPanel.Controls.Add(_bulkPanel);
             rightPanel.Controls.Add(_objectiveEditPanel);
+            rightPanel.Controls.Add(_axisPanel);
             rightPanel.Controls.Add(modeRow);
             rightPanel.Controls.Add(bottomPanel);
 
@@ -369,6 +385,30 @@ namespace DCE_Manager
             _mapView.ClearSelection();
             _mapView.LoadMap(_mapImage, _calibration, _zones);
             _editPanel.LoadZone(null, _zones);
+        }
+
+        // Affiche/masque le panneau des axes à la place des panneaux zone/objectif,
+        // et les trace sur la carte tant qu'il est ouvert.
+        private void ToggleAxisPanel()
+        {
+            bool show = !_axisPanel.Visible;
+
+            _mapView.CancelPickZone();
+            _axisPanel.Visible = show;
+            _mapView.ShowAxes = show;
+
+            if (show)
+            {
+                _editPanel.Visible = false;
+                _bulkPanel.Visible = false;
+                _objectiveEditPanel.Visible = false;
+            }
+            else
+            {
+                MapView_SelectionChanged(_mapView.SelectedZones.ToList());
+            }
+
+            _mapView.Invalidate();
         }
 
         private void UpdateSaveButtonLabel()
@@ -466,6 +506,8 @@ namespace DCE_Manager
         private void MapView_SelectionChanged(List<WargameZoneData> selected)
         {
             _objectiveEditPanel.Visible = false;
+            _axisPanel.Visible = false;
+            _mapView.ShowAxes = false;
 
             if (selected.Count == 1)
             {
@@ -493,6 +535,7 @@ namespace DCE_Manager
         private void EditPanel_ZoneModified()
         {
             _dirty = true;
+            _axisPanel.RefreshPaths();   // un voisin coché/décoché peut changer un chemin
             _mapView.Invalidate();
         }
 
@@ -799,6 +842,8 @@ namespace DCE_Manager
             if (_currentZone != null)
                 _editPanel.LoadZone(_currentZone, _zones);
 
+            _axisPanel.RefreshPaths();
+
             MessageBox.Show("Neighbors updated. Don't forget to Save.",
                 "Detect neighbors", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -904,6 +949,8 @@ namespace DCE_Manager
 
             _editPanel.Visible = false;
             _bulkPanel.Visible = false;
+            _axisPanel.Visible = false;
+            _mapView.ShowAxes = false;
             _objectiveEditPanel.Visible = true;
 
             _loadingObjective = true;

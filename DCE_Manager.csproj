@@ -296,12 +296,17 @@
       <DependentUpon>ucHome.cs</DependentUpon>
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
+    <Compile Include="Wargame\Engine\WargameAxis.cs" />
+    <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />
     <Compile Include="Wargame\Engine\WargameEngineLosses.cs" />
     <Compile Include="Wargame\UI\Parser_WargameMissionUnits.cs" />
     <Compile Include="Wargame\Objective\Parser_WargameObjectives.cs" />
     <Compile Include="Wargame\Spawn\Parser_WargameSpawnAreas.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplate.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplateLayout.cs" />
+    <Compile Include="Wargame\UI\ucWargameAxisPanel.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Wargame\Zone\Parser_WargameZones.cs" />
     <Compile Include="Wargame\TargetList\Saver_TargetList_Wargame.cs" />
     <Compile Include="Wargame\Zone\Saver_WargameZoneActive.cs" />

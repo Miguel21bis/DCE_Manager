@@ -96,7 +96,7 @@ namespace DCE_Manager
             this.ScriptModInstalledVersion = new System.Windows.Forms.Label();
             this.ScriptsModUpdateButton = new System.Windows.Forms.Button();
             this.ScriptsModAvailableVersion = new System.Windows.Forms.Label();
-            this.tabPageLeftNews = new System.Windows.Forms.TabPage();
+            this.tabPageLeftCatalog = new System.Windows.Forms.TabPage();
             this.panel_News = new System.Windows.Forms.Panel();
             this.textBox_News = new System.Windows.Forms.TextBox();
             this.tabPageLeft_Options = new System.Windows.Forms.TabPage();
@@ -161,7 +161,7 @@ namespace DCE_Manager
             this.groupBox_Update_ScriptMod.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_ScriptsMod_Status)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Update_ScriptsMod)).BeginInit();
-            this.tabPageLeftNews.SuspendLayout();
+            this.tabPageLeftCatalog.SuspendLayout();
             this.tabPageLeft_Options.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pic_preferences)).BeginInit();
@@ -275,7 +275,7 @@ namespace DCE_Manager
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Install);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Campaigns);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Update);
-            this.tabControl_LEFT.Controls.Add(this.tabPageLeftNews);
+            this.tabControl_LEFT.Controls.Add(this.tabPageLeftCatalog);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_Options);
             this.tabControl_LEFT.Controls.Add(this.tabPageLeft_About);
             this.tabControl_LEFT.Location = new System.Drawing.Point(4, 65);
@@ -958,19 +958,19 @@ namespace DCE_Manager
             this.ScriptsModAvailableVersion.TabIndex = 1;
             this.ScriptsModAvailableVersion.Text = "...";
             // 
-            // tabPageLeftNews
+            // tabPageLeftCatalog
             // 
-            this.tabPageLeftNews.BackColor = System.Drawing.SystemColors.Control;
-            this.tabPageLeftNews.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.tabPageLeftNews.Controls.Add(this.panel_News);
-            this.tabPageLeftNews.Controls.Add(this.textBox_News);
-            this.tabPageLeftNews.Location = new System.Drawing.Point(4, 25);
-            this.tabPageLeftNews.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.tabPageLeftNews.Name = "tabPageLeftNews";
-            this.tabPageLeftNews.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-            this.tabPageLeftNews.Size = new System.Drawing.Size(1071, 743);
-            this.tabPageLeftNews.TabIndex = 4;
-            this.tabPageLeftNews.Text = "News";
+            this.tabPageLeftCatalog.BackColor = System.Drawing.SystemColors.Control;
+            this.tabPageLeftCatalog.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.tabPageLeftCatalog.Controls.Add(this.panel_News);
+            this.tabPageLeftCatalog.Controls.Add(this.textBox_News);
+            this.tabPageLeftCatalog.Location = new System.Drawing.Point(4, 25);
+            this.tabPageLeftCatalog.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPageLeftCatalog.Name = "tabPageLeftCatalog";
+            this.tabPageLeftCatalog.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.tabPageLeftCatalog.Size = new System.Drawing.Size(1071, 743);
+            this.tabPageLeftCatalog.TabIndex = 4;
+            this.tabPageLeftCatalog.Text = "News";
             // 
             // panel_News
             // 
@@ -1517,8 +1517,8 @@ namespace DCE_Manager
             this.groupBox_Update_ScriptMod.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_ScriptsMod_Status)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox_Update_ScriptsMod)).EndInit();
-            this.tabPageLeftNews.ResumeLayout(false);
-            this.tabPageLeftNews.PerformLayout();
+            this.tabPageLeftCatalog.ResumeLayout(false);
+            this.tabPageLeftCatalog.PerformLayout();
             this.tabPageLeft_Options.ResumeLayout(false);
             this.tabPageLeft_Options.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox4)).EndInit();
@@ -1573,7 +1573,7 @@ namespace DCE_Manager
         private System.Windows.Forms.GroupBox groupBox_Update_DCE_M;
         public System.Windows.Forms.Button DCEManagerUpdateButton;
         public System.Windows.Forms.Label DCEManagerAvailableVersion;
-        public System.Windows.Forms.TabPage tabPageLeftNews;
+        public System.Windows.Forms.TabPage tabPageLeftCatalog;
         private System.Windows.Forms.TextBox textBox_News;
         public System.Windows.Forms.Label ScriptModInstalledVersion;
         public System.Windows.Forms.Label DCEManagerInstalledVersion;

@@ -13,17 +13,26 @@ namespace DCE_Manager
     // accumuler une vraie longueur de contour commun.
     //
     // Méthode : le contour de A est échantillonné tous les SampleStepMeters ; pour
-    // chaque point d'échantillon, on regarde s'il est à moins de MaxGapMeters du
-    // contour de B (la tolérance de tracé à la souris), et on additionne la portion
-    // de contour correspondante. On fait le test dans les deux sens (A vers B et B
-    // vers A, les deux polygones n'ayant pas forcément la même densité de points)
-    // et on garde le plus grand des deux résultats.
+    // chaque point d'échantillon P, on cherche le point Q le plus proche du contour
+    // de B. P compte comme "frontière partagée" seulement si :
+    //   1. Q est à moins de MaxGapMeters (la tolérance de tracé à la souris) ;
+    //   2. le contact est RÉCIPROQUE : le point de A le plus proche de Q doit être
+    //      (à peu près) P lui-même. Deux bords qui longent l'un l'autre se
+    //      répondent point à point. A un contact de coin, ce n'est pas le cas : tous
+    //      les points des deux côtés du coin ont le même Q (le coin), dont le point
+    //      le plus proche sur A est le coin de A, pas P.
+    // La condition 2 est indispensable : sans elle, avec 500 m de tolérance, un
+    // simple coin accumule ~500 m sur CHAQUE côté et passait pour une frontière.
+    //
+    // On fait le test dans les deux sens (A vers B et B vers A, les deux polygones
+    // n'ayant pas forcément la même densité de points) et on garde le plus grand
+    // des deux résultats.
     //
     // Seuils calibrés sur un jeu de 23 zones réel : les 47 paires qui se touchent
     // vraiment partagent toutes AU MOINS 600 m de frontière (la plus courte étant
     // CQ85_BASE / CQ97 à 620 m), la plupart largement plus. 300 m laisse une marge
-    // confortable sous cette valeur tout en filtrant un contact de coin, qui
-    // n'accumule que quelques dizaines de mètres.
+    // confortable sous cette valeur ; un contact de coin n'accumule plus que ~150 m
+    // au pire (voir MutualSlackMeters).
     internal static class WargameNeighborDetector
     {
         // Tolérance de tracé : distance sous laquelle deux points de contours
@@ -37,6 +46,13 @@ namespace DCE_Manager
         // précis mais plus de calcul ; 25 m est largement assez fin pour des zones
         // qui font plusieurs km de côté.
         private const double SampleStepMeters = 25.0;
+
+        // Marge du test de réciprocité : le point de A le plus proche de Q peut être à
+        // la moitié de la distance P-Q, plus cette marge, de P. La marge absorbe les
+        // contours très détaillés (côtes), où le "plus proche" saute de quelques mètres
+        // d'un sommet à l'autre. Plus elle est grande, plus un coin accumule de longueur
+        // (environ 2 x 2 x marge) : 40 m donne ~160 m au pire, sous le seuil de 300 m.
+        private const double MutualSlackMeters = 40.0;
 
         public static Dictionary<string, List<string>> DetectNeighbors(
             List<WargameZoneData> zones,
@@ -83,11 +99,10 @@ namespace DCE_Manager
             return result;
         }
 
-        // Longueur du contour de "a" qui se trouve à moins de maxGap du contour de
-        // "b". Echantillonnage au milieu de petits segments plutôt qu'aux sommets
-        // seuls : un polygone à peu de points ne serait sinon quasiment jamais
-        // détecté comme voisin (peu de sommets = peu de chances qu'un sommet tombe
-        // près de l'autre contour).
+        // Longueur du contour de "a" qui longe réellement le contour de "b" (voir le
+        // commentaire de la classe : proximité ET contact réciproque). Echantillonnage
+        // au milieu de petits segments plutôt qu'aux sommets seuls : un polygone à peu
+        // de points ne serait sinon quasiment jamais détecté comme voisin.
         private static double GetSharedBorderLength(List<PointF> a, List<PointF> b, double maxGap)
         {
             double total = 0;
@@ -112,7 +127,19 @@ namespace DCE_Manager
                         p1.X + (p2.X - p1.X) * (float)t,
                         p1.Y + (p2.Y - p1.Y) * (float)t);
 
-                    if (PointToPolygonDistance(midPoint, b) <= maxGap)
+                    double distToB;
+                    PointF q = NearestPointOnPolygon(midPoint, b, out distToB);
+
+                    if (distToB > maxGap)
+                        continue;
+
+                    // Contact réciproque : en revenant de Q vers le contour de A, on doit
+                    // retomber près du point de départ. Au coin de deux zones, on tombe
+                    // sur le coin de A, loin de P.
+                    double backDist;
+                    PointF back = NearestPointOnPolygon(q, a, out backDist);
+
+                    if (Distance(midPoint, back) <= 0.5 * distToB + MutualSlackMeters)
                         total += stepLength;
                 }
             }
@@ -149,35 +176,49 @@ namespace DCE_Manager
 
         private static double PointToPolygonDistance(PointF p, List<PointF> polygon)
         {
-            double best = double.MaxValue;
+            double distance;
+            NearestPointOnPolygon(p, polygon, out distance);
+            return distance;
+        }
+
+        // Point du contour du polygone le plus proche de p, et la distance correspondante.
+        private static PointF NearestPointOnPolygon(PointF p, List<PointF> polygon, out double bestDistance)
+        {
+            bestDistance = double.MaxValue;
+            PointF bestPoint = p;
             int n = polygon.Count;
 
             for (int i = 0; i < n; i++)
             {
-                double d = PointToSegmentDistance(p, polygon[i], polygon[(i + 1) % n]);
-                if (d < best) best = d;
+                PointF segA = polygon[i];
+                PointF segB = polygon[(i + 1) % n];
+
+                PointF closest = ClosestPointOnSegment(p, segA, segB);
+                double d = Distance(p, closest);
+
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    bestPoint = closest;
+                }
             }
 
-            return best;
+            return bestPoint;
         }
 
-        private static double PointToSegmentDistance(PointF p, PointF segA, PointF segB)
+        private static PointF ClosestPointOnSegment(PointF p, PointF segA, PointF segB)
         {
             double dx = segB.X - segA.X;
             double dy = segB.Y - segA.Y;
 
             if (dx == 0 && dy == 0)
-                return Distance(p, segA);
+                return segA;
 
             double t = ((p.X - segA.X) * dx + (p.Y - segA.Y) * dy) / (dx * dx + dy * dy);
             if (t < 0) t = 0;
             if (t > 1) t = 1;
 
-            double closestX = segA.X + t * dx;
-            double closestY = segA.Y + t * dy;
-
-            double resDx = p.X - closestX, resDy = p.Y - closestY;
-            return Math.Sqrt(resDx * resDx + resDy * resDy);
+            return new PointF((float)(segA.X + t * dx), (float)(segA.Y + t * dy));
         }
 
         private static double Distance(PointF a, PointF b)

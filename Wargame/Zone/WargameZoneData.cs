@@ -84,6 +84,8 @@ namespace DCE_Manager
     {
         public int NextFormationId = 1;
 
+        public List<WargameAxis> Axes = new List<WargameAxis>();
+
         public int AllocateFormationId()
         {
             int id = NextFormationId;

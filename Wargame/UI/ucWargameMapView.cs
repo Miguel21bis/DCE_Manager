@@ -108,6 +108,43 @@ namespace DCE_Manager
 
         public event Action<WargameObjective> ObjectiveClicked;
 
+        // ---- Axes de progression ----
+        private List<WargameAxis> _axes = new List<WargameAxis>();
+        private WargameAxis _selectedAxis;
+        private readonly Dictionary<string, PointF> _zoneCenters = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+        private Action<WargameZoneData> _zonePickCallback;
+
+        // Mis à true par la Form quand le panneau des axes est ouvert
+        public bool ShowAxes { get; set; }
+
+        public WargameAxis SelectedAxis
+        {
+            get { return _selectedAxis; }
+            set { _selectedAxis = value; Invalidate(); }
+        }
+
+        public void SetAxes(List<WargameAxis> axes)
+        {
+            _axes = axes ?? new List<WargameAxis>();
+            Invalidate();
+        }
+
+        // Le prochain clic gauche sur une zone est renvoyé au callback (au lieu de
+        // sélectionner la zone). Clic droit = annule.
+        public void BeginPickZone(Action<WargameZoneData> callback)
+        {
+            _zonePickCallback = callback;
+            Cursor = Cursors.Cross;
+        }
+
+        public void CancelPickZone()
+        {
+            _zonePickCallback = null;
+
+            if (!_pickingCalibrationPoint)
+                Cursor = Cursors.Default;
+        }
+
         public IReadOnlyCollection<WargameZoneData> SelectedZones => _selectedZones;
 
         public void ClearSelection()
@@ -205,6 +242,7 @@ namespace DCE_Manager
         private void RebuildZonePixelShapes()
         {
             _zonePixelShapes.Clear();
+            _zoneCenters.Clear();
 
             if (_calibration == null || !_calibration.IsCalibrated)
                 return;
@@ -231,6 +269,12 @@ namespace DCE_Manager
                 }
 
                 _zonePixelShapes[zone] = pixelShape;
+
+                if (!string.IsNullOrEmpty(zone.Id))
+                    _zoneCenters[zone.Id] = zone.Shape == WargameZoneShape.Polygon
+                        ? GetCentroid(pixelShape.PolygonPoints)
+                        : pixelShape.CircleCenter;
+
             }
         }
 
@@ -401,6 +445,24 @@ namespace DCE_Manager
                 return;
             }
 
+            if (_zonePickCallback != null)
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    CancelPickZone();
+                    return;
+                }
+
+                WargameZoneData pickedZone = HitTestZone(clickPoint);
+                if (pickedZone == null)
+                    return;   // clic dans le vide : on reste en attente
+
+                Action<WargameZoneData> callback = _zonePickCallback;
+                CancelPickZone();
+                callback(pickedZone);
+                return;
+            }
+
             WargameObjective clickedObjective = HitTestObjective(clickPoint);
 
             if (clickedObjective != null)
@@ -520,6 +582,10 @@ namespace DCE_Manager
                 if (ShowMissionUnits)
                     DrawMissionUnits(e.Graphics);
 
+
+                if (ShowAxes)
+                    DrawAxes(e.Graphics);
+
                 foreach (WargameObjective obj in _objectives)
                 {
                     if (!_objectivePixelPositions.TryGetValue(obj, out PointF p))
@@ -621,6 +687,74 @@ namespace DCE_Manager
 
         private const float ObjectiveMarkerRadius = 6f;
 
+        private static readonly Color[] AxisColors = { Color.Lime, Color.Gold, Color.Aqua, Color.HotPink, Color.MediumPurple };
+
+        // Un trait par axe qui suit le chemin calculé, de zone en zone (centre à centre),
+        // avec une flèche vers l'objectif B. L'axe sélectionné est plus épais.
+        // Pas de chemin = trait rouge pointillé direct A -> B.
+        private void DrawAxes(Graphics g)
+        {
+            for (int i = 0; i < _axes.Count; i++)
+            {
+                WargameAxis axis = _axes[i];
+                Color color = AxisColors[i % AxisColors.Length];
+                float width = (axis == _selectedAxis ? 5f : 3f) / _zoom;
+
+                var points = new List<PointF>();
+                foreach (string zoneId in axis.Path)
+                {
+                    PointF center;
+                    if (_zoneCenters.TryGetValue(zoneId, out center))
+                        points.Add(center);
+                }
+
+                if (points.Count < 2)
+                {
+                    PointF a, b;
+                    if (_zoneCenters.TryGetValue(axis.StartZoneId ?? "", out a) && _zoneCenters.TryGetValue(axis.EndZoneId ?? "", out b))
+                    {
+                        using (var broken = new Pen(Color.Red, width) { DashStyle = DashStyle.Dash })
+                            g.DrawLine(broken, a, b);
+                    }
+                    continue;
+                }
+
+                PointF[] line = points.ToArray();
+
+                using (var outline = new Pen(Color.Black, width + 3f / _zoom))
+                    g.DrawLines(outline, line);
+
+                using (var pen = new Pen(color, width))
+                using (var arrow = new AdjustableArrowCap(3f, 3f, true))
+                {
+                    pen.CustomEndCap = arrow;
+                    g.DrawLines(pen, line);
+                }
+
+                // Pastille au départ + nom de l'axe
+                PointF start = line[0];
+                float dot = 5f / _zoom;
+
+                using (var dotBrush = new SolidBrush(color))
+                using (var dotOutline = new Pen(Color.Black, 1.5f / _zoom))
+                {
+                    g.FillEllipse(dotBrush, start.X - dot, start.Y - dot, dot * 2, dot * 2);
+                    g.DrawEllipse(dotOutline, start.X - dot, start.Y - dot, dot * 2, dot * 2);
+                }
+
+                using (var font = new Font("Segoe UI", 9f / _zoom, FontStyle.Bold))
+                using (var textBrush = new SolidBrush(Color.White))
+                using (var shadowBrush = new SolidBrush(Color.Black))
+                {
+                    float shadow = 1f / _zoom;
+                    float tx = start.X + dot + 3f / _zoom;
+                    float ty = start.Y - (14f + i * 13f) / _zoom;
+                    g.DrawString(axis.Name, font, shadowBrush, tx + shadow, ty + shadow);
+                    g.DrawString(axis.Name, font, textBrush, tx, ty);
+                }
+            }
+        }
+
         private void DrawObjectiveMarker(Graphics g, WargameObjective obj, PointF center)
         {
             // Tailles divisées par le zoom pour rester constantes à l'écran : un marqueur
@@ -716,18 +850,7 @@ namespace DCE_Manager
 
         private static PointF GetCentroid(PointF[] points)
         {
-            if (points == null || points.Length == 0)
-                return PointF.Empty;
-
-            float sumX = 0, sumY = 0;
-
-            foreach (PointF p in points)
-            {
-                sumX += p.X;
-                sumY += p.Y;
-            }
-
-            return new PointF(sumX / points.Length, sumY / points.Length);
+            return WargameAxisPathFinder.PolygonCentroid(points);
         }
 
         private Color GetZoneColor(string controlValue)

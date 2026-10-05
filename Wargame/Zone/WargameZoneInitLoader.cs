@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -36,6 +37,8 @@ namespace DCE_Manager
                     State.NextFormationId = (int)ToDouble(stateLua["nextFormationId"]);
                     if (State.NextFormationId < 1) State.NextFormationId = 1;
                 }
+
+                State.Axes = LoadAxes(lua["wargame_axes"] as LuaTable);
 
                 LuaTable zonesLua = lua["wargame_zones"] as LuaTable;
                 if (zonesLua == null)
@@ -81,6 +84,8 @@ namespace DCE_Manager
                 }
             }
 
+            WargameAxisPathFinder.RecomputeAll(State.Axes, result);
+
             return result;
         }
 
@@ -119,6 +124,27 @@ namespace DCE_Manager
             }
 
             return list;
+        }
+
+        private static List<WargameAxis> LoadAxes(LuaTable table)
+        {
+            var result = new List<WargameAxis>();
+            if (table == null) return result;
+
+            foreach (object key in table.Keys)
+            {
+                LuaTable entry = table[key] as LuaTable;
+                if (entry == null) continue;
+
+                var axis = new WargameAxis();
+                axis.Name = Convert.ToString(entry["name"]) ?? "";
+                axis.StartZoneId = Convert.ToString(entry["start"]) ?? "";
+                axis.EndZoneId = Convert.ToString(entry["end"]) ?? "";
+                axis.ActivationFlag = Convert.ToString(entry["flag"]) ?? "";
+                result.Add(axis);
+            }
+
+            return result;
         }
 
         private WargameIrregularMarker LoadIrregular(LuaTable table)
