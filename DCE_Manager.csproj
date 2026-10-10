@@ -270,6 +270,21 @@
     </Compile>
     <Compile Include="Parser\Parser_TargetList.cs" />
     <Compile Include="Saver\Saver_TargetList.cs" />
+    <Compile Include="Triggers\Triggers_Blocks.cs" />
+    <Compile Include="Triggers\Triggers_Cards.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Triggers\Triggers_Catalog.cs" />
+    <Compile Include="Triggers\Triggers_Editors.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Triggers\Triggers_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Triggers\Triggers_Graph.cs" />
+    <Compile Include="Triggers\Triggers_Lang.cs" />
+    <Compile Include="Triggers\Triggers_Model.cs" />
+    <Compile Include="Triggers\Triggers_Syntax.cs" />
     <Compile Include="Update\CampaignInfo.cs" />
     <Compile Include="Update\CampaignRepository.cs" />
     <Compile Include="Update\Updater_Campaign.cs" />
