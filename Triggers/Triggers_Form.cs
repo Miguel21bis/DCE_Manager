@@ -81,6 +81,7 @@ namespace DCE_Manager
         private string _codeText = "";                       // le texte affiché dans l'onglet CODE (copie, pour chercher vite)
         private ComboBox _comboGroup;                        // regroupement de la liste de gauche
         private readonly HashSet<string> _collapsed = new HashSet<string>();   // groupes repliés (par clé)
+        private Font _fontBadRow;                           // la police (grasse) des triggers en défaut dans la liste
         private bool _headerMouse;                           // un clic souris vient d'arriver sur un titre de groupe
         private int _lastIndex = -1;                         // dernière ligne trigger sélectionnée (pour sauter les titres au clavier)
         private Button _buttonAddAction;
@@ -188,7 +189,7 @@ namespace DCE_Manager
             // ----- centre : liste à gauche, détail à droite -----
             var split = _split = new SplitContainer { Dock = DockStyle.Fill, FixedPanel = FixedPanel.Panel1 };
 
-            _listTriggers = new ListBox
+            _listTriggers = new WideListBox
             {
                 Dock = DockStyle.Fill,
                 IntegralHeight = false,
@@ -259,7 +260,7 @@ namespace DCE_Manager
             _comboGroup.SelectedIndexChanged += (s, e) => RefillList(_editing);
             _toolTip.SetToolTip(_comboGroup, Lang.T("How the list is grouped. Click a group title to fold or unfold it."));
 
-            split.Panel1.Controls.Add(_listTriggers);
+            split.Panel1.Controls.Add(WideScroll.Wrap((WideListBox)_listTriggers));
 
             _buttonNew = new Button { Dock = DockStyle.Bottom, Height = 28, Text = Lang.T("+ New trigger") };
             _buttonNew.Click += (s, e) => NewTrigger();
@@ -2029,7 +2030,7 @@ namespace DCE_Manager
                 var titleRect = new Rectangle(e.Bounds.X + 2, e.Bounds.Y, Math.Max(10, e.Bounds.Width - 44 - badWidth), e.Bounds.Height);
 
                 using (var bold = new Font(_listTriggers.Font, FontStyle.Bold))
-                    TextRenderer.DrawText(e.Graphics, title, bold, titleRect, SystemColors.ControlText,
+                    TextRenderer.DrawText(e.Graphics, title, bold, titleRect, header.Bad.Count > 0 ? ColorBadAction : SystemColors.ControlText,
                         TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
                 if (header.Bad.Count > 0)
@@ -2038,7 +2039,7 @@ namespace DCE_Manager
                     var badRect = new Rectangle(e.Bounds.Right - 42 - badWidth, e.Bounds.Y, badWidth, e.Bounds.Height);
 
                     using (var bold2 = new Font(_listTriggers.Font, FontStyle.Bold))
-                        TextRenderer.DrawText(e.Graphics, "\u26A0 " + header.Bad.Count.ToString(CultureInfo.InvariantCulture), bold2, badRect, SystemColors.ControlText,
+                        TextRenderer.DrawText(e.Graphics, "\u26A0 " + header.Bad.Count.ToString(CultureInfo.InvariantCulture), bold2, badRect, ColorBadAction,
                             TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
                 }
 
@@ -2057,18 +2058,28 @@ namespace DCE_Manager
                 e.Graphics.FillRectangle(brush, e.Bounds);
 
             var triggerRow = _listTriggers.Items[e.Index] as CampTrigger;
+            bool bad = triggerRow != null && triggerRow.ErrorCount + triggerRow.WarningCount > 0;
+            Font rowFont = _listTriggers.Font;
 
-            if (triggerRow != null && triggerRow.ErrorCount + triggerRow.WarningCount > 0)
+            if (bad)
             {
-                // le trigger a un problème : \u26A0 devant la ligne (le nom peut être coupé à droite, pas ici)
+                // le trigger a un problème : \u26A0, nom en rouge gras (sur la ligne choisie : blanc, le rouge sur bleu ne se lirait pas)
+                if (!selected)
+                    fore = ColorBadAction;
+
                 using (var bold = new Font(_listTriggers.Font, FontStyle.Bold))
                     TextRenderer.DrawText(e.Graphics, "\u26A0", bold, new Rectangle(e.Bounds.X + 1, e.Bounds.Y, 17, e.Bounds.Height), fore,
                         TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+
+                if (_fontBadRow == null)
+                    _fontBadRow = new Font(_listTriggers.Font, FontStyle.Bold);
+
+                rowFont = _fontBadRow;
             }
 
             var textRect = new Rectangle(e.Bounds.X + 18, e.Bounds.Y, Math.Max(10, e.Bounds.Width - CloneZone - DeleteZone - 18), e.Bounds.Height);
 
-            TextRenderer.DrawText(e.Graphics, _listTriggers.Items[e.Index].ToString(), _listTriggers.Font, textRect, fore,
+            TextRenderer.DrawText(e.Graphics, _listTriggers.Items[e.Index].ToString(), rowFont, textRect, fore,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
 
             e.Graphics.DrawImage(selected ? _iconCloneSelected : _iconClone,

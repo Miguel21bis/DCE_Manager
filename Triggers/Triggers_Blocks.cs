@@ -267,7 +267,7 @@ namespace DCE_Manager
 
         private ListBox MakeBlockList()
         {
-            return new ListBox
+            return new WideListBox
             {
                 DrawMode = DrawMode.OwnerDrawFixed,
                 ItemHeight = 26,
@@ -366,7 +366,7 @@ namespace DCE_Manager
             _splitterIf = new Splitter { Dock = DockStyle.Top, Height = 5 };
             _splitterIf.SplitterMoved += (s, e) => _ifUserHeight = true;
 
-            center.Controls.Add(_listThen);
+            center.Controls.Add(WideScroll.Wrap((WideListBox)_listThen));
             center.Controls.Add(_thenFoot);
             center.Controls.Add(_textThenLua);
             center.Controls.Add(thenBar);

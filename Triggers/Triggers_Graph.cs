@@ -265,8 +265,8 @@ namespace DCE_Manager
         private readonly Dictionary<GraphNode, int> _state = new Dictionary<GraphNode, int>();   // 1 choisi, 2 voisin direct, 3 lié par un flag
         private readonly List<GraphNode> _unlocks = new List<GraphNode>();     // triggers qui lisent un flag positionné par la sélection
         private readonly List<GraphNode> _needs = new List<GraphNode>();       // triggers qui positionnent un flag lu par la sélection
-        private readonly VScrollBar _vbar = new VScrollBar { Dock = DockStyle.Right, Visible = false };
-        private readonly HScrollBar _hbar = new HScrollBar { Dock = DockStyle.Bottom, Visible = false };
+        private readonly VScrollBar _vbar = new VScrollBar { Dock = DockStyle.Right, Width = WideScroll.BarWidth, Visible = false };
+        private readonly HScrollBar _hbar = new HScrollBar { Dock = DockStyle.Bottom, Height = WideScroll.BarWidth, Visible = false };
         private Font _fontBold;
         private Font _fontItalic;
 
@@ -1105,8 +1105,8 @@ namespace DCE_Manager
         private FlowModel _model;
         private FlowNode _selected;
         private readonly Dictionary<FlowNode, int> _state = new Dictionary<FlowNode, int>();   // 1 choisi, 2 débloque (en aval), 3 est nécessaire (en amont)
-        private readonly VScrollBar _vbar = new VScrollBar { Dock = DockStyle.Right, Visible = false };
-        private readonly HScrollBar _hbar = new HScrollBar { Dock = DockStyle.Bottom, Visible = false };
+        private readonly VScrollBar _vbar = new VScrollBar { Dock = DockStyle.Right, Width = WideScroll.BarWidth, Visible = false };
+        private readonly HScrollBar _hbar = new HScrollBar { Dock = DockStyle.Bottom, Height = WideScroll.BarWidth, Visible = false };
         private Font _fontBold;
         private Font _fontSmall;
         private readonly ToolTip _tip = new ToolTip();

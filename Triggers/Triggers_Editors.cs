@@ -795,4 +795,122 @@ namespace DCE_Manager
             return texts.Length == 1 ? texts[0] : string.Join(Lang.T(" or "), texts.Select(x => "(" + x + ")").ToArray());
         }
     }
+
+    // ListBox qui prévient quand son contenu défile (molette, clavier, glisser, remplissage...) : voir WideScroll.
+    public class WideListBox : ListBox
+    {
+        public event EventHandler Scrolled;
+
+        private int _lastTop = -1, _lastCount = -1, _lastHeight = -1;
+        private bool _busy;
+
+        public WideListBox()
+        {
+            SetStyle(ControlStyles.ResizeRedraw, true);     // après un changement de taille, TOUTES les lignes sont redessinées
+        }
+
+        protected override void OnSizeChanged(EventArgs e)
+        {
+            base.OnSizeChanged(e);
+            Invalidate();
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+
+            // WM_PAINT : tout changement (remplissage, défilement, sélection au clavier...) finit par un dessin
+            if ((m.Msg == 0x000F || m.Msg == 0x0115 || m.Msg == 0x020A) && !_busy && Scrolled != null)
+            {
+                _busy = true;
+
+                try
+                {
+                    int top = TopIndex, count = Items.Count, height = ClientSize.Height;
+
+                    if (top != _lastTop || count != _lastCount || height != _lastHeight)
+                    {
+                        _lastTop = top;
+                        _lastCount = count;
+                        _lastHeight = height;
+                        Scrolled(this, EventArgs.Empty);
+                    }
+                }
+                finally
+                {
+                    _busy = false;
+                }
+            }
+        }
+    }
+
+    // Une barre de défilement LARGE (facile à attraper à la souris) pour une ListBox.
+    // La barre native est poussée sous la nôtre : la liste est un peu plus large que son cadre et la nôtre la recouvre.
+    // (ScrollAlwaysVisible : la largeur utile de la liste ne change jamais, les boutons de droite restent à leur place.)
+    public static class WideScroll
+    {
+        public const int BarWidth = 26;
+
+        // Renvoie le cadre à mettre dans la fenêtre à la place de la liste (il reprend son Dock).
+        public static Panel Wrap(WideListBox list)
+        {
+            var host = new Panel { Dock = list.Dock };
+            var bar = new VScrollBar { Dock = DockStyle.Right, Width = BarWidth, Enabled = false };
+            bool updating = false;
+
+            list.Dock = DockStyle.None;
+            list.ScrollAlwaysVisible = true;
+            host.Controls.Add(list);
+            host.Controls.Add(bar);
+            host.Controls.SetChildIndex(bar, 0);                        // devant la liste
+
+            Action layout = () =>
+            {
+                list.SetBounds(0, 0, Math.Max(10, host.ClientSize.Width - BarWidth + SystemInformation.VerticalScrollBarWidth), host.ClientSize.Height);
+                list.Invalidate();
+            };
+
+            Action sync = () =>
+            {
+                int itemH = Math.Max(1, list.ItemHeight);
+                int visible = Math.Max(1, list.ClientSize.Height / itemH);
+                int count = list.Items.Count;
+
+                updating = true;
+
+                try
+                {
+                    if (count <= visible)
+                    {
+                        bar.Enabled = false;
+                        bar.Value = 0;
+                    }
+                    else
+                    {
+                        bar.Enabled = true;
+                        bar.Minimum = 0;
+                        bar.Maximum = count - 1;                         // la valeur la plus haute = Maximum - LargeChange + 1 = count - visible
+                        bar.LargeChange = visible;
+                        bar.SmallChange = 1;
+                        bar.Value = Math.Max(0, Math.Min(list.TopIndex, count - visible));
+                    }
+                }
+                finally
+                {
+                    updating = false;
+                }
+            };
+
+            bar.ValueChanged += (s, e) =>
+            {
+                if (!updating && bar.Enabled && bar.Value < list.Items.Count)
+                    list.TopIndex = bar.Value;
+            };
+
+            host.Resize += (s, e) => { layout(); sync(); };
+            list.Scrolled += (s, e) => sync();
+            layout();
+            return host;
+        }
+    }
 }

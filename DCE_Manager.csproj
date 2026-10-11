@@ -282,6 +282,9 @@
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Triggers\Triggers_Graph.cs" />
+    <Compile Include="Triggers\Triggers_Inline.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Triggers\Triggers_Lang.cs" />
     <Compile Include="Triggers\Triggers_Model.cs" />
     <Compile Include="Triggers\Triggers_Syntax.cs" />
