@@ -207,6 +207,12 @@ namespace DCE_Manager
             });
             _mainForm.dataGridViewCampaigns.Columns["Family"].DisplayIndex = 1;
 
+            // ===== COLONNE TRIGGERS (⚡) =====
+            // Ajoutée en dernier (comme Rename) pour ne pas décaler les Rows.Add positionnels.
+            GridCampaigns_AddButtonColumn("Triggers", "⚡", 55);
+            _mainForm.dataGridViewCampaigns.Columns["Triggers"].DisplayIndex =
+                _mainForm.dataGridViewCampaigns.Columns["CampaignSetup"].DisplayIndex; // juste avant Setup
+
             // ===== COLONNE RENAME (✏) =====
             // Ajoutée en dernier (comme Family) pour ne pas décaler les Rows.Add positionnels.
             GridCampaigns_AddButtonColumn("Rename", "✏", 45, headerText: "");
@@ -346,6 +352,7 @@ namespace DCE_Manager
                 { "Aircraft", 90 },
                 { "QuickActions", 100 },
                 { "CampaignSetup", 55 },
+                  { "Triggers", 55 },
                 { "Parameters", 55 },
                 { "Delete", 55 },
                 { "Select", 40 }
@@ -1049,6 +1056,12 @@ namespace DCE_Manager
             {
                 _mainForm.dataGridViewCampaigns.Columns["Export"].Visible = isCampaignMaker;
             }
+
+            // Triggers : réservé à celui qui conçoit la campagne.
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("Triggers"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["Triggers"].Visible = isCampaignMaker;
+            }
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat en tâche de fond
@@ -1195,6 +1208,16 @@ namespace DCE_Manager
                 {
                     form.ShowDialog(_mainForm);
                 }
+            }
+            else if (columnName == "Triggers")
+            {
+                Utils.FormUtils.LogRegister(Utils.FormUtils.ToTitleCase("Open Triggers for campaign '" + name + "'"));
+
+                using (var form = new Triggers_Form(name))
+                {
+                    form.ShowDialog(_mainForm);
+                }
+                return; // pas d'ouverture du panneau de droite
             }
             else if (columnName == "Delete")
             {
@@ -2085,7 +2108,7 @@ namespace DCE_Manager
 
             // On vide les autres colonnes bouton (Clone, Folder, First, Parameters,
             // CampaignSetup) et la case à cocher : sur cette ligne, seule la corbeille agit.
-            foreach (string colName in new[] { "Clone", "Folder", "Export", "QuickActions", "Parameters", "CampaignSetup", "Select", "Rename" })
+            foreach (string colName in new[] { "Clone", "Folder", "Export", "QuickActions", "Parameters", "CampaignSetup", "Select", "Rename", "Triggers" })
             {
                 if (grid.Columns.Contains(colName))
                 {
