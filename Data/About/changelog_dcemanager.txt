@@ -1,5 +1,7 @@
 
-V12.27.xx
+V12.29.76
+ADD: editeur de trigger
+ADD: cataloque des campagnes
 ADD: "MissionScripting" option on the Home page: one click to enable/disable the os/io
 CHANGE: OvGME folder is now optional
 ADD: campaigns can now be renamed

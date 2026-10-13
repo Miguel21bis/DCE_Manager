@@ -106,16 +106,6 @@ namespace DCE_Manager
             grid.CellFormatting += Grid_CellFormatting;
         }
 
-        //private void UnregisterGrid(DataGridView grid)
-        //{
-        //    if (grid == null) return;
-
-        //    grid.CellMouseDown -= Grid_CellMouseDown;
-        //    grid.CellValueChanged -= Grid_CellValueChanged;
-        //    grid.CurrentCellDirtyStateChanged -= Grid_CurrentCellDirtyStateChanged;
-        //    grid.DataError -= Grid_DataError;
-        //    grid.CellFormatting -= Grid_CellFormatting;
-        //}
 
         public void LoadLuaData()
         {
@@ -965,18 +955,22 @@ namespace DCE_Manager
         }
         //méthode
         // ⚡ Méthode pour désactiver la case Player pour les avions non jouables
+        // ⚡ Méthode pour désactiver la case Player pour les avions non jouables
         private static void Grid_DataBindingComplete(object sender, DataGridViewBindingCompleteEventArgs e)
         {
             var grid = sender as DataGridView;
             if (grid == null) return;
 
+            // Cet événement peut arriver avant que la campagne soit chargée
+            // (contexte ou liste des avions jouables encore null) : on ne fait rien.
+            var playableAircraft = _campaignContext?.LuaData?.PlayableAircraft;
+            if (playableAircraft == null) return;
+
             foreach (DataGridViewRow row in grid.Rows)
             {
-
                 if (row.DataBoundItem is Squad squad)
                 {
-                    //bool playable = _playableList.Contains(squad.Type);
-                    bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
+                    bool playable = playableAircraft.Contains(squad.Type);
                     if (!playable)
                     {
                         // Remplacer la checkbox Player par une cellule texte
@@ -992,25 +986,24 @@ namespace DCE_Manager
             grid.Refresh(); // force le rendu
         }
 
-        private void Grid_DataError(object sender, DataGridViewDataErrorEventArgs e)
-        {
-            e.ThrowException = false;
-        }
-
         private void Grid_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
         {
             var grid = sender as DataGridView;
+            if (grid == null || e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
             // colonne Player
-            //if (e.ColumnIndex != 1 || e.RowIndex < 0)
-            if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn" || e.RowIndex < 0)
+            if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn")
                 return;
 
             var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
             if (squad == null)
                 return;
 
-            bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
+            var playableAircraft = _campaignContext?.LuaData?.PlayableAircraft;
+            if (playableAircraft == null)
+                return;
+
+            bool playable = playableAircraft.Contains(squad.Type);
 
             if (!playable)
             {
@@ -1021,6 +1014,36 @@ namespace DCE_Manager
                     grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionBackColor;
             }
         }
+
+        private void Grid_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.ThrowException = false;
+        }
+
+        //private void Grid_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        //{
+        //    var grid = sender as DataGridView;
+
+        //    // colonne Player
+        //    //if (e.ColumnIndex != 1 || e.RowIndex < 0)
+        //    if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn" || e.RowIndex < 0)
+        //        return;
+
+        //    var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+        //    if (squad == null)
+        //        return;
+
+        //    bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
+
+        //    if (!playable)
+        //    {
+        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ReadOnly = true;
+        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.ForeColor =
+        //            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor;
+        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionForeColor =
+        //            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionBackColor;
+        //    }
+        //}
 
         // 🔧 Nettoie les events pour éviter les duplications
         // Pourquoi : sinon les anciennes instances restent abonnées aux grids du Main_Form

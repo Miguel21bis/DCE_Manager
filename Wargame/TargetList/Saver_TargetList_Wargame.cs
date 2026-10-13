@@ -151,7 +151,12 @@ namespace DCE_Manager
                 return failures;
             }
 
-            List<(WargameZoneData zone, WargameFormation formation)> all = LoadAllFormations(campaignName);
+            // Zones de l'Init + état évolutif de l'Active (camps, formations déplacées,
+            // ForcePower). Une seule liste pour tout : formations ET zones voisines.
+            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
+            new WargameZoneActiveLoader().ApplyActiveState(WargameZoneRepository.GetActiveWargameZonesPath(campaignName), allZones);
+
+            List<(WargameZoneData zone, WargameFormation formation)> all = FlattenFormations(allZones, true);
             if (all.Count == 0)
                 return failures;
 
@@ -167,16 +172,15 @@ namespace DCE_Manager
             if (missing.Count == 0)
                 return failures; // rien de nouveau, on ne touche pas au fichier
 
-            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
             var rng = new Random();
 
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-    {
-        { WargameSide.Blue, new List<string>() },
-        { WargameSide.Red, new List<string>() },
-    };
+            {
+                { WargameSide.Blue, new List<string>() },
+                { WargameSide.Red, new List<string>() },
+            };
 
             foreach (var pair in missing)
             {
@@ -292,6 +296,29 @@ namespace DCE_Manager
                 if (zone.Formations == null) continue;
                 foreach (WargameFormation formation in zone.Formations)
                     result.Add((zone, formation));
+            }
+
+            return result;
+        }
+
+        // Aplatit une liste de zones en paires (zone, formation).
+        // skipExhausted : on ignore les formations à ForcePower <= 0 (épuisées ou
+        // détruites par le combat) pour qu'elles ne soient jamais reposées.
+        private static List<(WargameZoneData zone, WargameFormation formation)> FlattenFormations(List<WargameZoneData> zones, bool skipExhausted)
+        {
+            var result = new List<(WargameZoneData, WargameFormation)>();
+
+            foreach (WargameZoneData zone in zones)
+            {
+                if (zone.Formations == null) continue;
+
+                foreach (WargameFormation formation in zone.Formations)
+                {
+                    if (skipExhausted && formation.ForcePower <= 0)
+                        continue;
+
+                    result.Add((zone, formation));
+                }
             }
 
             return result;

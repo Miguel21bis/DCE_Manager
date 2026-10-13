@@ -110,9 +110,14 @@ namespace DCE_Manager.Update
 
         // Lit le catalogue sur internet (cache local si hors ligne ou JSON cassé), puis met à jour
         // le compteur "Catalog (n)" = campagnes ajoutées depuis la dernière ouverture de l'onglet.
+        // Lit le catalogue sur internet (cache local si hors ligne ou JSON cassé), puis met à jour
+        // le compteur "Catalog (n)" = campagnes ajoutées depuis la dernière ouverture de l'onglet.
         public async Task CheckCatalogAsync()
         {
             _isLoading = true;
+
+            Stopwatch chrono = Stopwatch.StartNew();
+            FormUtils.LogRegister("Catalogue : interrogation de " + CatalogUrl);
 
             try
             {
@@ -121,28 +126,56 @@ namespace DCE_Manager.Update
                     client.Timeout = TimeSpan.FromSeconds(15);
                     client.DefaultRequestHeaders.Add("User-Agent", "DCE_Manager");
 
-                    string json = await client.GetStringAsync(CatalogUrl);
+                    using (HttpResponseMessage response = await client.GetAsync(CatalogUrl))
+                    {
+                        // Infos utiles pour comprendre un décalage de mise à jour (cache GitHub)
+                        string finalUrl = response.RequestMessage != null && response.RequestMessage.RequestUri != null
+                            ? response.RequestMessage.RequestUri.ToString() : "?";
 
-                    // On lit AVANT d'écrire le cache : un JSON cassé ne doit pas écraser une bonne copie.
-                    CatalogRoot parsed = JsonConvert.DeserializeObject<CatalogRoot>(json);
+                        string cacheControl = response.Headers.CacheControl != null ? response.Headers.CacheControl.ToString() : "-";
+                        string age = response.Headers.Age.HasValue ? response.Headers.Age.Value.TotalSeconds + " s" : "-";
+                        string etag = response.Headers.ETag != null ? response.Headers.ETag.Tag : "-";
 
-                    if (parsed == null || parsed.Campaigns == null)
-                        throw new Exception("catalogue vide");
+                        FormUtils.LogRegister("Catalogue : réponse HTTP " + (int)response.StatusCode + " " + response.ReasonPhrase
+                            + " | URL finale : " + finalUrl
+                            + " | Cache-Control : " + cacheControl
+                            + " | Age : " + age
+                            + " | ETag : " + etag);
 
-                    CleanCatalog(parsed);
+                        response.EnsureSuccessStatusCode();
 
-                    _root = parsed;
-                    _usingCache = false;
+                        string json = await response.Content.ReadAsStringAsync();
 
-                    SaveCache(json);
+                        // On lit AVANT d'écrire le cache : un JSON cassé ne doit pas écraser une bonne copie.
+                        CatalogRoot parsed = JsonConvert.DeserializeObject<CatalogRoot>(json);
+
+                        if (parsed == null || parsed.Campaigns == null)
+                            throw new Exception("catalogue vide");
+
+                        CleanCatalog(parsed);
+
+                        _root = parsed;
+                        _usingCache = false;
+
+                        SaveCache(json);
+
+                        FormUtils.LogRegister("Catalogue : OK, " + json.Length + " caractères, "
+                            + parsed.Campaigns.Count + " campagnes, champ updated = '" + parsed.Updated
+                            + "', durée " + chrono.ElapsedMilliseconds + " ms");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                FormUtils.LogRegister("CheckCatalogAsync : catalogue internet inutilisable (" + ex.Message + "), essai du cache local.");
+                FormUtils.LogRegister("Catalogue : ÉCHEC après " + chrono.ElapsedMilliseconds + " ms ("
+                    + ex.GetType().Name + " : " + ex.Message + "), essai du cache local " + CachePath);
 
                 _root = LoadCache();
                 _usingCache = _root != null;
+
+                FormUtils.LogRegister(_usingCache
+                    ? "Catalogue : cache local utilisé (" + _root.Campaigns.Count + " campagnes)"
+                    : "Catalogue : aucun cache local utilisable");
             }
             finally
             {
@@ -864,7 +897,7 @@ namespace DCE_Manager.Update
 
             void AddRow(CatalogCampaign item, string label)
             {
-                bool hasDownload = IsWebUrl(item.UrlDownload) && !IsManualOnlyHost(item.UrlDownload) && !IsUpToDate(item, installedAll);
+                bool hasDownload = IsWebUrl(item.UrlDownload) && !IsManualOnlyHost(item.UrlDownload);
                 bool hasPage = IsWebUrl(item.UrlDetail);
 
                 if (!hasDownload && !hasPage)

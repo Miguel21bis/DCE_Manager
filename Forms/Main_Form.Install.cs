@@ -401,56 +401,24 @@ namespace DCE_Manager
                     _selectedCampaignZipPath = "";
                     dropZoneControl1.ResetState();
 
+                    _ = campaignUpdater.RefreshCampaignUpdates(CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
+
                     Cursor.Current = Cursors.Default;
                     return;
                 }
 
-                //cherche le nom de la campagne dans le fichier zip
-                using (ZipArchive archive = ZipFile.OpenRead(zipPath))
+                // Cherche le titre de la campagne dans le zip
+                string titleProblem;
+                NameCampaign = ReadCampaignTitleFromZip(zipPath, out titleProblem);
+
+                if (NameCampaign == "")
                 {
-                    foreach (ZipArchiveEntry entry in archive.Entries)
-                    {
-                        if (entry.FullName.Contains("camp_init"))
-                        {
-
-                            // Ouvrir le fichier texte pour lecture
-                            if (entry != null)
-                            {
-                                using (StreamReader reader = new StreamReader(entry.Open()))
-                                {
-                                    string line;
-                                    int lineNumber = 0;
-                                    while ((line = reader.ReadLine()) != null)
-                                    {
-                                        lineNumber++;
-                                        if (line.Contains("title"))
-                                        {
-                                            string tempTXT = (string)line;
-                                            string[] words_A = tempTXT.Split(',');
-                                            string[] words = words_A[0].Split('=');
-                                            ParamCampaign.NameCampaign = words[1].Replace("\"", "");
-
-                                            ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimStart();
-                                            ParamCampaign.NameCampaign = ParamCampaign.NameCampaign.TrimEnd();
-                                            NameCampaign = ParamCampaign.NameCampaign;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // <-- AJOUT : vérifie qu'on a bien trouvé le nom de la campagne avant de continuer
-                if (string.IsNullOrWhiteSpace(ParamCampaign.NameCampaign))
-                {
-                    MessageBox.Show(
-                        "Unable to find the campaign title in this ZIP file (camp_init.lua not found or 'title' line missing).\r\nMake sure this is a valid campaign package.",
-                        "Error");
+                    MessageBox.Show(titleProblem, "Error");
                     Cursor.Current = Cursors.Default;
                     return;
                 }
+
+                ParamCampaign.NameCampaign = NameCampaign;
 
                 if (ParamConf.test_DCE_alreadyInstalled == false && TestFile.presenceOobAirInit && TestFile.presenceCampInit)
                 {
@@ -524,89 +492,25 @@ namespace DCE_Manager
                 //******************new system
 
                 string pathStatus = textBox_SavedGames.Text.Replace(@"\", "/") + "/";
-                string fileNameA = ParamCampaign.NameCampaign + "_first.miz";
-                string pathFirstMission = Path.Combine(textBox_SavedGames.Text, @"Mods\tech\DCE\Missions\Campaigns", fileNameA);
-                string tempFilePath = Path.Combine(Path.GetTempPath(), "camp_status.lua");
+                string campaignsRootPath = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns");
 
+                // Tous les .miz de la campagne rangés à côté de son dossier (_first, _ongoing, ou autres noms futurs) :
+                // on ne dépend plus d'une liste de noms de fichiers attendus.
+                int nbMizPatched = 0;
 
-                if (File.Exists(pathFirstMission))
+                if (Directory.Exists(campaignsRootPath))
                 {
-                    using (ZipArchive archive = ZipFile.Open(pathFirstMission, ZipArchiveMode.Update))
+                    foreach (string mizPath in Directory.GetFiles(campaignsRootPath, ParamCampaign.NameCampaign + "*.miz"))
                     {
-                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                        if (entry != null)
-                        {
-                            entry.ExtractToFile(tempFilePath, true);
-
-                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                            if (nbLigneMod < 1)
-                            {
-                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
-                            }
-
-                            entry.Delete();
-
-                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
-                        }
-                        else
-                        {
-                            MessageBox.Show("The ‘camp_status.lua’ file cannot be found in the ‘l10n’ folder in the archive.");
-                        }
-                    }
-
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
+                        if (PatchCampStatusPathInMiz(mizPath, pathStatus))
+                            nbMizPatched++;
                     }
                 }
-                else
+
+                if (nbMizPatched == 0)
                 {
-                    MessageBox.Show($"The file {fileNameA} cannot be found in this directory: " + textBox_SavedGames.Text + @"Mods\tech\DCE\Missions\Campaigns");
-                }
-
-
-                //************************************ONGOIN.MIZ
-
-
-                string fileNameB = ParamCampaign.NameCampaign + "_ongoing.miz";
-                string pathOngoingMission = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + fileNameB;
-
-                if (File.Exists(pathFirstMission))
-                {
-                    using (ZipArchive archive = ZipFile.Open(pathOngoingMission, ZipArchiveMode.Update))
-                    {
-                        ZipArchiveEntry entry = archive.GetEntry("l10n/DEFAULT/camp_status.lua");
-
-                        if (entry != null)
-                        {
-                            entry.ExtractToFile(tempFilePath, true);
-
-                            int nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "['path']", "	['path'] = '" + pathStatus + "',", 0);
-                            if (nbLigneMod < 1)
-                            {
-                                nbLigneMod = FormUtils.ModifierLigne(tempFilePath, "[\"path\"]", "	[\"path\"] = '" + pathStatus + "',", 0);
-                            }
-
-                            entry.Delete();
-
-                            archive.CreateEntryFromFile(tempFilePath, "l10n/DEFAULT/camp_status.lua");
-                        }
-                        else
-                        {
-                            MessageBox.Show("Le fichier 'camp_status.lua' est introuvable dans le dossier 'l10n' de l'archive.");
-                        }
-                    }
-
-                    if (File.Exists(tempFilePath))
-                    {
-                        File.Delete(tempFilePath);
-                    }
-                }
-                else
-                {
-                    MessageBox.Show($"The file {fileNameB} cannot be found in this directory: " + ParamConf.PATH_SavedGames_DCS + @"Mods\tech\DCE\Missions\Campaigns");
-                }
+                    MessageBox.Show("No mission file could be updated with your Saved Games path.\r\nThe campaign may not start correctly. See log.txt for details.", "Warning");
+                }//affiche la ligne campagne en enlevant la derniere campagne, (
 
                 string rappel = DcsPatcher.IsPatched(ParamConf.PATH_DCS_Root)
     ? ""
@@ -627,17 +531,139 @@ namespace DCE_Manager
 
             Cursor.Current = Cursors.Default;
 
-            //affiche la ligne campagne en enlevant la derniere campagne, (folder seul sans fichier)
-            string[] wordsBarre = _selectedCampaignZipPath.Split('\\');
-            string[] wordsPoint = _selectedCampaignZipPath.Split('.');
+            // Installation terminée : on vide la zone de dépôt (nom du zip + bordure verte)
+            _selectedCampaignZipPath = "";
+            dropZoneControl1.ResetState();
+        }
 
-            if (wordsPoint.Count() > 1 & wordsBarre.Count() > 1)
+        // Cherche le titre de la campagne dans le zip : ligne title de Init/camp_init.lua.
+        // Renvoie "" si on ne trouve pas, et "problem" explique pourquoi (texte affiché à l'utilisateur).
+        // Pourquoi : l'ancien code prenait le 1er "title" venu dans n'importe quel fichier contenant "camp_init",
+        // et ne distinguait pas "fichier absent" de "ligne title absente".
+        private string ReadCampaignTitleFromZip(string zipPath, out string problem)
+        {
+            problem = "";
+
+            using (ZipArchive archive = ZipFile.OpenRead(zipPath))
             {
-                _selectedCampaignZipPath = _selectedCampaignZipPath.Replace(wordsBarre[wordsBarre.Count() - 1], "");
+                foreach (ZipArchiveEntry entry in archive.Entries)
+                {
+                    string p = entry.FullName.Replace('\\', '/');
+
+                    // On veut exactement ".../Init/camp_init.lua" (ou "Init/camp_init.lua" à la racine)
+                    if (!p.Equals("Init/camp_init.lua", StringComparison.OrdinalIgnoreCase) &&
+                        !p.EndsWith("/Init/camp_init.lua", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    using (StreamReader reader = new StreamReader(entry.Open()))
+                    {
+                        string line;
+
+                        while ((line = reader.ReadLine()) != null)
+                        {
+                            line = line.Trim();
+
+                            if (line.StartsWith("--"))
+                                continue;
+
+                            // Accepte  title = "x"  /  camp.title = "x"  /  ["title"] = "x"
+                            System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(
+                                line,
+                                @"(^|[^\w])title\W*=\s*""([^""]*)""",
+                                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+
+                            if (m.Success && m.Groups[2].Value.Trim() != "")
+                                return m.Groups[2].Value.Trim();
+                        }
+                    }
+
+                    FormUtils.LogRegister("Install | no usable 'title' line in " + p + " (zip: " + zipPath + ")");
+                    problem = "Init\\camp_init.lua was found in this ZIP, but it has no 'title' line, or the title is empty.\r\nMake sure this is a valid campaign package.";
+                    return "";
+                }
+
+                // camp_init.lua absent : on trace le début du contenu pour comprendre la structure du zip
+                FormUtils.LogRegister("Install | camp_init.lua not found in " + zipPath + " (" + archive.Entries.Count + " entries). First entries :");
+
+                int n = 0;
+                foreach (ZipArchiveEntry e in archive.Entries)
+                {
+                    FormUtils.LogRegister("   " + e.FullName);
+                    if (++n >= 15) break;
+                }
+
+                problem = "Init\\camp_init.lua was not found in this ZIP.\r\nMake sure this is a valid campaign package (the ZIP content is written in log.txt).";
+                return "";
             }
         }
 
+        // Nom du fichier d'état de campagne dans les .miz : un seul endroit à changer si DCE le renomme.
+        private const string CampStatusFileName = "camp_status.lua";
 
+        // Met à jour la ligne ['path'] du camp_status.lua contenu dans un .miz.
+        // Retourne true si le .miz a bien été modifié.
+        // Pourquoi : l'ancien code attendait "l10n/DEFAULT/camp_status.lua" au caractère près ; un .miz dont les entrées
+        // sont écrites avec des \ (ou rangées autrement) était déclaré "introuvable". Ici on cherche par le seul nom du
+        // fichier, et on réécrit l'entrée sous son nom d'origine.
+        private bool PatchCampStatusPathInMiz(string mizPath, string pathStatus)
+        {
+            string tempFile = Path.Combine(Path.GetTempPath(), "dcem_" + Guid.NewGuid().ToString("N") + ".lua");
+
+            try
+            {
+                using (ZipArchive archive = ZipFile.Open(mizPath, ZipArchiveMode.Update))
+                {
+                    ZipArchiveEntry entry = null;
+
+                    foreach (ZipArchiveEntry e in archive.Entries)
+                    {
+                        string n = e.FullName.Replace('\\', '/');
+
+                        if (n.Equals(CampStatusFileName, StringComparison.OrdinalIgnoreCase) ||
+                            n.EndsWith("/" + CampStatusFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            entry = e;
+                            break;
+                        }
+                    }
+
+                    if (entry == null)
+                    {
+                        FormUtils.LogRegister("Install | no " + CampStatusFileName + " in " + Path.GetFileName(mizPath) + " : nothing to patch.");
+                        return false;
+                    }
+
+                    string entryName = entry.FullName;   // on garde le nom d'origine tel quel
+                    entry.ExtractToFile(tempFile, true);
+
+                    int nbLigneMod = FormUtils.ModifierLigne(tempFile, "['path']", "\t['path'] = '" + pathStatus + "',", 0);
+                    if (nbLigneMod < 1)
+                    {
+                        nbLigneMod = FormUtils.ModifierLigne(tempFile, "[\"path\"]", "\t[\"path\"] = '" + pathStatus + "',", 0);
+                    }
+
+                    if (nbLigneMod < 1)
+                    {
+                        FormUtils.LogRegister("Install | no ['path'] line in " + CampStatusFileName + " of " + Path.GetFileName(mizPath));
+                        return false;
+                    }
+
+                    entry.Delete();
+                    archive.CreateEntryFromFile(tempFile, entryName);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Install | cannot patch " + Path.GetFileName(mizPath) + " : " + ex.Message);
+                return false;
+            }
+            finally
+            {
+                if (File.Exists(tempFile))
+                    File.Delete(tempFile);
+            }
+        }
 
         // Active le mode édition des chemins.
         // Pourquoi : garder l'interface épurée (labels en lecture seule) tant que rien n'est modifié.
@@ -701,6 +727,32 @@ namespace DCE_Manager
             but_PATH_Modify.Visible = true;
             but_PATH_SAVE.Visible = false;
             but_PATH_CANCEL.Visible = false;
+        }
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool ChangeWindowMessageFilterEx(IntPtr hWnd, uint msg, uint action, IntPtr changeInfo);
+
+        // Lancé en administrateur, Windows (UIPI) bloque le glisser-déposer venant de l'Explorateur.
+        // On autorise les trois messages utilisés par le dépôt de fichiers (essai : efficacité non garantie).
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+
+            try
+            {
+                const uint MSGFLT_ALLOW = 1;
+                uint[] messages = { 0x0233 /*WM_DROPFILES*/, 0x004A /*WM_COPYDATA*/, 0x0049 /*WM_COPYGLOBALDATA*/ };
+
+                foreach (uint msg in messages)
+                {
+                    ChangeWindowMessageFilterEx(this.Handle, msg, MSGFLT_ALLOW, IntPtr.Zero);
+                    ChangeWindowMessageFilterEx(dropZoneControl1.Handle, msg, MSGFLT_ALLOW, IntPtr.Zero);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OnHandleCreated | drag&drop filter : " + ex.Message);
+            }
         }
 
         public void DropZone_FilesSelected(object sender, string[] files)

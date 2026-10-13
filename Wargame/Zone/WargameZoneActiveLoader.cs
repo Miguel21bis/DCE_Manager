@@ -28,6 +28,16 @@ namespace DCE_Manager
             foreach (WargameZoneData zone in zones)
                 zonesById[zone.Id] = zone;
 
+            // Toutes les formations de l'Init, toutes zones confondues, repérées AVANT de
+            // toucher aux zones : une formation repliée dans une autre zone par le combat
+            // doit garder Priority / Attributes / Firepower, qui ne vivent que dans l'Init.
+            var allFormationsById = new Dictionary<int, WargameFormation>();
+            foreach (WargameZoneData zone in zones)
+            {
+                foreach (WargameFormation f in zone.Formations)
+                    allFormationsById[f.FormationId] = f;
+            }
+
             using (Lua lua = new Lua())
             {
                 lua.DoFile(pathFile);
@@ -58,7 +68,7 @@ namespace DCE_Manager
                     if (!string.IsNullOrEmpty(control)) zone.Control = control;
 
                     zone.ResupplyModifier = ToDouble(zoneLua["resupplyModifier"], zone.ResupplyModifier);
-                    MergeFormations(zone, zoneLua["formations"] as LuaTable);
+                    MergeFormations(zone, zoneLua["formations"] as LuaTable, allFormationsById);
                     zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                 }
             }
@@ -67,11 +77,15 @@ namespace DCE_Manager
         // Met à jour les formations déjà chargées depuis l'Init (par FormationId)
         // plutôt que de les remplacer - sinon Priority/Attributes/Firepower, qui ne
         // vivent que dans l'Init, seraient perdus à chaque application de l'Active.
-        private void MergeFormations(WargameZoneData zone, LuaTable table)
+        // Met à jour les formations déjà chargées depuis l'Init (par FormationId)
+        // plutôt que de les remplacer - sinon Priority/Attributes/Firepower, qui ne
+        // vivent que dans l'Init, seraient perdus à chaque application de l'Active.
+        // allById : toutes les formations de l'Init, quelle que soit leur zone d'origine
+        // (une formation repliée par le combat est listée ici sous une autre zone).
+        private void MergeFormations(WargameZoneData zone, LuaTable table, Dictionary<int, WargameFormation> allById)
         {
             if (table == null) return;
 
-            Dictionary<int, WargameFormation> byId = zone.Formations.ToDictionary(f => f.FormationId);
             var merged = new List<WargameFormation>();
 
             int i = 1;
@@ -82,10 +96,10 @@ namespace DCE_Manager
 
                 int formationId = (int)ToDouble(entry["formationId"], 0);
 
-                if (!byId.TryGetValue(formationId, out WargameFormation f))
+                if (!allById.TryGetValue(formationId, out WargameFormation f))
                 {
-                    // Présente dans l'Active mais plus dans l'Init (zone modifiée
-                    // entre-temps) - reconstruite a minima plutôt que perdue.
+                    // Inconnue de l'Init (formation ajoutée en vue Active) - reconstruite
+                    // a minima plutôt que perdue.
                     f = new WargameFormation { FormationId = formationId };
                 }
 

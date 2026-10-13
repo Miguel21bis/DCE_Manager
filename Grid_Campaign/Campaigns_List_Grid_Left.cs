@@ -293,6 +293,11 @@ namespace DCE_Manager
         // Pourquoi : allège le constructeur et regroupe toute la configuration du grid au même endroit.
         public void GridCampaigns_Init_DataGridView()
         {
+            // Double buffering : DoubleBuffered est protégée sur DataGridView, d'où la reflection
+            typeof(DataGridView).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(_mainForm.dataGridViewCampaigns, true, null);
+
             GridCampaigns_Init();
             GridCampaigns_InitStyle();
 
@@ -327,6 +332,10 @@ namespace DCE_Manager
             UpdateCampaignSetupColumnVisibility();
 
             GridCampaigns_ApplyColumnWidths();
+
+            // Fige Name (comme "Figer les volets" sur Excel). Frozen fige AUSSI toutes les colonnes
+            // affichées à sa gauche : Clone, Family, Image restent donc visibles avec le nom.
+            _mainForm.dataGridViewCampaigns.Columns["Name"].Frozen = true;
         }
 
 
@@ -826,6 +835,7 @@ namespace DCE_Manager
         }
 
         // e.X est relatif à la cellule dans CellMouseClick (comme pour QuickActions).
+        // e.X est relatif à la cellule dans CellMouseClick (comme pour QuickActions).
         private async void GridCampaigns_Family_CellMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left || e.RowIndex < 0)
@@ -870,7 +880,8 @@ namespace DCE_Manager
                     _expandedMasters.Add(CampaignHierarchy.ResolveMaster(name));
                 }
 
-                await LoadCampaignsAsync(selectCampaignName: name);
+                // keepRightPanel : le panneau de droite garde la campagne affichée
+                await LoadCampaignsAsync(selectCampaignName: name, keepRightPanel: true);
             }
             else
             {
@@ -897,7 +908,7 @@ namespace DCE_Manager
                     }
                 }
 
-                await LoadCampaignsAsync(selectCampaignName: name);
+                await LoadCampaignsAsync(selectCampaignName: name, keepRightPanel: true);
             }
         }
 
@@ -979,6 +990,8 @@ namespace DCE_Manager
         // tout est déjà déplié.
         // Clic sur l'en-tête de la colonne Family : moitié gauche (▶) = tout replier,
         // moitié droite (▼) = tout déplier. e.X est relatif à la cellule d'en-tête.
+        // Clic sur l'en-tête de la colonne Family : moitié gauche (▶) = tout replier,
+        // moitié droite (▼) = tout déplier. e.X est relatif à la cellule d'en-tête.
         private async void GridCampaigns_Family_HeaderMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left || e.ColumnIndex < 0)
@@ -997,7 +1010,7 @@ namespace DCE_Manager
                     _expandedMasters.Add(master);
             }
 
-            await LoadCampaignsAsync();
+            await LoadCampaignsAsync(keepRightPanel: true);
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat via le GUI
@@ -1450,14 +1463,24 @@ namespace DCE_Manager
         // de la grid.
         // Pas de async : tout le corps est synchrone (accès disque local, remplissage de grid).
         // On renvoie quand même un Task pour ne rien changer aux appelants qui font "await".
-        public Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null)
+        public Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null, bool keepRightPanel = false)
         {
             // Different configurations (DCSA/DCSB...) can contain campaigns with the
             // same folder name; the ConfMod cache is only keyed by that name, so it
             // must be cleared whenever the campaign list is (re)loaded.
             ConfModLoader.ClearCache();
 
-            ResetCurrentCampaign();
+            if (keepRightPanel && CurrentCampaignEdit != null)
+            {
+                // On garde la campagne affichée à droite. Sans ligne précise demandée, on
+                // re-sélectionne la ligne de la campagne affichée (Rows.Clear() vide la sélection).
+                if (string.IsNullOrEmpty(selectCampaignName))
+                    selectCampaignName = ParamCampaignSelected.NameCampaign;
+            }
+            else
+            {
+                ResetCurrentCampaign();
+            }
 
             _repairableIncompleteNames.Clear();
             _mainForm.dataGridViewCampaigns.Rows.Clear();

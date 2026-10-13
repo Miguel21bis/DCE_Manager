@@ -93,6 +93,11 @@ namespace DCE_Manager.Update
                         break;
                 }
 
+                // campaignId vide (cas de certaines campagnes tierces) : on se rabat sur l'URL du dépôt,
+                // qui identifie tout aussi bien la campagne pour les mises à jour GitHub.
+                if (string.IsNullOrEmpty(campaign.CampaignId) && !string.IsNullOrEmpty(campaign.RepositoryUrl))
+                    campaign.CampaignId = "repo:" + campaign.RepositoryUrl.Trim().TrimEnd('/').ToLowerInvariant();
+
                 if (!string.IsNullOrEmpty(campaign.CampaignId))
                     campaignList.Add(campaign);
             }
@@ -194,7 +199,7 @@ namespace DCE_Manager.Update
                         " LatestVersion: " + campaign.LatestVersion);
 
                     campaign.AlreadyInstalledLatestVersion =
-                        campaign.InstalledVersions.Contains(campaign.LatestVersion);
+                       campaign.InstalledVersions.Any(v => SameVersion(v, campaign.LatestVersion));
 
                     campaign.UpdateAvailable =
                         !campaign.AlreadyInstalledLatestVersion;
@@ -284,7 +289,7 @@ namespace DCE_Manager.Update
                     campaign.DownloadUrl = cached.DownloadUrl;
 
                     campaign.AlreadyInstalledLatestVersion =
-                        campaign.InstalledVersions.Contains(campaign.LatestVersion);
+                        campaign.InstalledVersions.Any(v => SameVersion(v, campaign.LatestVersion));
 
                     campaign.UpdateAvailable =
                         !campaign.AlreadyInstalledLatestVersion;
@@ -384,6 +389,24 @@ namespace DCE_Manager.Update
 
             campaignDataGridView.Columns["Repo"].Width = 40;
             campaignDataGridView.Columns["Repo"].DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        }
+
+        // Compare deux versions sans tenir compte du "V"/"v" de tête, des espaces ni de la casse :
+        // "V9.6", "v9.6" et "9.6" sont la même version.
+        // Pourquoi : le tag GitHub peut s'écrire "V9.6" alors que camp_init.lua dit "9.6" (ou l'inverse).
+        private static bool SameVersion(string a, string b)
+        {
+            return CleanVersionForCompare(a) == CleanVersionForCompare(b);
+        }
+
+        private static string CleanVersionForCompare(string v)
+        {
+            v = (v ?? "").Trim();
+
+            if (v.Length > 1 && (v[0] == 'v' || v[0] == 'V') && char.IsDigit(v[1]))
+                v = v.Substring(1);
+
+            return v.ToLowerInvariant();
         }
 
         // Extrait une chaîne Lua.

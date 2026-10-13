@@ -99,10 +99,11 @@ namespace DCE_Manager
             //// La fenêtre démarre toujours à la taille de l'écran, quelle que soit l'échelle Windows
             //this.Load += (s, e) => { this.WindowState = FormWindowState.Maximized; };
 
-            //// La partie gauche prend la place qui reste entre elle et le panneau de droite
-            //this.Resize += (s, e) => AjusterLargeurGauche();
-            //this.Load += (s, e) => AjusterLargeurGauche();
+            // La partie gauche prend la place qui reste entre elle et le panneau de droite
+            this.Resize += (s, e) => AjusterLargeurGauche();
+            this.Load += (s, e) => AjusterLargeurGauche();
 
+            InitSplitter();
 
             homeView = new ucHome();
             homeView.Dock = DockStyle.Fill;
@@ -258,6 +259,68 @@ namespace DCE_Manager
 
             int w = panelRightView.Left - tabControl_LEFT.Left - 8;
             if (w > 300) tabControl_LEFT.Width = w;
+        }
+
+        // ===== Séparateur déplaçable entre la partie gauche et le panneau de droite =====
+        private Panel _splitter;
+        private bool _splitterDragging;
+
+        private const int SplitterWidth = 8;   // = l'écart laissé par AjusterLargeurGauche()
+        private const int MinPaneWidth = 300;  // largeur minimale de chaque côté
+
+        private void InitSplitter()
+        {
+            _splitter = new Panel();
+            _splitter.Cursor = Cursors.VSplit; // curseur "<->"
+            _splitter.SetBounds(panelRightView.Left - SplitterWidth, panelRightView.Top, SplitterWidth, panelRightView.Height);
+
+            Controls.Add(_splitter);
+            // Même ancrage que panelRightView : il suit le bord droit quand on agrandit la fenêtre
+            _splitter.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+
+            _splitter.MouseEnter += (s, e) => { if (!_splitterDragging) _splitter.BackColor = SystemColors.ControlDark; };
+            _splitter.MouseLeave += (s, e) => { if (!_splitterDragging) _splitter.BackColor = SystemColors.Control; };
+
+            _splitter.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                    _splitterDragging = true; // la souris reste capturée par le panel pendant le glisser
+            };
+
+            _splitter.MouseUp += (s, e) =>
+            {
+                _splitterDragging = false;
+                _splitter.BackColor = SystemColors.Control;
+            };
+
+            _splitter.MouseMove += (s, e) =>
+            {
+                if (_splitterDragging)
+                    MoveSplitterTo(PointToClient(Cursor.Position).X);
+            };
+        }
+
+        // mouseX = position de la souris dans la Form. Le bord droit de la partie droite ne bouge pas.
+        private void MoveSplitterTo(int mouseX)
+        {
+            int right = panelRightView.Right;
+            int newLeft = mouseX + SplitterWidth / 2; // le séparateur se centre sous la souris
+
+            int minLeft = tabControl_LEFT.Left + MinPaneWidth + SplitterWidth;
+            int maxLeft = right - MinPaneWidth;
+            newLeft = Math.Max(minLeft, Math.Min(maxLeft, newLeft));
+
+            if (newLeft == panelRightView.Left)
+                return;
+
+            SuspendLayout();
+
+            panelRightView.SetBounds(newLeft, panelRightView.Top, right - newLeft, panelRightView.Height);
+            panel_Down.SetBounds(newLeft, panel_Down.Top, panel_Down.Right - newLeft, panel_Down.Height); // le bouton Exit reste aligné
+            _splitter.Left = newLeft - SplitterWidth;
+            AjusterLargeurGauche();
+
+            ResumeLayout();
         }
 
         private void LoadConfiguration()
