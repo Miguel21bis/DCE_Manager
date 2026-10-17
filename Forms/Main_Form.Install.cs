@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -14,6 +15,40 @@ using System.Threading.Tasks;
 
 namespace DCE_Manager
 {
+    // Compte-rendu d'une extraction de zip de campagne (voir ExtractZipFileToDirectory dans Main_Form.cs).
+    // Pourquoi : avant, les fichiers ignorés ou en erreur disparaissaient sans trace, et le message
+    // final disait toujours "successfully installed".
+    public class ZipExtractReport
+    {
+        public int Extracted;                      // fichiers écrits sur le disque
+        public int Failed;                         // fichiers qui n'ont pas pu être écrits
+        public bool Refused;                       // zip refusé avant d'extraire quoi que ce soit
+
+        // raison -> nombre de fichiers ignorés (détail écrit dans log.txt)
+        public Dictionary<string, int> Skipped = new Dictionary<string, int>();
+
+        // problèmes anormaux, à montrer à l'utilisateur à la fin de l'installation
+        public List<string> Warnings = new List<string>();
+
+        public int SkippedTotal
+        {
+            get { return Skipped.Values.Sum(); }
+        }
+
+        public void AddSkipped(string reason)
+        {
+            int n;
+            Skipped.TryGetValue(reason, out n);
+            Skipped[reason] = n + 1;
+        }
+
+        public void AddWarning(string text)
+        {
+            if (!Warnings.Contains(text))
+                Warnings.Add(text);
+        }
+    }
+
     // Même namespace, même nom de classe (Main_Form)
     public partial class Main_Form
     {
@@ -469,7 +504,38 @@ namespace DCE_Manager
 
                 //---------------ENREGISTRE ici les fichiers de la campagne ----------------------
 
-                ExtractZipFileToDirectory(_selectedCampaignZipPath, true);
+                ZipExtractReport zipReport = ExtractZipFileToDirectory(_selectedCampaignZipPath, true);
+
+                // Zip refusé : le message a déjà été montré. On s'arrête ici (avant, l'installation
+                // continuait et finissait quand même par "successfully installed").
+                if (zipReport.Refused)
+                {
+                    Cursor.Current = Cursors.Default;
+                    return;
+                }
+
+                // Le dossier de la campagne doit porter le même nom que le title de Init\camp_init.lua.
+                // Sinon path.bat serait écrit dans un dossier parasite, et aucun .miz ne serait patché.
+                if (!Directory.Exists(ParamCampaign.PathCampaign))
+                {
+                    FormUtils.LogRegister("Install | dossier de campagne introuvable après extraction : " + ParamCampaign.PathCampaign);
+
+                    MessageBox.Show(
+                        "The campaign folder was not found after the install:\r\n" + ParamCampaign.PathCampaign +
+                        "\r\n\r\nThe title in Init\\camp_init.lua ('" + NameCampaign + "') must be the same as the campaign folder name." +
+                        "\r\nPlease check the ZIP.",
+                        "Error");
+
+                    Cursor.Current = Cursors.Default;
+                    return;
+                }
+
+                // Active / Debug / Debriefing ne sont jamais installés avec leur contenu (parties de l'auteur),
+                // mais les dossiers vides doivent exister. Sans effet s'ils existent déjà.
+                foreach (string sessionFolder in new string[] { "Active", "Debug", "Debriefing" })
+                {
+                    Directory.CreateDirectory(Path.Combine(ParamCampaign.PathCampaign, sessionFolder));
+                }
 
                 TestFile.ScriptsMod = "NG";
 
@@ -516,8 +582,22 @@ namespace DCE_Manager
     ? ""
     : "\r\n\r\nReminder: enable the 'MissionScripting' option on the Home page.";
 
-                MessageBox.Show(ParamCampaign.NameCampaign + " successfully installed." + rappel, "Information");
-                FormUtils.LogRegister(ParamCampaign.NameCampaign + " successfully installed." + rappel);
+                // Bilan de l'extraction : ce qui a échoué ou ce qui n'était pas reconnu.
+                // (Les fichiers ignorés normalement - Active/Debug/Debriefing, ScriptsMod déjà installé - sont dans log.txt.)
+                string bilan = "";
+
+                if (zipReport.Failed > 0)
+                    bilan += "\r\n\r\n" + zipReport.Failed + " file(s) could not be installed. See log.txt for details.";
+
+                foreach (string warning in zipReport.Warnings)
+                    bilan += "\r\n\r\n" + warning;
+
+                bool toutEstOk = zipReport.Failed == 0 && zipReport.Warnings.Count == 0;
+
+                string resultText = ParamCampaign.NameCampaign + (toutEstOk ? " successfully installed." : " installed, but with problems.");
+
+                MessageBox.Show(resultText + bilan + rappel, toutEstOk ? "Information" : "Warning");
+                FormUtils.LogRegister(resultText + bilan + rappel);
 
                 //******************FIN du new system
 
@@ -534,6 +614,46 @@ namespace DCE_Manager
             // Installation terminée : on vide la zone de dépôt (nom du zip + bordure verte)
             _selectedCampaignZipPath = "";
             dropZoneControl1.ResetState();
+        }
+
+        // Vrai si fullPath est le dossier "folder" lui-même, ou quelque chose à l'intérieur.
+        // Pourquoi : un simple StartsWith(folder) acceptait aussi "...\DCS.openbeta" quand folder = "...\DCS"
+        // (même début de chemin, mais un autre dossier). Sert à bloquer les entrées de zip qui sortent du dossier cible.
+        internal static bool IsInsideFolder(string fullPath, string folder)
+        {
+            char[] separators = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+
+            string root = Path.GetFullPath(folder).TrimEnd(separators);
+            string path = fullPath.TrimEnd(separators);
+
+            return path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Vrai si l'entrée de zip (chemin découpé sur "/") est dans Campaigns\<campagne>\Active, \Debug ou \Debriefing.
+        // Pourquoi : ces dossiers contiennent les parties en cours de l'auteur, on ne les installe pas.
+        // On teste le NOM EXACT du dossier, juste sous le dossier de la campagne - jamais le nom du fichier
+        // ni un morceau de nom (avant, "DEBUG_DebriefMission.bat" était écarté parce qu'il contient "debug").
+        internal static bool IsInCampaignSessionFolder(string[] words)
+        {
+            for (int k = 0; k < words.Length; k++)
+            {
+                if (!words[k].Equals("Campaigns", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                // words[k + 1] = nom de la campagne, words[k + 2] = son sous-dossier.
+                // Le dernier élément est le nom du fichier (ou "" pour une entrée dossier) : ce n'est pas un dossier.
+                int f = k + 2;
+
+                if (f >= words.Length - 1)
+                    return false;
+
+                return words[f].Equals("Active", StringComparison.OrdinalIgnoreCase) ||
+                       words[f].Equals("Debug", StringComparison.OrdinalIgnoreCase) ||
+                       words[f].Equals("Debriefing", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
         }
 
         // Cherche le titre de la campagne dans le zip : ligne title de Init/camp_init.lua.

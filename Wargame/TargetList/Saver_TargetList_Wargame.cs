@@ -62,10 +62,16 @@ namespace DCE_Manager
             if (all.Count == 0)
                 return failures;
 
+
             List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
 
+            // Seules les formations des zones jouées dans DCS sont posées, les autres restent sur la carte
+            HashSet<string> dcsZones = WargameEngineCombat.FindDcsZones(allZones, campaignInfo.CombatConfig.DcsZoneDepth);
+            all = all.Where(p => dcsZones.Contains(p.zone.Id)).ToList();
+
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
+
             var rng = new Random();
 
             // side -> lignes Lua déjà indentées, prêtes à insérer telles quelles
@@ -165,14 +171,17 @@ namespace DCE_Manager
             HashSet<int> existingIds = FindExistingWargameFormationIds(lines);
             Dictionary<string, int> nextIndexBySide = FindNextNumericIndexBySide(lines);
 
-            List<(WargameZoneData zone, WargameFormation formation)> missing = all
-                .Where(p => !existingIds.Contains(p.formation.FormationId))
+            WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
+
+            // Une formation n'est posée que si sa zone est jouée dans DCS (sinon elle reste sur la carte)
+            HashSet<string> dcsZones = WargameEngineCombat.FindDcsZones(allZones, campaignInfo.CombatConfig.DcsZoneDepth);
+
+            var missing = all
+                .Where(p => !existingIds.Contains(p.formation.FormationId) && dcsZones.Contains(p.zone.Id))
                 .ToList();
 
             if (missing.Count == 0)
                 return failures; // rien de nouveau, on ne touche pas au fichier
-
-            WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
             var rng = new Random();
 

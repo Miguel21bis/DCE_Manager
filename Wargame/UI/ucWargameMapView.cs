@@ -16,10 +16,8 @@ namespace DCE_Manager
     //    plus un mode "pick" pour aider à la calibration (clic -> pixel brut).
     //  - vue joueur (ReadOnly = true) : affichage seul, aucun clic actif.
     //
-    // Pourquoi pas de zoom/pan ici : le contrôle prend la taille exacte de
-    // l'image de fond (voir LoadMap), donc les pixels cliqués correspondent
-    // 1:1 aux pixels utilisés par la calibration. Si l'image est grande,
-    // on met ce contrôle dans un Panel avec AutoScroll = true côté Form.
+    // Zoom molette + déplacement : le contrôle prend la taille de l'image x zoom (voir
+    // ApplyZoomSize). On le met dans un Panel avec AutoScroll = true côté Form.
     internal class ucWargameMapView : UserControl
     {
         // Représentation déjà convertie en pixels d'une zone, prête à être
@@ -92,13 +90,6 @@ namespace DCE_Manager
 
         private WargameZoneData _selectedZone;
 
-        //// Assignée par la Form au clic. Redessine automatiquement.
-        //public WargameZoneData SelectedZone
-        //{
-        //    get { return _selectedZone; }
-        //    set { _selectedZone = value; Invalidate(); }
-        //}
-
         // Zones actuellement sélectionnées. Un clic simple vide l'ensemble et n'y
         // met que la zone cliquée ; Ctrl+clic ajoute/retire la zone cliquée sans
         // toucher au reste - sélection multiple façon Explorateur Windows.
@@ -108,6 +99,35 @@ namespace DCE_Manager
 
         public event Action<WargameObjective> ObjectiveClicked;
 
+        // ---- Preview du combat : texte sous le nom des zones, zones entourées, points de force ----
+
+        // Texte affiché sous le nom de chaque zone (clé = id de zone)
+        private Dictionary<string, string> _zoneCaptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Zones à entourer (celles qui viennent de changer de main)
+        private HashSet<string> _flashZoneIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Un point par zone occupée : nombre de formations écrit dedans, taille = force
+        private Dictionary<string, WargameZoneDot> _zoneDots = new Dictionary<string, WargameZoneDot>(StringComparer.OrdinalIgnoreCase);
+
+        public void SetZoneCaptions(Dictionary<string, string> captions)
+        {
+            _zoneCaptions = captions ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Invalidate();
+        }
+
+        public void SetFlashZones(IEnumerable<string> zoneIds)
+        {
+            _flashZoneIds = new HashSet<string>(zoneIds ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+            Invalidate();
+        }
+
+        public void SetZoneDots(Dictionary<string, WargameZoneDot> dots)
+        {
+            _zoneDots = dots ?? new Dictionary<string, WargameZoneDot>(StringComparer.OrdinalIgnoreCase);
+            Invalidate();
+        }
+
         // ---- Axes de progression ----
         private List<WargameAxis> _axes = new List<WargameAxis>();
         private WargameAxis _selectedAxis;
@@ -115,7 +135,32 @@ namespace DCE_Manager
         private Action<WargameZoneData> _zonePickCallback;
 
         // Mis à true par la Form quand le panneau des axes est ouvert
-        public bool ShowAxes { get; set; }
+        private bool _showAxes;
+        public bool ShowAxes
+        {
+            get { return _showAxes; }
+            set { _showAxes = value; Invalidate(); }
+        }
+
+        // Opacité des traits d'axes : 1 = pleins, 0.3 = transparents (pour voir les points de force dessous)
+        private float _axisOpacity = 1f;
+        public float AxisOpacity
+        {
+            get { return _axisOpacity; }
+            set { _axisOpacity = Math.Max(0f, Math.Min(1f, value)); Invalidate(); }
+        }
+
+        // Zone mise en évidence depuis le panneau des axes (clic sur une ligne)
+        private string _axisHighlightZoneId;
+
+        public void HighlightAxisZone(string zoneId)
+        {
+            _axisHighlightZoneId = zoneId;
+            Invalidate();
+        }
+
+        // Clic droit pendant un choix de zone : le panneau doit le savoir
+        public event Action ZonePickCancelled;
 
         public WargameAxis SelectedAxis
         {
@@ -190,9 +235,6 @@ namespace DCE_Manager
             { WargameSide.Red, Color.Firebrick },
             { WargameSide.Contested, Color.Orange },
         };
-
-        // Zone cliquée (seulement si ReadOnly = false et hors mode calibration)
-        //public event Action<WargameZoneData> ZoneClicked;
 
         // Ensemble des zones sélectionnées, à chaque changement (clic simple ou
         // Ctrl+clic). Seulement si ReadOnly = false et hors mode calibration.
@@ -450,6 +492,7 @@ namespace DCE_Manager
                 if (e.Button == MouseButtons.Right)
                 {
                     CancelPickZone();
+                    ZonePickCancelled?.Invoke();
                     return;
                 }
 
@@ -582,9 +625,14 @@ namespace DCE_Manager
                 if (ShowMissionUnits)
                     DrawMissionUnits(e.Graphics);
 
-
                 if (ShowAxes)
                     DrawAxes(e.Graphics);
+
+                // Points de force APRES les axes (et après toutes les zones) : rien ne les recouvre
+                foreach (var kvp in _zonePixelShapes)
+                {
+                    DrawZoneDot(e.Graphics, kvp.Key, kvp.Value);
+                }
 
                 foreach (WargameObjective obj in _objectives)
                 {
@@ -602,6 +650,15 @@ namespace DCE_Manager
                     {
                         float r = (ObjectiveMarkerRadius + 4f) / _zoom;
                         e.Graphics.DrawEllipse(ring, selPos.X - r, selPos.Y - r, r * 2, r * 2);
+                    }
+                }
+
+                if (ShowAxes && !string.IsNullOrEmpty(_axisHighlightZoneId))
+                {
+                    foreach (var kvp in _zonePixelShapes)
+                    {
+                        if (string.Equals(kvp.Key.Id, _axisHighlightZoneId, StringComparison.OrdinalIgnoreCase))
+                            DrawSelectionHighlight(e.Graphics, kvp.Value);
                     }
                 }
 
@@ -634,6 +691,24 @@ namespace DCE_Manager
                     float r = pixelShape.CircleRadius;
                     var rect = new RectangleF(pixelShape.CircleCenter.X - r, pixelShape.CircleCenter.Y - r, r * 2, r * 2);
                     g.DrawEllipse(highlightPen, rect);
+                }
+            }
+        }
+
+        // Contour épais autour d'une zone qui vient de changer de main (preview du combat)
+        private void DrawFlash(Graphics g, PixelShape pixelShape)
+        {
+            using (var flashPen = new Pen(Color.White, 4f / _zoom))
+            {
+                if (pixelShape.Shape == WargameZoneShape.Polygon && pixelShape.PolygonPoints != null && pixelShape.PolygonPoints.Length >= 3)
+                {
+                    g.DrawPolygon(flashPen, pixelShape.PolygonPoints);
+                }
+                else if (pixelShape.Shape != WargameZoneShape.Polygon)
+                {
+                    float r = pixelShape.CircleRadius;
+                    var rect = new RectangleF(pixelShape.CircleCenter.X - r, pixelShape.CircleCenter.Y - r, r * 2, r * 2);
+                    g.DrawEllipse(flashPen, rect);
                 }
             }
         }
@@ -692,12 +767,15 @@ namespace DCE_Manager
         // Un trait par axe qui suit le chemin calculé, de zone en zone (centre à centre),
         // avec une flèche vers l'objectif B. L'axe sélectionné est plus épais.
         // Pas de chemin = trait rouge pointillé direct A -> B.
+        // AxisOpacity rend les traits plus ou moins transparents.
         private void DrawAxes(Graphics g)
         {
+            int alpha = (int)Math.Round(255 * _axisOpacity);
+
             for (int i = 0; i < _axes.Count; i++)
             {
                 WargameAxis axis = _axes[i];
-                Color color = AxisColors[i % AxisColors.Length];
+                Color color = Color.FromArgb(alpha, AxisColors[i % AxisColors.Length]);
                 float width = (axis == _selectedAxis ? 5f : 3f) / _zoom;
 
                 var points = new List<PointF>();
@@ -713,7 +791,7 @@ namespace DCE_Manager
                     PointF a, b;
                     if (_zoneCenters.TryGetValue(axis.StartZoneId ?? "", out a) && _zoneCenters.TryGetValue(axis.EndZoneId ?? "", out b))
                     {
-                        using (var broken = new Pen(Color.Red, width) { DashStyle = DashStyle.Dash })
+                        using (var broken = new Pen(Color.FromArgb(alpha, Color.Red), width) { DashStyle = DashStyle.Dash })
                             g.DrawLine(broken, a, b);
                     }
                     continue;
@@ -721,7 +799,7 @@ namespace DCE_Manager
 
                 PointF[] line = points.ToArray();
 
-                using (var outline = new Pen(Color.Black, width + 3f / _zoom))
+                using (var outline = new Pen(Color.FromArgb(alpha, Color.Black), width + 3f / _zoom))
                     g.DrawLines(outline, line);
 
                 using (var pen = new Pen(color, width))
@@ -731,20 +809,47 @@ namespace DCE_Manager
                     g.DrawLines(pen, line);
                 }
 
+                // Zones de passage : un losange de la couleur de l'axe, numéroté dans l'ordre
+                for (int v = 0; v < axis.ViaZoneIds.Count; v++)
+                {
+                    PointF viaCenter;
+                    if (!_zoneCenters.TryGetValue(axis.ViaZoneIds[v], out viaCenter))
+                        continue;
+
+                    float half = 8f / _zoom;
+                    PointF[] diamond =
+                    {
+                        new PointF(viaCenter.X, viaCenter.Y - half),
+                        new PointF(viaCenter.X + half, viaCenter.Y),
+                        new PointF(viaCenter.X, viaCenter.Y + half),
+                        new PointF(viaCenter.X - half, viaCenter.Y),
+                    };
+
+                    using (var viaBrush = new SolidBrush(color))
+                    using (var viaOutline = new Pen(Color.FromArgb(alpha, Color.Black), 1.5f / _zoom))
+                    using (var viaFont = new Font("Segoe UI", 8f / _zoom, FontStyle.Bold))
+                    using (var viaTextBrush = new SolidBrush(Color.FromArgb(alpha, Color.Black)))
+                    {
+                        g.FillPolygon(viaBrush, diamond);
+                        g.DrawPolygon(viaOutline, diamond);
+                        g.DrawString((v + 1).ToString(), viaFont, viaTextBrush, viaCenter.X + half, viaCenter.Y - half * 1.6f);
+                    }
+                }
+
                 // Pastille au départ + nom de l'axe
                 PointF start = line[0];
                 float dot = 5f / _zoom;
 
                 using (var dotBrush = new SolidBrush(color))
-                using (var dotOutline = new Pen(Color.Black, 1.5f / _zoom))
+                using (var dotOutline = new Pen(Color.FromArgb(alpha, Color.Black), 1.5f / _zoom))
                 {
                     g.FillEllipse(dotBrush, start.X - dot, start.Y - dot, dot * 2, dot * 2);
                     g.DrawEllipse(dotOutline, start.X - dot, start.Y - dot, dot * 2, dot * 2);
                 }
 
                 using (var font = new Font("Segoe UI", 9f / _zoom, FontStyle.Bold))
-                using (var textBrush = new SolidBrush(Color.White))
-                using (var shadowBrush = new SolidBrush(Color.Black))
+                using (var textBrush = new SolidBrush(Color.FromArgb(alpha, Color.White)))
+                using (var shadowBrush = new SolidBrush(Color.FromArgb(alpha, Color.Black)))
                 {
                     float shadow = 1f / _zoom;
                     float tx = start.X + dot + 3f / _zoom;
@@ -831,10 +936,14 @@ namespace DCE_Manager
             DrawZoneLabel(g, zone, pixelShape);
         }
 
+        // Nom de la zone au centre, texte de la preview dessous, contour blanc si elle vient de changer de main
         private void DrawZoneLabel(Graphics g, WargameZoneData zone, PixelShape pixelShape)
         {
             if (string.IsNullOrEmpty(zone.Id))
                 return;
+
+            if (_flashZoneIds.Contains(zone.Id))
+                DrawFlash(g, pixelShape);
 
             PointF anchor = pixelShape.Shape == WargameZoneShape.Polygon
                 ? GetCentroid(pixelShape.PolygonPoints)
@@ -845,6 +954,59 @@ namespace DCE_Manager
             {
                 SizeF textSize = g.MeasureString(zone.Id, font);
                 g.DrawString(zone.Id, font, textBrush, anchor.X - textSize.Width / 2f, anchor.Y - textSize.Height / 2f);
+
+                string caption;
+                if (_zoneCaptions.TryGetValue(zone.Id, out caption) && !string.IsNullOrEmpty(caption))
+                {
+                    using (var smallFont = new Font("Segoe UI", 8f / _zoom, FontStyle.Bold))
+                    using (var shadowBrush = new SolidBrush(Color.Black))
+                    {
+                        SizeF captionSize = g.MeasureString(caption, smallFont);
+                        float cx = anchor.X - captionSize.Width / 2f;
+                        float cy = anchor.Y + textSize.Height / 2f;
+                        float shadow = 1f / _zoom;
+
+                        g.DrawString(caption, smallFont, shadowBrush, cx + shadow, cy + shadow);
+                        g.DrawString(caption, smallFont, textBrush, cx, cy);
+                    }
+                }
+            }
+        }
+
+        // Point de force d'une zone (preview) : le nombre de formations s'écrit dedans, la taille suit la
+        // force. Dessiné après les axes pour rester visible au-dessus.
+        private void DrawZoneDot(Graphics g, WargameZoneData zone, PixelShape pixelShape)
+        {
+            WargameZoneDot dot;
+            if (string.IsNullOrEmpty(zone.Id) || !_zoneDots.TryGetValue(zone.Id, out dot) || dot.Count <= 0)
+                return;
+
+            if (pixelShape.Shape == WargameZoneShape.Polygon && (pixelShape.PolygonPoints == null || pixelShape.PolygonPoints.Length < 3))
+                return;
+
+            PointF anchor = pixelShape.Shape == WargameZoneShape.Polygon
+                ? GetCentroid(pixelShape.PolygonPoints)
+                : pixelShape.CircleCenter;
+
+            // Taille à l'écran : de 6 px (petite force) à 22 px (grosse force). La racine fait
+            // suivre la SURFACE du point à la force.
+            float radius = (float)Math.Min(22.0, 5.0 + 0.9 * Math.Sqrt(dot.Force)) / _zoom;
+
+            // Au-dessus du nom de la zone
+            float cy = anchor.Y - (14f / _zoom) - radius;
+            var rect = new RectangleF(anchor.X - radius, cy - radius, radius * 2, radius * 2);
+
+            using (var fill = new SolidBrush(Color.FromArgb(240, GetZoneColor(dot.Side))))
+            using (var outline = new Pen(Color.White, 2f / _zoom))
+            using (var font = new Font("Segoe UI", 8f / _zoom, FontStyle.Bold))
+            using (var textBrush = new SolidBrush(Color.White))
+            {
+                g.FillEllipse(fill, rect);
+                g.DrawEllipse(outline, rect);
+
+                string text = dot.Count.ToString();
+                SizeF size = g.MeasureString(text, font);
+                g.DrawString(text, font, textBrush, anchor.X - size.Width / 2f, cy - size.Height / 2f);
             }
         }
 

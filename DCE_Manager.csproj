@@ -259,9 +259,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.cs" />
-    <Compile Include="Forms\Main_Form.Install.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Forms\Main_Form.Install.cs" />
     <Compile Include="Core\Statistics.cs" />
     <Compile Include="MissionGenerator\ScriptsModBatParser.cs" />
     <Compile Include="MissionGenerator\ProcessConsoleBridge.cs" />
@@ -315,6 +313,8 @@
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
     <Compile Include="Wargame\Engine\WargameAxis.cs" />
+    <Compile Include="Wargame\Engine\WargameCombatPreview.cs" />
+    <Compile Include="Wargame\Engine\WargameConfigGrid.cs" />
     <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />
     <Compile Include="Wargame\Engine\WargameEngineLosses.cs" />
     <Compile Include="Wargame\UI\Parser_WargameMissionUnits.cs" />
@@ -322,9 +322,7 @@
     <Compile Include="Wargame\Spawn\Parser_WargameSpawnAreas.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplate.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplateLayout.cs" />
-    <Compile Include="Wargame\UI\ucWargameAxisPanel.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Wargame\UI\ucWargameAxisPanel.cs" />
     <Compile Include="Wargame\Zone\Parser_WargameZones.cs" />
     <Compile Include="Wargame\TargetList\Saver_TargetList_Wargame.cs" />
     <Compile Include="Wargame\Zone\Saver_WargameZoneActive.cs" />

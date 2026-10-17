@@ -76,7 +76,7 @@ namespace DCE_Manager
                     zone.SupplyRoute = string.IsNullOrEmpty(supplyRoute) ? WargameSupplyRoute.Road : supplyRoute;
 
                     zone.Formations = LoadFormations(zoneLua["formations"] as LuaTable);
-                    zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
+                    //zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                     zone.Neighbors = LoadStringArray(zoneLua["neighbors"] as LuaTable);
                     zone.DcsPoints = LoadPoints(zoneLua["dcsPoints"] as LuaTable);
 
@@ -85,6 +85,8 @@ namespace DCE_Manager
             }
 
             WargameAxisPathFinder.RecomputeAll(State.Axes, result);
+
+            WargameAxisPathFinder.RememberAttackers(State.Axes, result);
 
             return result;
         }
@@ -141,22 +143,30 @@ namespace DCE_Manager
                 axis.StartZoneId = Convert.ToString(entry["start"]) ?? "";
                 axis.EndZoneId = Convert.ToString(entry["end"]) ?? "";
                 axis.ActivationFlag = Convert.ToString(entry["flag"]) ?? "";
+
+                // Zones de passage, dans l'ordre. Absent (ancien fichier) = axe direct.
+                LuaTable viaLua = entry["via"] as LuaTable;
+                if (viaLua != null)
+                {
+                    int i = 1;
+                    while (true)
+                    {
+                        object value = viaLua[i];
+                        if (value == null) break;
+
+                        string id = Convert.ToString(value);
+                        if (!string.IsNullOrEmpty(id)) axis.ViaZoneIds.Add(id);
+
+                        i++;
+                    }
+                }
+
                 result.Add(axis);
             }
 
             return result;
         }
 
-        private WargameIrregularMarker LoadIrregular(LuaTable table)
-        {
-            if (table == null) return null;
-
-            return new WargameIrregularMarker
-            {
-                Active = table["active"] is bool b && b,
-                ResidualStock = (int)ToDouble(table["residualStock"]),
-            };
-        }
 
         private List<string> LoadStringArray(LuaTable table)
         {

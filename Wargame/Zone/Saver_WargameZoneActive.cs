@@ -40,7 +40,7 @@ namespace DCE_Manager
             sb.AppendLine("\t\t[\"resupplyModifier\"] = " + zone.ResupplyModifier.ToString(CultureInfo.InvariantCulture) + ",");
 
             WriteFormations(sb, zone.Formations);
-            WriteIrregular(sb, zone.Irregular);
+            //WriteIrregular(sb, zone.Irregular);
 
             sb.AppendLine("\t},");
         }
@@ -69,14 +69,6 @@ namespace DCE_Manager
             sb.AppendLine("\t\t},");
         }
 
-        private static void WriteIrregular(StringBuilder sb, WargameIrregularMarker irregular)
-        {
-            sb.AppendLine("\t\t[\"irregular\"] = ");
-            sb.AppendLine("\t\t{");
-            sb.AppendLine("\t\t\t[\"active\"] = " + (irregular != null && irregular.Active ? "true" : "false") + ",");
-            sb.AppendLine("\t\t\t[\"residualStock\"] = " + (irregular?.ResidualStock ?? 0) + ",");
-            sb.AppendLine("\t\t},");
-        }
 
         private static string FormatNumber(double value)
         {

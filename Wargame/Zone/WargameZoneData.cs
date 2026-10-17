@@ -11,7 +11,7 @@ namespace DCE_Manager
     {
         public const string Blue = "blue";
         public const string Red = "red";
-        public const string Contested = "contested";
+        public const string Contested = "contested";   // interne : zone pas encore réglée
     }
 
     // Type de terrain d'une zone. Le campaignMaker choisit un type, le coefficient
@@ -124,11 +124,11 @@ namespace DCE_Manager
 
         // ----- Champs de jeu -----
 
-        // WargameSide.Blue / Red / Contested
+        // WargameSide.Blue / Red (Contested = pas encore réglée)
         public string Control = WargameSide.Contested;
 
         public List<WargameFormation> Formations = new List<WargameFormation>();
-        public WargameIrregularMarker Irregular;   // null = pas de mode asymétrique
+        //public WargameIrregularMarker Irregular;   // null = pas de mode asymétrique
         public double ResupplyModifier;
         public List<string> Neighbors = new List<string>();
 
@@ -246,9 +246,4 @@ namespace DCE_Manager
         }
     }
 
-    internal class WargameIrregularMarker
-    {
-        public bool Active;
-        public int ResidualStock;
-    }
 }

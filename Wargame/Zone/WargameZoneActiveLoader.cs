@@ -69,7 +69,7 @@ namespace DCE_Manager
 
                     zone.ResupplyModifier = ToDouble(zoneLua["resupplyModifier"], zone.ResupplyModifier);
                     MergeFormations(zone, zoneLua["formations"] as LuaTable, allFormationsById);
-                    zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
+                    //zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                 }
             }
         }
@@ -117,17 +117,6 @@ namespace DCE_Manager
             }
 
             zone.Formations = merged;
-        }
-
-        private WargameIrregularMarker LoadIrregular(LuaTable table)
-        {
-            if (table == null) return null;
-
-            return new WargameIrregularMarker
-            {
-                Active = table["active"] is bool b && b,
-                ResidualStock = (int)ToDouble(table["residualStock"], 0),
-            };
         }
 
         private double ToDouble(object value, double fallback)

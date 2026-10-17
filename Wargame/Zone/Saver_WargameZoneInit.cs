@@ -57,6 +57,17 @@ namespace DCE_Manager
                     sb.AppendLine("\t\t[\"start\"] = \"" + Escape(axis.StartZoneId) + "\",");
                     sb.AppendLine("\t\t[\"end\"] = \"" + Escape(axis.EndZoneId) + "\",");
                     sb.AppendLine("\t\t[\"flag\"] = \"" + Escape(axis.ActivationFlag) + "\",");
+
+                    sb.AppendLine("\t\t[\"via\"] = ");
+                    sb.AppendLine("\t\t{");
+                    int viaIndex = 1;
+                    foreach (string via in axis.ViaZoneIds)
+                    {
+                        sb.AppendLine("\t\t\t[" + viaIndex + "] = \"" + Escape(via) + "\",");
+                        viaIndex++;
+                    }
+                    sb.AppendLine("\t\t},");
+
                     sb.AppendLine("\t},");
                     index++;
                 }
@@ -81,7 +92,7 @@ namespace DCE_Manager
             sb.AppendLine("\t\t[\"supplyRoute\"] = \"" + Escape(zone.SupplyRoute) + "\",");
 
             WriteFormations(sb, zone.Formations);
-            WriteIrregular(sb, zone.Irregular);
+            //WriteIrregular(sb, zone.Irregular);
             WriteNeighbors(sb, zone.Neighbors);
             WritePoints(sb, zone.DcsPoints);
 
@@ -108,10 +119,10 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
                 sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");
                 sb.AppendLine("\t\t\t\t[\"firepowerMax\"] = " + FormatNumber(f.FirepowerMax) + ",");
-                sb.AppendLine("\t\t\t\t[\"priority\"] = " + f.Priority + ",");
-                sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
-                sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");
-                sb.AppendLine("\t\t\t\t[\"firepowerMax\"] = " + FormatNumber(f.FirepowerMax) + ",");
+                //sb.AppendLine("\t\t\t\t[\"priority\"] = " + f.Priority + ",");
+                //sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
+                //sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");
+                //sb.AppendLine("\t\t\t\t[\"firepowerMax\"] = " + FormatNumber(f.FirepowerMax) + ",");
                 sb.AppendLine("\t\t\t},");
                 index++;
             }
@@ -119,14 +130,6 @@ namespace DCE_Manager
             sb.AppendLine("\t\t},");
         }
 
-        private static void WriteIrregular(StringBuilder sb, WargameIrregularMarker irregular)
-        {
-            sb.AppendLine("\t\t[\"irregular\"] = ");
-            sb.AppendLine("\t\t{");
-            sb.AppendLine("\t\t\t[\"active\"] = " + (irregular != null && irregular.Active ? "true" : "false") + ",");
-            sb.AppendLine("\t\t\t[\"residualStock\"] = " + (irregular?.ResidualStock ?? 0) + ",");
-            sb.AppendLine("\t\t},");
-        }
 
         private static void WriteNeighbors(StringBuilder sb, List<string> neighbors)
         {

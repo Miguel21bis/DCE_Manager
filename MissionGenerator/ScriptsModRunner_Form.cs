@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
+using System.Threading.Tasks;
 
 namespace DCE_Manager
 {
@@ -2616,6 +2617,39 @@ namespace DCE_Manager
             //panelQuickOptions.Controls.Add(button);
             CurrentOptionsHost().Controls.Add(button);
         }
+
+        // Le script Lua attend que DCE_Manager joue le tour du wargame (pertes, combat, replis,
+        // avance) AVANT de generer la mission suivante. Le travail se fait hors du thread de
+        // l'interface : il lit/ecrit plusieurs fichiers et pose des unites, ce qui peut prendre
+        // quelques secondes. Quoi qu'il arrive on repond au Lua : sans reponse il resterait
+        // bloque sur son io.read().
+        private void RunWargameTurn()
+        {
+            lblStage.Text = "Updating the wargame front...";
+            progressRunning.Visible = true;
+
+            string campaignName = _campaignName;
+
+            Task.Run(() =>
+            {
+                string answer = "ok";
+
+                try
+                {
+                    WargameEngineLosses.ProcessBeforeMission(campaignName);
+                }
+                catch (Exception ex)
+                {
+                    FormUtils.LogRegister("ScriptsModRunner_Form | tour wargame en erreur : " + ex.Message);
+                    answer = "skip";
+                }
+
+                // retour sur le thread de l'interface pour repondre au Lua
+                if (!IsDisposed && IsHandleCreated)
+                    BeginInvoke(new Action(() => SendQueuedAnswer(answer)));
+            });
+        }
+
         private void HandlePromptMarker(string promptType)
         {
             // Cas générique "yesno", avec ou sans titre personnalisé (yesno::<texte>).
@@ -2709,6 +2743,10 @@ namespace DCE_Manager
                                       // qu'il y ait eu ou non une sélection de packages avant
                     break;
 
+                case "wargame":
+                    RunWargameTurn();
+                    break;
+
                 case "targetlist":
                     _targetOptions.Clear();
                     _lstTargets = null;
@@ -2716,106 +2754,7 @@ namespace DCE_Manager
                     break;
             }
         }
-        //private void HandlePromptMarker(string promptType)
-        //{
-
-        //    switch (promptType)
-        //    {
-        //        case "flightcompose":
-        //            if (_multiFlightComposerActive && _pendingFlightAnswers.Count > 0)
-        //            {
-        //                string nextAnswer = _pendingFlightAnswers.Dequeue();
-        //                SendQueuedAnswer(nextAnswer);
-
-        //                if (_pendingFlightAnswers.Count == 0)
-        //                {
-        //                    _multiFlightComposerActive = false;
-        //                    _pendingFlightCount = 0;
-        //                }
-        //            }
-        //            else if (_multiFlightComposerActive)
-        //            {
-        //                _multiFlightComposerActive = false;
-        //                _pendingFlightCount = 0;
-        //                _flightPromptPending = true;
-        //                _flightBuilderControlsBuilt = false;
-        //            }
-        //            else
-        //            {
-        //                _flightPromptPending = true;
-        //                _flightBuilderControlsBuilt = false;
-
-        //                if (_aircraftById.Count > 0)
-        //                {
-        //                    _inputMode = InputMode.FlightBuilder;
-
-        //                    if (_pendingFlightCount > 1)
-        //                        ShowMultiFlightComposer();
-        //                    else
-        //                        ShowFlightBuilderControls();
-        //                }
-        //            }
-        //            break;
-
-        //        case "flightcount":
-        //            _inputMode = InputMode.Numeric;
-        //            ShowFlightCountControl();
-        //            break;
-
-        //        case "flightoption":
-
-        //            if (_multiFlightOptionActive && _pendingFlightOptionAnswers.Count > 0)
-        //            {
-        //                // La vraie boucle Lua redemande le prochain choix pour continuer à
-        //                // consommer la file déjà décidée par l'utilisateur.
-        //                string nextAnswer = _pendingFlightOptionAnswers.Dequeue();
-        //                SendQueuedAnswer(nextAnswer);
-
-        //                if (_pendingFlightOptionAnswers.Count == 0)
-        //                {
-        //                    _multiFlightOptionActive = false;
-        //                    _flightOptionUIBuilt = false;
-        //                    _inputMode = InputMode.QuickOptions; // sinon plus aucun futur menu ne s'affichera
-        //                }
-        //            }
-        //            else if (_flightOptionUIBuilt)
-        //            {
-        //                // La vraie boucle a démarré (ou continue) pendant qu'on attend encore le clic de
-        //                // l'utilisateur sur "Confirm all flights" - on ignore complètement, l'écran déjà
-        //                // construit reste la seule source de vérité tant qu'il n'a pas validé.
-        //            }
-        //            else
-        //            {
-        //                // Vraiment un nouveau cycle de prévisualisation qui démarre.
-        //                _flightWishSections.Clear();
-        //                _currentBuildingSection = null;
-        //                _inputMode = InputMode.FlightOptionSelect;
-        //            }
-        //            break;
-
-
-        //        case "debriefaccept":
-        //            _inputMode = InputMode.DebriefAccept;
-        //            ShowDebriefAcceptControl();
-        //            break;
-
-        //        case "yesno":
-        //            _inputMode = InputMode.YesNo;
-        //            ShowYesNoControl();
-        //            break;
-
-        //        case "acceptmission":
-        //            UpdateStepper(3); // dernière étape : "Confirm" - ce menu (a/s) est final,
-        //                              // qu'il y ait eu ou non une sélection de packages avant
-        //            break;
-
-        //        case "targetlist":
-        //            _targetOptions.Clear();
-        //            _lstTargets = null;
-        //            _targetListPending = true;
-        //            break;
-        //    }
-        //}
+        
 
         private const string MetarMarkerPrefix = "##DCEM_METAR##";
 

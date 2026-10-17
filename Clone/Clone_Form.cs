@@ -36,6 +36,13 @@ namespace DCE_Manager
 
             InitializeComponent();
 
+            // Ces valeurs sont STATIQUES : si la fenêtre se ferme plus bas sans avoir tout rempli
+            // (campagne sans squad), elles gardaient les valeurs du clonage précédent et le bouton
+            // Clone aurait cloné la mauvaise campagne. On les pose donc dès le début.
+            CloneCampaign.path = path;
+            CloneCampaign.OldNameCamp = OldNameCamp;
+            CloneCampaign.SquadName = "";
+
             LoadLuaData(OldNameCamp);
 
 
@@ -44,7 +51,7 @@ namespace DCE_Manager
                 MessageBox.Show("Le Main_Form passé au constructeur est NULL !");
             }
 
-            
+
 
             if (_campaignContext.LuaData.TabSquad.Count == 0)
             {
@@ -63,7 +70,7 @@ namespace DCE_Manager
                 comboPlaneChoice.SelectedIndex = 0;
             }
 
-            
+
 
             string tempTXT = comboPlaneChoice.SelectedItem as string;
 
@@ -84,9 +91,6 @@ namespace DCE_Manager
             BaseName.Text = words[2];
             CampaignName.Text = OldNameCamp + "-" + planeFIX.Text;
             string NewdNameCamp = CampaignName.Text;
-
-            CloneCampaign.path = path;
-            CloneCampaign.OldNameCamp = OldNameCamp;
         }
 
         public void LoadLuaData(string OldNameCamp)
@@ -108,8 +112,8 @@ namespace DCE_Manager
             Main_Form.Instance.CampaignView.textBox_Bugs.Text = "";
             Main_Form.Instance.CampaignView.tabPage12.Text = "Bugs";
 
-            //Pour représenter la table Lua donnée en C#, il est généralement préférable d'utiliser une structure de données 
-            //qui offre la flexibilité de stocker des paires clé-valeur, similaire aux tables en Lua. 
+            //Pour représenter la table Lua donnée en C#, il est généralement préférable d'utiliser une structure de données
+            //qui offre la flexibilité de stocker des paires clé-valeur, similaire aux tables en Lua.
             //    En C#, le type de données le plus approprié pour cela est le Dictionary<TKey, TValue>.
 
             Lua lua = new Lua();
@@ -141,7 +145,7 @@ namespace DCE_Manager
                 //TODO ajouter SelectedItem ici
             }
 
-           
+
 
 
             //*************************************************************************
@@ -466,7 +470,7 @@ namespace DCE_Manager
                                     }
 
                                 } // fin foreach 3
-                                
+
                             }
                         }// fileExist()
                     }
@@ -474,12 +478,12 @@ namespace DCE_Manager
 
 
             }   ////PARSE LEs FICHIERs //oob_air_init et //oob_air
-        
+
         }
         */
 
         private void Modifier_camp_init(string newCampaignPath)
-        {          
+        {
             string pathFile = newCampaignPath + @"\Init\camp_init.lua";
             string pathFileTemp = newCampaignPath + @"\Init\camp_init_TEMP.lua";
 
@@ -532,7 +536,7 @@ namespace DCE_Manager
                     // Mettre à jour les propriétés Player et Squad_Inactive
                     squad.Player = true;
                     squad.Squad_Inactive = false;
-                    
+
                 }
                 else
                 {
@@ -557,7 +561,7 @@ namespace DCE_Manager
                     string line;
                     int i = 1;
                     while ((line = reader.ReadLine()) != null)
-                    {                     
+                    {
                         if (line.Contains("--[["))
                         {
                             commentaireON = true;
@@ -619,12 +623,12 @@ namespace DCE_Manager
 
                         //if (line.IndexOf("EC 1/12") > -1)
                         //{
-                        //    //bla 
+                        //    //bla
                         //    commentaireLigne = commentaireLigne;
                         //}
 
 
-                        
+
                         if (line.Contains("--[["))
                         {
                             commentaireON = true;
@@ -637,7 +641,7 @@ namespace DCE_Manager
                         }
 
                         //cherche si c'est une ligne commenté (en début de ligne ou plus loin)
-                        
+
                         int pos = line.IndexOf("--");
 
                         if (pos == 0)
@@ -650,7 +654,7 @@ namespace DCE_Manager
                             string CopyLine = line;
                             CopyLine = CopyLine.Substring(0, pos);
                             CopyLine = CopyLine.Replace("\t", "");
-                            
+
                             line = CopyLine;
                         if (CopyLine.Length <= 0)
                             {
@@ -658,12 +662,12 @@ namespace DCE_Manager
                                 //MessageBox.Show("Passe found commentaire " + line, "|" + CopyLine + "|");
                             }
                         }
-                        
+
                         //debut d'une TABLE
                         //if (!commentaireLigne && !commentaireON && line.Contains("{") && line.Contains("="))
                         if ( !commentaireON && line.Contains("{") )
                         {
-                            
+
                             ChapitreProf++;
                             if (line.Contains("="))
                             {
@@ -758,7 +762,7 @@ namespace DCE_Manager
                                 FormUtils.LogRegister("Form3_Creation_Campagne cherche le squad ((wordSquad[1]): |" + wordSquad[1] + "| " + " |" + CloneCampaign.SquadName + "|");
 
                                 if (wordSquad[1] == CloneCampaign.SquadName)
-                                { 
+                                {
                                     foundSquadChapter = NameChapter[ChapitreProf];
                                     squadNameLigneId = i;
                                     lineSquadName = line;
@@ -807,7 +811,7 @@ namespace DCE_Manager
                     while ((line = reader.ReadLine()) != null)
                     {
                         bool commentaireLigne = false;
-                        
+
                         if (line.Contains("--[["))
                         {
                             commentaireON = true;
@@ -963,7 +967,7 @@ namespace DCE_Manager
                                     //break;
                                 }
                                 // a revoir
-                                //quand la fin de la table action est passé 
+                                //quand la fin de la table action est passé
                                 if (ChapitreProf < foundActionProf)
                                 {
                                     foundActionProf = 0;
@@ -1016,7 +1020,7 @@ namespace DCE_Manager
                                 string[] wordsB = wordsA[1].Split(')');
                                 string[] wordsC = wordsB[0].Split(',');
                                 string reserveSquad = wordsC[0];
-                                
+
                                 reserveSquad = reserveSquad.Replace("\"", "");
 
                                 reserveSquad = reserveSquad.TrimStart();
@@ -1122,7 +1126,7 @@ namespace DCE_Manager
 
                         if (!commentaireLigne && !commentaireON)
                         {
-                            //cherche le core module avion 
+                            //cherche le core module avion
                             if (foundModuleChapterTotal)
                             {
                                 //string ligneModifiee = "        [\"FA-18C\"] = \"FA-18C\",";
@@ -1170,140 +1174,255 @@ namespace DCE_Manager
             }
         }
 
+        // ------------------------------------------------------------------
+        // CLONAGE : outils
+        // ------------------------------------------------------------------
+
+        // false = clone "propre" : la nouvelle campagne repart de zéro (Active, Debriefing et fichiers de
+        // fin de mission vidés). true = clone d'une campagne EN COURS : on garde tout l'historique
+        // (Active, Debriefing, fichiers de fin de mission). Debug est TOUJOURS vide dans le clone.
+        // Pas encore relié à un bouton : à brancher le jour où on proposera ce choix.
+        private bool _keepHistory = false;
+
+        // Fichiers à côté du dossier de campagne : <nom>.cmp, <nom>_first.miz, ...
+        private static readonly string[] SatelliteSuffixes = { ".cmp", "_first.miz", "_ongoing.miz", ".png" };
+
+        // Fichiers déposés par DCS à la racine du dossier de campagne à la fin d'une mission
+        // (ce sont eux qui font apparaître le bouton "debrief en attente").
+        private static readonly string[] EndOfMissionFiles =
+        {
+            "camp_status.lua", "MissionEventsLog.lua", "scen_destroyed.lua", "zoneSAR.lua", "Mission_LL_Positions.lua"
+        };
+
+        // true si le chemin relatif (par rapport à la racine de la campagne) est le dossier Debug ou est dedans.
+        private static bool IsUnderDebug(string relativePath)
+        {
+            return relativePath.Equals("Debug", StringComparison.OrdinalIgnoreCase) ||
+                   relativePath.StartsWith("Debug" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Copie tout le dossier de campagne SAUF le contenu de Debug (logs de l'auteur, inutiles dans un clone).
+        // Pas de try/catch par fichier : au moindre échec on remonte l'erreur, et le bouton Clone annule tout.
+        // Un clone auquel il manque des fichiers est pire qu'un clone refusé.
+        // (Remplace Main_Form.CopyFilesRecursively : son Replace() sur le chemin pouvait toucher plusieurs
+        // endroits du chemin, il avalait les erreurs, et il affichait un popup "Number of files copied".)
+        private static int CopyCampaignFolder(string sourcePath, string targetPath)
+        {
+            int copied = 0;
+            char[] seps = { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+
+            Directory.CreateDirectory(targetPath);
+
+            foreach (string dirPath in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
+            {
+                string rel = dirPath.Substring(sourcePath.Length).TrimStart(seps);
+                if (IsUnderDebug(rel)) continue;
+
+                Directory.CreateDirectory(Path.Combine(targetPath, rel));
+            }
+
+            foreach (string filePath in Directory.GetFiles(sourcePath, "*", SearchOption.AllDirectories))
+            {
+                string rel = filePath.Substring(sourcePath.Length).TrimStart(seps);
+                if (IsUnderDebug(rel)) continue;
+
+                File.Copy(filePath, Path.Combine(targetPath, rel), true);
+                copied++;
+            }
+
+            return copied;
+        }
+
+        // Vide un dossier, ou le crée s'il n'existe pas.
+        // (DeleteAllFilesInDirectory plante si le dossier n'existe pas, et DCE en a besoin ensuite.)
+        private static void EmptyOrCreateFolder(string folder)
+        {
+            if (Directory.Exists(folder))
+                FormUtils.DeleteAllFilesInDirectory(folder, false);
+            else
+                Directory.CreateDirectory(folder);
+        }
+
+        // Nettoyage final du clone, selon _keepHistory (voir plus haut).
+        private void CleanClonedFolder(string campaignFolder)
+        {
+            EmptyOrCreateFolder(Path.Combine(campaignFolder, "Debug"));
+
+            if (_keepHistory)
+            {
+                // Active et Debriefing doivent quand même exister
+                Directory.CreateDirectory(Path.Combine(campaignFolder, "Active"));
+                Directory.CreateDirectory(Path.Combine(campaignFolder, "Debriefing"));
+                return;
+            }
+
+            EmptyOrCreateFolder(Path.Combine(campaignFolder, "Active"));
+            EmptyOrCreateFolder(Path.Combine(campaignFolder, "Debriefing"));
+
+            foreach (string fileName in EndOfMissionFiles)
+            {
+                string filePath = Path.Combine(campaignFolder, fileName);
+                if (File.Exists(filePath)) File.Delete(filePath);
+            }
+        }
+
+        // Annule un clone raté : supprime le dossier et les fichiers voisins créés.
+        // Sans danger : avant de cloner, on a vérifié que rien de tout ça n'existait sous le nouveau nom.
+        private static void RollbackClone(string campaignsRoot, string newName)
+        {
+            try
+            {
+                string folder = Path.Combine(campaignsRoot, newName);
+                if (Directory.Exists(folder)) Directory.Delete(folder, true);
+
+                foreach (string suffix in SatelliteSuffixes)
+                {
+                    string file = Path.Combine(campaignsRoot, newName + suffix);
+                    if (File.Exists(file)) File.Delete(file);
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Clone | rollback incomplete : " + ex.Message);
+            }
+        }
+
         private async void button_clone_Click(object sender, EventArgs e)
         {
-            
-            if (System.IO.Directory.Exists(CloneCampaign.path))
+            if (comboPlaneChoice.SelectedItem == null || string.IsNullOrEmpty(CloneCampaign.SquadName))
             {
-                string path = CloneCampaign.path;
-
-                string OldNameCamp = CloneCampaign.OldNameCamp;
-                CampaignName.Text = CampaignName.Text.TrimStart();
-                CampaignName.Text = CampaignName.Text.TrimEnd();
-                string NewdNameCamp = CampaignName.Text;
-                NewdNameCamp = NewdNameCamp.Replace("/", "_");
-
-                string sourcePath = path + @"\" + OldNameCamp;
-                string targetPath = path + @"\" + NewdNameCamp;
-
-                string campaignPath_NewName = path + @"\" + NewdNameCamp;
-
-                FormUtils.LogRegister("campaignPath_NewName: " + campaignPath_NewName);
-                FormUtils.LogRegister("OldNameCamp :" + OldNameCamp);
-                FormUtils.LogRegister("NewdNameCamp :" + NewdNameCamp);
-
-                //evite l'écrasement d'une campagne déjà existante:
-                if (System.IO.Directory.Exists(targetPath))
-                {
-                    MessageBox.Show("Already existing campaign", "Attention");
-                }
-                else
-                {
-                    _form1.CopyFilesRecursively(sourcePath, targetPath);
-                    //Crisis in PG-Hornet-CVN.cmp
-                    sourcePath = path + @"\" + OldNameCamp + ".cmp";
-                    targetPath = path + @"\" + NewdNameCamp + ".cmp";
-
-
-                    try
-                    {
-                        // Copier le fichier
-                        File.Copy(sourcePath, targetPath, true);
-
-                        // Attendre un moment pour s'assurer que l'opération de copie est terminée
-                        Thread.Sleep(500); // Vous pouvez ajuster cette valeur en fonction de vos besoins
-
-                        // Vérifier l'accès au fichier avant de l'éditer
-                        if (FormUtils.IsFileReady(targetPath))
-                        {
-                            // Éditer le fichier ici
-                            //MessageBox.Show("File is ready for editing.");
-                            // Par exemple, vous pouvez ouvrir et modifier le fichier
-                            //using (StreamWriter writer = new StreamWriter(targetPath, true))
-                            //{
-                            //    writer.WriteLine("New content added.");
-                            //}
-                        }
-                        else
-                        {
-                            MessageBox.Show("File is not ready for editing.");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Le fichier n'est pas prêt
-                        Console.WriteLine("File is not ready: " + ex.Message);
-                        //return false;
-                    }
-
-                    //Crisis in PG-Hornet-CVN_first.miz
-                    sourcePath = path + @"\" + OldNameCamp + "_first.miz";
-                    targetPath = path + @"\" + NewdNameCamp + "_first.miz";
-                    File.Copy(sourcePath, targetPath, true);
-
-                    //Crisis in PG - Hornet - CVN_ongoing.miz
-                    sourcePath = path + @"\" + OldNameCamp + "_ongoing.miz";
-                    targetPath = path + @"\" + NewdNameCamp + "_ongoing.miz";
-                    File.Copy(sourcePath, targetPath, true);
-
-                    //Crisis in PG-Hornet-CVN.png
-                    sourcePath = path + @"\" + OldNameCamp + ".png";
-                    targetPath = path + @"\" + NewdNameCamp + ".png";
-                    File.Copy(sourcePath, targetPath, true);
-
-                    //creation du Dic Class squad***
-                    // IMPORTANT : on utilise désormais Parser_OobAir (le même parseur que
-                    // Campaign_Edit_Grid_Right.cs pour l'édition normale) au lieu de l'ancien
-                    // CreateDicoClassSquad interne à ce formulaire. L'ancien parseur ne gérait
-                    // pas explicitement idSquad/humainOnly/displayReady/livery/callsign/
-                    // parking_id/sidenumber : ces champs finissaient dans AdditionalProperties
-                    // et ressortaient en double dans le fichier cloné, à côté de la propriété
-                    // typée correspondante. Parser_OobAir gère tout ça correctement, et se base
-                    // sur ParamConf.PATH_SavedGames_DCS comme référence unique de chemin.
-                    // CreateDicoClassSquad(_form1, path + @"\" + OldNameCamp, OldNameCamp);
-                    new Parser_OobAir().LoadCampaignSquads(OldNameCamp);
-
-                    //Modifier camp_init***
-                    //Modifier_camp_init(path + @"\" + NewdNameCamp);
-                    CloneHelper.UpdateCampInit(campaignPath_NewName, OldNameCamp, NewdNameCamp);
-
-                    //modifie dans Class Squad : Player, Squad, Active_Squad
-                    Modifier_ClassSquad();
-
-                    ////modifie player dans oob_air_init
-                    //Modifier_oob_air_init_PlayerFalse(path + @"\" + NewdNameCamp);
-
-                    ////modifie le squad dans oob_air_init
-                    //Modifier_oob_air_init_Squad(path + @"\" + NewdNameCamp);
-
-                    //modifie le squad dans les conditions de defaite dans camp_triggers_init
-                    Modifier_camp_triggers_init(path + @"\" + NewdNameCamp);
-
-                    //modifie le name campaign dans le fichier .cmd
-                    Modifier_CMD(path + @"\" + NewdNameCamp);
-
-                    //ecrit oob_air_init, a partir du DicClassSquad ***
-                    //CampaignSaver.Save(pathFile, pathFileBackup, folderName);
-                    Saver_Campaign.Save(path + @"\" + NewdNameCamp + @"\Init\oob_air_init.lua",null, "Init" );
-
-                    //Suppression des fichiers dans Active:
-                    FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Active", false);
-                    //Suppression des fichiers dans Debriefing:
-                    FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debriefing", false);
-                    //Suppression des fichiers dans Debug:
-                    FormUtils.DeleteAllFilesInDirectory(path + @"\" + NewdNameCamp + @"\Debug", false);
-
-                    CampaignHierarchy.OnCampaignCloned(OldNameCamp, NewdNameCamp);
-
-                    // Recharge la grid de gauche en se plaçant directement sur la campagne
-                    // fraîchement clonée (plus besoin de la rechercher dans la liste).
-                    await _form1.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: NewdNameCamp);
-
-                    CampaignHierarchy.OnCampaignCloned(OldNameCamp, NewdNameCamp);
-
-                    this.Close();
-                }              
+                MessageBox.Show("Please choose an aircraft and a squadron first.", "Clone");
+                return;
             }
+
+            if (!Directory.Exists(CloneCampaign.path))
+            {
+                MessageBox.Show("Campaigns folder not found:\r\n" + CloneCampaign.path, "Clone");
+                return;
+            }
+
+            string path = CloneCampaign.path;
+            string OldNameCamp = CloneCampaign.OldNameCamp;
+
+            // Nom de la nouvelle campagne : sans espaces autour, sans caractère interdit dans un nom de fichier.
+            // (Avant, seul "/" était remplacé, et le .cmp recevait l'ancien texte brut de la zone de saisie.)
+            string NewdNameCamp = CampaignName.Text.Trim();
+            foreach (char bad in Path.GetInvalidFileNameChars())
+            {
+                NewdNameCamp = NewdNameCamp.Replace(bad, '_');
+            }
+            NewdNameCamp = NewdNameCamp.TrimEnd('.', ' ');
+
+            if (NewdNameCamp == "")
+            {
+                MessageBox.Show("Please enter a name for the new campaign.", "Clone");
+                return;
+            }
+
+            CampaignName.Text = NewdNameCamp; // Modifier_CMD relit cette zone de saisie
+
+            string sourcePath = Path.Combine(path, OldNameCamp);
+            string targetPath = Path.Combine(path, NewdNameCamp);
+
+            FormUtils.LogRegister("Clone | source: " + sourcePath);
+            FormUtils.LogRegister("Clone | target: " + targetPath + " (keepHistory=" + _keepHistory + ")");
+
+            if (!Directory.Exists(sourcePath))
+            {
+                MessageBox.Show("Source campaign folder not found:\r\n" + sourcePath, "Clone");
+                return;
+            }
+
+            //evite l'écrasement d'une campagne déjà existante (dossier OU fichiers voisins restés d'un ancien clonage raté):
+            if (Directory.Exists(targetPath))
+            {
+                MessageBox.Show("Already existing campaign", "Attention");
+                return;
+            }
+
+            foreach (string suffix in SatelliteSuffixes)
+            {
+                if (File.Exists(Path.Combine(path, NewdNameCamp + suffix)))
+                {
+                    MessageBox.Show("A file called '" + NewdNameCamp + suffix + "' already exists in the campaigns folder.\r\n" +
+                                    "Please choose another name, or delete this file.", "Attention");
+                    return;
+                }
+            }
+
+            List<string> missingFiles = new List<string>();
+
+            try
+            {
+                int copied = CopyCampaignFolder(sourcePath, targetPath);
+                FormUtils.LogRegister("Clone | " + copied + " files copied in the campaign folder");
+
+                // Crisis in PG-Hornet-CVN.cmp, _first.miz, _ongoing.miz, .png
+                // Un fichier absent à la source (ex: pas de .png) n'empêche plus le clonage : il est signalé à la fin.
+                foreach (string suffix in SatelliteSuffixes)
+                {
+                    string src = Path.Combine(path, OldNameCamp + suffix);
+                    string dst = Path.Combine(path, NewdNameCamp + suffix);
+
+                    if (File.Exists(src))
+                        File.Copy(src, dst, false);
+                    else
+                        missingFiles.Add(OldNameCamp + suffix);
+                }
+
+                //creation du Dic Class squad***
+                // IMPORTANT : on utilise désormais Parser_OobAir (le même parseur que
+                // Campaign_Edit_Grid_Right.cs pour l'édition normale) au lieu de l'ancien
+                // CreateDicoClassSquad interne à ce formulaire. L'ancien parseur ne gérait
+                // pas explicitement idSquad/humainOnly/displayReady/livery/callsign/
+                // parking_id/sidenumber : ces champs finissaient dans AdditionalProperties
+                // et ressortaient en double dans le fichier cloné, à côté de la propriété
+                // typée correspondante. Parser_OobAir gère tout ça correctement, et se base
+                // sur ParamConf.PATH_SavedGames_DCS comme référence unique de chemin.
+                new Parser_OobAir().LoadCampaignSquads(OldNameCamp);
+
+                //Modifier camp_init***
+                CloneHelper.UpdateCampInit(targetPath, OldNameCamp, NewdNameCamp);
+
+                //modifie dans Class Squad : Player, Squad, Active_Squad
+                Modifier_ClassSquad();
+
+                //modifie le squad dans les conditions de defaite dans camp_triggers_init
+                Modifier_camp_triggers_init(targetPath);
+
+                //modifie le name campaign dans le fichier .cmd
+                Modifier_CMD(targetPath);
+
+                //ecrit oob_air_init, a partir du DicClassSquad ***
+                Saver_Campaign.Save(Path.Combine(targetPath, "Init", "oob_air_init.lua"), null, "Init");
+
+                // Debug vidé; Active, Debriefing et fichiers de fin de mission vidés aussi, sauf si _keepHistory
+                CleanClonedFolder(targetPath);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Clone | FAILED : " + ex);
+                RollbackClone(path, NewdNameCamp);
+
+                MessageBox.Show("The clone failed and was cancelled. Nothing was created.\r\n\r\n" + ex.Message, "Clone");
+                return;
+            }
+
+            if (missingFiles.Count > 0)
+            {
+                FormUtils.LogRegister("Clone | missing in source : " + string.Join(", ", missingFiles));
+
+                MessageBox.Show("The campaign was cloned, but these files do not exist in the original campaign and were not copied:\r\n\r\n" +
+                                string.Join("\r\n", missingFiles), "Clone");
+            }
+
+            CampaignHierarchy.OnCampaignCloned(OldNameCamp, NewdNameCamp);
+
+            // Recharge la grid de gauche en se plaçant directement sur la campagne
+            // fraîchement clonée (plus besoin de la rechercher dans la liste).
+            await _form1.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: NewdNameCamp);
+
+            this.Close();
         }
 
         private void comboPlaneChoice_SelectedIndexChanged(object sender, EventArgs e)

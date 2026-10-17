@@ -59,6 +59,10 @@ namespace DCE_Manager
         private ucWargameZoneEditPanel _editPanel;
         private ucWargameAxisPanel _axisPanel;
 
+        // Liste d'axes en cours d'édition : c'est elle qui fait foi. WargameZoneRepository.State
+        // est remplacé à chaque LoadOrGenerateInit (Save, tests...), pas cette liste.
+        private List<WargameAxis> _axes = new List<WargameAxis>();
+
         private RadioButton _radioInit;
         private RadioButton _radioActive;
         private Button _buttonSave;
@@ -175,9 +179,11 @@ namespace DCE_Manager
 
             _objectives = File.Exists(targetlistPath) ? new Parser_WargameObjectives().Load(targetlistPath) : new List<WargameObjective>();
 
-            // Axes : ceux de l'Init (WargameZoneRepository.State), éditables seulement en vue Init
-            _axisPanel.Bind(WargameZoneRepository.State.Axes, _zones, !_viewingActive);
-            _mapView.SetAxes(WargameZoneRepository.State.Axes);
+            // Axes : ceux de l'Init, éditables seulement en vue Init. On garde la liste dans
+            // _axes : elle reste la même même si State est remplacé plus tard.
+            _axes = WargameZoneRepository.State.Axes;
+            _axisPanel.Bind(_axes, _zones, !_viewingActive);
+            _mapView.SetAxes(_axes);
         }
 
         private void BuildUi()
@@ -196,8 +202,10 @@ namespace DCE_Manager
             _axisPanel = new ucWargameAxisPanel { Dock = DockStyle.Fill, Visible = false };
             _axisPanel.AxesChanged += () => { _dirty = true; _mapView.Invalidate(); };
             _axisPanel.SelectedAxisChanged += axis => { _mapView.SelectedAxis = axis; };
-            _axisPanel.PickZoneRequested += isStart =>
-                _mapView.BeginPickZone(zone => _axisPanel.SetPickedZone(isStart, zone.Id));
+            _axisPanel.PickZoneRequested += request =>
+                _mapView.BeginPickZone(zone => _axisPanel.SetPickedZone(request, zone.Id));
+            _axisPanel.HighlightZoneRequested += zoneId => _mapView.HighlightAxisZone(zoneId);
+            _mapView.ZonePickCancelled += () => _axisPanel.EndPick();
 
             _bulkPanel = BuildBulkAssignPanel();
 
@@ -292,6 +300,9 @@ namespace DCE_Manager
             var buttonAxes = new Button { Text = "Axes...", Width = 90, Height = 30 };
             buttonAxes.Click += (s, e) => ToggleAxisPanel();
             secondaryButtons.Controls.Add(buttonAxes);
+            var buttonPreview = new Button { Text = "Preview combat...", Width = 130, Height = 30 };
+            buttonPreview.Click += (s, e) => OpenCombatPreview();
+            secondaryButtons.Controls.Add(buttonPreview);
             secondaryButtons.Controls.Add(buttonCreateWarzone);
 
             var saveRow = new Panel { Dock = DockStyle.Fill };
@@ -446,7 +457,6 @@ namespace DCE_Manager
             };
             _bulkComboControl.Items.Add(_campaignInfo.BlueLabel);
             _bulkComboControl.Items.Add(_campaignInfo.RedLabel);
-            _bulkComboControl.Items.Add("Contested");
 
             var buttonApply = new Button
             {
@@ -560,12 +570,36 @@ namespace DCE_Manager
             base.OnFormClosing(e);
         }
 
+        // Remet dans State ce que l'éditeur a en mémoire. State peut avoir été remplacé par un
+        // rechargement depuis le disque (Save, Test spawn solver...) :
+        //  - les axes : l'éditeur a la bonne liste, pas le fichier
+        //  - le compteur d'identifiants : jamais en dessous du plus grand id déjà utilisé
+        private void SyncStateFromEditor()
+        {
+            WargameZoneRepository.State.Axes = _axes;
+
+            int maxId = 0;
+            foreach (WargameZoneData zone in _zones)
+            {
+                foreach (WargameFormation f in zone.Formations)
+                {
+                    if (f.FormationId > maxId) maxId = f.FormationId;
+                }
+            }
+
+            if (WargameZoneRepository.State.NextFormationId <= maxId)
+                WargameZoneRepository.State.NextFormationId = maxId + 1;
+        }
+
         // Ecrit toujours dans la paire de fichiers du mode actuellement affiché -
         // jamais devine, jamais les deux à la fois.
         private void SaveZones(bool showConfirmation)
         {
             string target;
             List<string> placementFailures;
+
+            // Avant d'écrire : State doit refléter l'éditeur, pas un rechargement antérieur
+            SyncStateFromEditor();
 
             if (_viewingActive)
             {
@@ -586,6 +620,10 @@ namespace DCE_Manager
                     _objectives, BuildObjectiveDesiredSides());
                 target = "Init/wargame_zones_init.lua + Init/targetlist_init.lua";
             }
+
+            // Les écritures ci-dessus rechargent l'Init et remplacent State : on remet les axes
+            // et le compteur de l'éditeur pour que la suite de la session reste cohérente.
+            SyncStateFromEditor();
 
             _dirty = false;
 
@@ -816,6 +854,18 @@ namespace DCE_Manager
             }
 
             return inside;
+        }
+
+        // Simulation à blanc sur la vue affichée (Init ou Active, modifications non
+        // enregistrées comprises). Rien n'est écrit.
+        private void OpenCombatPreview()
+        {
+            using (var form = new WargameCombatPreview_Form(
+                _campaignName, _zones, _axes, _templateCatalog, _campaignInfo,
+                _mapImage, _calibration, _objectives))
+            {
+                form.ShowDialog(this);
+            }
         }
 
         private void DetectNeighbors()

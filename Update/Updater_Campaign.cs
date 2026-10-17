@@ -79,7 +79,7 @@ namespace DCE_Manager.Update
                     {
                         campaign.CampaignId = GetLuaStringValue(trim);
 
-                       
+
                         valueFound++;
                     }
                     else if (trim.StartsWith("repositoryUrl"))
@@ -544,7 +544,7 @@ namespace DCE_Manager.Update
 
         // Télécharge l'archive de la campagne.
         // Pourquoi : récupérer la dernière release avant installation.
-        public async Task<string> DownloadCampaign( CampaignInfo campaign, System.Windows.Forms.ProgressBar progressBar, 
+        public async Task<string> DownloadCampaign( CampaignInfo campaign, System.Windows.Forms.ProgressBar progressBar,
             Label label, Label labelCampaignDld_Pct, Label labelTitle)
         {
 
@@ -741,6 +741,21 @@ namespace DCE_Manager.Update
             }
         }
 
+        // Dossiers "session" d'une campagne : ils contiennent la partie en cours de l'auteur, on ne les installe pas.
+        private static readonly string[] SessionFolders = { "Active", "Debug", "Debriefing" };
+
+        // Vrai si fullPath est folder lui-même ou est dedans.
+        // On compare avec un séparateur final : "...\DCS.openbeta" ne doit pas passer pour "...\DCS".
+        private static bool IsInsideFolder(string fullPath, string folder)
+        {
+            char[] separators = new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
+            string root = Path.GetFullPath(folder).TrimEnd(separators);
+            string path = fullPath.TrimEnd(separators);
+
+            return path.Equals(root, StringComparison.OrdinalIgnoreCase) ||
+                   path.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        }
+
         // Installe une campagne téléchargée.
         // Pourquoi : permettre plusieurs versions d'une même campagne sans écraser les anciennes.
         public void ExtractCampaignZip(
@@ -759,6 +774,10 @@ namespace DCE_Manager.Update
 
             string campaignPathNewName = Path.Combine(savedGamesPath, campaignRootRelative);
 
+            int extractedCount = 0;
+            int failedCount = 0;
+            int unsafeCount = 0;
+
             using (ZipArchive archive = ZipFile.OpenRead(zipFile))
             {
                 foreach (ZipArchiveEntry entry in archive.Entries)
@@ -776,15 +795,6 @@ namespace DCE_Manager.Update
                         continue;
 
                     //----------------------------------------------------
-                    // On ignore Active / Debug / Debriefing
-                    //----------------------------------------------------
-
-                    bool isSpecialFolder =
-                        zipPath.Contains("/Active/") ||
-                        zipPath.Contains("/Debug/") ||
-                        zipPath.Contains("/Debriefing/");
-
-                    //----------------------------------------------------
                     // On ne garde que ce qui est dans DCS_SavedGames_Path
                     //----------------------------------------------------
 
@@ -795,15 +805,30 @@ namespace DCE_Manager.Update
 
                     //----------------------------------------------------
                     // Renommage automatique du dossier campagne
+                    // + repérage de Active / Debug / Debriefing
                     //----------------------------------------------------
 
                     string campaignPrefix = "Mods/tech/DCE/Missions/Campaigns/" + campaign.Name + "/";
 
+                    // Active / Debug / Debriefing : seulement le dossier de ce nom JUSTE sous la campagne.
+                    // Avant, tout chemin contenant "/Debug/" (ex: Doc/Debug/..., Templates/Active/...)
+                    // était ignoré en silence, n'importe où dans l'arborescence.
+                    bool isSpecialFolder = false;
+
                     if (relativePath.StartsWith(campaignPrefix))
                     {
+                        string insideCampaign = relativePath.Substring(campaignPrefix.Length);
+                        int slash = insideCampaign.IndexOf('/');
+
+                        if (slash > 0)
+                        {
+                            string firstFolder = insideCampaign.Substring(0, slash);
+                            isSpecialFolder = SessionFolders.Any(f => f.Equals(firstFolder, StringComparison.OrdinalIgnoreCase));
+                        }
+
                         relativePath = "Mods/tech/DCE/Missions/Campaigns/" +
                             campaign.Name + " " + campaign.LatestVersion +
-                            "/" + relativePath.Substring(campaignPrefix.Length);
+                            "/" + insideCampaign;
 
                     }
 
@@ -832,45 +857,81 @@ namespace DCE_Manager.Update
                         relativePath = $@"Mods/tech/DCE/Missions/Campaigns/{newNameCamp}.png";
                     }
 
-                    string destinationFile = Path.Combine(savedGamesPath, relativePath);
-
-                    
                     //----------------------------------------------------
-                    // Dossier
+                    // Chemin de destination, et protection Zip-Slip :
+                    // une entrée du zip ne doit jamais sortir de Saved Games.
                     //----------------------------------------------------
 
-                    //if (string.IsNullOrEmpty(entry.Name))
-                    //{
-                    //    Directory.CreateDirectory(destinationFile);
-                    //    continue;
-                    //}
+                    string destinationFile;
 
-                    if (string.IsNullOrEmpty(entry.Name))
+                    try
                     {
-                        // On crée toujours les dossiers, même Active, Debug ou Debriefing.
-                        Directory.CreateDirectory(destinationFile);
+                        destinationFile = Path.GetFullPath(Path.Combine(savedGamesPath, relativePath));
+                    }
+                    catch (Exception ex)
+                    {
+                        failedCount++;
+                        FormUtils.LogRegister("Campaign install | invalid path in the ZIP : " + entry.FullName + " : " + ex.Message);
+                        continue;
+                    }
+
+                    if (!IsInsideFolder(destinationFile, savedGamesPath))
+                    {
+                        unsafeCount++;
+                        FormUtils.LogRegister("Campaign install | unsafe path ignored : " + entry.FullName);
                         continue;
                     }
 
                     //----------------------------------------------------
-                    // Création du dossier parent
+                    // Dossier
+                    //----------------------------------------------------
+
+                    if (string.IsNullOrEmpty(entry.Name))
+                    {
+                        // On crée toujours les dossiers, même Active, Debug ou Debriefing.
+                        try
+                        {
+                            Directory.CreateDirectory(destinationFile);
+                        }
+                        catch (Exception ex)
+                        {
+                            failedCount++;
+                            FormUtils.LogRegister("Campaign install | cannot create folder " + destinationFile + " : " + ex.Message);
+                        }
+                        continue;
+                    }
+
+                    //----------------------------------------------------
+                    // Fichiers de Active / Debug / Debriefing : pas installés
                     //----------------------------------------------------
 
                     if (isSpecialFolder)
                         continue;
 
-                    Directory.CreateDirectory(
-                        Path.GetDirectoryName(destinationFile));
-
                     //----------------------------------------------------
-                    // Extraction
+                    // Extraction (une erreur sur un fichier n'arrête pas les autres)
                     //----------------------------------------------------
 
-                    entry.ExtractToFile(
-                        destinationFile,
-                        true);
+                    try
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
+
+                        entry.ExtractToFile(
+                            destinationFile,
+                            true);
+
+                        extractedCount++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failedCount++;
+                        FormUtils.LogRegister("Campaign install | cannot extract " + entry.FullName + " : " + ex.Message);
+                    }
                 }
             }
+
+            FormUtils.LogRegister("Campaign install | " + Path.GetFileName(zipFile) + " : " + extractedCount +
+                " installed, " + failedCount + " failed, " + unsafeCount + " unsafe path(s) ignored.");
 
             if (Directory.Exists(campaignPathNewName))
             {
@@ -878,6 +939,18 @@ namespace DCE_Manager.Update
                 string fileCmdPath = Path.Combine(campaignMainPath, newNameCamp + ".cmp");
                 CloneHelper.UpdateCmpFile(fileCmdPath, oldNameCamp, newNameCamp);
 
+                if (failedCount > 0 || unsafeCount > 0)
+                {
+                    MessageBox.Show(
+                        "The campaign was installed, but with problems:\r\n\r\n" +
+                        failedCount + " file(s) could not be installed.\r\n" +
+                        unsafeCount + " file(s) with an unsafe path were ignored.\r\n\r\n" +
+                        "See log.txt for details.",
+                        "Warning",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning
+                    );
+                }
             }
             else
             {
@@ -890,7 +963,6 @@ namespace DCE_Manager.Update
             }
 
         }
-
 
     }
 }

@@ -39,6 +39,10 @@ namespace DCE_Manager
         // valeur différente.
         public double ZoneEdgeMarginMeters = WargameSpawnSolver.DefaultZoneEdgeMarginMeters;
 
+        // Réglages d'équilibrage du combat : valeurs par défaut du code, surchargées par
+        // camp.wargame_config dans Init/camp_init.lua (voir ReadCombatConfig).
+        public WargameCombatConfig CombatConfig = new WargameCombatConfig();
+
         public static WargameCampaignInfo Load(string campaignName)
         {
             var info = new WargameCampaignInfo();
@@ -61,7 +65,7 @@ namespace DCE_Manager
         {
             if (control == WargameSide.Blue) return BlueLabel;
             if (control == WargameSide.Red) return RedLabel;
-            return "Contested";
+            return "Not set";
         }
 
         // Templates proposables pour une zone : ceux de son camp, ou les deux
@@ -147,11 +151,13 @@ namespace DCE_Manager
 
                     object marginRaw = wargameConfig["zone_edge_margin_meters"];
                     if (marginRaw != null
-                        && double.TryParse(marginRaw.ToString(), NumberStyles.Any, CultureInfo.InvariantCulture, out double margin)
+                        && double.TryParse(Convert.ToString(marginRaw, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out double margin)
                         && margin >= 0)
                     {
                         ZoneEdgeMarginMeters = margin;
                     }
+
+                    ReadCombatConfig(wargameConfig);
                 }
             }
             catch (Exception ex)
@@ -160,6 +166,73 @@ namespace DCE_Manager
                 // fichier illisible : on garde les libellés par défaut plutôt que de planter.
                 FormUtils.LogRegister("WargameCampaignInfo | erreur lecture camp_init.lua : " + ex.Message);
             }
+        }
+
+        // Chaque clé est facultative : absente, la valeur par défaut du code est gardée.
+        private void ReadCombatConfig(LuaTable cfg)
+        {
+            ReadNumber(cfg, "control_flip_threshold", ref CombatConfig.ControlFlipThreshold);
+            ReadNumber(cfg, "retreat_loss_fraction", ref CombatConfig.RetreatLossFraction);
+            ReadNumber(cfg, "cutoff_supply_factor", ref CombatConfig.CutOffSupplyFactor);
+            ReadNumber(cfg, "random_variance", ref CombatConfig.RandomVariance);
+            ReadNumber(cfg, "supply_recovery_rate", ref CombatConfig.SupplyRecoveryRate);
+            ReadNumber(cfg, "front_line_recovery_factor", ref CombatConfig.FrontLineRecoveryFactor);
+            ReadNumber(cfg, "engaged_recovery", ref CombatConfig.EngagedRecoveryFactor);
+            ReadNumber(cfg, "combat_attrition", ref CombatConfig.CombatAttrition);
+            ReadNumber(cfg, "influence_decay", ref CombatConfig.InfluenceDecay);
+            ReadBool(cfg, "advance_on_conquest", ref CombatConfig.AdvanceOnConquest);
+            ReadBool(cfg, "front_alignment", ref CombatConfig.FrontAlignmentEnabled);
+            ReadBool(cfg, "empty_zone_influence", ref CombatConfig.EmptyZoneInfluence);
+            ReadBool(cfg, "axis_reinforcement", ref CombatConfig.AxisReinforcement);
+
+            double dcsDepth = CombatConfig.DcsZoneDepth;
+            ReadNumber(cfg, "dcs_zone_depth", ref dcsDepth);
+            CombatConfig.DcsZoneDepth = (int)Math.Round(dcsDepth);
+
+            double maxPerZone = CombatConfig.MaxFormationsPerZone;
+            ReadNumber(cfg, "max_formations_per_zone", ref maxPerZone);
+            CombatConfig.MaxFormationsPerZone = Math.Max(1, (int)Math.Round(maxPerZone));
+
+            double hardCap = CombatConfig.MaxFormationsHard;
+            ReadNumber(cfg, "max_formations_hard", ref hardCap);
+            CombatConfig.MaxFormationsHard = Math.Max(1, (int)Math.Round(hardCap));
+
+            ReadNumber(cfg, "disband_below_fraction", ref CombatConfig.DisbandBelowFraction);
+
+            // Grilles (terrain et routes) : une colonne = une valeur par ligne
+            WargameConfigGrid.ReadColumn(cfg, "terrain", 1, CombatConfig.TerrainDefense, 0.5, 3.0);
+            WargameConfigGrid.ReadColumn(cfg, "supply_route", 1, CombatConfig.RouteRecovery, 0.0, 3.0);
+            WargameConfigGrid.ReadColumn(cfg, "supply_route", 2, CombatConfig.RouteCombat, 0.1, 3.0);
+
+            string air = cfg["air_superiority"]?.ToString();
+            if (!string.IsNullOrWhiteSpace(air))
+            {
+                air = air.Trim().ToLowerInvariant();
+                CombatConfig.AirSuperioritySide = (air == "blue" || air == "red") ? air : "";
+            }
+            ReadNumber(cfg, "air_superiority_bonus", ref CombatConfig.AirSuperiorityBonus);
+        }
+
+        private static void ReadNumber(LuaTable table, string key, ref double target)
+        {
+            object raw = table[key];
+            double value;
+
+            // Convert.ToString(..., InvariantCulture) : un double Lua 0.25 reste "0.25".
+            // Un simple raw.ToString() donne "0,25" sur un Windows en français, que le
+            // TryParse relit ensuite comme 25 (la virgule passe pour un séparateur de milliers).
+            if (raw != null
+                && double.TryParse(Convert.ToString(raw, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out value)
+                && value >= 0)
+            {
+                target = value;
+            }
+        }
+
+        private static void ReadBool(LuaTable table, string key, ref bool target)
+        {
+            if (table[key] is bool)
+                target = (bool)table[key];
         }
 
         private static List<string> ListTemplates(string folder)

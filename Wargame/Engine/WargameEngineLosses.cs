@@ -47,6 +47,7 @@ namespace DCE_Manager
             new WargameZoneActiveLoader().ApplyActiveState(WargameZoneRepository.GetActiveWargameZonesPath(campaignName), zones);
 
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
+           
             WargameTemplateCatalog catalog = WargameTemplateCatalog.LoadAndSync(campaignName, campaignInfo);
             WargameSpawnAreas spawnAreas = Saver_TargetList_Wargame.LoadSpawnAreas(campaignName);
             var rng = new Random();
@@ -85,7 +86,10 @@ namespace DCE_Manager
                 }
             }
 
+
             // ---- 2. Combat entre zones (axes actifs uniquement) ----
+
+            Dictionary<string, string> controlBefore = WargameEngineCombat.SnapshotControl(zones);   // <-- AJOUTER
 
             WargameCombatResult combat = new WargameCombatResult();
             try
@@ -93,13 +97,30 @@ namespace DCE_Manager
                 HashSet<string> activeFlags = WargameCampFlags.LoadActiveFlags(Path.Combine(campaignFolder, "Active", "camp_status.lua"));
                 List<WargameAxis> axes = WargameZoneRepository.State != null ? WargameZoneRepository.State.Axes : null;
 
-                combat = WargameEngineCombat.Resolve(zones, axes, activeFlags, WargameCombatConfig.Current, rng);
+                combat = WargameEngineCombat.Resolve(zones, axes, activeFlags, campaignInfo.CombatConfig, rng, catalog);
             }
             catch (Exception ex)
             {
                 // Le combat ne doit jamais empêcher la mission de se générer
                 FormUtils.LogRegister("WargameEngineCombat | échec de la résolution, combat ignoré ce tour : " + ex.Message);
                 combat = new WargameCombatResult();
+            }
+
+            // Formations trop affaiblies (après combat et repli) : dissoutes avant le ravitaillement
+            WargameEngineCombat.RemoveBrokenFormations(zones, catalog, campaignInfo.CombatConfig, combat);
+
+            WriteWargameOutputs(campaignFolder, zones, controlBefore, combat);   // <-- AJOUTER (remplace WriteReachedFlags)
+
+
+            // ---- 2b. Ravitaillement : les formations vivantes récupèrent de la force ----
+
+            try
+            {
+                WargameEngineCombat.ApplySupply(zones, catalog, campaignInfo.CombatConfig, combat);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("WargameEngineLosses | échec du ravitaillement, ignoré ce tour : " + ex.Message);
             }
 
             // ---- 3. Retrait / repose des blocs, dans la zone où chaque formation se trouve MAINTENANT ----
@@ -112,7 +133,10 @@ namespace DCE_Manager
             };
             Dictionary<string, int> nextIndexBySide = Saver_TargetList_Wargame.FindNextNumericIndexBySide(lines);
 
-            int refreshed = 0, degraded = 0, retired = 0;
+            // Zones jouées dans DCS : les formations ailleurs sont retirées de la targetlist (elles gardent leur force)
+            HashSet<string> dcsZones = WargameEngineCombat.FindDcsZones(zones, campaignInfo.CombatConfig.DcsZoneDepth);
+
+            int refreshed = 0, degraded = 0, retired = 0, parked = 0;
 
             foreach (WargameZoneData zone in zones)
             {
@@ -136,6 +160,14 @@ namespace DCE_Manager
                         continue; // épuisée (ou détruite par le combat), rien à reposer
                     }
 
+                    if (!dcsZones.Contains(zone.Id))
+                    {
+                        // Hors de la zone jouée (repli, ou front qui s'est éloigné) : plus d'unités en jeu
+                        RemoveOldBlock(blockByFormationId, formation, linesToRemove);
+                        parked++;
+                        continue;
+                    }
+
                     List<WargameTemplateUnit> layout = new Parser_WargameTemplateLayout()
                         .LoadLayout(campaignInfo.GetTemplateFilePath(formation.Template));
 
@@ -153,9 +185,13 @@ namespace DCE_Manager
                         layout = layout.Take(unitCount).ToList();
                     }
 
-                    int sectorIndex = zone.Formations.IndexOf(formation);
-                    int sectorCount = zone.Formations.Count;
-                    PointF? threatPoint = Saver_TargetList_Wargame.FindNearestEnemyZoneCenter(zone, formation.Side, zones);
+                    // Rang parmi les formations VIVANTES du même camp (les mortes et celles de l'autre camp ne prennent pas de secteur)
+                    List<WargameFormation> mates = zone.Formations.Where(x => x.ForcePower > 0 && x.Side == formation.Side).ToList();
+                    int sectorIndex = Math.Max(0, mates.IndexOf(formation));
+                    int sectorCount = Math.Max(1, mates.Count);
+
+                    // Orientation : vers la zone ennemie que la formation attaque ou garde (voir AllocateForces)
+                    PointF? threatPoint = FindFacingPoint(zone, formation, zones, combat);
 
                     List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount);
                     if (placed == null)
@@ -196,11 +232,45 @@ namespace DCE_Manager
                 MoveObjectivesOfFlippedZones(activePath, zones, combat.FlippedZones);
 
             FormUtils.LogRegister("WargameEngineLosses | " + campaignName + " : " + refreshed + " rafraîchie(s), "
-                + degraded + " dégradée(s), " + retired + " épuisée(s)"
+                                + degraded + " dégradée(s), " + retired + " épuisée(s), " + parked + " rangée(s) hors DCS"
                 + (combat.FlippedZones.Count > 0 || combat.Destroyed > 0
                     ? " | combat : " + combat.FlippedZones.Count + " zone(s) basculée(s), "
-                      + combat.MovedFormationIds.Count + " repli(s), " + combat.Destroyed + " détruite(s)"
+                     + (combat.MovedFormationIds.Count - combat.Advanced) + " repli(s), " + combat.Advanced + " avance(s), " + combat.Destroyed + " détruite(s)"
                     : ""));
+        }
+
+        // Flags (relus par DEBRIEF_Master.lua) et rapport du tour, réécrits à chaque tour.
+        private static void WriteWargameOutputs(string campaignFolder, List<WargameZoneData> zones,
+            Dictionary<string, string> controlBefore, WargameCombatResult combat)
+        {
+            try
+            {
+                string active = Path.Combine(campaignFolder, "Active");
+                File.WriteAllLines(Path.Combine(active, "wargame_flags.txt"), WargameEngineCombat.BuildFlagLines(zones, combat));
+                File.WriteAllLines(Path.Combine(active, "wargame_report.txt"), WargameEngineCombat.BuildReport(zones, controlBefore, combat));
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("WargameEngineLosses | flags/rapport non écrits : " + ex.Message);
+            }
+        }
+
+        // Point vers lequel la formation est tournée dans DCS : la zone ennemie qu'elle attaque ou garde.
+        // Si le moteur n'en a pas retenu (ou si elle est périmée), on retombe sur la zone ennemie la plus proche.
+        private static PointF? FindFacingPoint(WargameZoneData zone, WargameFormation formation,
+            List<WargameZoneData> zones, WargameCombatResult combat)
+        {
+            string facingId;
+            if (combat.FacingZoneByFormationId.TryGetValue(formation.FormationId, out facingId))
+            {
+                WargameZoneData facing = zones.FirstOrDefault(z => string.Equals(z.Id, facingId, StringComparison.OrdinalIgnoreCase));
+
+                if (facing != null && facing != zone
+                    && !string.Equals(facing.Control, formation.Side, StringComparison.OrdinalIgnoreCase))
+                    return facing.Center;
+            }
+
+            return Saver_TargetList_Wargame.FindNearestEnemyZoneCenter(zone, formation.Side, zones);
         }
 
         private static void RemoveOldBlock(Dictionary<int, TargetListBlock> blockByFormationId, WargameFormation formation, HashSet<int> linesToRemove)

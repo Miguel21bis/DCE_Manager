@@ -36,9 +36,6 @@ namespace DCE_Manager
         private DataGridViewComboBoxColumn _colTemplate;
         private Label _labelTotalStock;
 
-        private CheckBox _checkIrregularActive;
-        private NumericUpDown _numResidualStock;
-
         private NumericUpDown _numResupplyModifier;
         private NumericUpDown _numSupplySource;
         private ComboBox _comboSupplyRoute;
@@ -51,7 +48,7 @@ namespace DCE_Manager
         // de largeur (voir ApplyLayout) : dans un FlowLayoutPanel TopDown, les
         // enfants ne suivent pas tout seuls la largeur du conteneur.
         private FlowLayoutPanel _flow;
-        private GroupBox _groupControl, _groupUnits, _groupIrregular, _groupResupply, _groupTerrain, _groupNeighbors;
+        private GroupBox _groupControl, _groupUnits, _groupResupply, _groupTerrain, _groupNeighbors;
 
         public ucWargameZoneEditPanel()
         {
@@ -72,7 +69,7 @@ namespace DCE_Manager
             int width = _flow.ClientSize.Width - 28; // marge + barre de défilement éventuelle
             if (width < 250) width = 250;
 
-            foreach (GroupBox g in new[] { _groupControl, _groupUnits, _groupIrregular, _groupResupply, _groupTerrain, _groupNeighbors })
+            foreach (GroupBox g in new[] { _groupControl, _groupUnits, _groupResupply, _groupTerrain, _groupNeighbors })
             {
                 if (g != null) g.Width = width;
             }
@@ -103,11 +100,10 @@ namespace DCE_Manager
             if (_campaignInfo == null)
                 return;
 
-            // On affiche les libellés (US / Iran / Contested), la valeur interne
-            // (blue / red / contested) est retrouvée par position dans la liste.
+            // On affiche les libellés (US / Iran), la valeur interne (blue / red)
+            // est retrouvée par position dans la liste.
             _comboControl.Items.Add(_campaignInfo.BlueLabel);
             _comboControl.Items.Add(_campaignInfo.RedLabel);
-            _comboControl.Items.Add("Contested");
         }
 
         private string ControlFromComboIndex(int index)
@@ -124,7 +120,7 @@ namespace DCE_Manager
         {
             if (control == WargameSide.Blue) return 0;
             if (control == WargameSide.Red) return 1;
-            return 2;
+            return -1;   // zone pas encore réglée : liste vide
         }
 
         // -------------------- Chargement --------------------
@@ -159,12 +155,6 @@ namespace DCE_Manager
                 RefreshTemplateChoices();
                 LoadFormationsGrid();
 
-                _checkIrregularActive.Checked = _zone.Irregular != null && _zone.Irregular.Active;
-                _numResidualStock.Enabled = _checkIrregularActive.Checked;
-                _numResidualStock.Value = _zone.Irregular != null
-                    ? Clamp(_zone.Irregular.ResidualStock, _numResidualStock)
-                    : 0;
-
                 _numResupplyModifier.Value = Math.Max(_numResupplyModifier.Minimum,
                     Math.Min(_numResupplyModifier.Maximum, (decimal)_zone.ResupplyModifier));
 
@@ -183,11 +173,6 @@ namespace DCE_Manager
             }
         }
 
-        private static decimal Clamp(int value, NumericUpDown numeric)
-        {
-            return Math.Max(numeric.Minimum, Math.Min(numeric.Maximum, value));
-        }
-
         private void SetZoneControlsEnabled(bool enabled)
         {
             foreach (Control c in Controls)
@@ -197,8 +182,8 @@ namespace DCE_Manager
         // -------------------- Force groups --------------------
 
         // Les templates proposés dépendent du camp de la zone : une zone tenue par
-        // le camp bleu ne propose que Templates/wargame_blue, une zone contestée
-        // propose les deux.
+        // le camp bleu ne propose que Templates/wargame_blue. Une zone dont le camp
+        // n'est pas encore réglé propose les deux.
         private void RefreshTemplateChoices()
         {
             _colTemplate.Items.Clear();
@@ -536,35 +521,6 @@ namespace DCE_Manager
             ZoneModified?.Invoke();
         }
 
-        private void CheckIrregularActive_CheckedChanged(object sender, EventArgs e)
-        {
-            if (_loading || _zone == null) return;
-
-            _numResidualStock.Enabled = _checkIrregularActive.Checked;
-
-            if (_checkIrregularActive.Checked)
-            {
-                if (_zone.Irregular == null)
-                    _zone.Irregular = new WargameIrregularMarker();
-
-                _zone.Irregular.Active = true;
-            }
-            else if (_zone.Irregular != null)
-            {
-                _zone.Irregular.Active = false;
-            }
-
-            ZoneModified?.Invoke();
-        }
-
-        private void NumResidualStock_ValueChanged(object sender, EventArgs e)
-        {
-            if (_loading || _zone == null || _zone.Irregular == null) return;
-
-            _zone.Irregular.ResidualStock = (int)_numResidualStock.Value;
-            ZoneModified?.Invoke();
-        }
-
         private void NumResupplyModifier_ValueChanged(object sender, EventArgs e)
         {
             if (_loading || _zone == null) return;
@@ -656,7 +612,7 @@ namespace DCE_Manager
             _groupControl = groupControl;
             _comboControl = new ComboBox
             {
-                DropDownStyle = ComboBoxStyle.DropDownList, // liste fermée : 3 valeurs possibles
+                DropDownStyle = ComboBoxStyle.DropDownList, // liste fermée : 2 valeurs possibles (camp bleu / rouge)
                 Location = new Point(10, 22),
                 Width = 260,
             };
@@ -737,39 +693,6 @@ namespace DCE_Manager
             groupFormations.Controls.Add(_labelTotalStock);
 
             flow.Controls.Add(groupFormations);
-
-            // ---- Irregular (asymmetric mode) ----
-            var groupIrregular = new GroupBox { Text = "Irregular (asymmetric mode)", Width = 300, Height = 110 };
-            _groupIrregular = groupIrregular;
-
-            _checkIrregularActive = new CheckBox
-            {
-                Text = "Active",
-                Location = new Point(10, 22),
-                AutoSize = true,
-            };
-            _checkIrregularActive.CheckedChanged += CheckIrregularActive_CheckedChanged;
-
-            var labelResidual = new Label
-            {
-                Text = "Residual stock",
-                Location = new Point(10, 52),
-                AutoSize = true,
-            };
-
-            _numResidualStock = new NumericUpDown
-            {
-                Location = new Point(120, 48),
-                Width = 80,
-                Minimum = 0,
-                Maximum = 9999,
-            };
-            _numResidualStock.ValueChanged += NumResidualStock_ValueChanged;
-
-            groupIrregular.Controls.Add(_checkIrregularActive);
-            groupIrregular.Controls.Add(labelResidual);
-            groupIrregular.Controls.Add(_numResidualStock);
-            flow.Controls.Add(groupIrregular);
 
             // ---- Supply ----
             var groupResupply = new GroupBox { Text = "Supply", Width = 300, Height = 120 };

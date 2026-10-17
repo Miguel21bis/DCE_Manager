@@ -7,47 +7,71 @@ using System.Windows.Forms;
 
 namespace DCE_Manager
 {
+    // Ce que le campaignMaker est en train de choisir sur la carte
+    internal enum AxisPick { Start, End, WaypointAdd, WaypointChange }
+
+    // Une demande de choix de zone sur la carte : pour quel axe, quel rôle, quelle étape
+    internal class AxisPickRequest
+    {
+        public WargameAxis Axis;
+        public AxisPick Kind;
+        public int WaypointIndex;   // seulement pour WaypointChange
+    }
+
     // Panneau d'édition des axes de progression (WargameState.Axes).
     // A placer dans Wargame\UI\.
     //
-    // Un axe = une zone de départ (A) + une zone objectif (B). Le chemin entre les
-    // deux est calculé tout seul (WargameAxisPathFinder), le campaignMaker ne le
-    // saisit jamais. Un axe devient actif en jeu quand le flag de campagne qu'on lui
-    // donne ici est posé par un trigger de camp_triggers_init.lua (bouton "Copy trigger").
+    // Un axe = une zone de départ (Start) + des étapes obligées (Waypoints, optionnelles,
+    // dans l'ordre voulu) + une zone objectif (Objective). Le chemin entre les points est
+    // calculé tout seul (WargameAxisPathFinder), le campaignMaker ne le saisit jamais.
+    // Un axe devient actif en jeu quand le flag de campagne qu'on lui donne ici est posé
+    // par un trigger de camp_triggers_init.lua (bouton "Copy trigger").
     //
-    // Le panneau modifie directement les objets WargameAxis de la liste reçue dans
-    // Bind() ; l'écriture disque est gérée par la Form (Save -> Init).
+    // Tous les axes sont affichés d'un coup, une "carte" par axe. Le panneau modifie
+    // directement les objets WargameAxis de la liste reçue dans Bind() ; l'écriture disque
+    // est gérée par la Form (Save -> Init).
     internal class ucWargameAxisPanel : UserControl
     {
+        // Mêmes couleurs, dans le même ordre, que sur la carte (ucWargameMapView.AxisColors)
+        private static readonly Color[] AxisColors = { Color.Lime, Color.Gold, Color.Aqua, Color.HotPink, Color.MediumPurple };
+
         private List<WargameAxis> _axes = new List<WargameAxis>();
         private List<WargameZoneData> _zones = new List<WargameZoneData>();
         private bool _editable = true;
 
-        // true pendant qu'on remplit les champs depuis l'axe, pour ne pas
-        // redéclencher les handlers de changement
-        private bool _loading;
+        // Reconstruction demandée mais pas encore faite (on reconstruit APRES le clic en cours,
+        // pour ne jamais détruire le bouton sur lequel on vient de cliquer)
+        private bool _rebuildPending;
+
+        // Axe à faire apparaître à l'écran après la prochaine reconstruction (axe qu'on vient d'ajouter)
+        private WargameAxis _scrollToAxis;
 
         // Un axe a été modifié par l'utilisateur (la Form passe en "dirty" et redessine)
         public event Action AxesChanged;
 
-        // L'axe sélectionné dans la liste a changé (la carte le met en évidence)
+        // L'utilisateur a travaillé sur cet axe (la carte le met en évidence)
         public event Action<WargameAxis> SelectedAxisChanged;
 
-        // true = l'utilisateur veut choisir la zone de départ (A) sur la carte, false = l'arrivée (B)
-        public event Action<bool> PickZoneRequested;
+        // L'utilisateur veut choisir une zone sur la carte
+        public event Action<AxisPickRequest> PickZoneRequested;
 
+        // L'utilisateur a cliqué une ligne : la carte met cette zone en évidence
+        public event Action<string> HighlightZoneRequested;
+
+        private Label _lblTitle;
         private Label _lblNote;
-        private ListBox _lstAxes;
-        private Button _btnAdd, _btnRemove, _btnPickStart, _btnPickEnd, _btnCopyTrigger;
-        private TextBox _txtName, _txtStart, _txtEnd, _txtFlag;
-        private Label _lblInfo;
+        private Panel _scroll;
+        private Button _btnAddAxis;
+        private readonly ToolTip _tip = new ToolTip { ShowAlways = true };
+        private readonly Font _fontBold = new Font("Segoe UI", 9.5f, FontStyle.Bold);
+        private readonly Font _fontSymbol = new Font("Segoe UI Symbol", 8f);
 
         public ucWargameAxisPanel()
         {
             BuildUi();
             Resize += (s, e) => ApplyLayout();
             ApplyLayout();
-            LoadAxisFields();
+            ShowNormalNote();
         }
 
         // -------------------- API pour la Form --------------------
@@ -60,232 +84,211 @@ namespace DCE_Manager
             _zones = zones ?? new List<WargameZoneData>();
             _editable = editable;
 
-            RefreshList(_axes.Count > 0 ? 0 : -1);
+            ShowNormalNote();
+            Rebuild();
+
+            SelectedAxisChanged?.Invoke(_axes.Count > 0 ? _axes[0] : null);
         }
 
         // A appeler quand les voisins des zones ont pu changer : les chemins sont recalculés.
         public void RefreshPaths()
         {
             foreach (WargameAxis axis in _axes)
-                axis.Path = WargameAxisPathFinder.FindPath(_zones, axis.StartZoneId, axis.EndZoneId);
+                RecomputePath(axis);
 
-            int keep = _lstAxes.SelectedIndex;
-            RefreshList(keep);
+            RebuildLater();
         }
 
         // Réponse à PickZoneRequested : la zone cliquée sur la carte.
-        public void SetPickedZone(bool isStart, string zoneId)
+        public void SetPickedZone(AxisPickRequest request, string zoneId)
         {
-            WargameAxis axis = CurrentAxis;
-            if (axis == null || !_editable) return;
+            WargameAxis axis = request == null ? null : request.Axis;
+            if (axis == null || !_editable || !_axes.Contains(axis))
+            {
+                EndPick();
+                return;
+            }
 
-            if (isStart) axis.StartZoneId = zoneId;
-            else axis.EndZoneId = zoneId;
+            // Une zone ne peut servir qu'une fois dans un même axe
+            if (IsZoneUsed(axis, zoneId, request))
+            {
+                ShowPickBanner("'" + zoneId + "' is already used by this axis. Pick another zone, or right-click to stop.");
+                PickZoneRequested?.Invoke(request);   // on reste en attente
+                return;
+            }
 
-            axis.Path = WargameAxisPathFinder.FindPath(_zones, axis.StartZoneId, axis.EndZoneId);
+            switch (request.Kind)
+            {
+                case AxisPick.Start:
+                    axis.StartZoneId = zoneId;
+                    break;
 
-            UpdateListItem(_lstAxes.SelectedIndex);
-            LoadAxisFields();
+                case AxisPick.End:
+                    axis.EndZoneId = zoneId;
+                    break;
+
+                case AxisPick.WaypointChange:
+                    if (request.WaypointIndex >= 0 && request.WaypointIndex < axis.ViaZoneIds.Count)
+                        axis.ViaZoneIds[request.WaypointIndex] = zoneId;
+                    break;
+
+                case AxisPick.WaypointAdd:
+                    axis.ViaZoneIds.Add(zoneId);
+                    break;
+            }
+
+            RecomputePath(axis);
+            SelectAxis(axis);
+            RebuildLater();
             AxesChanged?.Invoke();
-        }
 
-        private WargameAxis CurrentAxis
-        {
-            get
+            if (request.Kind == AxisPick.WaypointAdd)
             {
-                int index = _lstAxes.SelectedIndex;
-                return index >= 0 && index < _axes.Count ? _axes[index] : null;
+                // Ajout en série : on repart tout de suite en attente de la zone suivante
+                ShowPickBanner(axis.Name + ": waypoint " + axis.ViaZoneIds.Count + " added (" + zoneId
+                    + "). Click the next zone, or right-click to stop.");
+                PickZoneRequested?.Invoke(request);
             }
-        }
-
-        // -------------------- Liste --------------------
-
-        private static string AxisLabel(WargameAxis axis)
-        {
-            string from = string.IsNullOrEmpty(axis.StartZoneId) ? "?" : axis.StartZoneId;
-            string to = string.IsNullOrEmpty(axis.EndZoneId) ? "?" : axis.EndZoneId;
-            string state = axis.IsValid ? axis.Path.Count + " zones" : "no path";
-
-            return axis.Name + "   (" + from + " -> " + to + ", " + state + ")";
-        }
-
-        private void RefreshList(int selectIndex)
-        {
-            _loading = true;
-            try
-            {
-                _lstAxes.Items.Clear();
-
-                foreach (WargameAxis axis in _axes)
-                    _lstAxes.Items.Add(AxisLabel(axis));
-
-                if (selectIndex >= 0 && selectIndex < _lstAxes.Items.Count)
-                    _lstAxes.SelectedIndex = selectIndex;
-            }
-            finally
-            {
-                _loading = false;
-            }
-
-            LoadAxisFields();
-            SelectedAxisChanged?.Invoke(CurrentAxis);
-        }
-
-        private void UpdateListItem(int index)
-        {
-            if (index < 0 || index >= _axes.Count) return;
-
-            _loading = true;
-            try
-            {
-                _lstAxes.Items[index] = AxisLabel(_axes[index]);
-                _lstAxes.SelectedIndex = index;
-            }
-            finally
-            {
-                _loading = false;
-            }
-        }
-
-        private void LstAxes_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (_loading) return;
-
-            LoadAxisFields();
-            SelectedAxisChanged?.Invoke(CurrentAxis);
-        }
-
-        // -------------------- Champs --------------------
-
-        private void LoadAxisFields()
-        {
-            WargameAxis axis = CurrentAxis;
-            bool hasAxis = axis != null;
-            bool canEdit = hasAxis && _editable;
-
-            _loading = true;
-            try
-            {
-                _txtName.Text = hasAxis ? axis.Name : "";
-                _txtStart.Text = hasAxis ? axis.StartZoneId : "";
-                _txtEnd.Text = hasAxis ? axis.EndZoneId : "";
-                _txtFlag.Text = hasAxis ? axis.ActivationFlag : "";
-            }
-            finally
-            {
-                _loading = false;
-            }
-
-            _txtName.Enabled = canEdit;
-            _txtFlag.Enabled = canEdit;
-            _btnPickStart.Enabled = canEdit;
-            _btnPickEnd.Enabled = canEdit;
-            _btnAdd.Enabled = _editable;
-            _btnRemove.Enabled = canEdit;
-            _btnCopyTrigger.Enabled = hasAxis;
-
-            _lblNote.Text = _editable
-                ? "Pick A and B on the map: the path between them is computed from the zone neighbors."
-                : "Axes are defined in the Init view. Switch to Init to edit them.";
-
-            _lblInfo.Text = BuildInfoText(axis);
-        }
-
-        private static string BuildInfoText(WargameAxis axis)
-        {
-            if (axis == null)
-                return "No axis selected.";
-
-            var sb = new StringBuilder();
-
-            if (string.IsNullOrEmpty(axis.StartZoneId) || string.IsNullOrEmpty(axis.EndZoneId))
-                sb.AppendLine("Pick the start (A) and the end (B) zones on the map.");
-            else if (axis.IsValid)
-                sb.AppendLine("Path (" + axis.Path.Count + " zones): " + string.Join(" > ", axis.Path));
             else
-                sb.AppendLine("NO PATH between " + axis.StartZoneId + " and " + axis.EndZoneId
-                    + ". Check that the zones in between are linked as neighbors.");
-
-            sb.AppendLine();
-
-            if (string.IsNullOrWhiteSpace(axis.ActivationFlag))
-                sb.AppendLine("No flag: this axis will never be active.");
-            else
-                sb.AppendLine("Active when a trigger sets the flag \"" + axis.ActivationFlag.Trim()
-                    + "\". Use Copy trigger, then paste it in Init\\camp_triggers_init.lua.");
-
-            return sb.ToString();
+            {
+                EndPick();
+            }
         }
 
-        private void TxtName_TextChanged(object sender, EventArgs e)
+        // La carte a annulé le choix (clic droit) : on remet le message normal
+        public void EndPick()
         {
-            WargameAxis axis = CurrentAxis;
-            if (_loading || axis == null) return;
-
-            axis.Name = _txtName.Text;
-            UpdateListItem(_lstAxes.SelectedIndex);
-            AxesChanged?.Invoke();
+            ShowNormalNote();
         }
 
-        private void TxtFlag_TextChanged(object sender, EventArgs e)
+        // -------------------- Logique --------------------
+
+        private void SelectAxis(WargameAxis axis)
         {
-            WargameAxis axis = CurrentAxis;
-            if (_loading || axis == null) return;
-
-            axis.ActivationFlag = _txtFlag.Text.Trim();
-            _lblInfo.Text = BuildInfoText(axis);
-            AxesChanged?.Invoke();
+            SelectedAxisChanged?.Invoke(axis);
         }
 
-        // -------------------- Boutons --------------------
+        private void RecomputePath(WargameAxis axis)
+        {
+            axis.Path = WargameAxisPathFinder.FindPath(_zones, axis.StartZoneId, axis.ViaZoneIds, axis.EndZoneId);
+        }
 
-        private void ButtonAdd_Click(object sender, EventArgs e)
+        // La zone est-elle déjà prise par un autre rôle du même axe (départ, objectif, autre étape) ?
+        private static bool IsZoneUsed(WargameAxis axis, string zoneId, AxisPickRequest request)
+        {
+            bool Same(string other)
+            {
+                return string.Equals(other, zoneId, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (request.Kind != AxisPick.Start && Same(axis.StartZoneId)) return true;
+            if (request.Kind != AxisPick.End && Same(axis.EndZoneId)) return true;
+
+            for (int i = 0; i < axis.ViaZoneIds.Count; i++)
+            {
+                // L'étape qu'on est en train de remplacer ne compte pas
+                if (request.Kind == AxisPick.WaypointChange && i == request.WaypointIndex) continue;
+                if (Same(axis.ViaZoneIds[i])) return true;
+            }
+
+            return false;
+        }
+
+        private void RequestPick(AxisPickRequest request)
+        {
+            if (!_editable || request == null) return;
+
+            SelectAxis(request.Axis);
+
+            string text;
+            switch (request.Kind)
+            {
+                case AxisPick.Start:
+                    text = "click the new START zone on the map.";
+                    break;
+                case AxisPick.End:
+                    text = "click the new OBJECTIVE zone on the map.";
+                    break;
+                case AxisPick.WaypointChange:
+                    text = "click the new zone for waypoint " + (request.WaypointIndex + 1) + " on the map.";
+                    break;
+                default:
+                    text = "click the zones to cross, in order. Right-click to stop.";
+                    break;
+            }
+
+            ShowPickBanner(request.Axis.Name + ": " + text);
+            PickZoneRequested?.Invoke(request);
+        }
+
+        private void ButtonAddAxis_Click(object sender, EventArgs e)
         {
             if (!_editable) return;
 
             int n = 1;
-            while (_axes.Any(a => string.Equals(a.Name, "Axis " + n, StringComparison.OrdinalIgnoreCase)))
+            while (_axes.Any(a => string.Equals(a.Name, "Axis_" + n, StringComparison.OrdinalIgnoreCase)
+                               || string.Equals(a.ActivationFlag, "axis_" + n, StringComparison.OrdinalIgnoreCase)))
                 n++;
 
-            _axes.Add(new WargameAxis { Name = "Axis " + n, ActivationFlag = "axis_" + n });
+            var axis = new WargameAxis { Name = "Axis_" + n, ActivationFlag = "axis_" + n };
+            _axes.Add(axis);
 
-            RefreshList(_axes.Count - 1);
+            _scrollToAxis = axis;
+            SelectAxis(axis);
+            RebuildLater();
             AxesChanged?.Invoke();
         }
 
-        private void ButtonRemove_Click(object sender, EventArgs e)
+        private void DeleteAxis(WargameAxis axis)
         {
-            WargameAxis axis = CurrentAxis;
-            if (axis == null || !_editable) return;
+            if (!_editable) return;
 
-            DialogResult answer = MessageBox.Show("Remove the axis '" + axis.Name + "'?",
+            DialogResult answer = MessageBox.Show("Delete the axis '" + axis.Name + "'?",
                 "Wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
             if (answer != DialogResult.Yes) return;
 
-            int index = _lstAxes.SelectedIndex;
             _axes.Remove(axis);
 
-            RefreshList(Math.Min(index, _axes.Count - 1));
+            SelectAxis(null);
+            RebuildLater();
             AxesChanged?.Invoke();
         }
 
-        private void ButtonPick_Click(bool isStart)
+        // Déplace une étape vers le haut (delta = -1) ou vers le bas (delta = +1)
+        private void MoveWaypoint(WargameAxis axis, int index, int delta)
         {
-            if (CurrentAxis == null || !_editable) return;
+            int target = index + delta;
+            if (!_editable || index < 0 || target < 0 || index >= axis.ViaZoneIds.Count || target >= axis.ViaZoneIds.Count)
+                return;
 
-            _lblInfo.Text = "Click the " + (isStart ? "START (A)" : "END (B)")
-                + " zone on the map. Right-click on the map to cancel.";
+            string moved = axis.ViaZoneIds[index];
+            axis.ViaZoneIds.RemoveAt(index);
+            axis.ViaZoneIds.Insert(target, moved);
 
-            PickZoneRequested?.Invoke(isStart);
+            AfterWaypointsChanged(axis);
+        }
+
+        private void RemoveWaypoint(WargameAxis axis, int index)
+        {
+            if (!_editable || index < 0 || index >= axis.ViaZoneIds.Count) return;
+
+            axis.ViaZoneIds.RemoveAt(index);
+
+            AfterWaypointsChanged(axis);
+        }
+
+        private void AfterWaypointsChanged(WargameAxis axis)
+        {
+            RecomputePath(axis);
+            SelectAxis(axis);
+            RebuildLater();
+            AxesChanged?.Invoke();
         }
 
         // Prépare dans le presse-papiers le trigger qui pose le flag de l'axe. Le
         // campaignMaker le colle dans camp_triggers_init.lua et règle la condition.
-        private void ButtonCopyTrigger_Click(object sender, EventArgs e)
+        private void CopyTrigger(WargameAxis axis)
         {
-            WargameAxis axis = CurrentAxis;
-            if (axis == null) return;
-
             string name = CleanForLua(axis.Name);
             string flag = CleanForLua(axis.ActivationFlag);
 
@@ -330,14 +333,367 @@ namespace DCE_Manager
             return (text ?? "").Replace("\"", "").Replace("'", "").Trim();
         }
 
+        // -------------------- Message du haut --------------------
+
+        private void ShowNormalNote()
+        {
+            _lblNote.Text = _editable
+                ? "One card per axis: a Start, some Waypoints (optional, in order) and an Objective. Use Change / Add on the map."
+                : "Axes are defined in the Init view. Switch to Init to edit them.";
+            _lblNote.BackColor = SystemColors.Control;
+            _lblNote.ForeColor = Color.DimGray;
+        }
+
+        // Pendant un choix sur la carte : message bien visible
+        private void ShowPickBanner(string text)
+        {
+            _lblNote.Text = text;
+            _lblNote.BackColor = SystemColors.Info;
+            _lblNote.ForeColor = SystemColors.InfoText;
+        }
+
+        // -------------------- Reconstruction des cartes --------------------
+
+        private int CardWidth()
+        {
+            // On réserve toujours la place de la barre de défilement : les cartes ne changent
+            // pas de largeur quand elle apparaît
+            return Math.Max(300, _scroll.Width - SystemInformation.VerticalScrollBarWidth - 6);
+        }
+
+        private void RebuildLater()
+        {
+            if (_rebuildPending) return;
+            _rebuildPending = true;
+
+            if (IsHandleCreated)
+                BeginInvoke(new Action(Rebuild));
+            else
+                Rebuild();
+        }
+
+        private void Rebuild()
+        {
+            _rebuildPending = false;
+
+            // On garde la position de défilement, sauf si on doit montrer un nouvel axe
+            int scrollY = -_scroll.AutoScrollPosition.Y;
+
+            _scroll.SuspendLayout();
+
+            foreach (Control old in _scroll.Controls.Cast<Control>().ToList())
+            {
+                _scroll.Controls.Remove(old);
+                old.Dispose();
+            }
+
+            int cardWidth = CardWidth();
+            int y = 4;
+            Panel scrollTarget = null;
+
+            for (int i = 0; i < _axes.Count; i++)
+            {
+                Panel card = BuildCard(_axes[i], i, cardWidth);
+                card.Location = new Point(2, y);
+                _scroll.Controls.Add(card);
+
+                y += card.Height + 8;
+
+                if (_axes[i] == _scrollToAxis)
+                    scrollTarget = card;
+            }
+
+            _scrollToAxis = null;
+            _scroll.ResumeLayout();
+
+            if (scrollTarget != null)
+                _scroll.ScrollControlIntoView(scrollTarget);
+            else
+                _scroll.AutoScrollPosition = new Point(0, scrollY);
+
+            _btnAddAxis.Enabled = _editable;
+        }
+
+        // Une carte = un axe, tout visible d'un coup :
+        //   [nom]                    [état du chemin] [Delete axis]
+        //   Start        zone                [Change]
+        //   Waypoint 1   zone    [Change] [^] [v] [x]
+        //   [+ Add waypoint]
+        //   Objective    zone                [Change]
+        //   Flag         [flag]  [Copy trigger]
+        //   message d'aide
+        private Panel BuildCard(WargameAxis axis, int index, int width)
+        {
+            bool canEdit = _editable;
+            Color axisColor = AxisColors[index % AxisColors.Length];
+
+            var card = new Panel
+            {
+                BorderStyle = BorderStyle.FixedSingle,
+                BackColor = SystemColors.ControlLight,
+            };
+            card.Width = width;
+
+            int W = card.ClientSize.Width;
+            int y = 8;
+
+            card.Click += (s, e) => SelectAxis(axis);
+
+            // ---- En-tête : nom, état du chemin, suppression ----
+            var txtName = new TextBox
+            {
+                Text = axis.Name,
+                Location = new Point(16, y),
+                Width = W - 16 - 220,
+                Font = _fontBold,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Enabled = canEdit,
+            };
+            txtName.Enter += (s, e) => SelectAxis(axis);
+            txtName.TextChanged += (s, e) =>
+            {
+                axis.Name = txtName.Text;
+                AxesChanged?.Invoke();
+            };
+
+            var lblStatus = new Label
+            {
+                Location = new Point(W - 216, y + 3),
+                Size = new Size(110, 22),
+                TextAlign = ContentAlignment.MiddleRight,
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            };
+
+            bool bothSet = !string.IsNullOrEmpty(axis.StartZoneId) && !string.IsNullOrEmpty(axis.EndZoneId);
+            if (axis.IsValid)
+            {
+                lblStatus.Text = "\u2714 " + axis.Path.Count + " zones";
+                lblStatus.ForeColor = Color.ForestGreen;
+                _tip.SetToolTip(lblStatus, "Path: " + string.Join(" > ", axis.Path));
+            }
+            else if (bothSet)
+            {
+                lblStatus.Text = "\u2716 no path";
+                lblStatus.ForeColor = Color.Firebrick;
+                _tip.SetToolTip(lblStatus, "No path found between the start and the objective.");
+            }
+            else
+            {
+                lblStatus.Text = "incomplete";
+                lblStatus.ForeColor = Color.DimGray;
+                _tip.SetToolTip(lblStatus, "Set the start and the objective on the map.");
+            }
+
+            var btnDelete = new Button
+            {
+                Text = "Delete axis",
+                Location = new Point(W - 102, y - 1),
+                Size = new Size(90, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                Enabled = canEdit,
+            };
+            btnDelete.Click += (s, e) => DeleteAxis(axis);
+            _tip.SetToolTip(btnDelete, "Delete this axis");
+
+            card.Controls.Add(txtName);
+            card.Controls.Add(lblStatus);
+            card.Controls.Add(btnDelete);
+
+            y += 38;
+
+            // ---- Une ligne de zone : légende, zone, [Change] et, pour une étape, [^] [v] [x] ----
+            Button SmallButton(string text, int x, string tip, bool enabled, Action onClick)
+            {
+                var b = new Button
+                {
+                    Text = text,
+                    Font = _fontSymbol,
+                    Location = new Point(x, y + 1),
+                    Size = new Size(28, 26),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Enabled = enabled,
+                };
+                b.Click += (s, e) => onClick();
+                _tip.SetToolTip(b, tip);
+                card.Controls.Add(b);
+                return b;
+            }
+
+            void AddZoneRow(string caption, string zoneId, AxisPickRequest changeRequest, int waypointIndex)
+            {
+                var lbl = new Label
+                {
+                    Text = caption,
+                    Location = new Point(16, y + 5),
+                    Size = new Size(78, 20),
+                };
+
+                var txt = new TextBox
+                {
+                    ReadOnly = true,
+                    Text = string.IsNullOrEmpty(zoneId) ? "(not set)" : zoneId,
+                    Location = new Point(96, y + 2),
+                    Width = W - 96 - 178,
+                    Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                };
+
+                // Un clic sur la ligne met la zone en évidence sur la carte
+                txt.Click += (s, e) =>
+                {
+                    SelectAxis(axis);
+                    if (!string.IsNullOrEmpty(zoneId))
+                        HighlightZoneRequested?.Invoke(zoneId);
+                };
+
+                var btnChange = new Button
+                {
+                    Text = "Change",
+                    Location = new Point(W - 172, y + 1),
+                    Size = new Size(64, 26),
+                    Anchor = AnchorStyles.Top | AnchorStyles.Right,
+                    Enabled = canEdit,
+                };
+                btnChange.Click += (s, e) => RequestPick(changeRequest);
+                _tip.SetToolTip(btnChange, "Pick another zone on the map");
+
+                card.Controls.Add(lbl);
+                card.Controls.Add(txt);
+                card.Controls.Add(btnChange);
+
+                if (waypointIndex >= 0)
+                {
+                    int wi = waypointIndex;
+                    SmallButton("\u25B2", W - 104, "Move this waypoint earlier", canEdit && wi > 0,
+                        () => MoveWaypoint(axis, wi, -1));
+                    SmallButton("\u25BC", W - 72, "Move this waypoint later", canEdit && wi < axis.ViaZoneIds.Count - 1,
+                        () => MoveWaypoint(axis, wi, 1));
+                    SmallButton("\u2715", W - 40, "Remove this waypoint", canEdit,
+                        () => RemoveWaypoint(axis, wi));
+                }
+
+                y += 30;
+            }
+
+            AddZoneRow("Start", axis.StartZoneId,
+                new AxisPickRequest { Axis = axis, Kind = AxisPick.Start }, -1);
+
+            for (int k = 0; k < axis.ViaZoneIds.Count; k++)
+            {
+                AddZoneRow("Waypoint " + (k + 1), axis.ViaZoneIds[k],
+                    new AxisPickRequest { Axis = axis, Kind = AxisPick.WaypointChange, WaypointIndex = k }, k);
+            }
+
+            var btnAddWaypoint = new Button
+            {
+                Text = "+ Add waypoint",
+                Location = new Point(96, y + 1),
+                Size = new Size(150, 26),
+                Enabled = canEdit,
+            };
+            btnAddWaypoint.Click += (s, e) => RequestPick(new AxisPickRequest { Axis = axis, Kind = AxisPick.WaypointAdd });
+            _tip.SetToolTip(btnAddWaypoint, "Click zones on the map, in order. Right-click on the map to stop.");
+            card.Controls.Add(btnAddWaypoint);
+            y += 30;
+
+            AddZoneRow("Objective", axis.EndZoneId,
+                new AxisPickRequest { Axis = axis, Kind = AxisPick.End }, -1);
+
+            // ---- Activation : flag + trigger ----
+            y += 4;
+
+            var lblFlag = new Label
+            {
+                Text = "Flag",
+                Location = new Point(16, y + 5),
+                Size = new Size(78, 20),
+            };
+
+            var txtFlag = new TextBox
+            {
+                Text = axis.ActivationFlag,
+                Location = new Point(96, y + 2),
+                Width = W - 96 - 150,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                Enabled = canEdit,
+            };
+            _tip.SetToolTip(txtFlag, "The axis starts when a camp trigger sets this flag.");
+
+            var btnCopy = new Button
+            {
+                Text = "Copy trigger",
+                Location = new Point(W - 142, y + 1),
+                Size = new Size(130, 26),
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            };
+            btnCopy.Click += (s, e) => CopyTrigger(axis);
+            _tip.SetToolTip(btnCopy, "Copy a trigger that sets the flag. Paste it in Init\\camp_triggers_init.lua");
+
+            card.Controls.Add(lblFlag);
+            card.Controls.Add(txtFlag);
+            card.Controls.Add(btnCopy);
+
+            y += 32;
+
+            // ---- Message d'aide (le problème le plus important d'abord) ----
+            var lblMessage = new Label
+            {
+                Location = new Point(16, y),
+                Size = new Size(W - 28, 34),
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            };
+            card.Controls.Add(lblMessage);
+
+            void UpdateMessage()
+            {
+                if (bothSet && !axis.IsValid)
+                {
+                    lblMessage.Text = "No path found. Check that the zones in between are neighbors, and the order of the waypoints.";
+                    lblMessage.ForeColor = Color.Firebrick;
+                }
+                else if (string.IsNullOrWhiteSpace(axis.ActivationFlag))
+                {
+                    lblMessage.Text = "No flag: this axis will never start.";
+                    lblMessage.ForeColor = Color.DarkOrange;
+                }
+                else
+                {
+                    lblMessage.Text = "Starts when a camp trigger sets the flag \"" + axis.ActivationFlag.Trim() + "\".";
+                    lblMessage.ForeColor = Color.DimGray;
+                }
+            }
+
+            UpdateMessage();
+
+            txtFlag.Enter += (s, e) => SelectAxis(axis);
+            txtFlag.TextChanged += (s, e) =>
+            {
+                axis.ActivationFlag = txtFlag.Text.Trim();
+                UpdateMessage();
+                AxesChanged?.Invoke();
+            };
+
+            y += 38;
+
+            // ---- Hauteur finale + bande de couleur (celle de l'axe sur la carte) ----
+            card.ClientSize = new Size(W, y);
+
+            var strip = new Panel
+            {
+                Location = new Point(0, 0),
+                Size = new Size(6, card.ClientSize.Height),
+                BackColor = axisColor,
+            };
+            _tip.SetToolTip(strip, "Color of this axis on the map");
+            card.Controls.Add(strip);
+
+            return card;
+        }
+
         // -------------------- Construction de l'UI --------------------
 
         private void BuildUi()
         {
-            AutoScroll = true;
-            Padding = new Padding(10);
-
-            var title = new Label
+            _lblTitle = new Label
             {
                 Text = "Axes of progression",
                 Location = new Point(10, 10),
@@ -345,81 +701,40 @@ namespace DCE_Manager
                 Font = new Font("Segoe UI", 11f, FontStyle.Bold),
             };
 
-            _lblNote = new Label { Location = new Point(10, 38), Width = 260, Height = 34, ForeColor = Color.DimGray };
+            _lblNote = new Label
+            {
+                Location = new Point(10, 38),
+                Size = new Size(260, 36),
+            };
 
-            _lstAxes = new ListBox { Location = new Point(10, 76), Width = 260, Height = 100, IntegralHeight = false };
-            _lstAxes.SelectedIndexChanged += LstAxes_SelectedIndexChanged;
+            _scroll = new Panel { AutoScroll = true };
 
-            _btnAdd = new Button { Text = "Add axis", Location = new Point(10, 182), Width = 125, Height = 28 };
-            _btnAdd.Click += ButtonAdd_Click;
+            _btnAddAxis = new Button { Text = "+ Add axis", Height = 30 };
+            _btnAddAxis.Click += ButtonAddAxis_Click;
+            _tip.SetToolTip(_btnAddAxis, "Create a new axis of progression");
 
-            _btnRemove = new Button { Text = "Remove axis", Location = new Point(145, 182), Width = 125, Height = 28 };
-            _btnRemove.Click += ButtonRemove_Click;
-
-            var lblName = new Label { Text = "Name", Location = new Point(10, 222), AutoSize = true };
-            _txtName = new TextBox { Location = new Point(10, 240), Width = 260 };
-            _txtName.TextChanged += TxtName_TextChanged;
-
-            var lblStart = new Label { Text = "From (A)", Location = new Point(10, 274), AutoSize = true };
-            _txtStart = new TextBox { Location = new Point(10, 292), Width = 150, ReadOnly = true };
-            _btnPickStart = new Button { Text = "Pick on map", Location = new Point(170, 290), Width = 100, Height = 26 };
-            _btnPickStart.Click += (s, e) => ButtonPick_Click(true);
-
-            var lblEnd = new Label { Text = "To (B)", Location = new Point(10, 326), AutoSize = true };
-            _txtEnd = new TextBox { Location = new Point(10, 344), Width = 150, ReadOnly = true };
-            _btnPickEnd = new Button { Text = "Pick on map", Location = new Point(170, 342), Width = 100, Height = 26 };
-            _btnPickEnd.Click += (s, e) => ButtonPick_Click(false);
-
-            var lblFlag = new Label { Text = "Trigger flag (set by a camp trigger)", Location = new Point(10, 378), AutoSize = true };
-            _txtFlag = new TextBox { Location = new Point(10, 396), Width = 260 };
-            _txtFlag.TextChanged += TxtFlag_TextChanged;
-
-            _lblInfo = new Label { Location = new Point(10, 430), Width = 260, Height = 110 };
-
-            _btnCopyTrigger = new Button { Text = "Copy trigger", Location = new Point(10, 546), Width = 260, Height = 30 };
-            _btnCopyTrigger.Click += ButtonCopyTrigger_Click;
-
-            Controls.Add(title);
+            Controls.Add(_lblTitle);
             Controls.Add(_lblNote);
-            Controls.Add(_lstAxes);
-            Controls.Add(_btnAdd);
-            Controls.Add(_btnRemove);
-            Controls.Add(lblName);
-            Controls.Add(_txtName);
-            Controls.Add(lblStart);
-            Controls.Add(_txtStart);
-            Controls.Add(_btnPickStart);
-            Controls.Add(lblEnd);
-            Controls.Add(_txtEnd);
-            Controls.Add(_btnPickEnd);
-            Controls.Add(lblFlag);
-            Controls.Add(_txtFlag);
-            Controls.Add(_lblInfo);
-            Controls.Add(_btnCopyTrigger);
+            Controls.Add(_scroll);
+            Controls.Add(_btnAddAxis);
         }
 
-        // Pas d'Anchor : on recalcule les largeurs quand le panneau change de taille
-        // (même méthode que ucWargameZoneEditPanel, plus sûre que les ancres ici).
+        // Pas d'Anchor sur les éléments du haut : on recalcule à chaque changement de taille
+        // (même méthode que ucWargameZoneEditPanel). Les cartes, elles, suivent leur largeur.
         private void ApplyLayout()
         {
-            int inner = ClientSize.Width - 20;
-            if (inner < 240) inner = 240;
+            int inner = Math.Max(240, ClientSize.Width - 20);
+            int top = 78;
+            int bottom = 42;
 
             _lblNote.Width = inner;
-            _lstAxes.Width = inner;
-            _txtName.Width = inner;
-            _txtFlag.Width = inner;
-            _lblInfo.Width = inner;
-            _btnCopyTrigger.Width = inner;
 
-            _btnAdd.Width = (inner - 10) / 2;
-            _btnRemove.Width = (inner - 10) / 2;
-            _btnRemove.Left = 10 + _btnAdd.Width + 10;
+            _scroll.SetBounds(0, top, ClientSize.Width, Math.Max(60, ClientSize.Height - top - bottom));
+            _btnAddAxis.SetBounds(10, Math.Max(top + 60, ClientSize.Height - 36), inner, 30);
 
-            _txtStart.Width = inner - 110;
-            _txtEnd.Width = inner - 110;
-            _btnPickStart.Left = 10 + inner - 100;
-            _btnPickEnd.Left = 10 + inner - 100;
+            int cardWidth = CardWidth();
+            foreach (Control card in _scroll.Controls)
+                card.Width = cardWidth;
         }
     }
 }
