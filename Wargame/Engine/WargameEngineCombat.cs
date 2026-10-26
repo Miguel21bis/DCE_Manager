@@ -19,6 +19,27 @@ namespace DCE_Manager
         // camp_init : retreat_loss_fraction.
         public double RetreatLossFraction = 0.05;
 
+        // Débarquements (plans LANDING_n, voir ProcessLandings).
+        // Part de force perdue par une vague qui échoue sur une plage ennemie (elle retente ensuite).
+        // balance : landing_fail_loss.
+        public double LandingFailLoss = 0.15;
+
+        // Nombre de nouvelles tentatives d'une vague repoussée avant qu'elle soit abandonnée (la suivante prend le relais).
+        // balance : landing_max_retries.
+        public double LandingMaxRetries = 2;
+
+        // Rembarquement : une plage perdue dont les troupes ne peuvent se replier nulle part, la flotte étant là (flag de l'appui naval),
+        // les voit rembarquer au lieu d'être perdues, avec cette part de force PERDUE. balance : landing_reembark_loss.
+        public double ReembarkLoss = 0.5;
+
+        // Rempli à chaque tour par ApplyNavalCover : appui feu de la flotte sur une tête de plage tenue (zone -> valeur, et camp couvert)
+        public Dictionary<string, double> NavalCoverByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> NavalCoverSideByZone = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // Tours d'attente entre deux vagues d'un même plan (0 = les vagues partent toutes au même tour).
+        // Le trigger peut l'écraser pour un plan. balance : landing_wave_gap.
+        public double LandingWaveGap = 1;
+
         // Multiplicateur de ravitaillement d'une zone COUPEE de toute source amie
         // (poche encerclée). 1 = la coupure ne change rien.
         public double CutOffSupplyFactor = 0.5;
@@ -46,6 +67,42 @@ namespace DCE_Manager
         // reste en place.
         public bool FrontAlignmentEnabled = true;
 
+        // Une zone coupée du ravitaillement peut-elle encore ATTAQUER ? false (défaut) = non, elle ne fait que défendre.
+        public bool CutOffCanAttack = false;
+
+        // Délai de grâce : nombre de tours pendant lesquels une zone coupée peut encore attaquer (stock emporté avec les formations,
+        // typiquement après un débarquement). Le compte repart à zéro quand une vague arrive ou que la zone est ravitaillée.
+        public double CutOffGraceTurns = 3;
+
+        // ---- Convois et points de ravitaillement avancés (supply_convoys) ----
+        // Activés : les zones mal ravitaillées reçoivent un convoi, qui alimente un point avancé (petite source + réserve en tours).
+        // Le point avancé REMPLACE alors le délai de grâce (CutOffGraceTurns ne sert plus, sauf pour une vague qui débarque).
+        public bool SupplyConvoys = false;
+        public double ConvoyMax = 3;                 // convois maximum par camp et par tour
+        public double ConvoyNeedLevel = 0.6;         // une zone avec des formations, sous ce niveau, a besoin d'un convoi
+        public double ForwardPointCapacity = 40;     // capacité de ravitaillement d'un point avancé actif
+        public double ForwardPointReserve = 3;       // réserve pleine d'un point avancé (en tours)
+        public double ConvoyFreeRange = 4;           // portée (en coût) que les sources couvrent SANS convoi quand les convois sont activés
+        public double ForwardRebuildLoss = 0.5;      // point avancé détruit à la mission d'avant : le convoi qui le rebâtit ne recharge que (1 - ceci)
+
+        // Usure des formations coupées dont la réserve est vide depuis 2 tours ou plus : force perdue par tour, et plancher
+        public double CutOffAttrition = 0.05;
+        public double CutOffAttritionFloor = 0.25;
+
+        // Remplis avant chaque tour (ce ne sont pas des réglages) : part de la cargaison qui arrive (0 à 1).
+        // Production : valeurs par défaut tant que l'état des convois n'est pas relu ; Preview : contrôles de test.
+        public double ConvoyDeliveredBlue = 1.0, ConvoyDeliveredRed = 1.0;   // convois routiers
+        public double AirDeliveredBlue = 0.0, AirDeliveredRed = 0.0;         // ravitaillement aérien (hélico, aérolargage)
+
+        // Résultats réels de la mission jouée, par emplacement de convoi ("BLUE_1"...) : prioritaires sur les valeurs par camp
+        // ci-dessus quand ils existent (lus par WargameLogistics.ReadResults avant le tour)
+        public Dictionary<string, double> ConvoyDeliveredBySlot = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, double> AirDeliveredBySlot = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        // Remplis par PlanConvoys : zone -> capacité du point avancé actif, et les convois du tour (journal, carte)
+        public Dictionary<string, double> ForwardSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        public List<WargameEngineCombat.WargameConvoy> Convoys = new List<WargameEngineCombat.WargameConvoy>();
+
         // Zones vides : passent au camp qui a clairement le plus d'influence autour d'elles
         // (voir SettleEmptyZones). false = une zone vide garde son camp.
         public bool EmptyZoneInfluence = true;
@@ -57,6 +114,25 @@ namespace DCE_Manager
         // (voir MoveTowardFront). false = elles ne bougent qu'en avançant après une conquête
         // ou en se repliant.
         public bool AxisReinforcement = true;
+
+        // Les axes actifs attirent le SURPLUS de l'armée attaquante : une formation qui n'est pas nécessaire pour garder
+        // les flancs de sa zone marche, d'une zone par mission, vers la pointe d'un axe (voir PullSurplusToAxes).
+        // false = elles ne suivent que le front le plus proche, comme avant. camp_init : axis_pull_surplus.
+        public bool AxisPullSurplus = true;
+
+        // Garnison d'objectif : la zone finale de chaque axe actif garde toujours UNE formation (la plus faible de la zone,
+        // elle est là pour occuper le terrain, pas pour se battre). Elle ne marche plus vers le front. Si la zone est vide,
+        // une formation faible de l'arrière vient l'occuper. false = comme avant. wargame_balance : objective_garrison.
+        public bool ObjectiveGarrison = true;
+
+        // Chemin des axes : true = le chemin tient compte du relief et des routes des zones (une montagne sans route coûte
+        // beaucoup plus qu'une plaine avec route, mêmes tables que le ravitaillement), false = chemin le plus court en
+        // distance seulement, comme avant. wargame_balance : axis_use_terrain.
+        public bool AxisUseTerrain = true;
+
+        // Chemin FLEXIBLE des axes : nombre de zones de détour accepté pour contourner une forte résistance
+        // (voir AdaptAxisPaths). 0 = le chemin prévu ne change jamais. camp_init : axis_flex_detour.
+        public int AxisFlexDetour = 0;
 
         // Nombre normal de formations par zone. Une zone de première ligne peut en recevoir
         // PLUS si sa force n'atteint pas encore ce qu'il faut pour affronter l'ennemi d'en face.
@@ -73,9 +149,9 @@ namespace DCE_Manager
         // jamais), 0 = aucune récupération tant qu'elles se battent. camp_init : engaged_recovery.
         public double EngagedRecoveryFactor = 0.25;
 
-        // Plafond DUR de formations par zone, quelle que soit la menace d'en face (voir AcceptsFormation).
-        // Au-delà du nombre normal, une zone de première ligne ne reçoit des renforts que jusqu'à ce plafond :
-        // cela borne le nombre d'unités posées dans DCS et évite la surenchère entre les deux camps.
+        // NE SERT PLUS : MaxFormationsPerZone est maintenant la limite stricte (largeur de front : seules les formations
+        // les plus fortes, au plus ce nombre, se battent ; une zone ne reçoit pas plus de formations que cela).
+        // Gardé pour ne pas casser les camp_init existants.
         public int MaxFormationsHard = 6;
 
         // Une formation dont la force tombe sous cette part de sa force NOMINALE est dissoute
@@ -108,6 +184,49 @@ namespace DCE_Manager
         // Valeurs de départ = anciennes capacités : le combat ne change pas tant que camp_init n'y touche pas.
         public Dictionary<string, double> RouteCombat =
             new Dictionary<string, double>(WargameSupplyRoute.Capacity, StringComparer.OrdinalIgnoreCase);
+
+        // ---- Réseau de ravitaillement (voir FindCutOffZones) ----
+        // true = le ravitaillement des zones dépend de la distance à une source, du terrain et des routes.
+        // false = ancien fonctionnement : une zone est soit reliée à une source (niveau 100 %), soit coupée.
+        public bool SupplyNetwork = true;
+
+        // Coût qu'un ravitaillement peut payer avant de s'éteindre. Une zone de plaine avec une route normale
+        // coûte environ 1 : 15 = environ 15 zones de bonne route. Une montagne sans route peut coûter plus de 10 à elle seule.
+        public double SupplyRange = 15.0;
+
+        // Niveau de ravitaillement (0 à 1) sous lequel une zone est considérée COUPEE
+        public double SupplyMinLevel = 0.15;
+
+        // Coût de passage du terrain, pour le ravitaillement (grille terrain, colonne 2)
+        public Dictionary<string, double> TerrainMove = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
+        {
+            { WargameTerrain.Plain, 1.0 }, { WargameTerrain.Hills, 1.5 }, { WargameTerrain.Mountain, 3.0 },
+            { WargameTerrain.Urban, 1.5 }, { WargameTerrain.Coastal, 1.0 },
+        };
+
+        // Débit de ravitaillement de la route (grille supply_route, colonne 3). Valeurs de départ = anciennes capacités.
+        public Dictionary<string, double> RouteFlow =
+            new Dictionary<string, double>(WargameSupplyRoute.Capacity, StringComparer.OrdinalIgnoreCase);
+
+        // ---- Objectifs qui comptent pour le ravitaillement (champs wargameSupply / wargameBridge de la targetlist) ----
+        // Part de débit de route qui reste quand TOUS les ponts d'une zone sont détruits : 0.1 = la route ne passe plus
+        // qu'à 10 % de sa capacité. Avec un pont vivant, la route est à 100 %.
+        public double BridgeDownFactor = 0.1;
+
+        // Valeur totale des objectifs-sources d'une zone qui donne un ravitaillement à 100 % ; en dessous, la source est
+        // proportionnellement plus faible (un dépôt à moitié détruit = une source à moitié moins forte).
+        public double SupplySourceFull = 100.0;
+
+        // Remplis à chaque tour par ApplyObjectivesToSupply (ce ne sont pas des réglages) :
+        // zone -> valeur des objectifs-sources (déjà multipliée par leur état), présente même si elle vaut 0
+        public Dictionary<string, double> ObjectiveSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        // zone -> part du meilleur pont encore vivant (0 à 1), seulement pour les zones qui ont un pont
+        public Dictionary<string, double> BridgeAliveByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        // zone-plage -> valeur du ravitaillement par mer d'un plan de débarquement actif (rempli par ApplyLandingSupply)
+        public Dictionary<string, double> LandingSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+        public double GetTerrainMove(string terrain) { return Lookup(TerrainMove, terrain); }
+        public double GetRouteFlow(string route) { return Lookup(RouteFlow, route); }
 
         public double GetTerrainDefense(string terrain) { return Lookup(TerrainDefense, terrain); }
         public double GetRouteRecovery(string route) { return Lookup(RouteRecovery, route); }
@@ -153,6 +272,9 @@ namespace DCE_Manager
 
         public int Destroyed;
 
+        // Plages où un débarquement vient d'arriver ce tour : AlignFront ne les évacue pas comme saillant
+        public HashSet<string> LandedZoneIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         // Flags des axes dont l'objectif est atteint (à transmettre à scriptsMod)
         public HashSet<string> ReachedFlags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -175,6 +297,11 @@ namespace DCE_Manager
         // Formations dissoutes car trop faibles (voir RemoveBrokenFormations)
         public int Disbanded;
         public List<string> DisbandedNotes = new List<string>();
+
+        // Renforts sortis de la réserve ce tour (voir DeployReinforcements)
+        public HashSet<int> DeployedFormationIds = new HashSet<int>();
+        public List<string> DeployNotes = new List<string>();     // une ligne par ordre traité (arrivé, en attente, refusé)
+        public List<string> ConsumedFlags = new List<string>();   // flags d'ordre traités : à baisser dans la campagne
     }
 
     // Résolution du combat entre zones (passe 1), lancée par WargameEngineLosses juste
@@ -246,6 +373,9 @@ namespace DCE_Manager
             public double Deficit;                              // force qui manque pour garder tous les fronts (0 = tout est couvert)
         }
 
+        // Point d'entrée : si le chemin flexible est activé, les axes prennent leur chemin ADAPTE pendant ce tour
+        // seulement. Le chemin prévu (celui de l'éditeur) est toujours remis ensuite : rien n'est mémorisé,
+        // chaque tour repart du plan et de l'état de la carte.
         public static WargameCombatResult Resolve(
             List<WargameZoneData> zones,
             List<WargameAxis> axes,
@@ -254,7 +384,68 @@ namespace DCE_Manager
             Random rng,
             WargameTemplateCatalog catalog = null)   // facultatif : sert à garder au repos les formations trop faibles
         {
+            Dictionary<WargameAxis, List<string>> planned = null;
+
+            // Largeur de front : pendant ce tour, une zone ne bat qu'avec ses MaxFormationsPerZone formations les plus fortes
+            // (voir SidePower et FightingFormations). Les autres attendent, sans combattre.
+            _combatWidth = Math.Max(1, config.MaxFormationsPerZone);
+
+            try
+            {
+                if (config.AxisFlexDetour > 0)
+                    planned = AdaptAxisPaths(zones, axes, activeFlags, config);
+
+                return ResolveCore(zones, axes, activeFlags, config, rng, catalog);
+            }
+            finally
+            {
+                _combatWidth = 0;
+
+                if (planned != null)
+                {
+                    foreach (KeyValuePair<WargameAxis, List<string>> kv in planned)
+                        kv.Key.Path = kv.Value;
+                }
+            }
+        }
+
+        // Marche : nombre de zones qu'une formation peut parcourir en UNE mission (montée vers le front, surplus vers un axe).
+        // Elle peut TRAVERSER une zone pleine : la limite de formations ne compte qu'à l'arrivée, la formation s'arrête à la
+        // dernière zone avec de la place sur son trajet. Sans ça, une zone pleine bloquerait toute la file derrière elle.
+        private const int MarchSteps = 2;
+
+        // Nombre de formations qui se battent par zone pendant Resolve (0 = toutes : hors Resolve, pour les journaux).
+        // Champ statique plutôt qu'un paramètre de plus dans chaque méthode ; propre à chaque thread.
+        [ThreadStatic]
+        private static int _combatWidth;
+
+        private static WargameCombatResult ResolveCore(
+            List<WargameZoneData> zones,
+            List<WargameAxis> axes,
+            HashSet<string> activeFlags,
+            WargameCombatConfig config,
+            Random rng,
+            WargameTemplateCatalog catalog)
+        {
             var result = new WargameCombatResult();
+
+            // Les renforts arrivent AVANT le combat : ils comptent dans le tour qui commence
+            DeployReinforcements(zones, activeFlags, config, result);
+
+            // Débarquements : les plans lancés par un trigger tentent leur plage (avant le combat des axes)
+            ProcessLandings(zones, axes, activeFlags, config, rng, result);
+
+            // Formations restées en mer (vagues abandonnées) : elles débarquent dès que la plage est à leur camp
+            LandLeftovers(zones, axes, config, rng, result);
+
+            // La flotte couvre de ses feux les têtes de plage tenues (défense de la plage contre les contre-attaques)
+            ApplyNavalCover(zones, activeFlags, config);
+
+            // Ravitaillement par mer des plages tenues (après le débarquement : la plage vient peut-être d'être prise)
+            ApplyLandingSupply(zones, activeFlags, config);
+
+            // Convois : un par secteur mal ravitaillé (plafonné), qui recharge son point avancé
+            PlanConvoys(zones, config);
 
             if (zones == null || axes == null || axes.Count == 0)
                 return result;
@@ -264,9 +455,57 @@ namespace DCE_Manager
                 zoneById[zone.Id] = zone;
 
             Dictionary<string, List<string>> links = BuildLinks(zones);
-            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById);
+            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById, config);
+
+            // Depuis combien de tours chaque zone est coupée (le compte repart à zéro si la zone change de camp ou est ravitaillée)
+            foreach (WargameZoneData z in zones)
+            {
+                if (cutOff.Contains(z.Id) && IsFightingSide(z.Control) && !IsOffMapId(z.Id))   // boîtes RESERVE / LANDING : jamais "coupées"
+                {
+                    if (!string.Equals(z.CutOffSide, z.Control, StringComparison.OrdinalIgnoreCase))
+                    {
+                        z.CutOffSide = z.Control;
+                        z.CutOffTurns = 0;
+                    }
+                    z.CutOffTurns++;
+                }
+                else
+                {
+                    z.CutOffTurns = 0;
+                    z.CutOffSide = "";
+                }
+            }
 
             Detail(config, "  cut-off zones (no road to a supply source): " + (cutOff.Count == 0 ? "none" : string.Join(", ", cutOff.OrderBy(x => x))));
+
+            // Sources de chaque camp (force en %), et ponts : détruits, ils ralentissent le ravitaillement de leur zone
+            foreach (string sideName in new[] { WargameSide.Blue, WargameSide.Red })
+            {
+                List<WargameZoneData> sideZoneList = zones.Where(z => string.Equals(z.Control, sideName, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                if (!HasSupplySystem(sideZoneList, config))
+                {
+                    Detail(config, "  supply sources " + sideName + " : NONE - no supply network for this side (set 'Source' on a zone in the wargame editor, or wargameSupply on an objective)");
+                    continue;
+                }
+
+                var parts = sideZoneList.Where(z => SourceStrength(z, config) > 0).OrderBy(z => z.Id)
+                    .Select(z => z.Id + " " + (SourceStrength(z, config) * 100).ToString("0") + "%").ToList();
+                Detail(config, "  supply sources " + sideName + " : " + (parts.Count == 0 ? "ALL DESTROYED - every zone is cut off" : string.Join(", ", parts)));
+
+                foreach (WargameZoneData z in sideZoneList.OrderBy(x => x.Id))
+                {
+                    double bridge;
+                    if (config.BridgeAliveByZone.TryGetValue(z.Id, out bridge))
+                        Detail(config, "  supply bridge in " + z.Id + " : " + (bridge * 100).ToString("0") + "% alive -> road flow x"
+                            + (config.BridgeDownFactor + (1.0 - config.BridgeDownFactor) * bridge).ToString("0.00"));
+                }
+            }
+
+            // Zones ravitaillées à moins de 100 % : niveau, source, coût et pas le plus dur
+            if (_supplyLevels != null)
+                foreach (KeyValuePair<string, double> kv in _supplyLevels.Where(x => x.Value < 0.995).OrderBy(x => x.Key))
+                    Detail(config, "  supply level " + kv.Key + " : " + (kv.Value * 100).ToString("0") + "% (" + _supplyNotes[kv.Key] + ")");
 
             // ---- 1. Lister les paires de front des axes actifs (état de départ) ----
 
@@ -317,7 +556,27 @@ namespace DCE_Manager
                     if (string.Equals(a.Control, b.Control, StringComparison.OrdinalIgnoreCase))
                         continue;   // pas de front entre ces deux-là
 
+                    // Plage où un débarquement vient d'arriver : le tour est celui du débarquement, le combat reprend au suivant
+                    if (result.LandedZoneIds.Contains(a.Id) || result.LandedZoneIds.Contains(b.Id))
+                        continue;
+
                     bool aAttacks = string.Equals(a.Control, attackSide, StringComparison.OrdinalIgnoreCase);
+
+                    // Sans ravitaillement, pas d'offensive : la zone coupée peut défendre, pas attaquer
+                    WargameZoneData attackerZone = aAttacks ? a : b;
+                    if (!config.CutOffCanAttack && cutOff.Contains(attackerZone.Id))
+                    {
+                        if (ExhaustedForOffensive(attackerZone, attackerZone.Control, config))
+                        {
+                            Trace(config, "  " + axis.Name + " : " + attackerZone.Id + " cannot attack " + (aAttacks ? b : a).Id
+                                + ": cut off from supply, its own stock is gone");
+                            continue;
+                        }
+
+                        double left = EffectiveGrace(config) - attackerZone.CutOffTurns + 1;
+                        Trace(config, "  " + axis.Name + " : " + attackerZone.Id + " is cut off but attacks on its own stock ("
+                            + left.ToString("0") + " turn(s) left, this one included)");
+                    }
 
                     pairs.Add(new AxisPair
                     {
@@ -362,7 +621,8 @@ namespace DCE_Manager
                 double defenseSupply = SupplyFactor(p.DefZone, cutOff, config);
                 double terrainCoef = config.GetTerrainDefense(p.DefZone.Terrain);
                 double defenseAir = AirCoef(p.DefendSide, config);
-                double defense = defensePower * defenseSupply * terrainCoef * defenseAir;
+                double navalCover = NavalCoverOf(p.DefZone, p.DefendSide, config);
+                double defense = defensePower * defenseSupply * terrainCoef * defenseAir + navalCover;
 
                 double total = attack + defense;
                 if (total <= 0)
@@ -374,7 +634,7 @@ namespace DCE_Manager
                 Trace(config, "  " + p.Axis.Name + " : " + p.AttZone.Id + " attacks " + p.DefZone.Id
                     + " | attack " + attack.ToString("0.0")
                     + " (force " + attackPower.ToString("0.0") + " x supply " + attackSupply.ToString("0.00") + " x air " + attackAir.ToString("0.00") + ")"
-                    + " vs defense " + defense.ToString("0.0")
+                    + " vs defense " + defense.ToString("0.0") + (navalCover > 0 ? " (naval fire support " + navalCover.ToString("0.0") + " included)" : "")
                     + " (force " + defensePower.ToString("0.0") + " x supply " + defenseSupply.ToString("0.00")
                     + " x terrain " + terrainCoef.ToString("0.00") + " x air " + defenseAir.ToString("0.00") + ")"
                     + " | delta " + delta.ToString("0.00")
@@ -447,6 +707,19 @@ namespace DCE_Manager
                 string oldSide = c.Loser.Control;
                 c.Loser.Control = c.WinnerSide;
                 flipped.Add(c.Loser.Id);
+
+                // Les vainqueurs emportent avec eux leur retard de ravitaillement dans la zone conquise :
+                // sinon chaque avance remettrait le délai de grâce à zéro (cutoff_grace_turns)
+                if (c.From.CutOffTurns != 0 && string.Equals(c.From.CutOffSide, c.WinnerSide, StringComparison.OrdinalIgnoreCase))
+                {
+                    c.Loser.CutOffTurns = c.From.CutOffTurns;
+                    c.Loser.CutOffSide = c.WinnerSide;
+                }
+                else
+                {
+                    c.Loser.CutOffTurns = 0;
+                    c.Loser.CutOffSide = "";
+                }
                 result.FlippedZones.Add(c.Loser);
 
                 // Repli : chaque formation (les plus fortes d'abord) prend la première zone de repli
@@ -479,6 +752,22 @@ namespace DCE_Manager
                     }
                     else
                     {
+                        // Tête de plage perdue, flotte présente : la formation rembarque (gros malus) au lieu d'être perdue
+                        WargameZoneData fleet = FleetFor(zones, c.Loser, oldSide, activeFlags);
+                        if (fleet != null)
+                        {
+                            double powerBefore = f.ForcePower;
+                            c.Loser.Formations.Remove(f);
+                            fleet.Formations.Add(f);
+                            f.ForcePower = Math.Max(0, f.ForcePower * (1.0 - config.ReembarkLoss));
+                            f.Wave = 0;   // restera en mer, et redébarquera quand la plage sera de nouveau à son camp (LandLeftovers)
+                            result.MovedFormationIds.Add(f.FormationId);
+                            moved++;
+                            Trace(config, "  re-embark: " + f.Name + " leaves " + c.Loser.Id + " by sea to " + fleet.Id + " : "
+                                + powerBefore.ToString("0.0") + " -> " + f.ForcePower.ToString("0.0"));
+                            continue;
+                        }
+
                         f.ForcePower = 0;   // WargameEngineLosses la retirera de la targetlist
                         destroyed++;
                         Trace(config, "  no room to retreat: " + f.Name + " from " + c.Loser.Id + " is lost");
@@ -530,6 +819,15 @@ namespace DCE_Manager
             if (config.FrontAlignmentEnabled)
                 AlignFront(zones, zoneById, links, flipped, attackTargets, frontPairs, config, result);
 
+            // Le surplus de l'attaquant file vers la pointe des axes AVANT la montée vers le front le plus proche
+            // (une formation déjà déplacée ne bouge plus ce tour)
+            // Garnisons des zones objectif : désignées et complétées AVANT les mouvements du surplus
+            MarkGarrisons(zones, zoneById, axes, activeFlags, config);
+            FeedObjectiveGarrisons(zones, zoneById, links, axes, activeFlags, config, result, catalog);
+
+            if (config.AxisPullSurplus)
+                PullSurplusToAxes(zones, zoneById, links, axes, activeFlags, attackTargets, config, result, catalog);
+
             if (config.AxisReinforcement)
                 MoveTowardFront(zones, zoneById, links, attackTargets, config, result, catalog);
 
@@ -538,7 +836,7 @@ namespace DCE_Manager
 
             // ---- Orientation des formations (état final du tour), pour la repose dans DCS ----
 
-            AllocateForces(zones, zoneById, links, FindCutOffZones(zones, links, zoneById), attackTargets, frontPairs, config, false, result);
+            AllocateForces(zones, zoneById, links, FindCutOffZones(zones, links, zoneById, config), attackTargets, frontPairs, config, false, result);
 
             // ---- Objectifs d'axe atteints (après les basculements de ce tour) ----
 
@@ -635,7 +933,7 @@ namespace DCE_Manager
 
                 if (directions.Count == 0) continue;
 
-                List<WargameFormation> live = LiveFormations(zone, side);
+                List<WargameFormation> live = FightingFormations(zone, side);
                 if (live.Count == 0) continue;
 
                 // Un seul front : tout y va
@@ -779,7 +1077,7 @@ namespace DCE_Manager
             if (allocations.TryGetValue(zone.Id, out allocation) && allocation.FormationsByDirection.TryGetValue(enemyId, out list))
                 return list;
 
-            return LiveFormations(zone, side);
+            return FightingFormations(zone, side);
         }
 
         // Force affectée par "zone" (camp "side") au front tourné vers la zone ennemie "enemyId".
@@ -812,7 +1110,7 @@ namespace DCE_Manager
             WargameCombatResult result)
         {
             Dictionary<string, ZoneAllocation> allocations =
-                AllocateForces(zones, zoneById, links, FindCutOffZones(zones, links, zoneById), attackTargets, frontPairs, config, false, null);
+                AllocateForces(zones, zoneById, links, FindCutOffZones(zones, links, zoneById, config), attackTargets, frontPairs, config, false, null);
 
             // 1. Repérer les saillants (état actuel)
             var salients = new List<WargameZoneData>();
@@ -821,6 +1119,7 @@ namespace DCE_Manager
             {
                 if (!IsFightingSide(zone.Control)) continue;
                 if (flipped.Contains(zone.Id)) continue;
+                if (result.LandedZoneIds.Contains(zone.Id)) continue;   // tête de pont du tour : on la tient
                 if (attackTargets.ContainsKey(zone.Id)) continue;   // une zone qui attaque ne recule pas
 
                 string side = zone.Control;
@@ -1013,7 +1312,17 @@ namespace DCE_Manager
 
                     foreach (WargameFormation f in LiveFormations(zone, side).OrderByDescending(x => x.ForcePower))
                     {
-                        if (result.MovedFormationIds.Contains(f.FormationId)) continue;   // déjà bougée ce tour
+                        if (result.MovedFormationIds.Contains(f.FormationId))
+                        {
+                            Detail(config, "  reinforce " + side + " : " + f.Name + " already moved this turn (" + zone.Id + ")");
+                            continue;   // déjà bougée ce tour
+                        }
+
+                        if (IsGarrison(f))
+                        {
+                            Detail(config, "  reinforce " + side + " : " + f.Name + " stays in " + zone.Id + " (objective garrison)");
+                            continue;
+                        }
 
                         // Une formation sous le seuil de dissolution reste à l'arrière : elle récupère au lieu de monter
                         // se faire dissoudre au contact (voir RemoveBrokenFormations).
@@ -1028,31 +1337,56 @@ namespace DCE_Manager
                             }
                         }
 
-                        // Meilleure voisine plus proche du front : celle à qui il manque le plus de force
+                        // Marche vers le front : jusqu'à MarchSteps zones, en traversant les zones pleines ;
+                        // à chaque pas, la voisine plus proche du front qui a de la place, puis celle à qui il manque le plus de force.
+                        // La formation s'arrête à la dernière zone avec de la place sur son trajet.
                         WargameZoneData best = null;
-                        double bestScore = double.MinValue;
+                        WargameZoneData walking = zone;
+                        int walkDistance = zoneDistance;
 
-                        foreach (string id in links[zone.Id])
+                        for (int step = 0; step < MarchSteps && walkDistance > 0; step++)
                         {
-                            int d;
-                            if (!distance.TryGetValue(id, out d) || d != zoneDistance - 1) continue;
+                            WargameZoneData next = null;
+                            double nextScore = double.MinValue;
+                            bool nextHasRoom = false;
 
-                            WargameZoneData target = zoneById[id];
-
-                            double targetNeed;
-                            need.TryGetValue(id, out targetNeed);   // 0 si ce n'est pas la première ligne
-
-                            if (!AcceptsFormation(target, side, targetNeed, config)) continue;
-
-                            double score = targetNeed - SidePower(target, side);
-                            if (best == null || score > bestScore)
+                            foreach (string id in links[walking.Id])
                             {
-                                best = target;
-                                bestScore = score;
+                                int d;
+                                if (!distance.TryGetValue(id, out d) || d != walkDistance - 1) continue;
+
+                                WargameZoneData target = zoneById[id];
+
+                                double targetNeed;
+                                need.TryGetValue(id, out targetNeed);   // 0 si ce n'est pas la première ligne
+
+                                bool hasRoom = AcceptsFormation(target, side, targetNeed, config);
+                                double score = targetNeed - SidePower(target, side);
+
+                                if (next == null || (hasRoom && !nextHasRoom) || (hasRoom == nextHasRoom && score > nextScore))
+                                {
+                                    next = target;
+                                    nextScore = score;
+                                    nextHasRoom = hasRoom;
+                                }
                             }
+
+                            if (next == null) break;
+
+                            walking = next;
+                            walkDistance--;
+
+                            if (nextHasRoom) best = walking;
                         }
 
-                        if (best == null) continue;
+                        if (best == null)
+                        {
+                            Detail(config, "  reinforce " + side + " : " + f.Name + " waits in " + zone.Id + " (distance to front " + zoneDistance
+                                + ", walked to " + walking.Id + ", no room on the way)");
+                            continue;
+                        }
+
+                        Detail(config, "  reinforce " + side + " : " + f.Name + " " + zone.Id + " -> " + best.Id + " (distance to front " + zoneDistance + ")");
 
                         zone.Formations.Remove(f);
                         best.Formations.Add(f);
@@ -1063,21 +1397,780 @@ namespace DCE_Manager
             }
         }
 
-        // Une zone accepte une formation de plus si elle n'est pas pleine, ou si sa force
-        // n'atteint pas encore ce qu'il lui faut (voir MoveTowardFront) - mais jamais au-delà
-        // du plafond dur MaxFormationsHard.
+        // ------------------------------------------------------------------------------------------
+        // Le surplus file vers les axes
+        // ------------------------------------------------------------------------------------------
+
+        private class AxisHead
+        {
+            public WargameAxis Axis;
+            public WargameZoneData Head;                 // dernière zone amie de l'axe, au contact de la suivante
+            public double Missing;                       // force qui manque à la pointe pour percer la zone suivante
+            public double Needed;                        // force d'attaque qu'il faut pour percer la zone suivante
+            public double AttackMissing;                 // ce qui manque à la SEULE formation qui attaque (la plus forte), les autres gardent les flancs
+            public int Room;                             // places libres à la pointe (largeur de front - formations déjà là)
+            public Dictionary<string, int> Distance;     // nombre de pas, à travers les zones amies, jusqu'à la pointe
+        }
+
+        // Rotation à la pointe d'un axe bloquée : une formation de réserve remplace celle de la pointe seulement
+        // si elle vaut au moins ce multiple de sa force (évite les échanges pour un gain minime).
+        private const double RotationGain = 1.25;
+
+        // Marge sur la force d'attaque nécessaire (le vrai combat tient aussi compte du ravitaillement, de l'air et de la chance) :
+        // sans elle, une pointe "juste suffisante sur le papier" ne ferait jamais de rotation.
+        private const double RotationNeedMargin = 1.3;
+
+        // La plus faible formation vivante d'une zone qui n'a pas déjà bougé ce tour (null = aucune)
+        private static WargameFormation WeakestMovable(WargameZoneData zone, string side, WargameCombatResult result)
+        {
+            return LiveFormations(zone, side)
+                .Where(f => !result.MovedFormationIds.Contains(f.FormationId) && !IsGarrison(f))
+                .OrderBy(f => f.ForcePower)
+                .FirstOrDefault();
+        }
+
+        // ------------------------------------------------------------------------------------------
+        // Garnison des zones objectif (zone finale de chaque axe actif)
+        // ------------------------------------------------------------------------------------------
+
+        // Formations désignées garnison pour ce tour (renseigné par MarkGarrisons, lu par IsGarrison)
+        [ThreadStatic]
+        private static HashSet<int> _garrisonIds;
+
+        // Une relève remplace la garnison seulement si la nouvelle vaut moins que cette part de l'ancienne
+        private const double GarrisonReliefRatio = 0.6;
+
+        private static bool IsGarrison(WargameFormation f)
+        {
+            return _garrisonIds != null && _garrisonIds.Contains(f.FormationId);
+        }
+
+        // Zones finales des axes actifs, tenues par un des deux camps (sans doublon)
+        private static List<WargameZoneData> ObjectiveZonesOf(
+            List<WargameAxis> axes, HashSet<string> activeFlags, Dictionary<string, WargameZoneData> zoneById)
+        {
+            var list = new List<WargameZoneData>();
+            if (axes == null) return list;
+
+            foreach (WargameAxis axis in axes)
+            {
+                if (!axis.IsActive(activeFlags) || axis.Path.Count == 0) continue;
+
+                WargameZoneData end;
+                if (!zoneById.TryGetValue(axis.Path[axis.Path.Count - 1], out end)) continue;
+                if (!IsFightingSide(end.Control) || list.Contains(end)) continue;
+
+                list.Add(end);
+            }
+
+            return list;
+        }
+
+        // Désigne la garnison de chaque zone objectif : sa formation la plus faible
+        private static void MarkGarrisons(
+            List<WargameZoneData> zones, Dictionary<string, WargameZoneData> zoneById,
+            List<WargameAxis> axes, HashSet<string> activeFlags, WargameCombatConfig config)
+        {
+            _garrisonIds = new HashSet<int>();
+            if (!config.ObjectiveGarrison) return;
+
+            foreach (WargameZoneData z in ObjectiveZonesOf(axes, activeFlags, zoneById))
+            {
+                WargameFormation g = LiveFormations(z, z.Control).OrderBy(f => f.ForcePower).FirstOrDefault();
+                if (g != null)
+                {
+                    _garrisonIds.Add(g.FormationId);
+                    Detail(config, "  garrison " + z.Control + " : " + g.Name + " holds objective zone " + z.Id);
+                }
+            }
+        }
+
+        // Complète les garnisons : zone objectif vide -> la plus faible formation disponible de l'arrière vient l'occuper
+        // (elle marche MarchSteps zones par tour) ; garnison nettement plus forte qu'une formation toute proche -> relève.
+        private static void FeedObjectiveGarrisons(
+            List<WargameZoneData> zones,
+            Dictionary<string, WargameZoneData> zoneById,
+            Dictionary<string, List<string>> links,
+            List<WargameAxis> axes,
+            HashSet<string> activeFlags,
+            WargameCombatConfig config,
+            WargameCombatResult result,
+            WargameTemplateCatalog catalog)
+        {
+            if (!config.ObjectiveGarrison) return;
+
+            foreach (WargameZoneData z in ObjectiveZonesOf(axes, activeFlags, zoneById))
+            {
+                string side = z.Control;
+                string enemy = OtherSide(side);
+
+                WargameFormation garrison = LiveFormations(z, side).OrderBy(f => f.ForcePower).FirstOrDefault();
+
+                // Distance (en pas, à travers les zones amies) jusqu'à la zone objectif
+                var dist = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { { z.Id, 0 } };
+                var queue = new Queue<string>();
+                queue.Enqueue(z.Id);
+
+                while (queue.Count > 0)
+                {
+                    string current = queue.Dequeue();
+
+                    foreach (string next in links[current])
+                    {
+                        if (dist.ContainsKey(next)) continue;
+                        if (!string.Equals(zoneById[next].Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        dist[next] = dist[current] + 1;
+                        queue.Enqueue(next);
+                    }
+                }
+
+                // Candidats : formations de l'arrière (zones qui ne touchent pas l'ennemi), libres, pas trop faibles
+                WargameFormation best = null;
+                WargameZoneData bestZone = null;
+                double bestScore = double.MaxValue;
+
+                foreach (WargameZoneData x in zones)
+                {
+                    if (x.Id == z.Id || !dist.ContainsKey(x.Id)) continue;
+                    if (garrison != null && dist[x.Id] > MarchSteps) continue;   // relève : seulement si elle arrive ce tour
+                    if (links[x.Id].Any(id => string.Equals(zoneById[id].Control, enemy, StringComparison.OrdinalIgnoreCase))) continue;
+
+                    foreach (WargameFormation f in LiveFormations(x, side))
+                    {
+                        if (result.MovedFormationIds.Contains(f.FormationId) || IsGarrison(f)) continue;
+
+                        if (catalog != null && config.DisbandBelowFraction > 0)
+                        {
+                            double nominal = f.GetNominalForcePower(catalog);
+                            if (nominal > 0 && f.ForcePower < nominal * config.DisbandBelowFraction) continue;
+                        }
+
+                        // Plus faible ET proche : la distance pèse dans le choix, sinon la même formation faible
+                        // est réclamée tour après tour par des objectifs opposés et fait des allers-retours
+                        double score = f.ForcePower * (1.0 + 0.3 * dist[x.Id]);
+
+                        if (best == null || score < bestScore)
+                        {
+                            best = f;
+                            bestZone = x;
+                            bestScore = score;
+                        }
+                    }
+                }
+
+                if (best == null)
+                {
+                    if (garrison == null)
+                        Detail(config, "  garrison " + side + " : objective zone " + z.Id + " is empty and no free formation is available in the rear");
+                    continue;
+                }
+
+                // Relève : échange sur place
+                if (garrison != null)
+                {
+                    if (best.ForcePower >= garrison.ForcePower * GarrisonReliefRatio) continue;   // pas assez de gain
+
+                    z.Formations.Remove(garrison);
+                    bestZone.Formations.Add(garrison);
+                    bestZone.Formations.Remove(best);
+                    z.Formations.Add(best);
+
+                    result.MovedFormationIds.Add(garrison.FormationId);
+                    result.MovedFormationIds.Add(best.FormationId);
+
+                    Detail(config, "  garrison " + side + " : RELIEF " + best.Name + " (" + best.ForcePower.ToString("0.0") + ") " + bestZone.Id + " -> " + z.Id
+                        + " replaces " + garrison.Name + " (" + garrison.ForcePower.ToString("0.0") + ") sent back to " + bestZone.Id);
+                    continue;
+                }
+
+                // Zone vide : la formation marche vers elle (MarchSteps zones par tour), s'arrête à la dernière zone avec de la place
+                WargameZoneData walking = bestZone;
+                WargameZoneData stop = null;
+                int d = dist[bestZone.Id];
+
+                for (int step = 0; step < MarchSteps && d > 0; step++)
+                {
+                    WargameZoneData next = null;
+
+                    foreach (string id in links[walking.Id])
+                    {
+                        int dn;
+                        if (!dist.TryGetValue(id, out dn) || dn != d - 1) continue;
+
+                        WargameZoneData candidate = zoneById[id];
+                        if (next == null || AcceptsFormation(candidate, side, 0.0, config)) next = candidate;
+                    }
+
+                    if (next == null) break;
+
+                    walking = next;
+                    d--;
+
+                    if (AcceptsFormation(walking, side, 0.0, config)) stop = walking;
+                }
+
+                if (stop == null)
+                {
+                    Detail(config, "  garrison " + side + " : " + best.Name + " waits in " + bestZone.Id + " (no room on the way to " + z.Id + ")");
+                    continue;
+                }
+
+                bestZone.Formations.Remove(best);
+                stop.Formations.Add(best);
+                result.MovedFormationIds.Add(best.FormationId);
+
+                Detail(config, "  garrison " + side + " : " + best.Name + " (" + best.ForcePower.ToString("0.0") + ") " + bestZone.Id + " -> " + stop.Id
+                    + (stop.Id == z.Id ? " (occupies objective zone " : " (on its way to objective zone ") + z.Id + ")");
+            }
+
+            // Les garnisons ont pu changer : on les désigne de nouveau avant les mouvements du surplus
+            MarkGarrisons(zones, zoneById, axes, activeFlags, config);
+        }
+
+        // Pointe d'un axe : index de la première zone du chemin tenue par l'attaquant dont la suivante est à l'ennemi.
+        // -1 = pas de contact sur cet axe.
+        private static int FindAxisHead(WargameAxis axis, string attackSide, Dictionary<string, WargameZoneData> zoneById)
+        {
+            for (int i = 0; i < axis.Path.Count - 1; i++)
+            {
+                WargameZoneData a, b;
+                if (!zoneById.TryGetValue(axis.Path[i], out a) || !zoneById.TryGetValue(axis.Path[i + 1], out b))
+                    continue;
+
+                if (string.Equals(a.Control, attackSide, StringComparison.OrdinalIgnoreCase)
+                    && IsFightingSide(b.Control)
+                    && !string.Equals(b.Control, attackSide, StringComparison.OrdinalIgnoreCase))
+                    return i;
+            }
+
+            return -1;
+        }
+
+        // Force à garder dans une zone face aux voisines ennemies, la cible d'attaque exceptée
+        // (même seuil que le combat et AllocateForces : force ennemie / (rapport du seuil x ravitaillement x terrain))
+        private static double GuardNeed(
+            WargameZoneData zone, string side, string attackId,
+            Dictionary<string, WargameZoneData> zoneById, Dictionary<string, List<string>> links,
+            HashSet<string> cutOff, WargameCombatConfig config, double ratio)
+        {
+            string enemySide = OtherSide(side);
+            double ownMult = Math.Max(0.01, SupplyFactor(zone, cutOff, config) * config.GetTerrainDefense(zone.Terrain) * AirCoef(side, config));
+            double need = 0;
+
+            foreach (string id in links[zone.Id])
+            {
+                WargameZoneData d = zoneById[id];
+
+                if (!string.Equals(d.Control, enemySide, StringComparison.OrdinalIgnoreCase)) continue;
+                if (attackId != null && string.Equals(id, attackId, StringComparison.OrdinalIgnoreCase)) continue;
+
+                need += SidePower(d, enemySide) * SupplyFactor(d, cutOff, config) * AirCoef(enemySide, config) / (ratio * ownMult);
+            }
+
+            return need;
+        }
+
+        // Une armée ne reste pas plantée derrière pendant que la pointe de son offensive manque de force.
+        // Pour chaque camp qui attaque sur un axe actif :
+        //   - pointe de chaque axe = dernière zone amie du chemin, au contact de la suivante ; il lui "manque" la force
+        //     qu'il faut pour percer la zone suivante (force ennemie x terrain x rapport du seuil) moins ce qu'elle a ;
+        //   - dans chaque zone, une formation reste si la zone en a besoin pour garder ses flancs (plus faibles d'abord),
+        //     si elle attaque (la plus forte), ou si c'est la seule d'une zone au contact de l'ennemi ;
+        //   - les autres sont LIBRES : d'un pas par mission, à travers les zones amies, vers la pointe de l'axe à qui il
+        //     manque le plus de force, en suivant de préférence le chemin de l'axe.
+        // Une formation trop faible (sous le seuil de dissolution) ne marche pas : elle récupère d'abord.
+        private static void PullSurplusToAxes(
+            List<WargameZoneData> zones,
+            Dictionary<string, WargameZoneData> zoneById,
+            Dictionary<string, List<string>> links,
+            List<WargameAxis> axes,
+            HashSet<string> activeFlags,
+            Dictionary<string, string> attackTargets,
+            WargameCombatConfig config,
+            WargameCombatResult result,
+            WargameTemplateCatalog catalog)
+        {
+            if (axes == null) return;
+
+            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById, config);
+
+            double threshold = Math.Min(config.ControlFlipThreshold, 0.9);
+            double ratio = (1.0 + threshold) / (1.0 - threshold);
+
+            foreach (string side in new[] { WargameSide.Blue, WargameSide.Red })
+            {
+                string enemySide = OtherSide(side);
+
+                // 1. Pointes d'axe de ce camp
+                var heads = new List<AxisHead>();
+
+                foreach (WargameAxis axis in axes)
+                {
+                    if (!axis.IsActive(activeFlags)) continue;
+
+                    WargameZoneData startZone;
+                    if (!zoneById.TryGetValue(axis.Path[0], out startZone) || !IsFightingSide(startZone.Control)) continue;
+                    if (!string.Equals(GetAttackSide(axis, startZone), side, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (IsObjectiveReached(axis, side, zoneById)) continue;
+
+                    int headIndex = FindAxisHead(axis, side, zoneById);
+                    if (headIndex < 0) continue;
+
+                    WargameZoneData head = zoneById[axis.Path[headIndex]];
+                    WargameZoneData target = zoneById[axis.Path[headIndex + 1]];
+
+                    double needed = SidePower(target, enemySide) * config.GetTerrainDefense(target.Terrain) * ratio;
+                    double missing = needed - SidePower(head, side);
+
+                    // Distance (en pas, à travers les zones amies) de chaque zone à la pointe
+                    var distance = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                    var queue = new Queue<string>();
+                    distance[head.Id] = 0;
+                    queue.Enqueue(head.Id);
+
+                    while (queue.Count > 0)
+                    {
+                        string current = queue.Dequeue();
+
+                        foreach (string next in links[current])
+                        {
+                            if (distance.ContainsKey(next)) continue;
+                            if (!string.Equals(zoneById[next].Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                            distance[next] = distance[current] + 1;
+                            queue.Enqueue(next);
+                        }
+                    }
+
+                    Detail(config, "  axis pull " + side + " : axis '" + axis.Name + "' head " + head.Id + " -> " + target.Id
+                        + ", needs " + needed.ToString("0.0") + " (has " + SidePower(head, side).ToString("0.0") + ")");
+
+                    int room = Math.Max(0, config.MaxFormationsPerZone - LiveFormations(head, side).Count);
+
+                    WargameFormation strongestInHead = LiveFormations(head, side).OrderByDescending(x => x.ForcePower).FirstOrDefault();
+                    double attackMissing = needed * RotationNeedMargin - (strongestInHead != null ? strongestInHead.ForcePower : 0.0);
+
+                    heads.Add(new AxisHead { Axis = axis, Head = head, Missing = missing, Needed = needed, AttackMissing = attackMissing, Room = room, Distance = distance });
+                }
+
+                if (heads.Count == 0)
+                {
+                    Detail(config, "  axis pull " + side + " : no active axis head for this side");
+                    continue;
+                }
+
+                Detail(config, "  axis pull " + side + " : engine with march " + MarchSteps + " zone(s) per turn, " + heads.Count + " axis head(s)");
+                foreach (AxisHead hh in heads)
+                    Detail(config, "  axis pull " + side + " : head " + hh.Head.Id + " (axis " + hh.Axis.Name + ") missing " + hh.Missing.ToString("0.0")
+                        + ", room " + hh.Room + ", reachable zones: " + string.Join(",", hh.Distance.Keys.OrderBy(k => k)));
+
+                var headZoneIds = new HashSet<string>(heads.Select(h => h.Head.Id), StringComparer.OrdinalIgnoreCase);
+
+                // 2. Zones de l'arrière vers la pointe : la place se libère devant
+                List<WargameZoneData> sideZones = zones
+                    .Where(z => string.Equals(z.Control, side, StringComparison.OrdinalIgnoreCase)
+                        && !headZoneIds.Contains(z.Id)
+                        && heads.Any(h => h.Distance.ContainsKey(z.Id)))
+                    .OrderBy(z => heads.Where(h => h.Distance.ContainsKey(z.Id)).Min(h => h.Distance[z.Id]))
+                    .ToList();
+
+                foreach (WargameZoneData zone in sideZones)
+                {
+                    List<WargameFormation> live = LiveFormations(zone, side)
+                        .Where(f => !result.MovedFormationIds.Contains(f.FormationId)).ToList();
+                    if (live.Count == 0) continue;
+
+                    Detail(config, "  axis pull " + side + " : checking zone " + zone.Id + " (" + live.Count + " formation(s) able to move)");
+
+                    string attackId;
+                    attackTargets.TryGetValue(zone.Id, out attackId);
+
+                    double guard = GuardNeed(zone, side, attackId, zoneById, links, cutOff, config, ratio);
+                    bool touchesEnemy = links[zone.Id].Any(id => string.Equals(zoneById[id].Control, enemySide, StringComparison.OrdinalIgnoreCase));
+
+                    WargameFormation main = attackId != null ? LiveFormations(zone, side).OrderByDescending(f => f.ForcePower).First() : null;
+
+                    // Ce qui reste : les plus faibles gardent d'abord, jusqu'à couvrir le besoin de garde
+                    double kept = 0;
+                    int keptCount = main != null ? 1 : 0;
+                    var free = new List<WargameFormation>();
+
+                    foreach (WargameFormation f in LiveFormations(zone, side).OrderBy(x => x.ForcePower))
+                    {
+                        if (f == main) continue;
+
+                        if (IsGarrison(f))
+                        {
+                            kept += f.ForcePower;
+                            keptCount++;
+                            Detail(config, "    axis pull " + side + " : " + f.Name + " stays in " + zone.Id + " (objective garrison)");
+                            continue;
+                        }
+
+                        bool mustStay = kept < guard || (touchesEnemy && keptCount == 0);
+                        if (mustStay)
+                        {
+                            kept += f.ForcePower;
+                            keptCount++;
+                            Detail(config, "    axis pull " + side + " : " + f.Name + " stays in " + zone.Id + " (guard: needs " + guard.ToString("0.0")
+                                + ", kept " + kept.ToString("0.0") + ", touches enemy " + touchesEnemy + ")");
+                            continue;
+                        }
+
+                        if (result.MovedFormationIds.Contains(f.FormationId)) continue;
+                        free.Add(f);
+                    }
+
+                    foreach (WargameFormation f in free.OrderByDescending(x => x.ForcePower))
+                    {
+                        // Formation trop faible : elle récupère au lieu de marcher au contact
+                        if (catalog != null && config.DisbandBelowFraction > 0)
+                        {
+                            double nominal = f.GetNominalForcePower(catalog);
+                            if (nominal > 0 && f.ForcePower < nominal * config.DisbandBelowFraction)
+                            {
+                                Detail(config, "    axis pull " + side + " : " + f.Name + " stays in " + zone.Id + " (too weak, recovers)");
+                                continue;
+                            }
+                        }
+
+                        // L'axe à qui il manque le plus de force, atteignable depuis cette zone
+                        // (seules les pointes qui ont de la place comptent ; parmi elles, celle à qui il manque le plus de force)
+                        AxisHead chosen = null;
+                        bool rotation = false;
+                        foreach (AxisHead h in heads)
+                        {
+                            if (h.Room <= 0 || !h.Distance.ContainsKey(zone.Id)) continue;   // pointe pleine : elle ne peut rien recevoir, on regarde l'axe suivant
+
+                            if (chosen == null || h.Missing > chosen.Missing || (h.Missing == chosen.Missing && h.Room > chosen.Room)) chosen = h;
+                        }
+
+                        // Rotation : toutes les pointes sont pleines, mais une pointe à qui il manque de la force tient une formation
+                        // nettement plus faible que celle-ci. On vise cette pointe : sur place on échange, sinon on se rapproche.
+                        if (chosen == null)
+                        {
+                            foreach (AxisHead h in heads)
+                            {
+                                if (h.Room > 0 || h.AttackMissing <= 0 || !h.Distance.ContainsKey(zone.Id)) continue;
+
+                                WargameFormation weakest = WeakestMovable(h.Head, side, result);
+                                if (weakest == null || f.ForcePower < weakest.ForcePower * RotationGain) continue;
+
+                                if (chosen == null || h.AttackMissing > chosen.AttackMissing) chosen = h;
+                            }
+
+                            rotation = chosen != null;
+                        }
+
+                        if (chosen == null)
+                        {
+                            Detail(config, "    axis pull " + side + " : " + f.Name + " stays in " + zone.Id + " (no axis needs force or room, or zone not linked to a head)");
+                            break;   // aucun axe n'a besoin de plus de force
+                        }
+
+                        // Échange à la pointe : la plus forte arrive, la plus faible de la pointe recule dans la zone d'où elle vient
+                        if (rotation && chosen.Distance[zone.Id] <= MarchSteps)
+                        {
+                            WargameFormation weak = WeakestMovable(chosen.Head, side, result);
+                            if (weak != null)
+                            {
+                                chosen.Head.Formations.Remove(weak);
+                                zone.Formations.Add(weak);
+                                zone.Formations.Remove(f);
+                                chosen.Head.Formations.Add(f);
+
+                                result.MovedFormationIds.Add(f.FormationId);
+                                result.MovedFormationIds.Add(weak.FormationId);
+                                result.ReinforcedFormationIds.Add(f.FormationId);
+                                chosen.Missing -= f.ForcePower - weak.ForcePower;
+                                chosen.AttackMissing = chosen.Needed * RotationNeedMargin - LiveFormations(chosen.Head, side).Max(x => x.ForcePower);
+
+                                Detail(config, "  axis pull " + side + " : ROTATION " + f.Name + " (" + f.ForcePower.ToString("0.0") + ") " + zone.Id + " -> " + chosen.Head.Id
+                                    + " replaces " + weak.Name + " (" + weak.ForcePower.ToString("0.0") + ") sent back to " + zone.Id);
+                                continue;
+                            }
+                        }
+
+                        // Marche vers la pointe : jusqu'à MarchSteps zones, de préférence sur le chemin de l'axe (route).
+                        // Les zones pleines se traversent ; on s'arrête à la dernière zone qui a de la place.
+                        WargameZoneData best = null;
+                        WargameZoneData walking = zone;
+                        int walkDistance = chosen.Distance[zone.Id];
+
+                        for (int step = 0; step < MarchSteps && walkDistance > 0; step++)
+                        {
+                            WargameZoneData next = null;
+                            int nextPathIndex = -2;
+                            bool nextHasRoom = false;
+
+                            foreach (string id in links[walking.Id])
+                            {
+                                int d;
+                                if (!chosen.Distance.TryGetValue(id, out d) || d != walkDistance - 1) continue;
+
+                                WargameZoneData candidate = zoneById[id];
+                                bool hasRoom = AcceptsFormation(candidate, side, 0.0, config);
+                                int pathIndex = chosen.Axis.GetIndex(id);
+
+                                if (next == null || (hasRoom && !nextHasRoom) || (hasRoom == nextHasRoom && pathIndex > nextPathIndex))
+                                {
+                                    next = candidate;
+                                    nextPathIndex = pathIndex;
+                                    nextHasRoom = hasRoom;
+                                }
+                            }
+
+                            if (next == null) break;
+
+                            walking = next;
+                            walkDistance--;
+
+                            if (nextHasRoom) best = walking;   // dernière zone avec de la place sur le trajet
+                        }
+
+                        if (best == null)
+                        {
+                            Detail(config, "    axis pull " + side + " : " + f.Name + " waits in " + zone.Id + " (axis '" + chosen.Axis.Name
+                                + "', distance " + chosen.Distance[zone.Id] + ", walked to " + walking.Id + ", no room on the way)");
+                            continue;   // pas de place sur le trajet : on attend
+                        }
+
+                        zone.Formations.Remove(f);
+                        best.Formations.Add(f);
+                        result.MovedFormationIds.Add(f.FormationId);
+                        result.ReinforcedFormationIds.Add(f.FormationId);
+                        chosen.Missing -= f.ForcePower;
+                        if (best.Id == chosen.Head.Id) chosen.Room--;
+
+                        Detail(config, "  axis pull " + side + " : " + f.Name + " " + zone.Id + " -> " + best.Id
+                            + " (toward axis '" + chosen.Axis.Name + "' head " + chosen.Head.Id + ")");
+                    }
+                }
+            }
+        }
+
+        // ------------------------------------------------------------------------------------------
+        // Chemin flexible des axes
+        // ------------------------------------------------------------------------------------------
+
+        // Centre d'une zone, comme WargameAxisPathFinder (centre de gravité du polygone)
+        private static PointF ZoneCenterOf(WargameZoneData zone)
+        {
+            if (zone.Shape == WargameZoneShape.Polygon && zone.DcsPoints != null && zone.DcsPoints.Count >= 3)
+                return WargameAxisPathFinder.PolygonCentroid(zone.DcsPoints);
+
+            return zone.Center;
+        }
+
+        private static double CenterDistance(Dictionary<string, PointF> centers, string a, string b)
+        {
+            double dx = centers[a].X - centers[b].X;
+            double dy = centers[a].Y - centers[b].Y;
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        // Plus court chemin pondéré (Dijkstra). null = aucun chemin. Zones "blocked" interdites.
+        private static List<string> WeightedSegment(
+            Dictionary<string, List<string>> links, Dictionary<string, PointF> centers,
+            string from, string to, HashSet<string> blocked, Func<string, double> zoneCost)
+        {
+            var dist = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase) { { from, 0.0 } };
+            var previous = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            while (true)
+            {
+                string current = null;
+                double best = double.MaxValue;
+
+                foreach (KeyValuePair<string, double> kv in dist)
+                {
+                    if (!done.Contains(kv.Key) && kv.Value < best)
+                    {
+                        best = kv.Value;
+                        current = kv.Key;
+                    }
+                }
+
+                if (current == null) return null;
+                if (string.Equals(current, to, StringComparison.OrdinalIgnoreCase)) break;
+
+                done.Add(current);
+
+                foreach (string next in links[current])
+                {
+                    if (done.Contains(next) || blocked.Contains(next)) continue;
+
+                    double candidate = best + CenterDistance(centers, current, next) * zoneCost(next);
+
+                    double old;
+                    if (!dist.TryGetValue(next, out old) || candidate < old)
+                    {
+                        dist[next] = candidate;
+                        previous[next] = current;
+                    }
+                }
+            }
+
+            var path = new List<string>();
+            string step = to;
+            while (step != null)
+            {
+                path.Add(step);
+                string back;
+                step = previous.TryGetValue(step, out back) ? back : null;
+            }
+
+            path.Reverse();
+            return path;
+        }
+
+        // Chemin flexible : pour chaque axe actif qui a une pointe, on recalcule la SUITE du chemin (de la pointe jusqu'à
+        // l'objectif, en passant par les zones de passage restantes) avec un coût par zone :
+        //   distance x (1 + résistance) x route
+        //   résistance = force ennemie x terrain / force dont dispose l'attaquant pour cet axe (plafonnée à 4) ;
+        //   route      = 1 / racine(combat de la route) : la route verte coûte moins cher qu'une piste.
+        // Le nouveau chemin n'est pris que s'il coûte au moins 15 % de moins que le chemin prévu (pas de zigzag)
+        // et s'il n'a pas plus de AxisFlexDetour zones de plus. Renvoie les chemins PREVUS à remettre après le tour.
+        private static Dictionary<WargameAxis, List<string>> AdaptAxisPaths(
+            List<WargameZoneData> zones, List<WargameAxis> axes, HashSet<string> activeFlags, WargameCombatConfig config)
+        {
+            var planned = new Dictionary<WargameAxis, List<string>>();
+            if (zones == null || axes == null || axes.Count == 0) return planned;
+
+            var zoneById = new Dictionary<string, WargameZoneData>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in zones) zoneById[z.Id] = z;
+
+            Dictionary<string, List<string>> links = BuildLinks(zones);
+
+            var centers = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in zones) centers[z.Id] = ZoneCenterOf(z);
+
+            // Axes actifs par camp attaquant (pour partager la force disponible)
+            var attackSideOf = new Dictionary<WargameAxis, string>();
+            var axesPerSide = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (WargameAxis axis in axes)
+            {
+                if (!axis.IsActive(activeFlags)) continue;
+
+                WargameZoneData startZone;
+                if (!zoneById.TryGetValue(axis.Path[0], out startZone) || !IsFightingSide(startZone.Control)) continue;
+
+                string side = GetAttackSide(axis, startZone);
+                if (IsObjectiveReached(axis, side, zoneById)) continue;
+
+                attackSideOf[axis] = side;
+                int n;
+                axesPerSide.TryGetValue(side, out n);
+                axesPerSide[side] = n + 1;
+            }
+
+            foreach (KeyValuePair<WargameAxis, string> kv in attackSideOf)
+            {
+                WargameAxis axis = kv.Key;
+                string side = kv.Value;
+                string enemySide = OtherSide(side);
+
+                int headIndex = FindAxisHead(axis, side, zoneById);
+                if (headIndex < 0) continue;
+
+                double totalPower = zones
+                    .Where(z => !IsReserveZone(z) && string.Equals(z.Control, side, StringComparison.OrdinalIgnoreCase))
+                    .Sum(z => SidePower(z, side));
+                double available = Math.Max(10.0, totalPower / Math.Max(1, axesPerSide[side]));
+
+                Func<string, double> zoneCost = id =>
+                {
+                    WargameZoneData z = zoneById[id];
+                    double cost = 1.0 / Math.Sqrt(Math.Max(0.25, config.GetRouteCombat(z.SupplyRoute)));
+
+                    if (string.Equals(z.Control, enemySide, StringComparison.OrdinalIgnoreCase))
+                    {
+                        double resistance = SidePower(z, enemySide) * config.GetTerrainDefense(z.Terrain) / available;
+                        cost *= 1.0 + Math.Min(4.0, resistance);
+                    }
+
+                    return cost;
+                };
+
+                // Suite prévue : de la pointe à l'objectif
+                List<string> oldPath = axis.Path;
+                List<string> oldTail = oldPath.Skip(headIndex).ToList();
+
+                // Zones déjà parcourues : interdites au nouveau chemin
+                var blocked = new HashSet<string>(oldPath.Take(headIndex), StringComparer.OrdinalIgnoreCase);
+
+                // Zones de passage restantes (obligatoires), dans l'ordre prévu, puis l'objectif
+                var stops = new List<string>();
+                foreach (string via in axis.ViaZoneIds)
+                {
+                    if (axis.GetIndex(via) > headIndex) stops.Add(via);
+                }
+                stops.Add(oldPath[oldPath.Count - 1]);
+
+                var newTail = new List<string> { oldPath[headIndex] };
+                bool failed = false;
+
+                foreach (string stop in stops)
+                {
+                    string from = newTail[newTail.Count - 1];
+                    if (string.Equals(from, stop, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var forbidden = new HashSet<string>(blocked, StringComparer.OrdinalIgnoreCase);
+                    foreach (string used in newTail) forbidden.Add(used);
+                    forbidden.Remove(from);
+
+                    List<string> segment = WeightedSegment(links, centers, from, stop, forbidden, zoneCost);
+                    if (segment == null || segment.Count < 2) { failed = true; break; }
+
+                    for (int i = 1; i < segment.Count; i++) newTail.Add(segment[i]);
+                }
+
+                if (failed) continue;
+                if (newTail.SequenceEqual(oldTail, StringComparer.OrdinalIgnoreCase)) continue;
+
+                double oldCost = TailCost(oldTail, centers, zoneCost);
+                double newCost = TailCost(newTail, centers, zoneCost);
+
+                bool shorterEnough = newTail.Count <= oldTail.Count + config.AxisFlexDetour;
+                bool cheaperEnough = newCost < oldCost * 0.85;
+
+                Detail(config, "  flexible path '" + axis.Name + "' : planned " + string.Join(">", oldTail) + " (cost " + oldCost.ToString("0") + ")"
+                    + " | candidate " + string.Join(">", newTail) + " (cost " + newCost.ToString("0") + ")"
+                    + (shorterEnough && cheaperEnough ? " -> adopted" : " -> kept the plan"));
+
+                if (!shorterEnough || !cheaperEnough) continue;
+
+                var adapted = oldPath.Take(headIndex).ToList();
+                adapted.AddRange(newTail);
+
+                planned[axis] = oldPath;
+                axis.Path = adapted;
+
+                Trace(config, "  axis '" + axis.Name + "' goes around the resistance : " + string.Join(" > ", newTail));
+            }
+
+            return planned;
+        }
+
+        private static double TailCost(List<string> tail, Dictionary<string, PointF> centers, Func<string, double> zoneCost)
+        {
+            double total = 0;
+
+            for (int i = 1; i < tail.Count; i++)
+                total += CenterDistance(centers, tail[i - 1], tail[i]) * zoneCost(tail[i]);
+
+            return total;
+        }
+
+        // Une zone accepte une formation de plus tant qu'elle n'a pas MaxFormationsPerZone formations : plus de
+        // dépassement selon la menace, une formation qui n'a pas de place attend dans la zone d'avant (file d'attente).
+        // "needed" n'est plus utilisé, gardé pour ne pas changer les appels.
         private static bool AcceptsFormation(WargameZoneData zone, string side, double needed, WargameCombatConfig config)
         {
-            int count = LiveFormations(zone, side).Count;
-            int hardCap = Math.Max(config.MaxFormationsHard, config.MaxFormationsPerZone);
-
-            if (count >= hardCap)
-                return false;
-
-            if (count < config.MaxFormationsPerZone)
-                return true;
-
-            return SidePower(zone, side) < needed;
+            return LiveFormations(zone, side).Count < config.MaxFormationsPerZone;
         }
 
         // Formations vivantes d'un camp dans une zone
@@ -1130,13 +2223,19 @@ namespace DCE_Manager
                         if (!seen.Add(id)) continue;
 
                         WargameZoneData n = zoneById[id];
-                        blue += SidePower(n, WargameSide.Blue) * weight;
-                        red += SidePower(n, WargameSide.Red) * weight;
+
+                        // Une zone qui a épuisé son stock (coupée depuis trop longtemps) ne projette plus d'influence :
+                        // sans ravitaillement, une armée ne peut pas non plus occuper de nouvelles zones vides
+                        double nBlue = ExhaustedForOffensive(n, WargameSide.Blue, config) ? 0 : SidePower(n, WargameSide.Blue);
+                        double nRed = ExhaustedForOffensive(n, WargameSide.Red, config) ? 0 : SidePower(n, WargameSide.Red);
+
+                        blue += nBlue * weight;
+                        red += nRed * weight;
 
                         if (depth == 1)
                         {
-                            blueDirect += SidePower(n, WargameSide.Blue);
-                            redDirect += SidePower(n, WargameSide.Red);
+                            blueDirect += nBlue;
+                            redDirect += nRed;
                             next.AddRange(links[id]);
                         }
                     }
@@ -1164,15 +2263,46 @@ namespace DCE_Manager
             for (int i = 0; i < toFlip.Count; i++)
             {
                 toFlip[i].Control = OtherSide(toFlip[i].Control);
+
+                // La zone occupée hérite du retard de ravitaillement des voisines du nouveau camp (délai de grâce)
+                bool found = false;
+                int inherited = 0;
+                foreach (string id in links[toFlip[i].Id])
+                {
+                    WargameZoneData n = zoneById[id];
+                    if (n.CutOffTurns == 0 || !string.Equals(n.CutOffSide, toFlip[i].Control, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    inherited = found ? Math.Max(inherited, n.CutOffTurns) : n.CutOffTurns;   // la voisine la plus en retard
+                    found = true;
+                }
+                toFlip[i].CutOffTurns = found ? inherited : 0;
+                toFlip[i].CutOffSide = found ? toFlip[i].Control : "";
+
                 result.FlippedZones.Add(toFlip[i]);
                 Trace(config, messages[i]);
             }
         }
 
+        // Zone coupée depuis plus longtemps que le délai de grâce : les formations de ce camp n'ont plus de stock
+        // (elles ne peuvent plus attaquer ni occuper de zone vide). Vrai seulement si cutoff_can_attack est désactivé.
+        private static bool ExhaustedForOffensive(WargameZoneData zone, string side, WargameCombatConfig config)
+        {
+            return !config.CutOffCanAttack
+                && zone.CutOffTurns > EffectiveGrace(config)
+                && string.Equals(zone.CutOffSide, side, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Délai de grâce (stock emporté) : remplacé par les points avancés quand les convois sont activés
+        private static double EffectiveGrace(WargameCombatConfig config)
+        {
+            return config.SupplyConvoys ? 0 : Math.Max(0, config.CutOffGraceTurns);
+        }
+
         // Zones dont les formations sont posées en unités dans DCS : les zones de première ligne
         // (voisines d'une zone ennemie) et celles à moins de "depth" pas derrière elles.
         // Les zones qui ne sont ni bleues ni rouges sont toujours incluses. Si aucun front
-        // n'existe, tout est inclus (rien à économiser).
+        // n'existe, tout est inclus (rien à économiser), SAUF les boîtes hors carte (RESERVE, LANDING) :
+        // leurs formations ne sont JAMAIS posées en unités dans DCS, quoi qu'il arrive.
         public static HashSet<string> FindDcsZones(List<WargameZoneData> zones, int depth)
         {
             var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -1189,6 +2319,9 @@ namespace DCE_Manager
 
             foreach (WargameZoneData zone in zones)
             {
+                if (IsOffMapId(zone.Id))
+                    continue;   // réserve ou plan de débarquement : jamais jouée dans DCS
+
                 if (!IsFightingSide(zone.Control))
                 {
                     result.Add(zone.Id);   // zone non réglée : on ne la filtre jamais
@@ -1208,7 +2341,8 @@ namespace DCE_Manager
             if (queue.Count == 0)
             {
                 foreach (WargameZoneData zone in zones)
-                    result.Add(zone.Id);
+                    if (!IsOffMapId(zone.Id))
+                        result.Add(zone.Id);
                 return result;
             }
 
@@ -1295,6 +2429,598 @@ namespace DCE_Manager
             return snap;
         }
 
+        // ---- Renforts : réserve + ordres de déploiement ----
+        //
+        // Une zone dont le nom commence par RESERVE (ex. RESERVE_BLUE, RESERVE_RED) est une REMISE : le
+        // campaignMaker y range des formations prêtes au combat, en attente. Elle n'a aucun voisin (voir
+        // BuildLinks), n'est jamais jouée dans DCS, ne prend part à aucun combat.
+        //
+        // Un trigger de campagne lève le flag   wg_deploy__FORMATION__ZONE   (nom de la formation et id de la
+        // zone, avec _ à la place de tout ce qui n'est pas lettre ou chiffre : Secteur-30 -> Secteur_30).
+        // Au tour suivant la formation quitte la réserve et arrive à pleine force dans la zone, à condition
+        // que la zone soit AMIE et pas PLEINE (au contact de l'ennemi, c'est permis). Sinon elle attend et
+        // le flag reste levé. Un ordre traité (arrivée, formation ou zone inconnue) est baissé automatiquement.
+        internal const string ReserveZonePrefix = "RESERVE";
+        internal const string LandingZonePrefix = "LANDING";   // plan de débarquement : boîte hors carte, comme une réserve
+        internal const string DeployFlagPrefix = "wg_deploy__";
+
+        // Vrai pour une réserve ET pour un plan de débarquement : toutes les "boîtes" posées hors du front
+        internal static bool IsReserveZone(WargameZoneData zone)
+        {
+            return zone != null && IsOffMapId(zone.Id);
+        }
+
+        internal static bool IsOffMapId(string id)
+        {
+            return id != null
+                && (id.StartsWith(ReserveZonePrefix, StringComparison.OrdinalIgnoreCase)
+                    || id.StartsWith(LandingZonePrefix, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Vrai seulement pour un plan de débarquement (LANDING_n)
+        internal static bool IsLandingZone(WargameZoneData zone)
+        {
+            return zone != null && zone.Id != null && zone.Id.StartsWith(LandingZonePrefix, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Même nettoyage que ZoneFlagName : lettres, chiffres et _ seulement
+        internal static string FlagKey(string text)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in text ?? "")
+                sb.Append(char.IsLetterOrDigit(c) ? c : '_');
+            return sb.ToString();
+        }
+
+        // Nom du flag d'ordre pour une formation et une zone (sert aussi à la preview)
+        internal static string DeployFlagName(string formationName, string zoneId)
+        {
+            return DeployFlagPrefix + FlagKey(formationName) + "__" + FlagKey(zoneId);
+        }
+
+        // Traite les flags wg_deploy__... levés. Les flags traités sont retirés de activeFlags (copie en
+        // mémoire) et listés dans result.ConsumedFlags pour que la campagne les baisse (voir BuildFlagLines).
+        internal static void DeployReinforcements(List<WargameZoneData> zones, HashSet<string> activeFlags,
+            WargameCombatConfig config, WargameCombatResult result)
+        {
+            if (zones == null || activeFlags == null || activeFlags.Count == 0)
+                return;
+
+            List<string> orders = activeFlags
+                .Where(f => f != null && f.StartsWith(DeployFlagPrefix, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (string flag in orders)
+            {
+                string rest = flag.Substring(DeployFlagPrefix.Length);
+                int cut = rest.IndexOf("__", StringComparison.Ordinal);
+
+                if (cut <= 0 || cut + 2 >= rest.Length)
+                {
+                    FinishOrder(config, result, activeFlags, flag, true, "Reinforcement order '" + flag + "' ignored: expected wg_deploy__FORMATION__ZONE.");
+                    continue;
+                }
+
+                string formationKey = rest.Substring(0, cut);
+                string zoneKey = rest.Substring(cut + 2);
+
+                // La formation doit être rangée dans une réserve
+                WargameZoneData reserve = null;
+                WargameFormation formation = null;
+
+                foreach (WargameZoneData z in zones)
+                {
+                    if (!IsReserveZone(z)) continue;
+
+                    formation = z.Formations.FirstOrDefault(f => string.Equals(FlagKey(f.Name), formationKey, StringComparison.OrdinalIgnoreCase));
+                    if (formation != null) { reserve = z; break; }
+                }
+
+                if (formation == null)
+                {
+                    FinishOrder(config, result, activeFlags, flag, true,
+                        "Reinforcement '" + formationKey + "' not found in a reserve (already deployed, or misspelled): order dropped.");
+                    continue;
+                }
+
+                WargameZoneData target = zones.FirstOrDefault(z => !IsReserveZone(z)
+                    && string.Equals(FlagKey(z.Id), zoneKey, StringComparison.OrdinalIgnoreCase));
+
+                if (target == null)
+                {
+                    FinishOrder(config, result, activeFlags, flag, true,
+                        "Reinforcement " + formation.Name + ": zone '" + zoneKey + "' does not exist, order dropped.");
+                    continue;
+                }
+
+                if (!string.Equals(target.Control, formation.Side, StringComparison.OrdinalIgnoreCase))
+                {
+                    FinishOrder(config, result, activeFlags, flag, false,
+                        "Reinforcement " + formation.Name + " waits in reserve: zone " + target.Id + " is not held by " + formation.Side + ".");
+                    continue;
+                }
+
+                int live = target.Formations.Count(f => f.ForcePower > 0
+                    && string.Equals(f.Side, formation.Side, StringComparison.OrdinalIgnoreCase));
+                int hardCap = config.MaxFormationsPerZone;
+
+                if (live >= hardCap)
+                {
+                    FinishOrder(config, result, activeFlags, flag, false,
+                        "Reinforcement " + formation.Name + " waits in reserve: zone " + target.Id + " is full (" + live + "/" + hardCap + ").");
+                    continue;
+                }
+
+                reserve.Formations.Remove(formation);
+                target.Formations.Add(formation);
+                result.DeployedFormationIds.Add(formation.FormationId);
+
+                FinishOrder(config, result, activeFlags, flag, true,
+                    "Reinforcement " + formation.Name + " arrived in " + target.Id + " (from " + reserve.Id + ", force "
+                    + formation.ForcePower.ToString("0.0") + ").");
+            }
+        }
+
+        // consume = true : l'ordre est terminé, son flag sera baissé. false : il reste levé, on réessaie au tour suivant.
+        private static void FinishOrder(WargameCombatConfig config, WargameCombatResult result, HashSet<string> activeFlags,
+            string flag, bool consume, string note)
+        {
+            result.DeployNotes.Add(note);
+            Detail(config, "  " + note);
+            Log(config, "WargameEngineCombat | " + note);
+
+            if (!consume) return;
+
+            result.ConsumedFlags.Add(flag);
+            activeFlags.Remove(flag);
+        }
+
+        // ---- Débarquements : plans LANDING_n ----
+        //
+        // Un plan = une boîte LANDING_n (formations rangées par vague, colonne Wave) + une plage visée.
+        // UN trigger lève   wg_land__PLAN[__PLAGE[__ECART]]   (Action.WargameLand). PLAGE : par défaut celle du plan
+        // ("default" pour la garder quand on donne un écart). ECART : tours entre deux vagues (défaut : LandingWaveGap).
+        // Ensuite le moteur déroule les vagues dans l'ordre de leur numéro, sans autre trigger :
+        //   - la vague de numéro le plus bas tente la plage. Plage amie ou vide : elle arrive à pleine force.
+        //   - plage ennemie : jugée comme un combat (attaque = force de la vague, défense = défenseurs x terrain).
+        //       delta > seuil de conquête : la plage bascule, les défenseurs se replient, la vague arrive avec une force
+        //                                   proportionnelle au rapport de force (part = attaque / (attaque + défense)) ;
+        //       delta entre -seuil et +seuil : échec, la vague perd LandingFailLoss, les défenseurs s'usent, elle retente
+        //                                   au tour suivant (les missions des joueurs peuvent entre-temps affaiblir la défense) ;
+        //       delta (sans hasard) sous -seuil : plus aucune chance, la vague est ABANDONNEE (Wave = 0, elle reste dans la
+        //                                   boîte) et la suivante prend le relais.
+        //   - une vague réglée (arrivée ou abandonnée) fait attendre la suivante ECART tours (0 = tout de suite).
+        // Le flag reste levé tant qu'il reste une vague à faire. Le compteur d'attente est dans le plan (LandingWait,
+        // enregistré dans l'Active) : -1 = pas lancé.
+        internal const string LandFlagPrefix = "wg_land__";
+
+        // Nom du flag d'un ordre de débarquement (sert aussi à la preview). zoneId vide = plage du plan ; gap < 0 = écart par défaut.
+        internal static string LandFlagName(string planId, string zoneId, int gap)
+        {
+            string name = LandFlagPrefix + FlagKey(planId);
+
+            if (!string.IsNullOrEmpty(zoneId)) name += "__" + FlagKey(zoneId);
+            else if (gap >= 0) name += "__default";
+
+            if (gap >= 0) name += "__" + gap;
+
+            return name;
+        }
+
+        private enum LandingOutcome { Landed, Retry, Abandoned }
+
+        internal static void ProcessLandings(List<WargameZoneData> zones, List<WargameAxis> axes, HashSet<string> activeFlags,
+            WargameCombatConfig config, Random rng, WargameCombatResult result)
+        {
+            if (zones == null || activeFlags == null || activeFlags.Count == 0)
+                return;
+
+            List<string> orders = activeFlags
+                .Where(f => f != null && f.StartsWith(LandFlagPrefix, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (orders.Count == 0)
+                return;
+
+            Dictionary<string, List<string>> links = BuildLinks(zones);
+
+            foreach (string flag in orders)
+            {
+                string[] parts = flag.Substring(LandFlagPrefix.Length).Split(new[] { "__" }, StringSplitOptions.None);
+                string planKey = parts[0];
+                string zoneKey = parts.Length > 1 ? parts[1] : "";
+
+                int gap = (int)Math.Round(Math.Max(0, config.LandingWaveGap));
+                if (parts.Length > 2)
+                {
+                    int parsedGap;
+                    if (int.TryParse(parts[2], out parsedGap) && parsedGap >= 0)
+                        gap = parsedGap;
+                }
+
+                WargameZoneData plan = zones.FirstOrDefault(z => IsLandingZone(z)
+                    && string.Equals(FlagKey(z.Id), planKey, StringComparison.OrdinalIgnoreCase));
+
+                if (plan == null)
+                {
+                    FinishOrder(config, result, activeFlags, flag, true, "Landing order '" + flag + "' ignored: no landing plan named '" + planKey + "'.");
+                    continue;
+                }
+
+                string attackSide = plan.Control;
+                if (!IsFightingSide(attackSide))
+                {
+                    FinishOrder(config, result, activeFlags, flag, true, "Landing " + plan.Id + ": the plan has no side (blue or red), order dropped.");
+                    continue;
+                }
+
+                string targetKey = (zoneKey.Length == 0 || string.Equals(zoneKey, "default", StringComparison.OrdinalIgnoreCase))
+                    ? FlagKey(plan.LandingTarget)
+                    : zoneKey;
+
+                WargameZoneData target = targetKey.Length == 0 ? null : zones.FirstOrDefault(z => !IsReserveZone(z)
+                    && string.Equals(FlagKey(z.Id), targetKey, StringComparison.OrdinalIgnoreCase));
+
+                if (target == null)
+                {
+                    FinishOrder(config, result, activeFlags, flag, true,
+                        "Landing " + plan.Id + ": no target beach (set one in the editor, or name an existing zone in the trigger), order dropped.");
+                    continue;
+                }
+
+                // Lancement, ou attente entre deux vagues
+                if (plan.LandingWait < 0)
+                {
+                    plan.LandingWait = 0;
+                    LandNote(config, result, "Landing plan " + plan.Id + " launched toward " + target.Id + " (" + gap + " turn(s) between waves).");
+                }
+                else if (plan.LandingWait > 0)
+                {
+                    plan.LandingWait--;
+                }
+
+                if (plan.LandingWait > 0)
+                {
+                    LandNote(config, result, "Landing " + plan.Id + ": next wave in " + plan.LandingWait + " turn(s).");
+                    continue;
+                }
+
+                // Les vagues, dans l'ordre. Elles s'enchaînent au même tour seulement si l'écart est 0.
+                while (true)
+                {
+                    List<WargameFormation> waiting = plan.Formations.Where(f => f.ForcePower > 0 && f.Wave > 0).ToList();
+
+                    if (waiting.Count == 0)
+                    {
+                        plan.LandingWait = -1;
+                        FinishOrder(config, result, activeFlags, flag, true, "Landing " + plan.Id + ": every wave is done.");
+                        break;
+                    }
+
+                    int wave = waiting.Min(f => f.Wave);
+                    List<WargameFormation> group = waiting.Where(f => f.Wave == wave).ToList();
+
+                    LandingOutcome outcome = AttemptLanding(zones, plan, target, group, wave, attackSide, links, config, rng, result,
+                        NavalSupportOf(plan, activeFlags));
+
+                    // Des troupes ont posé le pied sur la plage : si elle est le départ d'un axe, il devient le leur
+                    if (result.LandedZoneIds.Contains(target.Id))
+                        AdoptAxes(axes, target, attackSide, config);
+
+                    if (outcome == LandingOutcome.Retry)
+                        break;   // la vague retentera au prochain tour ; les suivantes attendent
+
+                    bool anyLeft = plan.Formations.Any(f => f.ForcePower > 0 && f.Wave > 0);
+
+                    if (!anyLeft)
+                    {
+                        plan.LandingWait = -1;
+                        FinishOrder(config, result, activeFlags, flag, true, "Landing " + plan.Id + ": every wave is done.");
+                        break;
+                    }
+
+                    if (gap > 0)
+                    {
+                        plan.LandingWait = gap;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Plan de débarquement du camp "side" dont "beach" est la plage, et dont la flotte est là (flag de l'appui naval levé,
+        // ou pas de flag) : c'est là que les troupes peuvent rembarquer. null = pas de flotte, pas de rembarquement.
+        private static WargameZoneData FleetFor(List<WargameZoneData> zones, WargameZoneData beach, string side, HashSet<string> activeFlags)
+        {
+            foreach (WargameZoneData plan in zones)
+            {
+                if (!IsLandingZone(plan)) continue;
+                if (!string.Equals(plan.Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(plan.LandingBeach, beach.Id, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(plan.LandingTarget, beach.Id, StringComparison.OrdinalIgnoreCase)) continue;
+
+                if (!string.IsNullOrEmpty(plan.NavalFlag)
+                    && (activeFlags == null || !activeFlags.Any(x => string.Equals(x, plan.NavalFlag, StringComparison.OrdinalIgnoreCase))))
+                    continue;
+
+                return plan;
+            }
+
+            return null;
+        }
+
+        // Formations d'un plan restées dans la boîte (vague abandonnée après trop d'échecs) : quand il n'y a plus aucune vague
+        // en attente et que la plage du plan est tenue par leur camp, elles débarquent à pleine force (plage amie).
+        // Sans ordre de débarquement : c'est la fin naturelle du plan. Plage pleine : elles attendent le tour suivant.
+        private static void LandLeftovers(List<WargameZoneData> zones, List<WargameAxis> axes, WargameCombatConfig config,
+            Random rng, WargameCombatResult result)
+        {
+            if (zones == null) return;
+
+            Dictionary<string, List<string>> links = null;
+
+            foreach (WargameZoneData plan in zones.Where(z => IsLandingZone(z)).ToList())
+            {
+                if (!IsFightingSide(plan.Control)) continue;
+                if (plan.Formations.Any(x => x.ForcePower > 0 && x.Wave > 0)) continue;   // des vagues restent à jouer : le plan suit son cours
+
+                List<WargameFormation> left = plan.Formations.Where(x => x.ForcePower > 0 && x.Wave <= 0).ToList();
+                if (left.Count == 0) continue;
+
+                // Plage : la dernière où le plan a débarqué, sinon celle visée par défaut ; elle doit être à leur camp
+                WargameZoneData beach = null;
+                foreach (string id in new[] { plan.LandingBeach, plan.LandingTarget })
+                {
+                    if (string.IsNullOrEmpty(id)) continue;
+                    WargameZoneData z = zones.FirstOrDefault(x => !IsOffMapId(x.Id) && string.Equals(x.Id, id, StringComparison.OrdinalIgnoreCase));
+                    if (z != null && string.Equals(z.Control, plan.Control, StringComparison.OrdinalIgnoreCase)) { beach = z; break; }
+                }
+
+                if (beach == null) continue;
+
+                if (links == null) links = BuildLinks(zones);
+
+                LandNote(config, result, "Landing " + plan.Id + ": " + left.Count + " formation(s) still at sea land on " + beach.Id + " (held by their side).");
+                AttemptLanding(zones, plan, beach, left, 0, plan.Control, links, config, rng, result, 0);
+
+                if (result.LandedZoneIds.Contains(beach.Id))
+                    AdoptAxes(axes, beach, plan.Control, config);
+            }
+        }
+
+        // La plage est le départ d'un axe : le camp qui débarque en devient l'attaquant (sinon ses troupes n'auraient
+        // aucun axe à suivre, l'axe restant rattaché au camp qui tenait la plage au chargement).
+        private static void AdoptAxes(List<WargameAxis> axes, WargameZoneData target, string attackSide, WargameCombatConfig config)
+        {
+            if (axes == null) return;
+
+            foreach (WargameAxis axis in axes)
+            {
+                if (!axis.IsValid) continue;
+                if (!string.Equals(axis.Path[0], target.Id, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.IsNullOrEmpty(axis.Side)) continue;   // camp choisi dans l'éditeur : on n'y touche pas
+                if (string.Equals(axis.AttackerSide, attackSide, StringComparison.OrdinalIgnoreCase)) continue;
+
+                axis.AttackerSide = attackSide;
+                Trace(config, "  landing : axis '" + axis.Name + "' now attacked by " + attackSide + " from " + target.Id);
+            }
+        }
+
+        // Une tentative de débarquement de la vague "wave" du plan sur la plage "target"
+        // Appui feu de la flotte sur les têtes de plage : chaque plan dont l'appui est actif (flag) couvre la dernière plage où ses
+        // troupes ont débarqué, tant que son camp la tient. La valeur s'ajoute à la défense de la plage dans les combats.
+        internal static void ApplyNavalCover(List<WargameZoneData> zones, HashSet<string> activeFlags, WargameCombatConfig config)
+        {
+            config.NavalCoverByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            config.NavalCoverSideByZone = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (zones == null) return;
+
+            foreach (WargameZoneData plan in zones)
+            {
+                if (!IsLandingZone(plan) || string.IsNullOrEmpty(plan.LandingBeach)) continue;
+
+                double naval = NavalSupportOf(plan, activeFlags);
+                if (naval <= 0) continue;
+
+                WargameZoneData beach = zones.FirstOrDefault(z => string.Equals(z.Id, plan.LandingBeach, StringComparison.OrdinalIgnoreCase));
+                if (beach == null || !string.Equals(beach.Control, plan.Control, StringComparison.OrdinalIgnoreCase)) continue;
+
+                double current;
+                config.NavalCoverByZone.TryGetValue(beach.Id, out current);
+                config.NavalCoverByZone[beach.Id] = current + naval;
+                config.NavalCoverSideByZone[beach.Id] = plan.Control;
+            }
+        }
+
+        private static double NavalCoverOf(WargameZoneData zone, string side, WargameCombatConfig config)
+        {
+            double value;
+            string coveredSide;
+            if (!config.NavalCoverByZone.TryGetValue(zone.Id, out value)) return 0;
+            if (!config.NavalCoverSideByZone.TryGetValue(zone.Id, out coveredSide) || !string.Equals(coveredSide, side, StringComparison.OrdinalIgnoreCase)) return 0;
+            return value;
+        }
+
+        // Appui feu naval d'un plan de débarquement : sa valeur, si son flag (facultatif) est levé ; 0 sinon
+        private static double NavalSupportOf(WargameZoneData plan, HashSet<string> activeFlags)
+        {
+            if (plan.NavalSupport <= 0) return 0;
+
+            if (!string.IsNullOrEmpty(plan.NavalFlag)
+                && (activeFlags == null || !activeFlags.Any(x => string.Equals(x, plan.NavalFlag, StringComparison.OrdinalIgnoreCase))))
+                return 0;
+
+            return plan.NavalSupport;
+        }
+
+        private static LandingOutcome AttemptLanding(List<WargameZoneData> zones, WargameZoneData plan, WargameZoneData target,
+            List<WargameFormation> group, int wave, string attackSide, Dictionary<string, List<string>> links,
+            WargameCombatConfig config, Random rng, WargameCombatResult result, double naval)
+        {
+            string defendSide = OtherSide(attackSide);
+
+            // Ceux qui peuvent débarquer : les plus forts, dans la limite de la place sur la plage.
+            // Assaut sur une plage ennemie : nombre normal de formations par zone. Plage déjà à nous : on peut l'encombrer
+            // jusqu'au maximum absolu (MaxFormationsHard), sinon une plage tenue par des formations qui gardent le front
+            // bloquerait les vagues suivantes pour toujours ; le surplus partira ensuite vers l'intérieur.
+            bool friendlyBeach = string.Equals(target.Control, attackSide, StringComparison.OrdinalIgnoreCase);
+            int cap = friendlyBeach ? Math.Max(config.MaxFormationsPerZone, config.MaxFormationsHard) : config.MaxFormationsPerZone;
+            int room = cap - LiveFormations(target, attackSide).Count;
+            List<WargameFormation> landers = group.OrderByDescending(f => f.ForcePower).Take(Math.Max(0, room)).ToList();
+
+            if (landers.Count == 0)
+            {
+                LandNote(config, result, "Landing " + plan.Id + " wave " + wave + " waits: beach " + target.Id + " is full.");
+                return LandingOutcome.Retry;
+            }
+
+            double share = 1.0;
+            bool hostile = !string.Equals(target.Control, attackSide, StringComparison.OrdinalIgnoreCase);
+
+            if (hostile)
+            {
+                // Appui feu de la flotte (canons, missiles, hélicoptères embarqués) : s'ajoute à la force des troupes qui débarquent
+                double troopPower = landers.Sum(f => f.ForcePower) * AirCoef(attackSide, config);
+                double basePower = troopPower + naval;
+                double defense = SidePower(target, defendSide) * config.GetTerrainDefense(target.Terrain) * AirCoef(defendSide, config);
+
+                // Sans hasard : sert à savoir s'il reste une chance
+                double plainTotal = basePower + defense;
+                double plainDelta = plainTotal <= 0 ? -1.0 : (basePower - defense) / plainTotal;
+
+                if (plainDelta < -config.ControlFlipThreshold)
+                {
+                    foreach (WargameFormation f in group)
+                        f.Wave = 0;
+
+                    plan.LandingRetries = 0;
+                    LandNote(config, result, "Landing " + plan.Id + " wave " + wave + " ABANDONED at " + target.Id
+                        + ": attack " + basePower.ToString("0.0") + " vs defense " + defense.ToString("0.0") + " (no chance left). Next wave takes over.");
+                    return LandingOutcome.Abandoned;
+                }
+
+                double attack = troopPower * Luck(config, rng) + naval;   // le hasard ne joue que sur les troupes
+                double total = attack + defense;
+                double delta = total <= 0 ? -1.0 : (attack - defense) / total;
+
+                if (delta <= config.ControlFlipThreshold)
+                {
+                    // Echec : la vague s'use, les défenseurs aussi. Elle retentera au prochain tour.
+                    foreach (WargameFormation f in group)
+                        f.ForcePower = Math.Max(0, f.ForcePower * (1.0 - config.LandingFailLoss));
+
+                    // Trop d'échecs : la vague renonce (elle reste dans la boîte), la suivante prendra le relais
+                    plan.LandingRetries++;
+                    if (plan.LandingRetries > config.LandingMaxRetries)
+                    {
+                        foreach (WargameFormation f in group)
+                            f.Wave = 0;
+                        plan.LandingRetries = 0;
+
+                        LandNote(config, result, "Landing " + plan.Id + " wave " + wave + " ABANDONED at " + target.Id + " after "
+                            + (config.LandingMaxRetries + 1).ToString("0") + " failed attempts (attack " + attack.ToString("0.0")
+                            + " vs defense " + defense.ToString("0.0") + "). Next wave takes over.");
+                        return LandingOutcome.Abandoned;
+                    }
+
+                    if (config.CombatAttrition > 0)
+                    {
+                        foreach (WargameFormation d in FightingFormations(target, defendSide))
+                            d.ForcePower = Math.Max(0, d.ForcePower * (1.0 - config.CombatAttrition));
+                    }
+
+                    LandNote(config, result, "Landing " + plan.Id + " wave " + wave + " repulsed at " + target.Id
+                        + ": attack " + attack.ToString("0.0") + (naval > 0 ? " (naval fire support " + naval.ToString("0.0") + " included)" : "") + " vs defense " + defense.ToString("0.0") + " (delta " + delta.ToString("0.00")
+                        + ", needs more than " + config.ControlFlipThreshold.ToString("0.00") + "). It loses " + (config.LandingFailLoss * 100).ToString("0")
+                        + "% and tries again next turn.");
+                    return LandingOutcome.Retry;
+                }
+
+                // Succès : la force qui prend pied est proportionnelle au rapport de force vécu
+                share = total <= 0 ? 1.0 : attack / total;
+
+                // Les défenseurs se replient vers une zone amie voisine (la plus éloignée de la boîte), sinon ils sont perdus
+                var options = new List<WargameZoneData>();
+                List<string> neighborIds;
+                if (links.TryGetValue(target.Id, out neighborIds))
+                {
+                    options = zones.Where(z => !IsReserveZone(z)
+                            && neighborIds.Contains(z.Id, StringComparer.OrdinalIgnoreCase)
+                            && string.Equals(z.Control, defendSide, StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(z => (z.Center.X - plan.Center.X) * (z.Center.X - plan.Center.X)
+                            + (z.Center.Y - plan.Center.Y) * (z.Center.Y - plan.Center.Y))
+                        .ToList();
+                }
+
+                int fellBack = 0, lost = 0;
+
+                foreach (WargameFormation d in LiveFormations(target, defendSide).OrderByDescending(x => x.ForcePower))
+                {
+                    WargameZoneData place = options.FirstOrDefault(o => LiveFormations(o, defendSide).Count < config.MaxFormationsPerZone);
+
+                    if (place != null)
+                    {
+                        target.Formations.Remove(d);
+                        place.Formations.Add(d);
+                        d.ForcePower = Math.Max(0, d.ForcePower * (1.0 - config.RetreatLossFraction));
+                        result.MovedFormationIds.Add(d.FormationId);
+                        fellBack++;
+                    }
+                    else
+                    {
+                        d.ForcePower = 0;   // WargameEngineLosses la retirera de la targetlist
+                        result.Destroyed++;
+                        lost++;
+                    }
+                }
+
+                target.Control = attackSide;
+                if (!result.FlippedZones.Contains(target))
+                    result.FlippedZones.Add(target);
+
+                LandNote(config, result, "Landing " + plan.Id + " wave " + wave + " TOOK " + target.Id + ": attack " + attack.ToString("0.0")
+                    + (naval > 0 ? " (naval fire support " + naval.ToString("0.0") + " included)" : "")
+                    + " vs defense " + defense.ToString("0.0") + " (delta " + delta.ToString("0.00") + "). Arrives at " + (share * 100).ToString("0")
+                    + "% of its strength; " + fellBack + " defender(s) fell back, " + lost + " lost.");
+            }
+
+            // Arrivée : à pleine force sur une plage amie, au prorata du rapport de force sur une plage prise
+            foreach (WargameFormation f in landers)
+            {
+                plan.Formations.Remove(f);
+                f.ForcePower = f.ForcePower * share;
+                target.Formations.Add(f);
+                result.DeployedFormationIds.Add(f.FormationId);
+            }
+
+            if (landers.Count > 0)
+            {
+                result.LandedZoneIds.Add(target.Id);
+                plan.LandingRetries = 0;
+                plan.LandingBeach = target.Id;   // tête de plage couverte ensuite par la flotte (ApplyNavalCover)
+
+                // La vague arrive avec son propre stock : le délai de grâce repart. Avec les convois (délai 0), la vague
+                // garde quand même ses cutoff_grace_turns tours de stock, notés en négatif (-3 = encore 3 tours avant de compter)
+                target.CutOffTurns = config.SupplyConvoys ? -(int)Math.Round(Math.Max(0, config.CutOffGraceTurns)) : 0;
+                target.CutOffSide = attackSide;
+            }
+
+            if (!hostile)
+                LandNote(config, result, "Landing " + plan.Id + " wave " + wave + ": " + landers.Count + " formation(s) arrived at " + target.Id + " at full strength.");
+
+            // Une vague plus large que la place disponible débarque en plusieurs fois
+            return landers.Count < group.Count ? LandingOutcome.Retry : LandingOutcome.Landed;
+        }
+
+        private static void LandNote(WargameCombatConfig config, WargameCombatResult result, string note)
+        {
+            result.DeployNotes.Add(note);
+            Detail(config, "  " + note);
+            Log(config, "WargameEngineCombat | " + note);
+        }
+
         // Nom de flag utilisable dans un trigger : lettres, chiffres et _ seulement.
         public static string ZoneFlagName(string zoneId, string side)
         {
@@ -1315,6 +3041,8 @@ namespace DCE_Manager
 
             foreach (WargameZoneData z in zones)
             {
+                if (IsReserveZone(z)) continue;   // une réserve n'est pas un territoire
+
                 bool blue = string.Equals(z.Control, WargameSide.Blue, StringComparison.OrdinalIgnoreCase);
                 bool red = string.Equals(z.Control, WargameSide.Red, StringComparison.OrdinalIgnoreCase);
 
@@ -1323,6 +3051,11 @@ namespace DCE_Manager
             }
 
             lines.AddRange(combat.ReachedFlags);
+
+            // Ordres de renfort traités : on baisse leur flag pour qu'ils ne se rejouent pas
+            foreach (string consumed in combat.ConsumedFlags)
+                lines.Add("-" + consumed);
+
             return lines;
         }
 
@@ -1335,6 +3068,7 @@ namespace DCE_Manager
             foreach (WargameZoneData z in zones)
             {
                 string old;
+                if (IsReserveZone(z)) continue;
                 if (!before.TryGetValue(z.Id, out old) || string.Equals(old, z.Control, StringComparison.OrdinalIgnoreCase))
                     continue;
 
@@ -1357,11 +3091,14 @@ namespace DCE_Manager
             foreach (string note in combat.DisbandedNotes)
                 lines.Add("Disbanded: " + note);
 
+            foreach (string note in combat.DeployNotes)
+                lines.Add(note);
+
             foreach (string flag in combat.ReachedFlags)
                 lines.Add("Objective reached (" + flag + ")");
 
-            int blueZones = zones.Count(z => string.Equals(z.Control, WargameSide.Blue, StringComparison.OrdinalIgnoreCase));
-            int redZones = zones.Count(z => string.Equals(z.Control, WargameSide.Red, StringComparison.OrdinalIgnoreCase));
+            int blueZones = zones.Count(z => !IsReserveZone(z) && string.Equals(z.Control, WargameSide.Blue, StringComparison.OrdinalIgnoreCase));
+            int redZones = zones.Count(z => !IsReserveZone(z) && string.Equals(z.Control, WargameSide.Red, StringComparison.OrdinalIgnoreCase));
             lines.Add("");
             lines.Add("Zones held: Blue " + blueZones + " / Red " + redZones);
 
@@ -1374,17 +3111,23 @@ namespace DCE_Manager
         public static void ApplySupply(List<WargameZoneData> zones, WargameTemplateCatalog catalog, WargameCombatConfig config,
             WargameCombatResult combat = null)
         {
-            if (zones == null || config.SupplyRecoveryRate <= 0)
+            if (zones == null)
                 return;
 
             var zoneById = new Dictionary<string, WargameZoneData>(StringComparer.OrdinalIgnoreCase);
             foreach (WargameZoneData zone in zones)
                 zoneById[zone.Id] = zone;
 
-            Dictionary<string, List<string>> links = BuildLinks(zones);
-            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById);
+            // Points avancés dont la zone a été prise pendant le combat : perdus (stock pris ou détruit), avant la récupération
+            DropLostForwardPoints(zoneById, config);
 
-            int reinforced = 0, blocked = 0;
+            if (config.SupplyRecoveryRate <= 0)
+                return;
+
+            Dictionary<string, List<string>> links = BuildLinks(zones);
+            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById, config);
+
+            int reinforced = 0, blocked = 0, starving = 0;
             double totalGain = 0;
 
             foreach (WargameZoneData zone in zones)
@@ -1396,8 +3139,11 @@ namespace DCE_Manager
                 bool isFront = links[zone.Id].Any(id => IsFightingSide(zoneById[id].Control)
                     && !string.Equals(zoneById[id].Control, zone.Control, StringComparison.OrdinalIgnoreCase));
 
+                double level = SupplyLevelOf(zone);
+
                 double rate = config.SupplyRecoveryRate
                     * config.GetRouteRecovery(zone.SupplyRoute)
+                    * level
                     * (isFront ? config.FrontLineRecoveryFactor : 1.0);
 
                 foreach (WargameFormation f in zone.Formations)
@@ -1406,6 +3152,23 @@ namespace DCE_Manager
                     if (!string.Equals(f.Side, zone.Control, StringComparison.OrdinalIgnoreCase)) continue;
 
                     double nominal = f.GetNominalForcePower(catalog);
+
+                    // Usure : coupée, réserve vide depuis 2 tours ou plus -> perte lente, même sans combat (jusqu'au plancher)
+                    if (isCut && config.CutOffAttrition > 0 && !IsOffMapId(zone.Id)
+                        && zone.CutOffTurns >= EffectiveGrace(config) + 2
+                        && string.Equals(zone.CutOffSide, zone.Control, StringComparison.OrdinalIgnoreCase))
+                    {
+                        double floor = nominal * Math.Max(0, config.CutOffAttritionFloor);
+                        if (f.ForcePower > floor)
+                        {
+                            double before = f.ForcePower;
+                            f.ForcePower = Math.Max(floor, f.ForcePower * (1.0 - config.CutOffAttrition));
+                            starving++;
+                            Detail(config, "  starving " + f.Name + " in " + zone.Id + " : " + before.ToString("0.0") + " -> " + f.ForcePower.ToString("0.0")
+                                + " (cut off, no stock left)");
+                        }
+                    }
+
                     double missing = nominal - f.ForcePower;
                     if (missing <= 0) continue;
 
@@ -1422,12 +3185,16 @@ namespace DCE_Manager
                     double gain = Math.Min(missing, nominal * formationRate);
                     Detail(config, "  supply " + f.Name + " in " + zone.Id + " : +" + gain.ToString("0.0")
                         + " (rate " + (formationRate * 100).ToString("0.0") + "% of " + nominal.ToString("0.0")
-                        + (isFront ? ", front line" : "") + (engaged ? ", engaged in a fight" : "") + ")");
+                        + (isFront ? ", front line" : "") + (engaged ? ", engaged in a fight" : "")
+                        + (level < 1.0 ? ", supply level " + (level * 100).ToString("0") + "%" : "") + ")");
                     f.ForcePower += gain;
                     totalGain += gain;
                     reinforced++;
                 }
             }
+
+            if (starving > 0)
+                Trace(config, "  starving : " + starving + " formation(s) cut off without stock lose " + (config.CutOffAttrition * 100).ToString("0.#") + "% of their strength");
 
             Log(config, "WargameEngineCombat | ravitaillement : " + reinforced + " formation(s) renforcée(s) (+"
                 + totalGain.ToString("0.0") + " de force), " + blocked + " bloquée(s) en poche coupée");
@@ -1501,52 +3268,279 @@ namespace DCE_Manager
                 && !string.Equals(zone.Id, c.From.Id, StringComparison.OrdinalIgnoreCase);
         }
 
-        // Zones d'un camp qui ne sont reliées, par des zones amies, à AUCUNE zone source de
-        // ravitaillement (SupplySource > 0) : poches encerclées, coupées de la force
-        // principale. Un camp qui n'a aucune zone source est ignoré (fonction désactivée),
-        // sinon toutes ses zones passeraient pour coupées.
+        // Niveau de ravitaillement (0 à 1) de chaque zone, calculé par FindCutOffZones, et d'où il vient.
+        // Champs statiques (propres à chaque thread) pour ne pas ajouter un paramètre à chaque méthode du moteur.
+        [ThreadStatic]
+        private static Dictionary<string, double> _supplyLevels;
+        [ThreadStatic]
+        private static Dictionary<string, string> _supplyNotes;
+
+        // Niveau d'une zone : 1 si le camp n'a aucune source (fonction désactivée) ou si la zone n'est pas concernée
+        private static double SupplyLevelOf(WargameZoneData zone)
+        {
+            double level;
+            if (_supplyLevels != null && _supplyLevels.TryGetValue(zone.Id, out level))
+                return level;
+
+            return 1.0;
+        }
+
+        // Coût de ravitailler À TRAVERS une zone : coût du terrain / débit de la route.
+        // Plaine + route = 1 ; montagne + piste = 6 ; montagne sans route = 12.
+        private static double SupplyCostOf(WargameZoneData zone, WargameCombatConfig config)
+        {
+            double flow = config.GetRouteFlow(zone.SupplyRoute);
+
+            // Pont : détruit, la route de la zone ne passe presque plus (BridgeDownFactor) ; vivant, elle passe normalement
+            double bridge;
+            if (config.BridgeAliveByZone.TryGetValue(zone.Id, out bridge))
+                flow *= config.BridgeDownFactor + (1.0 - config.BridgeDownFactor) * bridge;
+
+            return config.GetTerrainMove(zone.Terrain) / Math.Max(0.01, flow);
+        }
+
+        // Force de la source d'une zone, de 0 (pas une source) à 1 (ravitaillement complet).
+        // Le champ "Source" posé à la main compte pour 1 (comme avant) ; sinon, valeur des objectifs-sources / SupplySourceFull.
+        // Seuls les OBJECTIFS (entrepôt, port...) avec une valeur "wargameSupply" sont des sources : le champ "Source" des zones est ignoré.
+        private static double SourceStrength(WargameZoneData zone, WargameCombatConfig config)
+        {
+            double value = SourceValue(zone, config);
+
+            if (value > 0)
+                return Math.Min(1.0, value / Math.Max(0.1, config.SupplySourceFull));
+
+            return 0.0;
+        }
+
+        // Capacité brute d'une zone source (objectifs + mer + point avancé), sur l'échelle de SupplySourceFull
+        private static double SourceValue(WargameZoneData zone, WargameCombatConfig config)
+        {
+            double value = 0, sea;
+            // Source d'objectif : ignorée si la zone vient de changer de main (liste calculée avant un débarquement ou une conquête)
+            bool captured = !string.IsNullOrEmpty(zone.SupplyOwner)
+                && !string.Equals(zone.SupplyOwner, zone.Control, StringComparison.OrdinalIgnoreCase);
+
+            double objective;
+            if (!captured && config.ObjectiveSupplyByZone.TryGetValue(zone.Id, out objective)) value += objective;
+            if (config.LandingSupplyByZone.TryGetValue(zone.Id, out sea)) value += sea;
+
+            double forward;
+            if (config.ForwardSupplyByZone.TryGetValue(zone.Id, out forward)) value += forward;
+
+            return value;
+        }
+
+        // Le camp a-t-il un système de ravitaillement ? Oui si une de ses zones a un "Source" manuel OU un objectif-source
+        // (même détruit : un camp dont toutes les sources sont détruites est coupé, pas ignoré).
+        private static bool HasSupplySystem(List<WargameZoneData> sideZones, WargameCombatConfig config)
+        {
+            return sideZones.Any(z => config.ObjectiveSupplyByZone.ContainsKey(z.Id) || config.LandingSupplyByZone.ContainsKey(z.Id)
+                || config.ForwardSupplyByZone.ContainsKey(z.Id));
+        }
+
+        // Range dans la config ce que les objectifs de la targetlist apportent au ravitaillement :
+        // sources (wargameSupply x état) et ponts (wargameBridge). Appelé avant chaque résolution, avec les objectifs
+        // lus dans la targetlist (Active en production, Init dans la preview).
+        public static void ApplyObjectivesToSupply(List<WargameZoneData> zones, List<WargameObjective> objectives, WargameCombatConfig config,
+            Dictionary<WargameObjective, double> aliveOverride = null)
+        {
+            var supply = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            var bridges = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            if (objectives != null)
+            {
+                foreach (WargameObjective obj in objectives)
+                {
+                    if (obj.SupplyValue <= 0 && !obj.IsBridge) continue;
+
+                    WargameZoneData zone = FindZoneContaining(zones, obj.Position);
+                    if (zone == null) continue;
+
+                    // aliveOverride : état simulé par la Preview (événements), sans toucher à l'objectif lui-même
+                    double aliveValue = obj.Alive;
+                    if (aliveOverride != null && aliveOverride.TryGetValue(obj, out double simulated)) aliveValue = simulated;
+
+                    double alive = Math.Max(0.0, Math.Min(1.0, aliveValue / 100.0));
+
+                    if (obj.SupplyValue > 0)
+                    {
+                        // Source capturée (la zone n'est plus tenue par son camp de départ) : elle ne sert plus à personne.
+                        // La clé reste présente avec 0, pour que le camp soit bien vu comme "sans source" et non "sans système".
+                        double supplyAlive = alive;
+                        if (!string.IsNullOrEmpty(zone.SupplyOwner)
+                            && !string.Equals(zone.SupplyOwner, zone.Control, StringComparison.OrdinalIgnoreCase))
+                            supplyAlive = 0;
+
+                        double current;
+                        supply.TryGetValue(zone.Id, out current);
+                        supply[zone.Id] = current + obj.SupplyValue * supplyAlive;
+                    }
+
+                    if (obj.IsBridge)
+                    {
+                        double best;
+                        bridges.TryGetValue(zone.Id, out best);
+                        bridges[zone.Id] = Math.Max(best, alive);   // un seul pont vivant suffit à garder la route
+                    }
+                }
+            }
+
+            config.ObjectiveSupplyByZone = supply;
+            config.BridgeAliveByZone = bridges;
+        }
+
+        // Ravitaillement par mer d'un plan de débarquement : la plage visée (LandingTarget) devient une source tant qu'elle est tenue
+        // par le camp du plan et que le flag du plan (SupplyFlag, facultatif) est levé. Valeur = "SupplySource" du plan.
+        // Remplace à chaque appel la liste précédente (config.LandingSupplyByZone).
+        public static void ApplyLandingSupply(List<WargameZoneData> zones, HashSet<string> activeFlags, WargameCombatConfig config)
+        {
+            var sea = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
+            if (zones != null)
+            {
+                foreach (WargameZoneData plan in zones)
+                {
+                    if (!IsLandingZone(plan) || plan.SupplySource <= 0 || string.IsNullOrEmpty(plan.LandingTarget)) continue;
+                    if (!IsFightingSide(plan.Control)) continue;
+
+                    if (!string.IsNullOrEmpty(plan.SupplyFlag)
+                        && (activeFlags == null || !activeFlags.Any(f => string.Equals(f, plan.SupplyFlag, StringComparison.OrdinalIgnoreCase))))
+                        continue;
+
+                    WargameZoneData beach = zones.FirstOrDefault(z => !IsOffMapId(z.Id)
+                        && string.Equals(z.Id, plan.LandingTarget, StringComparison.OrdinalIgnoreCase));
+
+                    if (beach == null || !string.Equals(beach.Control, plan.Control, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    double current;
+                    sea.TryGetValue(beach.Id, out current);
+                    sea[beach.Id] = current + plan.SupplySource;
+                }
+            }
+
+            config.LandingSupplyByZone = sea;
+        }
+
+        // Ravitaillement par réseau. Pour chaque camp qui a au moins une zone source (SupplySource > 0) :
+        // plus court chemin (Dijkstra) depuis les sources, à travers les zones AMIES seulement. Le coût d'un pas
+        // = distance entre les centres (en "distance moyenne entre voisines") x coût moyen des deux zones.
+        // Niveau d'une zone = 1 - coût / SupplyRange (la meilleure source gagne). Une zone dont le niveau tombe
+        // sous SupplyMinLevel, ou qu'aucune source n'atteint (poche encerclée), est COUPEE.
+        // Un camp qui n'a aucune zone source est ignoré, sinon toutes ses zones passeraient pour coupées.
+        // SupplyNetwork = false : ancien comportement (relié = niveau 1, sinon coupé).
         private static HashSet<string> FindCutOffZones(
             List<WargameZoneData> zones,
             Dictionary<string, List<string>> links,
-            Dictionary<string, WargameZoneData> zoneById)
+            Dictionary<string, WargameZoneData> zoneById,
+            WargameCombatConfig config)
         {
             var cutOff = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _supplyLevels = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            _supplyNotes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Distance moyenne entre centres de zones voisines : l'unité de distance du ravitaillement
+            var centers = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in zones) centers[z.Id] = ZoneCenterOf(z);
+
+            double sum = 0;
+            int count = 0;
+            foreach (WargameZoneData z in zones)
+                foreach (string id in links[z.Id])
+                    if (string.Compare(z.Id, id, StringComparison.OrdinalIgnoreCase) < 0) { sum += CenterDistance(centers, z.Id, id); count++; }
+
+            double unit = count > 0 && sum > 0 ? sum / count : 1.0;
+            // Avec les convois, les sources ne distribuent elles-mêmes qu'autour d'elles (ConvoyFreeRange) : plus loin, il faut un convoi
+            double range = Math.Max(0.1, config.SupplyConvoys ? config.ConvoyFreeRange : config.SupplyRange);
+
+            bool anySystem = HasSupplySystem(zones, config);
 
             foreach (string side in new[] { WargameSide.Blue, WargameSide.Red })
             {
                 List<WargameZoneData> sideZones = zones
                     .Where(z => string.Equals(z.Control, side, StringComparison.OrdinalIgnoreCase)).ToList();
 
-                List<WargameZoneData> sources = sideZones.Where(z => z.SupplySource > 0).ToList();
-                if (sources.Count == 0)
-                    continue;
+                if (!HasSupplySystem(sideZones, config))
+                {
+                    // Si l'autre camp a un réseau, un camp sans aucune source est COUPE partout (pas à 100 %).
+                    // Si personne n'en a, la fonction est éteinte (anciennes campagnes inchangées).
+                    if (anySystem)
+                    {
+                        foreach (WargameZoneData zone in sideZones)
+                        {
+                            _supplyLevels[zone.Id] = 0;
+                            _supplyNotes[zone.Id] = "this side has no supply source";
+                            cutOff.Add(zone.Id);
+                        }
+                    }
 
-                var reached = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var queue = new Queue<string>();
+                    continue;
+                }
+
+                List<WargameZoneData> sources = sideZones.Where(z => SourceStrength(z, config) > 0).ToList();
+
+                var dist = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var from = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);       // source d'où vient le ravitaillement
+                var worstCost = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);  // plus gros pas du trajet
+                var worstZone = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);  // et où il se trouve
+                var done = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (WargameZoneData source in sources)
                 {
-                    reached.Add(source.Id);
-                    queue.Enqueue(source.Id);
+                    // Une source faible part avec une partie du coût déjà "payée" : son niveau de départ = sa force
+                    dist[source.Id] = config.SupplyNetwork ? range * (1.0 - SourceStrength(source, config)) : 0.0;
+                    from[source.Id] = source.Id;
+                    worstCost[source.Id] = 0;
+                    worstZone[source.Id] = "";
                 }
 
-                while (queue.Count > 0)
+                while (true)
                 {
-                    string current = queue.Dequeue();
+                    string current = null;
+                    foreach (KeyValuePair<string, double> kv in dist)
+                        if (!done.Contains(kv.Key) && (current == null || kv.Value < dist[current])) current = kv.Key;
+
+                    if (current == null) break;
+                    done.Add(current);
 
                     foreach (string next in links[current])
                     {
-                        if (reached.Contains(next)) continue;
+                        if (done.Contains(next)) continue;
                         if (!string.Equals(zoneById[next].Control, side, StringComparison.OrdinalIgnoreCase)) continue;
 
-                        reached.Add(next);
-                        queue.Enqueue(next);
+                        double step = 0;
+                        if (config.SupplyNetwork)
+                            step = CenterDistance(centers, current, next) / unit
+                                * 0.5 * (SupplyCostOf(zoneById[current], config) + SupplyCostOf(zoneById[next], config));
+
+                        double newDist = dist[current] + step;
+                        double known;
+                        if (dist.TryGetValue(next, out known) && known <= newDist) continue;
+
+                        dist[next] = newDist;
+                        from[next] = from[current];
+
+                        if (step > worstCost[current]) { worstCost[next] = step; worstZone[next] = next; }
+                        else { worstCost[next] = worstCost[current]; worstZone[next] = worstZone[current]; }
                     }
                 }
 
                 foreach (WargameZoneData zone in sideZones)
                 {
-                    if (!reached.Contains(zone.Id))
+                    double d;
+                    if (!dist.TryGetValue(zone.Id, out d))
+                    {
+                        _supplyLevels[zone.Id] = 0;
+                        _supplyNotes[zone.Id] = "no friendly way to a source";
+                        cutOff.Add(zone.Id);
+                        continue;
+                    }
+
+                    double level = config.SupplyNetwork ? Math.Max(0.0, 1.0 - d / range) : 1.0;
+                    _supplyLevels[zone.Id] = level;
+                    _supplyNotes[zone.Id] = "from " + from[zone.Id] + ", cost " + d.ToString("0.0") + " of " + range.ToString("0.0")
+                        + (worstZone[zone.Id].Length > 0 ? ", hardest step into " + worstZone[zone.Id] + " (" + worstCost[zone.Id].ToString("0.0") + ")" : "");
+
+                    if (config.SupplyNetwork && level < config.SupplyMinLevel)
                         cutOff.Add(zone.Id);
                 }
             }
@@ -1554,10 +3548,340 @@ namespace DCE_Manager
             return cutOff;
         }
 
+        // ---- Carte de ravitaillement (affichage seulement : colore les zones selon leur niveau) ----
+        // ---- Convois et points de ravitaillement avancés ----
+        // Un convoi par secteur mal ravitaillé (plafond ConvoyMax par camp). Il part d'une source par la route (zones amies)
+        // et recharge le point avancé de son secteur. Sans route (poche, plage isolée), seul l'aérien peut le recharger.
+        public class WargameConvoy
+        {
+            public string Side;
+            public string SourceId = "";                          // source de départ ("" = pas de route)
+            public string TargetId = "";                          // zone du point avancé
+            public List<string> Route = new List<string>();       // zones traversées, de la source au point avancé
+            public List<string> ServedIds = new List<string>();   // zones du secteur
+            public bool ByRoad;
+            public double Delivered;                              // part de la cargaison arrivée (route + air), 0 à 1
+            public double ReserveBefore, ReserveAfter;            // réserve du point avancé, en tours
+            public double Capacity;                               // capacité du point avancé (plafonnée par la source)
+            public bool Lost;                                     // la zone du point avancé a été prise pendant le tour : point perdu
+            public int SlotIndex;                                 // numéro d'emplacement (1 à ConvoyMax), stable d'un tour à l'autre
+            public string Slot = "";                              // "BLUE_1" : nom du point WG_POINT_BLUE_1 et du convoi WG_CONVOY_BLUE_1
+            public bool Rebuilt;                                  // le point avait été détruit : rebâti avec un malus
+        }
+
+        // Appelé une fois par tour, au début de la résolution (après le débarquement). Recalcule les secteurs, les convois,
+        // et remplit config.ForwardSupplyByZone (les points avancés actifs, qui servent ensuite de sources).
+        internal static void PlanConvoys(List<WargameZoneData> zones, WargameCombatConfig config)
+        {
+            config.ForwardSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            config.Convoys = new List<WargameConvoy>();
+
+            if (zones == null) return;
+
+            if (!config.SupplyConvoys)
+            {
+                foreach (WargameZoneData z in zones) { z.ForwardReserve = 0; z.ForwardSide = ""; }
+                return;
+            }
+
+            List<WargameZoneData> mapZones = zones.Where(z => !IsOffMapId(z.Id)).ToList();
+            var zoneById = new Dictionary<string, WargameZoneData>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in mapZones) zoneById[z.Id] = z;
+
+            Dictionary<string, List<string>> links = BuildLinks(mapZones);
+            FindCutOffZones(mapZones, links, zoneById, config);   // niveaux du réseau SEUL (aucun point avancé pour l'instant)
+
+            var centers = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in mapZones) centers[z.Id] = ZoneCenterOf(z);
+
+            foreach (string side in new[] { WargameSide.Blue, WargameSide.Red })
+            {
+                List<WargameZoneData> sideZones = mapZones
+                    .Where(z => string.Equals(z.Control, side, StringComparison.OrdinalIgnoreCase)).ToList();
+
+                // Réserves du tour précédent (seulement dans des zones encore tenues), puis on efface tout : on replace ci-dessous
+                var oldReserve = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var oldSlot = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);        // emplacement du point de la zone
+                var destroyed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);              // point détruit à la mission d'avant
+                foreach (WargameZoneData z in sideZones)
+                {
+                    if (!string.Equals(z.ForwardSide, side, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (z.ForwardReserve > 0) oldReserve[z.Id] = z.ForwardReserve;
+                    if (z.ForwardSlot > 0) oldSlot[z.Id] = z.ForwardSlot;
+                    if (z.ForwardDestroyed) destroyed.Add(z.Id);
+                }
+
+                foreach (WargameZoneData z in zones)
+                    if (string.Equals(z.ForwardSide, side, StringComparison.OrdinalIgnoreCase))
+                    {
+                        z.ForwardReserve = 0; z.ForwardSide = ""; z.ForwardSlot = 0; z.ForwardDestroyed = false;
+                    }
+
+                var usedSlots = new HashSet<int>();
+
+                int max = (int)Math.Round(config.ConvoyMax);
+                if (max <= 0) continue;
+
+                // Zones qui ont besoin d'un convoi : des formations, et un réseau qui ne les ravitaille pas assez.
+                // Priorité : la première ligne, puis les plus mal ravitaillées.
+                List<WargameZoneData> needy = sideZones
+                    .Where(z => LiveFormations(z, side).Count > 0 && SupplyLevelOf(z) < config.ConvoyNeedLevel
+                        && SourceStrength(z, config) <= 0)   // une zone source ne s'envoie pas de convoi à elle-même
+                    .OrderByDescending(z => IsFrontZone(z, links, zoneById) ? 1 : 0)
+                    .ThenBy(z => SupplyLevelOf(z))
+                    .ThenBy(z => z.Id, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (needy.Count == 0) continue;
+
+                // Secteurs : une zone "graine" par convoi, si possible pas voisines entre elles ; chaque zone va à la graine la plus proche
+                int count = Math.Min(max, needy.Count);
+                var seeds = new List<WargameZoneData>();
+                foreach (WargameZoneData z in needy)
+                {
+                    if (seeds.Count >= count) break;
+                    if (seeds.Any(s => links[s.Id].Contains(z.Id, StringComparer.OrdinalIgnoreCase))) continue;
+                    seeds.Add(z);
+                }
+                foreach (WargameZoneData z in needy)
+                {
+                    if (seeds.Count >= count) break;
+                    if (!seeds.Contains(z)) seeds.Add(z);
+                }
+
+                var groups = new Dictionary<WargameZoneData, List<WargameZoneData>>();
+                foreach (WargameZoneData s in seeds) groups[s] = new List<WargameZoneData>();
+                foreach (WargameZoneData z in needy)
+                {
+                    WargameZoneData best = seeds.OrderBy(s => CenterDistance(centers, s.Id, z.Id)).First();
+                    groups[best].Add(z);
+                }
+
+                // Routes : le chemin le plus RAPIDE depuis les sources du camp à travers ses zones (Dijkstra), avec le même coût que
+                // le ravitaillement : distance x coût de la zone (terrain / débit de la route, pont détruit). Un convoi préfère donc
+                // un détour par la route à une traversée de collines sans route.
+                var parent = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var cost = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                var settled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (WargameZoneData src in sideZones.Where(z => SourceStrength(z, config) > 0))
+                {
+                    parent[src.Id] = null;
+                    cost[src.Id] = 0;
+                }
+                while (true)
+                {
+                    string current = null;
+                    foreach (KeyValuePair<string, double> kv in cost)
+                        if (!settled.Contains(kv.Key) && (current == null || kv.Value < cost[current])) current = kv.Key;
+
+                    if (current == null) break;
+                    settled.Add(current);
+
+                    foreach (string next in links[current])
+                    {
+                        if (settled.Contains(next)) continue;
+                        if (!string.Equals(zoneById[next].Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                        double step = CenterDistance(centers, current, next)
+                            * 0.5 * (SupplyCostOf(zoneById[current], config) + SupplyCostOf(zoneById[next], config));
+                        double known;
+                        if (cost.TryGetValue(next, out known) && known <= cost[current] + step) continue;
+
+                        cost[next] = cost[current] + step;
+                        parent[next] = current;
+                    }
+                }
+
+                foreach (KeyValuePair<WargameZoneData, List<WargameZoneData>> g in groups)
+                {
+                    // Point avancé : la graine du secteur (la zone prioritaire, en général la première ligne) si la route y arrive,
+                    // sinon la zone du secteur reliée par la route la plus proche de la graine ; sans route du tout, la graine (air)
+                    WargameZoneData seed = g.Key;
+                    WargameZoneData target = parent.ContainsKey(seed.Id) ? seed
+                        : g.Value.Where(z => parent.ContainsKey(z.Id))
+                            .OrderBy(z => CenterDistance(centers, z.Id, seed.Id)).ThenBy(z => z.Id, StringComparer.OrdinalIgnoreCase).FirstOrDefault();
+                    bool byRoad = target != null;
+                    if (target == null) target = g.Key;
+
+                    var convoy = new WargameConvoy { Side = side, TargetId = target.Id, ByRoad = byRoad };
+                    convoy.ServedIds = g.Value.Select(z => z.Id).ToList();
+
+                    if (byRoad)
+                    {
+                        for (string id = target.Id; id != null; id = parent[id])
+                            convoy.Route.Insert(0, id);
+                        convoy.SourceId = convoy.Route[0];
+                    }
+
+                    // Emplacement : celui du point du secteur au tour d'avant (le nom reste le même), sinon le premier libre
+                    int slot = 0, s;
+                    foreach (WargameZoneData z in g.Value)
+                        if (oldSlot.TryGetValue(z.Id, out s) && !usedSlots.Contains(s)) { slot = s; break; }
+                    if (slot == 0)
+                        for (int n = 1; n <= Math.Max(max, 1) + 10; n++)
+                            if (!usedSlots.Contains(n)) { slot = n; break; }
+                    usedSlots.Add(slot);
+                    convoy.SlotIndex = slot;
+                    convoy.Slot = side.ToUpperInvariant() + "_" + slot;
+
+                    // Livraison : résultat réel de la mission (par emplacement) s'il existe, sinon la valeur par camp
+                    double ground = 0, air, bySlot;
+                    if (byRoad)
+                        ground = config.ConvoyDeliveredBySlot.TryGetValue(convoy.Slot, out bySlot) ? Clamp01(bySlot)
+                            : Clamp01(side == WargameSide.Blue ? config.ConvoyDeliveredBlue : config.ConvoyDeliveredRed);
+                    air = config.AirDeliveredBySlot.TryGetValue(convoy.Slot, out bySlot) ? Clamp01(bySlot)
+                        : Clamp01(side == WargameSide.Blue ? config.AirDeliveredBlue : config.AirDeliveredRed);
+                    convoy.Delivered = Math.Min(1.0, ground + air);
+
+                    // Point détruit à la mission d'avant : le convoi le rebâtit, mais ne recharge qu'une partie
+                    convoy.Rebuilt = g.Value.Any(z => destroyed.Contains(z.Id));
+                    if (convoy.Rebuilt)
+                        convoy.Delivered *= Math.Max(0, 1.0 - config.ForwardRebuildLoss);
+
+                    // Réserve : celle du point avancé du secteur au tour précédent, moins un tour consommé, ou rechargée par la livraison
+                    double before = 0, r;
+                    foreach (WargameZoneData z in g.Value)
+                        if (oldReserve.TryGetValue(z.Id, out r)) before = Math.Max(before, r);
+
+                    double after = Math.Max(0, Math.Max(before - 1, convoy.Delivered * config.ForwardPointReserve));
+
+                    // Un convoi n'apporte que ce que sa source peut fournir : point avancé plafonné à la capacité de la source
+                    // (par la route) ; un point ravitaillé seulement par air garde la capacité normale d'un point avancé
+                    double capacity = config.ForwardPointCapacity;
+                    if (byRoad) capacity = Math.Min(capacity, SourceValue(zoneById[convoy.SourceId], config));
+                    convoy.Capacity = capacity;
+                    convoy.ReserveBefore = before;
+                    convoy.ReserveAfter = after;
+
+                    if (after > 0.001)
+                    {
+                        target.ForwardReserve = after;
+                        target.ForwardSide = side;
+                        target.ForwardSlot = slot;
+
+                        double current;
+                        config.ForwardSupplyByZone.TryGetValue(target.Id, out current);
+                        config.ForwardSupplyByZone[target.Id] = current + capacity;
+                    }
+
+                    config.Convoys.Add(convoy);
+
+                    Trace(config, "  convoy " + convoy.Slot + " -> " + target.Id + (convoy.Rebuilt ? " [rebuilds a destroyed point]" : "") + " (serves " + string.Join(", ", convoy.ServedIds) + ") : "
+                        + (byRoad ? "road from " + convoy.SourceId + " (" + convoy.Route.Count + " zone(s))" : "NO ROAD (air only)")
+                        + ", delivered " + (convoy.Delivered * 100).ToString("0") + "% (road " + (ground * 100).ToString("0") + "%, air " + (air * 100).ToString("0") + "%)"
+                        + ", reserve " + before.ToString("0.#") + " -> " + after.ToString("0.#")
+                        + (after > 0.001 ? ", forward point active (capacity " + capacity.ToString("0.#") + ")" : ", forward point EMPTY"));
+                }
+            }
+        }
+
+        // Un point avancé planifié en début de tour, dans une zone que l'ennemi a prise pendant le combat, est perdu
+        private static void DropLostForwardPoints(Dictionary<string, WargameZoneData> zoneById, WargameCombatConfig config)
+        {
+            if (config.Convoys == null) return;
+
+            foreach (WargameConvoy convoy in config.Convoys)
+            {
+                WargameZoneData target;
+                if (!zoneById.TryGetValue(convoy.TargetId, out target)) continue;
+                if (string.Equals(target.Control, convoy.Side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                convoy.Lost = true;
+                convoy.ReserveAfter = 0;
+                config.ForwardSupplyByZone.Remove(target.Id);
+
+                if (string.Equals(target.ForwardSide, convoy.Side, StringComparison.OrdinalIgnoreCase))
+                {
+                    target.ForwardReserve = 0;
+                    target.ForwardSide = "";
+                }
+
+                Trace(config, "  convoy " + convoy.Side + " : forward point in " + target.Id + " LOST (zone taken by " + target.Control + ")");
+            }
+        }
+
+        private static bool IsFrontZone(WargameZoneData zone, Dictionary<string, List<string>> links, Dictionary<string, WargameZoneData> zoneById)
+        {
+            return links[zone.Id].Any(id => IsFightingSide(zoneById[id].Control)
+                && !string.Equals(zoneById[id].Control, zone.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private static double Clamp01(double v)
+        {
+            return v < 0 ? 0 : (v > 1 ? 1 : v);
+        }
+
+        public class WargameSupplyInfo
+        {
+            public double Level;        // 0 à 1
+            public bool CutOff;         // sous le seuil, ou aucun chemin vers une source
+            public bool IsSource;       // la zone contient une source (manuelle ou objectif)
+            public string Note;         // d'où vient le ravitaillement, coût...
+        }
+
+        // Calcule le niveau de ravitaillement de chaque zone de la carte (hors boîtes RESERVE / LANDING).
+        // Les zones d'un camp sans aucune source ne sont pas dans le résultat (pas de réseau = pas de couleur).
+        // Appeler ApplyObjectivesToSupply avant, pour que les objectifs-sources et les ponts soient pris en compte.
+        public static Dictionary<string, WargameSupplyInfo> ComputeSupplyMap(List<WargameZoneData> zones, WargameCombatConfig config)
+        {
+            var result = new Dictionary<string, WargameSupplyInfo>(StringComparer.OrdinalIgnoreCase);
+            if (zones == null || config == null) return result;
+
+            List<WargameZoneData> mapZones = zones.Where(z => !IsOffMapId(z.Id)).ToList();
+            if (mapZones.Count == 0) return result;
+
+            var zoneById = new Dictionary<string, WargameZoneData>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in mapZones) zoneById[z.Id] = z;
+
+            // Les champs statiques du moteur sont sauvegardés : un calcul d'affichage ne doit rien changer à un tour en cours
+            Dictionary<string, double> oldLevels = _supplyLevels;
+            Dictionary<string, string> oldNotes = _supplyNotes;
+
+            try
+            {
+                Dictionary<string, List<string>> links = BuildLinks(mapZones);
+                HashSet<string> cutOff = FindCutOffZones(mapZones, links, zoneById, config);
+
+                foreach (WargameZoneData z in mapZones)
+                {
+                    double level;
+                    if (!_supplyLevels.TryGetValue(z.Id, out level))
+                        continue;   // camp sans système de ravitaillement (ou zone neutre)
+
+                    string note;
+                    _supplyNotes.TryGetValue(z.Id, out note);
+
+                    result[z.Id] = new WargameSupplyInfo
+                    {
+                        Level = level,
+                        CutOff = cutOff.Contains(z.Id),
+                        IsSource = SourceStrength(z, config) > 0,
+                        Note = note ?? "",
+                    };
+                }
+            }
+            finally
+            {
+                _supplyLevels = oldLevels;
+                _supplyNotes = oldNotes;
+            }
+
+            return result;
+        }
+
         // Force du camp donné dans la zone
+        // Pendant Resolve, seules les formations qui se battent comptent (largeur de front, voir FightingFormations)
         private static double SidePower(WargameZoneData zone, string side)
         {
             double total = 0;
+
+            if (_combatWidth > 0)
+            {
+                foreach (WargameFormation f in FightingFormations(zone, side))
+                    total += f.ForcePower;
+
+                return total;
+            }
 
             foreach (WargameFormation f in zone.Formations)
             {
@@ -1568,12 +3892,33 @@ namespace DCE_Manager
             return total;
         }
 
+        // Les formations qui SE BATTENT dans la zone : les plus fortes, au plus MaxFormationsPerZone (largeur de front).
+        // Les autres sont en surplus : en attente derrière, elles ne comptent ni en attaque ni en défense.
+        private static List<WargameFormation> FightingFormations(WargameZoneData zone, string side)
+        {
+            List<WargameFormation> live = LiveFormations(zone, side);
+
+            if (_combatWidth <= 0 || live.Count <= _combatWidth)
+                return live;
+
+            return live.OrderByDescending(f => f.ForcePower).Take(_combatWidth).ToList();
+        }
+
         private static double SupplyFactor(WargameZoneData zone, HashSet<string> cutOff, WargameCombatConfig config)
         {
             double factor = config.GetRouteCombat(zone.SupplyRoute);
 
             if (cutOff.Contains(zone.Id))
+            {
                 factor *= config.CutOffSupplyFactor;
+            }
+            else
+            {
+                // niveau de ravitaillement partiel : entre le facteur "coupée" (niveau 0) et 1 (niveau 1)
+                double level = SupplyLevelOf(zone);
+                if (level < 1.0)
+                    factor *= config.CutOffSupplyFactor + (1.0 - config.CutOffSupplyFactor) * level;
+            }
 
             return factor;
         }
@@ -1620,9 +3965,12 @@ namespace DCE_Manager
 
             foreach (WargameZoneData zone in zones)
             {
+                if (IsReserveZone(zone)) continue;   // la réserve est hors carte : aucun lien, jamais de combat ni de passage
+
                 foreach (string n in zone.Neighbors)
                 {
                     if (!links.ContainsKey(n)) continue;
+                    if (IsOffMapId(n)) continue;
 
                     if (!links[zone.Id].Contains(n)) links[zone.Id].Add(n);
                     if (!links[n].Contains(zone.Id)) links[n].Add(zone.Id);
@@ -1666,7 +4014,7 @@ namespace DCE_Manager
                 zoneById[z.Id] = z;
 
             Dictionary<string, List<string>> links = BuildLinks(zones);
-            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById);
+            HashSet<string> cutOff = FindCutOffZones(zones, links, zoneById, config);
             HashSet<string> dcs = FindDcsZones(zones, config.DcsZoneDepth);
 
             foreach (WargameZoneData z in zones.OrderBy(x => x.Id))
@@ -1676,9 +4024,12 @@ namespace DCE_Manager
                 if (IsFightingSide(z.Control) && links[z.Id].Any(id => IsFightingSide(zoneById[id].Control)
                     && !string.Equals(zoneById[id].Control, z.Control, StringComparison.OrdinalIgnoreCase)))
                     tags.Add("FRONT");
-                if (cutOff.Contains(z.Id)) tags.Add("CUT-OFF");
+                if (IsLandingZone(z)) tags.Add("LANDING");
+                else if (IsReserveZone(z)) tags.Add("RESERVE");
+                else if (cutOff.Contains(z.Id)) tags.Add("CUT-OFF");
+                else if (SupplyLevelOf(z) < 0.995) tags.Add("SUPPLY " + (SupplyLevelOf(z) * 100).ToString("0") + "%");
                 if (dcs.Contains(z.Id)) tags.Add("DCS");
-                if (z.SupplySource > 0) tags.Add("SOURCE");
+                if (SourceStrength(z, config) > 0) tags.Add("SOURCE");
                 if (z.Formations.Count(f => f.ForcePower > 0) == 0) tags.Add("EMPTY");
 
                 var sb = new System.Text.StringBuilder();

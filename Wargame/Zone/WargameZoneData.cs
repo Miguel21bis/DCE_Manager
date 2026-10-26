@@ -142,6 +142,49 @@ namespace DCE_Manager
         // WargameSupplyRoute.* : pèse sur le ravitaillement reçu
         public string SupplyRoute = WargameSupplyRoute.Road;
 
+        // Seulement pour un PLAN DE DEBARQUEMENT (zone dont l'id commence par LANDING) :
+        // id de la zone-plage visée par défaut. Vide = pas encore choisie.
+        // Le trigger peut viser une autre zone, c'est la valeur par défaut du plan.
+        public string LandingTarget = "";
+
+        // Plan de débarquement seulement : ravitaillement venu de la mer. La valeur est "SupplySource" (même échelle qu'un objectif "Supply").
+        // SupplyFlag (facultatif) : tant que ce flag n'est pas levé, la source est inactive (ex. flag levé par un trigger Return.ShipGroupInPoly).
+        public string SupplyFlag = "";
+
+        // Plan de débarquement seulement : appui feu de la flotte, ajouté à la force d'assaut de chaque vague (même échelle que ForcePower).
+        // NavalFlag (facultatif) : l'appui ne compte que si ce flag est levé (ex. trigger qui vérifie la présence des navires).
+        public double NavalSupport = 0;
+        public string NavalFlag = "";
+
+        // Plan de débarquement en cours : échecs d'affilée de la vague actuelle, et dernière plage où ses troupes ont débarqué
+        // (couverte ensuite par la flotte). Evoluent pendant la campagne : enregistrés dans l'Active seulement.
+        public int LandingRetries = 0;
+        public string LandingBeach = "";
+
+        // Camp qui tenait la zone au départ de la simulation (Preview seulement, jamais enregistré).
+        // Un objectif-source dans une zone tenue par un autre camp que celui-ci a été capturé : sa valeur tombe à 0.
+        // Vide = règle inactive (éditeur, campagne réelle).
+        public string SupplyOwner = "";
+
+        // Depuis combien de tours la zone est coupée du ravitaillement (sous le camp CutOffSide). Les formations vivent sur leur stock
+        // le temps du délai de grâce (cutoff_grace_turns), puis la zone ne peut plus attaquer. Enregistré dans l'Active.
+        public int CutOffTurns = 0;
+        public string CutOffSide = "";
+
+        // Point de ravitaillement avancé posé dans cette zone (convois activés) : réserve restante en tours, et camp. Enregistré dans l'Active.
+        public double ForwardReserve = 0;
+        public string ForwardSide = "";
+
+        // Emplacement du point (1, 2, 3... -> WG_POINT_BLUE_1) : stable d'un tour à l'autre. Enregistré dans l'Active.
+        public int ForwardSlot = 0;
+
+        // Le point posé dans DCS a été détruit pendant la mission jouée (lu avant le tour, jamais enregistré)
+        public bool ForwardDestroyed;
+
+        // Plan de débarquement en cours : -1 = pas lancé. Sinon nombre de tours à attendre avant la prochaine vague
+        // (0 = elle peut partir). Evolue pendant la campagne : enregistré dans l'Active seulement.
+        public int LandingWait = -1;
+
         // Force totale de la zone = somme de ses formations. Calculée, jamais stockée,
         // pour éviter qu'un total et le détail ne désynchronisent.
         public double GetTotalForcePower()
@@ -181,6 +224,12 @@ namespace DCE_Manager
         public string Side;        // WargameSide.Blue / Red (une zone contestée peut avoir les deux)
         public int Multiplier = 1; // xN : le template posé en représente N
         public double ForcePower;  // force courante
+
+        // Numéro de vague, utilisé seulement dans un plan de débarquement (zone LANDING_n) :
+        // toutes les formations de la vague 1 partent ensemble au trigger "vague 1", etc.
+        // Ignoré partout ailleurs. 0 = vague abandonnée par le moteur (plus aucune chance sur la plage) : elle reste
+        // dans la boîte mais n'est plus jamais lancée.
+        public int Wave = 1;
 
         // Incrémenté à chaque fois qu'un nouvel exemplaire est reposé en jeu
         // (voir WargameEngineLosses) - sert uniquement à générer des noms DCS

@@ -75,6 +75,11 @@ namespace DCE_Manager
                     string supplyRoute = zoneLua["supplyRoute"]?.ToString();
                     zone.SupplyRoute = string.IsNullOrEmpty(supplyRoute) ? WargameSupplyRoute.Road : supplyRoute;
 
+                    zone.LandingTarget = zoneLua["landingTarget"]?.ToString() ?? "";
+                    zone.SupplyFlag = zoneLua["supplyFlag"]?.ToString() ?? "";
+                    zone.NavalSupport = ToDouble(zoneLua["navalSupport"]);
+                    zone.NavalFlag = zoneLua["navalFlag"]?.ToString() ?? "";
+
                     zone.Formations = LoadFormations(zoneLua["formations"] as LuaTable);
                     //zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                     zone.Neighbors = LoadStringArray(zoneLua["neighbors"] as LuaTable);
@@ -120,6 +125,9 @@ namespace DCE_Manager
                 // Garde-fou : un multiplicateur à zéro rendrait la formation inutile
                 if (f.Multiplier <= 0) f.Multiplier = 1;
 
+                // Vague : absente des anciens fichiers -> vague 1
+                f.Wave = entry["wave"] == null ? 1 : Math.Max(0, (int)ToDouble(entry["wave"]));
+
                 list.Add(f);
 
                 i++;
@@ -143,6 +151,10 @@ namespace DCE_Manager
                 axis.StartZoneId = Convert.ToString(entry["start"]) ?? "";
                 axis.EndZoneId = Convert.ToString(entry["end"]) ?? "";
                 axis.ActivationFlag = Convert.ToString(entry["flag"]) ?? "";
+
+                // Camp attaquant choisi (absent = automatique)
+                string side = (Convert.ToString(entry["side"]) ?? "").Trim().ToLowerInvariant();
+                axis.Side = (side == WargameSide.Blue || side == WargameSide.Red) ? side : "";
 
                 // Zones de passage, dans l'ordre. Absent (ancien fichier) = axe direct.
                 LuaTable viaLua = entry["via"] as LuaTable;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -41,7 +41,10 @@ namespace DCE_Manager
         // Calculé par WargameAxisPathFinder, pas sauvegardé
         public List<string> Path = new List<string>();
 
-        public string AttackerSide;   // camp qui tenait la zone de départ au chargement (mémorisé)
+        public string AttackerSide;   // camp attaquant retenu pour la partie (voir RememberAttackers)
+
+        // Camp attaquant CHOISI par le campaignMaker (blue / red). Vide = automatique : le camp qui tient la zone de départ.
+        public string Side = "";
 
         // Valide = un chemin d'au moins 2 zones a été trouvé entre A et B
         public bool IsValid
@@ -67,8 +70,29 @@ namespace DCE_Manager
 
     internal static class WargameAxisPathFinder
     {
-        // Chemin A -> B le plus court en DISTANCE (Dijkstra) en suivant les voisins des
-        // zones. La distance entre deux zones voisines = distance entre leurs centres.
+        // Réglages utilisés pour le COUT des zones (relief et route). Posé par le chargement des zones d'une
+        // campagne (WargameZoneRepository) et par la Preview, avec les réglages de la campagne.
+        // Tant que personne ne l'a posé : valeurs du code (mêmes tables que le ravitaillement).
+        public static WargameCombatConfig CostConfig = new WargameCombatConfig();
+
+        // Coût pour TRAVERSER une zone : coût du terrain / débit de la route, comme pour le ravitaillement
+        // (plaine + route = 1 ; montagne + piste = 6 ; montagne sans route = 12).
+        // Terrain ou route non renseignés : le chargement les met à plaine / route, donc coût 1.
+        // axis_use_terrain = false : toutes les zones coûtent 1, le chemin ne dépend que de la distance (ancien calcul).
+        private static double ZoneCost(WargameZoneData zone)
+        {
+            WargameCombatConfig cfg = CostConfig;
+
+            if (cfg == null || !cfg.AxisUseTerrain)
+                return 1.0;
+
+            double flow = Math.Max(0.01, cfg.GetRouteFlow(zone.SupplyRoute));
+            return cfg.GetTerrainMove(zone.Terrain) / flow;
+        }
+
+        // Chemin A -> B le moins COUTEUX (Dijkstra) en suivant les voisins des zones.
+        // Coût d'un pas entre deux zones voisines = distance entre leurs centres x coût moyen des deux zones
+        // (relief et route, voir ZoneCost). Sans relief ni route renseignés, c'est donc le chemin le plus court en distance.
         // (Un simple "moins de zones possible" donnait des chemins qui sautent d'une
         // grande zone à l'autre en traversant tout le reste de la carte.)
         // Retourne une liste vide si A ou B n'existent pas, ou si aucun chemin.
@@ -79,7 +103,7 @@ namespace DCE_Manager
         }
 
         // Chemin départ -> zones de passage (dans l'ordre) -> arrivée, calculé morceau par morceau
-        // (Dijkstra en distance, comme avant). Un morceau n'a pas le droit de repasser par une
+        // (Dijkstra au moindre coût). Un morceau n'a pas le droit de repasser par une
         // zone déjà utilisée : le chemin reste simple, chaque zone n'y figure qu'une fois, ce qui
         // garde un index de progression clair pour le combat.
         // Retourne une liste vide si une zone n'existe plus, ou si un morceau n'a pas de chemin
@@ -113,8 +137,13 @@ namespace DCE_Manager
             }
 
             var centers = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+            var costs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
             foreach (WargameZoneData zone in zones)
+            {
                 centers[zone.Id] = GetZoneCenter(zone);
+                costs[zone.Id] = ZoneCost(zone);
+            }
 
             var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             path.Add(startId);
@@ -132,7 +161,7 @@ namespace DCE_Manager
                 var blocked = new HashSet<string>(used, StringComparer.OrdinalIgnoreCase);
                 blocked.Remove(from);
 
-                List<string> segment = FindSegment(links, centers, from, to, blocked);
+                List<string> segment = FindSegment(links, centers, costs, from, to, blocked);
                 if (segment.Count < 2)
                     return new List<string>();   // pas de chemin
 
@@ -146,11 +175,12 @@ namespace DCE_Manager
             return path;
         }
 
-        // Un morceau de chemin (Dijkstra en distance entre centres de zones), sans jamais
-        // passer par les zones "blocked". Retourne une liste vide si aucun chemin.
+        // Un morceau de chemin (Dijkstra au moindre coût : distance entre centres x coût moyen des deux zones),
+        // sans jamais passer par les zones "blocked". Retourne une liste vide si aucun chemin.
         private static List<string> FindSegment(
             Dictionary<string, List<string>> links,
             Dictionary<string, PointF> centers,
+            Dictionary<string, double> costs,
             string startId, string endId,
             HashSet<string> blocked)
         {
@@ -167,7 +197,7 @@ namespace DCE_Manager
 
             while (true)
             {
-                // Zone non traitée la plus proche du départ (quelques dizaines de zones :
+                // Zone non traitée la moins chère à atteindre (quelques dizaines de zones :
                 // une simple boucle suffit, pas besoin d'une file de priorité)
                 string current = null;
                 double best = double.MaxValue;
@@ -192,7 +222,8 @@ namespace DCE_Manager
 
                     double dx = centers[current].X - centers[next].X;
                     double dy = centers[current].Y - centers[next].Y;
-                    double candidate = best + Math.Sqrt(dx * dx + dy * dy);
+                    double step = Math.Sqrt(dx * dx + dy * dy) * 0.5 * (costs[current] + costs[next]);
+                    double candidate = best + step;
 
                     if (candidate < distance[next])
                     {
@@ -206,11 +237,11 @@ namespace DCE_Manager
                 return path;   // pas de chemin
 
             // On remonte de l'arrivée vers le départ, puis on retourne la liste
-            string step = endId;
-            while (step != null)
+            string stepId = endId;
+            while (stepId != null)
             {
-                path.Add(step);
-                step = cameFrom.ContainsKey(step) ? cameFrom[step] : null;
+                path.Add(stepId);
+                stepId = cameFrom.ContainsKey(stepId) ? cameFrom[stepId] : null;
             }
 
             path.Reverse();
@@ -268,6 +299,14 @@ namespace DCE_Manager
             foreach (WargameAxis axis in axes)
             {
                 if (axis.Path == null || axis.Path.Count == 0) continue;
+
+                // Camp choisi dans l'éditeur des axes : il prime sur la zone de départ
+                if (string.Equals(axis.Side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(axis.Side, WargameSide.Red, StringComparison.OrdinalIgnoreCase))
+                {
+                    axis.AttackerSide = axis.Side.ToLowerInvariant();
+                    continue;
+                }
 
                 WargameZoneData start = zones.Find(z => string.Equals(z.Id, axis.Path[0], StringComparison.OrdinalIgnoreCase));
                 if (start != null)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -218,6 +218,13 @@ namespace DCE_Manager
             GridCampaigns_AddButtonColumn("Rename", "✏", 45, headerText: "");
             _mainForm.dataGridViewCampaigns.Columns["Rename"].DisplayIndex = 4; // juste après Name
 
+            // ===== COLONNE WARGAME (🗺) : icône dessinée à la main (grisée si pas de wargame) =====
+            GridCampaigns_AddButtonColumn("Wargame", "🗺", 55, headerText: "Wargame");
+            _mainForm.dataGridViewCampaigns.Columns["Wargame"].DisplayIndex =
+                _mainForm.dataGridViewCampaigns.Columns["Triggers"].DisplayIndex;
+            _mainForm.dataGridViewCampaigns.CellPainting += GridCampaigns_Wargame_CellPainting;
+            _mainForm.dataGridViewCampaigns.CellClick += GridCampaigns_Wargame_CellClick;
+
 
             // ===== STYLE BOUTONS =====
             foreach (DataGridViewColumn col in _mainForm.dataGridViewCampaigns.Columns)
@@ -362,6 +369,7 @@ namespace DCE_Manager
                 { "QuickActions", 100 },
                 { "CampaignSetup", 55 },
                   { "Triggers", 55 },
+                { "Wargame", 55 },
                 { "Parameters", 55 },
                 { "Delete", 55 },
                 { "Select", 40 }
@@ -551,7 +559,7 @@ namespace DCE_Manager
                         return;
                 }
 
-                Saver_TargetList_Wargame.WriteInitialFormations(name);
+                WargameLog.FirstMission(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
             }
             else if (zone == 1)
@@ -1075,6 +1083,91 @@ namespace DCE_Manager
             {
                 _mainForm.dataGridViewCampaigns.Columns["Triggers"].Visible = isCampaignMaker;
             }
+
+            // Wargame : même règle (et l'onglet Wargame change de vue joueur / campaignMaker)
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("Wargame"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["Wargame"].Visible = isCampaignMaker;
+            }
+
+            _mainForm.CampaignView?.RefreshWargameTab(ParamCampaignSelected.NameCampaign);
+        }
+
+        // Dessine l'icône Wargame : noire si la campagne a un wargame, grisée sinon.
+        // Rien sur la ligne corbeille ni sur les lignes "problème".
+        private void GridCampaigns_Wargame_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Wargame")
+                return;
+
+            e.PaintBackground(e.ClipBounds, true);
+            e.Handled = true;
+
+            var row = grid.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return;
+
+            bool hasWargame = row.Cells[e.ColumnIndex].Tag is bool b && b;
+            Color color = hasWargame ? Color.Black : Color.FromArgb(190, 190, 190);
+
+            using (var font = new Font("Segoe UI", 14, FontStyle.Bold))
+            {
+                TextRenderer.DrawText(e.Graphics, "🗺", font, e.CellBounds, color,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        // Clic sur l'icône (campaignMaker seulement) : crée le wargame s'il n'existe pas encore, puis ouvre l'éditeur.
+        private void GridCampaigns_Wargame_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Wargame")
+                return;
+
+            if (ParamConf.UserLevel != UserLevel.CampaignMaker)
+                return;
+
+            var row = grid.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return;
+
+            if (!DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(name))
+            {
+                string mizPath = Path.Combine(WargameZoneRepository.GetCampaignFolder(name), "Init", "Wargame", "wargame_zone.miz");
+
+                if (!File.Exists(mizPath))
+                {
+                    MessageBox.Show(
+                        "To create a wargame, first draw its zones in the DCS Mission Editor\r\nand save the mission as:\r\n\r\n" + mizPath,
+                        "Create a wargame", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var confirm = MessageBox.Show(
+                    "Create a wargame for '" + name + "' ?\r\n\r\nThe zones are read from wargame_zone.miz, then the wargame editor opens.",
+                    "Create a wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (confirm != DialogResult.Yes)
+                    return;
+            }
+
+            using (var form = new WargameEditor_Form(name))
+            {
+                form.ShowDialog(_mainForm);
+            }
+
+            // Mise à jour de la ligne sur place (pas de rechargement de la grid : le clic est encore en cours)
+            bool hasWargame = DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(name);
+            row.Cells["Wargame"].Tag = hasWargame;
+            row.Cells["Wargame"].ToolTipText = hasWargame ? "Edit the wargame of this campaign" : "Create a wargame for this campaign";
+            grid.InvalidateCell(row.Cells["Wargame"]);
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat en tâche de fond
@@ -1869,6 +1962,12 @@ namespace DCE_Manager
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
 
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["DebriefPending"].Value = debriefPending ? "1" : "";
+
+                            // Icône Wargame : Tag = la campagne a un wargame (sert au dessin et à l'infobulle)
+                            bool hasWargame = DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(NameCamp);
+                            var wargameCell = _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Wargame"];
+                            wargameCell.Tag = hasWargame;
+                            wargameCell.ToolTipText = hasWargame ? "Edit the wargame of this campaign" : "Create a wargame for this campaign";
                         }
 
                       
@@ -2731,6 +2830,7 @@ namespace DCE_Manager
             Main_Form.Instance.ShowHome();
 
             ParamCampaignSelected.NameCampaign = "";
+            Main_Form.Instance.CampaignView.RefreshWargameTab("");
 
             CurrentCampaignEdit = null;
             UpdateCampaignButtonsVisibility();
@@ -2859,7 +2959,7 @@ namespace DCE_Manager
                     report.Add("Active folder cleared.");
                     report.Add("Generating missions from base_mission.miz...");
 
-                    Saver_TargetList_Wargame.WriteInitialFormations(name);
+                    WargameLog.FirstMission(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
 
                     WargameEngineLosses.ProcessBeforeMission(name);

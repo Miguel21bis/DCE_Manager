@@ -60,6 +60,7 @@ namespace DCE_Manager
                 LoadSquads();
                 LoadScoreboard();
                 LoadBugList();   // <-- nouvelle ligne
+                Main_Form.Instance.CampaignView.RefreshWargameTab(_campaignName);
                 DisplayErrors();
             }
             catch (Exception ex)

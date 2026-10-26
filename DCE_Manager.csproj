@@ -313,16 +313,19 @@
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
     <Compile Include="Wargame\Engine\WargameAxis.cs" />
-    <Compile Include="Wargame\Engine\WargameCombatPreview.cs" />
-    <Compile Include="Wargame\Engine\WargameConfigGrid.cs" />
+    <Compile Include="Wargame\Spawn\WargameConfigGrid.cs" />
     <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />
-    <Compile Include="Wargame\Engine\WargameEngineLosses.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_EngineLosses.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_PreviewExport.cs" />
+    <Compile Include="Wargame\Engine\WargameTriggerSim.cs" />
+    <Compile Include="Wargame\Template\WargameTemplateCatalog.cs" />
     <Compile Include="Wargame\UI\Parser_WargameMissionUnits.cs" />
     <Compile Include="Wargame\Objective\Parser_WargameObjectives.cs" />
     <Compile Include="Wargame\Spawn\Parser_WargameSpawnAreas.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplate.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplateLayout.cs" />
     <Compile Include="Wargame\UI\ucWargameAxisPanel.cs" />
+    <Compile Include="Wargame\UI\Wargame_UI_CombatPreview.cs" />
     <Compile Include="Wargame\Zone\Parser_WargameZones.cs" />
     <Compile Include="Wargame\TargetList\Saver_TargetList_Wargame.cs" />
     <Compile Include="Wargame\Zone\Saver_WargameZoneActive.cs" />
@@ -339,7 +342,7 @@
     </Compile>
     <Compile Include="Wargame\UI\WargameCampaignInfo.cs" />
     <Compile Include="Wargame\Calibration\WargameDrawingReader.cs" />
-    <Compile Include="Wargame\UI\WargameEditor_Form.cs">
+    <Compile Include="Wargame\UI\Wargame_UI_Editor_Form.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Wargame\Calibration\WargameGeometryCleaner.cs" />
@@ -351,7 +354,6 @@
     <Compile Include="Wargame\Objective\WargameObjectiveWriter.cs" />
     <Compile Include="Wargame\Spawn\WargameSpawnArea.cs" />
     <Compile Include="Wargame\Spawn\WargameSpawnSolver.cs" />
-    <Compile Include="Wargame\Template\WargameTemplateCatalog.cs" />
     <Compile Include="Wargame\Template\WargameTemplateCatalog_Form.cs">
       <SubType>Form</SubType>
     </Compile>

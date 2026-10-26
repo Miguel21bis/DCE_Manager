@@ -58,6 +58,9 @@ namespace DCE_Manager
                     sb.AppendLine("\t\t[\"end\"] = \"" + Escape(axis.EndZoneId) + "\",");
                     sb.AppendLine("\t\t[\"flag\"] = \"" + Escape(axis.ActivationFlag) + "\",");
 
+                    if (!string.IsNullOrEmpty(axis.Side))
+                        sb.AppendLine("\t\t[\"side\"] = \"" + Escape(axis.Side) + "\",");
+
                     sb.AppendLine("\t\t[\"via\"] = ");
                     sb.AppendLine("\t\t{");
                     int viaIndex = 1;
@@ -91,6 +94,19 @@ namespace DCE_Manager
             sb.AppendLine("\t\t[\"terrain\"] = \"" + Escape(zone.Terrain) + "\",");
             sb.AppendLine("\t\t[\"supplyRoute\"] = \"" + Escape(zone.SupplyRoute) + "\",");
 
+            // Plan de débarquement : plage visée par défaut (écrit seulement si renseignée)
+            if (!string.IsNullOrEmpty(zone.LandingTarget))
+                sb.AppendLine("\t\t[\"landingTarget\"] = \"" + Escape(zone.LandingTarget) + "\",");
+
+            // Plan de débarquement : flag qui active le ravitaillement par mer (facultatif)
+            if (zone.NavalSupport > 0)
+                sb.AppendLine("\t\t[\"navalSupport\"] = " + FormatNumber(zone.NavalSupport) + ",");
+            if (!string.IsNullOrEmpty(zone.NavalFlag))
+                sb.AppendLine("\t\t[\"navalFlag\"] = \"" + Escape(zone.NavalFlag) + "\",");
+
+            if (!string.IsNullOrEmpty(zone.SupplyFlag))
+                sb.AppendLine("\t\t[\"supplyFlag\"] = \"" + Escape(zone.SupplyFlag) + "\",");
+
             WriteFormations(sb, zone.Formations);
             //WriteIrregular(sb, zone.Irregular);
             WriteNeighbors(sb, zone.Neighbors);
@@ -115,6 +131,7 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t\t\t[\"side\"] = \"" + Escape(f.Side) + "\",");
                 sb.AppendLine("\t\t\t\t[\"multiplier\"] = " + f.Multiplier + ",");
                 sb.AppendLine("\t\t\t\t[\"forcePower\"] = " + FormatNumber(f.ForcePower) + ",");
+                sb.AppendLine("\t\t\t\t[\"wave\"] = " + f.Wave + ",");
                 sb.AppendLine("\t\t\t\t[\"priority\"] = " + f.Priority + ",");
                 sb.AppendLine("\t\t\t\t[\"attributes\"] = \"" + Escape(string.Join(",", f.Attributes)) + "\",");
                 sb.AppendLine("\t\t\t\t[\"firepowerMin\"] = " + FormatNumber(f.FirepowerMin) + ",");

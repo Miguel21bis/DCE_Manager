@@ -20,7 +20,18 @@ namespace DCE_Manager
         public const string AirDefense = "airdefense";
         public const string Logistics = "logistics";
 
-        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics };
+        // Templates qui ne sont PAS des formations du wargame (jamais proposés dans les zones) :
+        //   supplypoint : le point de ravitaillement avancé posé près des formations (un par point actif)
+        //   convoy      : un convoi routier ; seuls ses types de véhicules servent, le convoi est fabriqué en jeu par scriptsMod
+        public const string SupplyPoint = "supplypoint";
+        public const string Convoy = "convoy";
+
+        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics, SupplyPoint, Convoy };
+
+        public static bool IsFormationType(string type)
+        {
+            return type != SupplyPoint && type != Convoy;
+        }
 
         // Valeurs proposées à la création d'une entrée de catalogue, pour éviter
         // au campaignMaker de partir de zéro.
@@ -54,6 +65,14 @@ namespace DCE_Manager
                     power = 4; attack = 0.1; defense = 0.5; supplyCost = 0.5;
                     priority = 3; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
                     break;
+                case SupplyPoint:
+                    power = 0; attack = 0; defense = 0.5; supplyCost = 0;
+                    priority = 6; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
+                case Convoy:
+                    power = 0; attack = 0; defense = 0.3; supplyCost = 0;
+                    priority = 5; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
                 default:
                     power = 10; attack = 1.0; defense = 1.0; supplyCost = 1.0;
                     priority = 5; attributes = new List<string> { "Vehicles" }; firepowerMin = 2; firepowerMax = 2;
@@ -70,6 +89,8 @@ namespace DCE_Manager
         public string Side;       // WargameSide.Blue / Red (déduit du dossier)
         public string Type = WargameUnitType.Infantry;
 
+        // Plus utilisés par le moteur (la défense vient du terrain, le coût de ravitaillement du terrain et des routes).
+        // Gardés en lecture/écriture pour ne pas abîmer les fichiers existants ; plus affichés dans la grille.
         public double Attack = 1.0;
         public double Defense = 1.0;
         public double SupplyCost = 1.0;
@@ -82,7 +103,8 @@ namespace DCE_Manager
         // Surchargeable zone par zone via la colonne xN du panneau d'édition.
         public int DefaultMultiplier = 1;
 
-        // Nombre d'unités retenu pour les calculs de pertes. Pré-rempli par le
+        // Nombre d'unités du template (pour information : les pertes se calculent maintenant sur l'état "alive" de
+        // l'exemplaire posé, plus par véhicule). Pré-rempli par le
         // parser du .stm, mais MODIFIABLE : le comptage automatique inclut les
         // objets statiques (bâtiments, décor) qui ne valent pas forcément une
         // unité de combat, donc le campaignMaker doit pouvoir corriger.
@@ -120,6 +142,18 @@ namespace DCE_Manager
                 return null;
 
             return Entries.Find(e => e.Template.Equals(template, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Templates d'un type donné pour un camp (ex. le point de ravitaillement des bleus)
+        public List<WargameTemplateEntry> OfType(string type, string side)
+        {
+            return Entries.FindAll(e => e.Type == type && string.Equals(e.Side, side, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool IsFormationTemplate(string template)
+        {
+            WargameTemplateEntry entry = Find(template);
+            return entry == null || WargameUnitType.IsFormationType(entry.Type);
         }
 
         public int GetDefaultMultiplier(string template)
@@ -283,7 +317,23 @@ namespace DCE_Manager
                             VehicleCount = (int)ToDouble(entryLua["vehicleCount"], 0),
                             DetectedDynamic = (int)ToDouble(entryLua["detectedDynamic"], 0),
                             DetectedStatic = (int)ToDouble(entryLua["detectedStatic"], 0),
+                            Priority = (int)ToDouble(entryLua["priority"], 5),
+                            FirepowerMin = ToDouble(entryLua["firepowerMin"], 2),
+                            FirepowerMax = ToDouble(entryLua["firepowerMax"], 2),
                         };
+
+                        // Attributs : table Lua { "Armor", "soft" }
+                        LuaTable attributes = entryLua["attributes"] as LuaTable;
+                        if (attributes != null)
+                        {
+                            var list = new List<string>();
+                            foreach (object v in attributes.Values)
+                            {
+                                string a = v?.ToString();
+                                if (!string.IsNullOrWhiteSpace(a)) list.Add(a.Trim());
+                            }
+                            if (list.Count > 0) entry.Attributes = list;
+                        }
 
                         if (entry.DefaultMultiplier <= 0)
                             entry.DefaultMultiplier = 1;
@@ -323,6 +373,13 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t[\"vehicleCount\"] = " + e.VehicleCount + ",");
                 sb.AppendLine("\t\t[\"detectedDynamic\"] = " + e.DetectedDynamic + ",");
                 sb.AppendLine("\t\t[\"detectedStatic\"] = " + e.DetectedStatic + ",");
+                sb.AppendLine("\t\t[\"priority\"] = " + e.Priority + ",");
+                sb.AppendLine("\t\t[\"firepowerMin\"] = " + FormatNumber(e.FirepowerMin) + ",");
+                sb.AppendLine("\t\t[\"firepowerMax\"] = " + FormatNumber(e.FirepowerMax) + ",");
+                sb.Append("\t\t[\"attributes\"] = {");
+                for (int i = 0; i < e.Attributes.Count; i++)
+                    sb.Append((i > 0 ? ", " : " ") + "\"" + Escape(e.Attributes[i]) + "\"");
+                sb.AppendLine(" },");
                 sb.AppendLine("\t},");
             }
 

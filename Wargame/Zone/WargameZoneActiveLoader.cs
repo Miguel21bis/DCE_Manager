@@ -68,6 +68,14 @@ namespace DCE_Manager
                     if (!string.IsNullOrEmpty(control)) zone.Control = control;
 
                     zone.ResupplyModifier = ToDouble(zoneLua["resupplyModifier"], zone.ResupplyModifier);
+                    zone.LandingWait = (int)ToDouble(zoneLua["landingWait"], -1);
+                    zone.LandingRetries = (int)ToDouble(zoneLua["landingRetries"], 0);
+                    zone.LandingBeach = zoneLua["landingBeach"]?.ToString() ?? "";
+                    zone.CutOffTurns = (int)ToDouble(zoneLua["cutOffTurns"], 0);
+                    zone.CutOffSide = zoneLua["cutOffSide"]?.ToString() ?? "";
+                    zone.ForwardReserve = ToDouble(zoneLua["forwardReserve"], 0);
+                    zone.ForwardSide = zoneLua["forwardSide"]?.ToString() ?? "";
+                    zone.ForwardSlot = (int)ToDouble(zoneLua["forwardSlot"], 0);
                     MergeFormations(zone, zoneLua["formations"] as LuaTable, allFormationsById);
                     //zone.Irregular = LoadIrregular(zoneLua["irregular"] as LuaTable);
                 }
@@ -111,6 +119,8 @@ namespace DCE_Manager
                 f.ForcePower = ToDouble(entry["forcePower"], f.ForcePower);
                 f.SpawnGeneration = (int)ToDouble(entry["spawnGeneration"], f.SpawnGeneration);
                 if (f.SpawnGeneration <= 0) f.SpawnGeneration = 1;
+                f.Wave = (int)ToDouble(entry["wave"], f.Wave);
+                if (f.Wave < 0) f.Wave = 0;   // 0 = vague abandonnée (voir WargameEngineCombat.ProcessLandings)
 
                 merged.Add(f);
                 i++;

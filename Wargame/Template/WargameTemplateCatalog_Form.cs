@@ -1,16 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
 
 namespace DCE_Manager
 {
     // Edition du catalogue de templates d'une campagne : une ligne par .stm trouvé
-    // dans Templates/wargame_blue et wargame_red, avec ses caractéristiques de combat.
+    // dans Templates/wargame_blue et wargame_red, avec ce que le wargame en utilise.
     //
     // La liste des lignes n'est pas modifiable ici (pas d'ajout/suppression) :
     // elle est le reflet des fichiers réellement présents sur disque, synchronisée
     // au chargement. Seules les valeurs sont éditables.
+    //
+    // Colonnes retirées (plus utilisées par le moteur) : Attack, Defense, Supply cost.
+    // Elles restent dans le fichier du catalogue, pour ne rien abîmer.
+    // Type "supplypoint" / "convoy" : pas des formations ; Power et xN n'y servent pas (grisés).
     internal class WargameTemplateCatalog_Form : Form
     {
         private readonly WargameTemplateCatalog _catalog;
@@ -21,6 +26,7 @@ namespace DCE_Manager
 
         // Passe à true dès qu'une valeur est modifiée, repasse à false au Save
         private bool _dirty;
+        private bool _loading;
 
         public WargameTemplateCatalog_Form(string campaignName, WargameCampaignInfo campaignInfo)
         {
@@ -29,7 +35,7 @@ namespace DCE_Manager
             _catalog = WargameTemplateCatalog.LoadAndSync(campaignName, campaignInfo);
 
             Text = "Wargame templates - " + campaignName;
-            Width = 1150;
+            Width = 1000;
             Height = 600;
             StartPosition = FormStartPosition.CenterParent;
 
@@ -48,9 +54,9 @@ namespace DCE_Manager
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
             };
 
-            var colTemplate = new DataGridViewTextBoxColumn { Name = "colTemplate", HeaderText = "Template", ReadOnly = true, Width = 160 };
+            var colTemplate = new DataGridViewTextBoxColumn { Name = "colTemplate", HeaderText = "Template", ReadOnly = true, Width = 230 };
             var colSide = new DataGridViewTextBoxColumn { Name = "colSide", HeaderText = "Side", ReadOnly = true, Width = 50 };
-            var colType = new DataGridViewComboBoxColumn { Name = "colType", HeaderText = "Type", Width = 90 };
+            var colType = new DataGridViewComboBoxColumn { Name = "colType", HeaderText = "Type", Width = 95 };
             foreach (string type in WargameUnitType.All)
                 colType.Items.Add(type);
 
@@ -58,9 +64,6 @@ namespace DCE_Manager
             _grid.Columns.Add(colSide);
             _grid.Columns.Add(colType);
             _grid.Columns.Add("colPower", "Power");
-            _grid.Columns.Add("colAttack", "Attack");
-            _grid.Columns.Add("colDefense", "Defense");
-            _grid.Columns.Add("colSupplyCost", "Supply cost");
             _grid.Columns.Add("colMultiplier", "Default xN");
             _grid.Columns.Add("colVehicles", "Units");
             _grid.Columns.Add("colPriority", "tgt_Priority");
@@ -69,18 +72,37 @@ namespace DCE_Manager
             _grid.Columns.Add("colFirepowerMax", "tgt_FP_max");
 
             _grid.Columns["colPower"].Width = 60;
-            _grid.Columns["colAttack"].Width = 60;
-            _grid.Columns["colDefense"].Width = 60;
-            _grid.Columns["colSupplyCost"].Width = 80;
-            _grid.Columns["colMultiplier"].Width = 70;
+            _grid.Columns["colMultiplier"].Width = 75;
             _grid.Columns["colVehicles"].Width = 60;
-            _grid.Columns["colPriority"].Width = 70;
+            _grid.Columns["colPriority"].Width = 75;
             _grid.Columns["colAttributes"].Width = 150;
-            _grid.Columns["colFirepowerMin"].Width = 80;
-            _grid.Columns["colFirepowerMax"].Width = 80;
+            _grid.Columns["colFirepowerMin"].Width = 75;
+            _grid.Columns["colFirepowerMax"].Width = 75;
+
+            // Units : pour information seulement (les pertes ne se calculent plus par véhicule)
+            _grid.Columns["colVehicles"].ReadOnly = true;
+            _grid.Columns["colVehicles"].DefaultCellStyle.ForeColor = Color.DimGray;
+
+            _grid.Columns["colType"].ToolTipText = "Unit type. supplypoint = forward supply point placed near the formations. convoy = road convoy (only its vehicle types are used, the convoy is built in game).";
+            _grid.Columns["colPower"].ToolTipText = "Strength of ONE copy of this template in the wargame. A formation is worth xN x Power.";
+            _grid.Columns["colMultiplier"].ToolTipText = "xN proposed when you add this template to a zone.";
+            _grid.Columns["colVehicles"].ToolTipText = "Number of units in the .stm file (information only). Counted again with 'Recount units'.";
 
             _grid.CellEndEdit += Grid_CellEndEdit;
             _grid.DataError += Grid_DataError;
+
+            // Le type est une liste déroulante : on valide tout de suite pour griser les bonnes cases
+            _grid.CurrentCellDirtyStateChanged += (s, e) =>
+            {
+                if (_grid.IsCurrentCellDirty && _grid.CurrentCell is DataGridViewComboBoxCell)
+                    _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            };
+            _grid.CellValueChanged += (s, e) =>
+            {
+                if (_loading || e.RowIndex < 0) return;
+                if (_grid.Columns[e.ColumnIndex].Name == "colType")
+                    UpdateRowLook(_grid.Rows[e.RowIndex]);
+            };
 
             var bottom = new FlowLayoutPanel
             {
@@ -113,19 +135,44 @@ namespace DCE_Manager
 
         private void LoadGrid()
         {
-            _grid.Rows.Clear();
-
-            foreach (WargameTemplateEntry e in _catalog.Entries)
+            _loading = true;
+            try
             {
-                _grid.Rows.Add(e.Template, e.Side, e.Type, e.Power, e.Attack, e.Defense, e.SupplyCost,
-                    e.DefaultMultiplier, e.VehicleCount,
-                    e.Priority, string.Join(", ", e.Attributes), e.FirepowerMin, e.FirepowerMax,
-                    e.DetectedDynamic + " / " + e.DetectedStatic);
+                _grid.Rows.Clear();
+
+                foreach (WargameTemplateEntry e in _catalog.Entries)
+                {
+                    int index = _grid.Rows.Add(e.Template, e.Side, e.Type, e.Power,
+                        e.DefaultMultiplier, e.VehicleCount,
+                        e.Priority, string.Join(", ", e.Attributes), e.FirepowerMin, e.FirepowerMax);
+
+                    _grid.Rows[index].Cells["colVehicles"].ToolTipText = e.DetectedDynamic + " moving unit(s) / " + e.DetectedStatic + " static object(s) in the .stm";
+                    UpdateRowLook(_grid.Rows[index]);
+                }
+            }
+            finally
+            {
+                _loading = false;
             }
         }
 
-        // Recale les valeurs de combat de la ligne courante sur celles proposées pour
-        // son type. Pratique après avoir changé le type d'un lot de templates.
+        // Point de ravitaillement et convoi : Power et xN ne servent pas, on les grise et on les verrouille
+        private void UpdateRowLook(DataGridViewRow row)
+        {
+            string type = row.Cells["colType"].Value?.ToString() ?? WargameUnitType.Infantry;
+            bool formation = WargameUnitType.IsFormationType(type);
+
+            foreach (string col in new[] { "colPower", "colMultiplier" })
+            {
+                DataGridViewCell cell = row.Cells[col];
+                cell.ReadOnly = !formation;
+                cell.Style.BackColor = formation ? Color.Empty : Color.Gainsboro;
+                cell.Style.ForeColor = formation ? Color.Empty : Color.Gray;
+            }
+        }
+
+        // Recale les valeurs de la ligne courante sur celles proposées pour son type.
+        // Pratique après avoir changé le type d'un lot de templates.
         private void ApplyTypeDefaults()
         {
             if (_grid.CurrentRow == null)
@@ -141,15 +188,14 @@ namespace DCE_Manager
                 out priority, out attributes, out firepowerMin, out firepowerMax);
 
             row.Cells["colPower"].Value = power;
-            row.Cells["colAttack"].Value = attack;
-            row.Cells["colDefense"].Value = defense;
-            row.Cells["colSupplyCost"].Value = supplyCost;
             row.Cells["colPriority"].Value = priority;
             row.Cells["colAttributes"].Value = string.Join(", ", attributes);
             row.Cells["colFirepowerMin"].Value = firepowerMin;
             row.Cells["colFirepowerMax"].Value = firepowerMax;
 
+            _dirty = true;
             SyncFromGrid();
+            UpdateRowLook(row);
         }
 
         // Relit tous les .stm et écrase les comptages, y compris les valeurs
@@ -157,7 +203,7 @@ namespace DCE_Manager
         private void RecountAll()
         {
             if (MessageBox.Show(
-                    "Recount units from the .stm files? Manual corrections will be overwritten.",
+                    "Recount units from the .stm files?",
                     "Wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             {
                 return;
@@ -219,14 +265,9 @@ namespace DCE_Manager
 
                 entry.Type = row.Cells["colType"].Value?.ToString() ?? entry.Type;
                 entry.Power = ParseDouble(row.Cells["colPower"], entry.Power);
-                entry.Attack = ParseDouble(row.Cells["colAttack"], entry.Attack);
-                entry.Defense = ParseDouble(row.Cells["colDefense"], entry.Defense);
-                entry.SupplyCost = ParseDouble(row.Cells["colSupplyCost"], entry.SupplyCost);
 
                 int multiplier = (int)ParseDouble(row.Cells["colMultiplier"], entry.DefaultMultiplier);
                 entry.DefaultMultiplier = multiplier > 0 ? multiplier : 1;
-
-                entry.VehicleCount = (int)ParseDouble(row.Cells["colVehicles"], entry.VehicleCount);
 
                 entry.Priority = (int)ParseDouble(row.Cells["colPriority"], entry.Priority);
 

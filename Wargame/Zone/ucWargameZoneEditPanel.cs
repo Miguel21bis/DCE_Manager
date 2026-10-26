@@ -36,8 +36,6 @@ namespace DCE_Manager
         private DataGridViewComboBoxColumn _colTemplate;
         private Label _labelTotalStock;
 
-        private NumericUpDown _numResupplyModifier;
-        private NumericUpDown _numSupplySource;
         private ComboBox _comboSupplyRoute;
         private ComboBox _comboTerrain;
 
@@ -48,7 +46,12 @@ namespace DCE_Manager
         // de largeur (voir ApplyLayout) : dans un FlowLayoutPanel TopDown, les
         // enfants ne suivent pas tout seuls la largeur du conteneur.
         private FlowLayoutPanel _flow;
-        private GroupBox _groupControl, _groupUnits, _groupResupply, _groupTerrain, _groupNeighbors;
+        private GroupBox _groupControl, _groupUnits, _groupResupply, _groupTerrain, _groupNeighbors, _groupSeaSupply;
+        private NumericUpDown _numSeaSupply;
+        private TextBox _txtSeaFlag;
+        private GroupBox _groupNaval;
+        private NumericUpDown _numNaval;
+        private TextBox _txtNavalFlag;
 
         public ucWargameZoneEditPanel()
         {
@@ -69,7 +72,7 @@ namespace DCE_Manager
             int width = _flow.ClientSize.Width - 28; // marge + barre de défilement éventuelle
             if (width < 250) width = 250;
 
-            foreach (GroupBox g in new[] { _groupControl, _groupUnits, _groupResupply, _groupTerrain, _groupNeighbors })
+            foreach (GroupBox g in new[] { _groupControl, _groupUnits, _groupResupply, _groupSeaSupply, _groupNaval, _groupTerrain, _groupNeighbors })
             {
                 if (g != null) g.Width = width;
             }
@@ -148,18 +151,33 @@ namespace DCE_Manager
             _loading = true;
             try
             {
-                _labelZoneId.Text = "Zone: " + _zone.Id;
+                // Plan de débarquement : on montre la colonne Wave et la plage visée, on cache ce qui ne sert
+                // pas à une boîte hors carte (ravitaillement, terrain, voisins).
+                bool landing = WargameEngineCombat.IsLandingZone(_zone);
+
+                _labelZoneId.Text = landing
+                    ? "Landing plan: " + _zone.Id + "  ->  " + (string.IsNullOrEmpty(_zone.LandingTarget) ? "(no target)" : _zone.LandingTarget)
+                    : "Zone: " + _zone.Id;
+
+                _gridFormations.Columns["colWave"].Visible = landing;
+                _groupUnits.Text = landing ? "Units - same Wave number = lands together" : "Units";
+                _groupResupply.Visible = !landing;
+                _groupSeaSupply.Visible = landing;
+                _groupNaval.Visible = landing;
+                if (landing)
+                {
+                    _numNaval.Value = Math.Max(_numNaval.Minimum, Math.Min(_numNaval.Maximum, (decimal)_zone.NavalSupport));
+                    _txtNavalFlag.Text = _zone.NavalFlag ?? "";
+                    _numSeaSupply.Value = Math.Max(_numSeaSupply.Minimum, Math.Min(_numSeaSupply.Maximum, (decimal)_zone.SupplySource));
+                    _txtSeaFlag.Text = _zone.SupplyFlag ?? "";
+                }
+                _groupTerrain.Visible = !landing;
+                _groupNeighbors.Visible = !landing;
 
                 _comboControl.SelectedIndex = ComboIndexFromControl(_zone.Control);
 
                 RefreshTemplateChoices();
                 LoadFormationsGrid();
-
-                _numResupplyModifier.Value = Math.Max(_numResupplyModifier.Minimum,
-                    Math.Min(_numResupplyModifier.Maximum, (decimal)_zone.ResupplyModifier));
-
-                _numSupplySource.Value = Math.Max(_numSupplySource.Minimum,
-                    Math.Min(_numSupplySource.Maximum, (decimal)_zone.SupplySource));
 
                 _comboSupplyRoute.SelectedItem = _zone.SupplyRoute;
                 _comboTerrain.SelectedItem = _zone.Terrain;
@@ -191,8 +209,10 @@ namespace DCE_Manager
             if (_campaignInfo == null || _zone == null)
                 return;
 
+            // Points de ravitaillement et convois ne sont pas des formations : jamais proposés ici
             foreach (string template in _campaignInfo.GetTemplatesFor(_zone.Control))
-                _colTemplate.Items.Add(template);
+                if (_templateCatalog == null || _templateCatalog.IsFormationTemplate(template))
+                    _colTemplate.Items.Add(template);
 
             // Les unités déjà posées peuvent référencer un template qui n'est plus
             // proposé (zone passée à l'autre camp, .stm supprimé). On les remet dans
@@ -217,7 +237,7 @@ namespace DCE_Manager
                     _colTemplate.Items.Add(f.Template);
 
                 int rowIndex = _gridFormations.Rows.Add(
-                    f.Template, f.Name, f.Multiplier, f.ForcePower,
+                    f.Template, f.Name, f.Wave, f.Multiplier, f.ForcePower,
                     f.Priority, string.Join(", ", f.Attributes), f.FirepowerMin, f.FirepowerMax);
 
                 // L'identifiant n'est pas affiché (non modifiable) mais doit suivre sa
@@ -249,6 +269,7 @@ namespace DCE_Manager
                     Name = row.Cells["colName"].Value?.ToString() ?? "",
                     Side = _campaignInfo?.GetSideOfTemplate(template) ?? "",
                     Multiplier = ParseCell(row.Cells["colMultiplier"], defaultMultiplier),
+                    Wave = Math.Max(0, ParseCell(row.Cells["colWave"], 1)),   // 0 = vague abandonnée par le moteur
                 };
 
                 // ForcePower vide (nouvelle ligne) -> initialisée à la valeur nominale
@@ -374,6 +395,9 @@ namespace DCE_Manager
                 if (IsCellEmpty(row.Cells["colName"]))
                     row.Cells["colName"].Value = SuggestFormationName(template);
 
+                if (IsCellEmpty(row.Cells["colWave"]))
+                    row.Cells["colWave"].Value = 1;
+
                 if (IsCellEmpty(row.Cells["colMultiplier"]))
                     row.Cells["colMultiplier"].Value = _templateCatalog?.GetDefaultMultiplier(template) ?? 1;
 
@@ -459,6 +483,10 @@ namespace DCE_Manager
 
             foreach (WargameZoneData candidate in _allZones)
             {
+                // Réserves et plans de débarquement sont hors carte : jamais proposés comme voisins
+                if (WargameEngineCombat.IsReserveZone(candidate))
+                    continue;
+
                 bool isNeighbor = _zone.Neighbors != null &&
                     _zone.Neighbors.Contains(candidate.Id, StringComparer.OrdinalIgnoreCase);
 
@@ -518,22 +546,6 @@ namespace DCE_Manager
             // Le camp a changé -> les templates proposables changent aussi
             RefreshTemplateChoices();
 
-            ZoneModified?.Invoke();
-        }
-
-        private void NumResupplyModifier_ValueChanged(object sender, EventArgs e)
-        {
-            if (_loading || _zone == null) return;
-
-            _zone.ResupplyModifier = (double)_numResupplyModifier.Value;
-            ZoneModified?.Invoke();
-        }
-
-        private void NumSupplySource_ValueChanged(object sender, EventArgs e)
-        {
-            if (_loading || _zone == null) return;
-
-            _zone.SupplySource = (double)_numSupplySource.Value;
             ZoneModified?.Invoke();
         }
 
@@ -645,6 +657,7 @@ namespace DCE_Manager
             };
             _gridFormations.Columns.Add(_colTemplate);
             _gridFormations.Columns.Add("colName", "Name");
+            _gridFormations.Columns.Add("colWave", "Wave");   // visible seulement pour un plan de débarquement
             _gridFormations.Columns.Add("colMultiplier", "xN");
             _gridFormations.Columns.Add("colForcePower", "ForcePower");
             _gridFormations.Columns.Add("colPriority", "tgt_Priority");
@@ -654,12 +667,31 @@ namespace DCE_Manager
 
             _gridFormations.Columns["colTemplate"].Width = 150;
             _gridFormations.Columns["colName"].Width = 110;
+            _gridFormations.Columns["colWave"].Width = 45;
+            _gridFormations.Columns["colWave"].Visible = false;
+            _gridFormations.Columns["colWave"].ToolTipText = "Landing order: same number = lands together, lowest first. 0 = abandoned (never launched).";
             _gridFormations.Columns["colMultiplier"].Width = 45;
             _gridFormations.Columns["colForcePower"].Width = 75;
             _gridFormations.Columns["colPriority"].Width = 65;
             _gridFormations.Columns["colAttributes"].Width = 120;
             _gridFormations.Columns["colFirepowerMin"].Width = 65;
             _gridFormations.Columns["colFirepowerMax"].Width = 65;
+
+            // Tri par clic sur l'en-tête : les cellules mélangent nombres (chargés) et textes (saisis), ce qui fait planter
+            // le tri par défaut ("L'objet doit être de type String"). On compare en nombres si les deux en sont, sinon en texte.
+            _gridFormations.SortCompare += (s, e) =>
+            {
+                string a = Convert.ToString(e.CellValue1, System.Globalization.CultureInfo.CurrentCulture) ?? "";
+                string b = Convert.ToString(e.CellValue2, System.Globalization.CultureInfo.CurrentCulture) ?? "";
+
+                double na, nb;
+                if (double.TryParse(a, out na) && double.TryParse(b, out nb))
+                    e.SortResult = na.CompareTo(nb);
+                else
+                    e.SortResult = string.Compare(a, b, StringComparison.CurrentCultureIgnoreCase);
+
+                e.Handled = true;
+            };
 
             // CurrentCellDirtyStateChanged + CommitEdit : sans ça une ComboBox ne valide
             // sa valeur qu'en quittant la cellule, donc les valeurs par défaut ne se
@@ -695,53 +727,84 @@ namespace DCE_Manager
             flow.Controls.Add(groupFormations);
 
             // ---- Supply ----
-            var groupResupply = new GroupBox { Text = "Supply", Width = 300, Height = 120 };
+            var groupResupply = new GroupBox { Text = "Supply", Width = 300, Height = 58 };
             _groupResupply = groupResupply;
 
-            var labelModifier = new Label { Text = "Modifier", Location = new Point(10, 24), AutoSize = true };
-            _numResupplyModifier = new NumericUpDown
-            {
-                Location = new Point(105, 21),
-                Width = 90,
-                DecimalPlaces = 2,
-                Minimum = -10,
-                Maximum = 10,
-                Increment = 0.1m,
-            };
-            _numResupplyModifier.ValueChanged += NumResupplyModifier_ValueChanged;
-
-            // 0 = zone ordinaire. Une valeur > 0 fait de la zone un point d'injection
-            // de ravitaillement dans le réseau (port, base arrière, frontière amie).
-            var labelSource = new Label { Text = "Source", Location = new Point(10, 54), AutoSize = true };
-            _numSupplySource = new NumericUpDown
-            {
-                Location = new Point(105, 51),
-                Width = 90,
-                DecimalPlaces = 1,
-                Minimum = 0,
-                Maximum = 9999,
-                Increment = 1m,
-            };
-            _numSupplySource.ValueChanged += NumSupplySource_ValueChanged;
-
-            var labelRoute = new Label { Text = "Route", Location = new Point(10, 84), AutoSize = true };
+            // Les sources de ravitaillement sont des objectifs (entrepôt, port...) avec une valeur "Supply" : plus de champ ici
+            var labelRoute = new Label { Text = "Route", Location = new Point(10, 24), AutoSize = true };
             _comboSupplyRoute = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Location = new Point(105, 81),
+                Location = new Point(105, 21),
                 Width = 150,
             };
             foreach (string route in WargameSupplyRoute.All)
                 _comboSupplyRoute.Items.Add(route);
             _comboSupplyRoute.SelectedIndexChanged += ComboSupplyRoute_SelectedIndexChanged;
 
-            groupResupply.Controls.Add(labelModifier);
-            groupResupply.Controls.Add(_numResupplyModifier);
-            groupResupply.Controls.Add(labelSource);
-            groupResupply.Controls.Add(_numSupplySource);
             groupResupply.Controls.Add(labelRoute);
             groupResupply.Controls.Add(_comboSupplyRoute);
             flow.Controls.Add(groupResupply);
+
+            // ---- Ravitaillement par mer (plan de débarquement seulement) ----
+            _groupSeaSupply = new GroupBox { Text = "Sea supply (for the landing side)", Width = 300, Height = 88, Visible = false };
+
+            var labelSea = new Label { Text = "Capacity", Location = new Point(10, 24), AutoSize = true };
+            _numSeaSupply = new NumericUpDown { Location = new Point(105, 21), Width = 90, DecimalPlaces = 1, Minimum = 0, Maximum = 9999, Increment = 1m };
+            _numSeaSupply.ValueChanged += (s, e) =>
+            {
+                if (_loading || _zone == null) return;
+                _zone.SupplySource = (double)_numSeaSupply.Value;
+                ZoneModified?.Invoke();
+            };
+
+            var labelSeaFlag = new Label { Text = "Flag (optional)", Location = new Point(10, 54), AutoSize = true };
+            _txtSeaFlag = new TextBox { Location = new Point(105, 51), Width = 150 };
+            _txtSeaFlag.TextChanged += (s, e) =>
+            {
+                if (_loading || _zone == null) return;
+                _zone.SupplyFlag = _txtSeaFlag.Text.Trim();
+                ZoneModified?.Invoke();
+            };
+
+            new ToolTip().SetToolTip(_numSeaSupply, "Supply capacity that comes from the sea. The target beach becomes a supply source with this capacity while the landing side holds it. Same scale as an objective: 100 = enough to supply a whole army. 0 = none.");
+            new ToolTip().SetToolTip(_txtSeaFlag, "Optional. The sea supply works only while this flag is raised (for example by a trigger that checks that the ships are in the sea zone). Empty = always on.");
+
+            _groupSeaSupply.Controls.Add(labelSea);
+            _groupSeaSupply.Controls.Add(_numSeaSupply);
+            _groupSeaSupply.Controls.Add(labelSeaFlag);
+            _groupSeaSupply.Controls.Add(_txtSeaFlag);
+            flow.Controls.Add(_groupSeaSupply);
+
+            // ---- Appui feu de la flotte (plan de débarquement seulement) ----
+            _groupNaval = new GroupBox { Text = "Naval fire support (for each wave)", Width = 300, Height = 88, Visible = false };
+
+            var labelNaval = new Label { Text = "Strength", Location = new Point(10, 24), AutoSize = true };
+            _numNaval = new NumericUpDown { Location = new Point(105, 21), Width = 90, DecimalPlaces = 1, Minimum = 0, Maximum = 9999, Increment = 5m };
+            _numNaval.ValueChanged += (s, e) =>
+            {
+                if (_loading || _zone == null) return;
+                _zone.NavalSupport = (double)_numNaval.Value;
+                ZoneModified?.Invoke();
+            };
+
+            var labelNavalFlag = new Label { Text = "Flag (optional)", Location = new Point(10, 54), AutoSize = true };
+            _txtNavalFlag = new TextBox { Location = new Point(105, 51), Width = 150 };
+            _txtNavalFlag.TextChanged += (s, e) =>
+            {
+                if (_loading || _zone == null) return;
+                _zone.NavalFlag = _txtNavalFlag.Text.Trim();
+                ZoneModified?.Invoke();
+            };
+
+            new ToolTip().SetToolTip(_numNaval, "Fire support of the fleet (guns, missiles, ship helicopters). It is added to the attack strength of each wave that lands on a beach held by the enemy. Same scale as the formations' strength. 0 = none.");
+            new ToolTip().SetToolTip(_txtNavalFlag, "Optional. The fire support counts only while this flag is raised (for example by a trigger that checks that the ships are in the sea zone). Empty = always on.");
+
+            _groupNaval.Controls.Add(labelNaval);
+            _groupNaval.Controls.Add(_numNaval);
+            _groupNaval.Controls.Add(labelNavalFlag);
+            _groupNaval.Controls.Add(_txtNavalFlag);
+            flow.Controls.Add(_groupNaval);
 
             // ---- Terrain ----
             var groupTerrain = new GroupBox { Text = "Terrain", Width = 300, Height = 60 };

@@ -276,7 +276,7 @@ namespace DCE_Manager
                 return null;
 
             WargameZoneData nearest = allZones
-                .Where(z => z.Control == enemySide && z != ownZone)
+                .Where(z => z.Control == enemySide && z != ownZone && !WargameEngineCombat.IsReserveZone(z))
                 .OrderBy(z => Distance(ownZone.Center, z.Center))
                 .FirstOrDefault();
 

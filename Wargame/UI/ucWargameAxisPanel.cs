@@ -420,6 +420,7 @@ namespace DCE_Manager
         //   Waypoint 1   zone    [Change] [^] [v] [x]
         //   [+ Add waypoint]
         //   Objective    zone                [Change]
+        //   Attacker     [Automatic / Blue / Red]
         //   Flag         [flag]  [Copy trigger]
         //   message d'aide
         private Panel BuildCard(WargameAxis axis, int index, int width)
@@ -597,6 +598,40 @@ namespace DCE_Manager
 
             AddZoneRow("Objective", axis.EndZoneId,
                 new AxisPickRequest { Axis = axis, Kind = AxisPick.End }, -1);
+
+            // ---- Camp attaquant : automatique (celui qui tient la zone de départ) ou imposé ----
+            y += 4;
+
+            var lblSide = new Label
+            {
+                Text = "Attacker",
+                Location = new Point(16, y + 5),
+                Size = new Size(78, 20),
+            };
+
+            var comboSide = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(96, y + 2),
+                Width = 150,
+                Enabled = canEdit,
+            };
+            comboSide.Items.AddRange(new object[] { "Automatic", "Blue", "Red" });
+            comboSide.SelectedIndex = string.Equals(axis.Side, "blue", StringComparison.OrdinalIgnoreCase) ? 1
+                : string.Equals(axis.Side, "red", StringComparison.OrdinalIgnoreCase) ? 2 : 0;
+            _tip.SetToolTip(comboSide, "Which side attacks along this axis.\nAutomatic = the side that holds the start zone when the campaign loads.\n"
+                + "Pick Blue or Red when the start zone is not held by the attacker yet (for example a beach to invade).");
+            comboSide.SelectedIndexChanged += (s, e) =>
+            {
+                axis.Side = comboSide.SelectedIndex == 1 ? "blue" : comboSide.SelectedIndex == 2 ? "red" : "";
+                SelectAxis(axis);
+                AxesChanged?.Invoke();
+            };
+
+            card.Controls.Add(lblSide);
+            card.Controls.Add(comboSide);
+
+            y += 30;
 
             // ---- Activation : flag + trigger ----
             y += 4;
