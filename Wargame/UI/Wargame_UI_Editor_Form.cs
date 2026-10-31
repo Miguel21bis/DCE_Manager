@@ -102,6 +102,9 @@ namespace DCE_Manager
         // est remplacé à chaque LoadOrGenerateInit (Save, tests...), pas cette liste.
         private List<WargameAxis> _axes = new List<WargameAxis>();
 
+        // FARP des plages de débarquement (Init/db_airbases.lua) : une par plage visée, créée toute seule, déplaçable sur la carte
+        private List<WargameFarp> _farps = new List<WargameFarp>();
+
         private RadioButton _radioInit;
         private RadioButton _radioActive;
         private Button _buttonSave;
@@ -247,6 +250,16 @@ namespace DCE_Manager
             _axes = WargameZoneRepository.State.Axes;
             _axisPanel.Bind(_axes, _zones, !_viewingActive);
             _mapView.SetAxes(_axes);
+
+            // FARP des plages : relues du fichier. En vue Init, celles qui manquent pour les plans déjà posés sont créées et écrites tout de suite
+            // (ajout seulement, rien d'existant n'est modifié) ; en vue Active on se contente de les afficher.
+            _farps = WargameFarpStore.Load(_campaignName);
+            if (!_viewingActive && WargameFarpStore.Sync(_farps, _zones))
+            {
+                WargameFarpStore.Save(_campaignName, _farps, _zones);
+                WargameFarpStore.SyncActive(_campaignName, _farps, _zones, false);
+            }
+            _mapView.SetFarps(_farps);
         }
 
         private void BuildUi()
@@ -260,6 +273,11 @@ namespace DCE_Manager
             _mapView.MapRightClicked += MapView_MapRightClicked;
             _mapView.LandingRightClicked += MapView_LandingRightClicked;
             _mapView.LandingMoved += zone => { _dirty = true; };
+
+            // FARP des plages : déplaçables en vue Init, clic droit = remettre au milieu de la plage
+            _mapView.FarpEditable = true;
+            _mapView.FarpMoved += farp => { _dirty = true; };
+            _mapView.FarpRightClicked += MapView_FarpRightClicked;
 
             var mapPanel = new NoAutoScrollPanel { Dock = DockStyle.Fill, AutoScroll = true };
             mapPanel.Controls.Add(_mapView);
@@ -834,6 +852,29 @@ namespace DCE_Manager
             _landingMenu.Show(screenPoint);
         }
 
+        // Clic droit sur une FARP : la remettre au milieu de sa plage
+        private void MapView_FarpRightClicked(WargameFarp farp, Point screenPoint)
+        {
+            _landingMenu?.Dispose();
+            _landingMenu = new ContextMenuStrip();
+
+            _landingMenu.Items.Add(new ToolStripMenuItem(farp.Name) { Enabled = false });
+            _landingMenu.Items.Add(new ToolStripSeparator());
+
+            var itemCenter = new ToolStripMenuItem("Put back in the middle of " + farp.Beach) { Enabled = !_viewingActive };
+            itemCenter.Click += (s, e) =>
+            {
+                WargameFarpStore.Recenter(farp, _zones);
+                _dirty = true;
+                _mapView.Invalidate();
+            };
+
+            _landingMenu.Items.Add(itemCenter);
+            _landingMenu.Items.Add(new ToolStripMenuItem("(drag the F square to move it)") { Enabled = false });
+
+            _landingMenu.Show(screenPoint);
+        }
+
         // Clic droit sur une boîte de débarquement
         private void MapView_LandingRightClicked(WargameZoneData plan, Point screenPoint)
         {
@@ -906,6 +947,7 @@ namespace DCE_Manager
                 }
 
                 plan.LandingTarget = zone.Id;
+                WargameFarpStore.Sync(_farps, _zones);   // FARP de la nouvelle plage (au milieu), celle de l'ancienne disparaît si plus aucun plan ne la vise
                 _dirty = true;
                 _mapView.Invalidate();
 
@@ -928,6 +970,7 @@ namespace DCE_Manager
             }
 
             _zones.Remove(plan);
+            WargameFarpStore.Sync(_farps, _zones);
             _dirty = true;
 
             _mapView.ClearSelection();
@@ -1006,6 +1049,7 @@ namespace DCE_Manager
             _axisPanel.EndPick();
             _landingHint.Visible = false;
             _mapView.LandingEditable = !_viewingActive;
+            _mapView.FarpEditable = !_viewingActive;
 
             LoadZonesForCurrentMode();
 
@@ -1239,11 +1283,13 @@ namespace DCE_Manager
             else
             {
                 Saver_WargameZoneInit.Save(_initLuaPath, _zones, WargameZoneRepository.State);
+                WargameFarpStore.Save(_campaignName, _farps, _zones);
+                WargameFarpStore.SyncActive(_campaignName, _farps, _zones, false);   // position seulement : l'état actif/inactif vient du tour joué
                 placementFailures = Saver_TargetList_Wargame.WriteInitialFormations(_campaignName);
                 objectiveProblems = WargameObjectiveWriter.ApplyChanges(
                     Path.Combine(WargameZoneRepository.GetCampaignFolder(_campaignName), "Init", "targetlist_init.lua"),
                     _objectives, BuildObjectiveDesiredSides());
-                target = "Init/wargame_zones_init.lua + Init/targetlist_init.lua";
+                target = "Init/wargame_zones_init.lua + Init/targetlist_init.lua + Init/db_airbases.lua (FARPs)";
             }
 
             // Ancien DCE : ce qui est posé dans une zone tenue par l'autre camp est détruit
@@ -1501,6 +1547,7 @@ namespace DCE_Manager
 
             _viewingActive = false;
             _mapView.LandingEditable = true;
+            _mapView.FarpEditable = true;
             LoadZonesForCurrentMode();
 
             _currentZone = null;

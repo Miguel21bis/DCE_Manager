@@ -313,6 +313,7 @@
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
     <Compile Include="Wargame\Engine\WargameAxis.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_Farp.cs" />
     <Compile Include="Wargame\Spawn\WargameConfigGrid.cs" />
     <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />
     <Compile Include="Wargame\Engine\Wargame_Engine_EngineLosses.cs" />

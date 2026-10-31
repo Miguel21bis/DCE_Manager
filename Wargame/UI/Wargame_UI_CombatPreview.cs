@@ -867,6 +867,34 @@ namespace DCE_Manager
             }
             if (ledger == 0) FullLog.Add("  none");
 
+            // Besoin en ravitaillement de ce tour, en tonnes (1 tonne = 1000 kg). Affichage seulement : rien n'est consommé pour l'instant.
+            List<WargameEngineCombat.WargameSupplyDemand> demand = WargameEngineCombat.ComputeSupplyDemand(Zones, _catalog, _config, result);
+            FullLog.Add("");
+            FullLog.Add("-- Supply demand (tons per turn, 1 ton = 1000 kg) --");
+            FullLog.Add("   catalog consumption is per day; one turn = " + (_config.TurnDayFraction * 100).ToString("0.#") + "% of a day ("
+                + (1.0 / Math.Max(0.001, _config.TurnDayFraction)).ToString("0.#") + " turns per day, from the conf_mod.lua timing)");
+            FullLog.Add("   coefficients: rear x" + _config.SupplyUseRear.ToString("0.##") + " | front x" + _config.SupplyUseFront.ToString("0.##")
+                + " | attacking x" + _config.SupplyUseAttack.ToString("0.##") + " | defending x" + _config.SupplyUseDefend.ToString("0.##"));
+
+            foreach (string demandSide in new[] { WargameSide.Blue, WargameSide.Red })
+            {
+                FullLog.Add("  " + demandSide.ToUpperInvariant() + " (" + _info.GetLabel(demandSide) + ")");
+
+                foreach (var zoneGroup in demand.Where(d => d.Side == demandSide).GroupBy(d => d.ZoneId).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    FullLog.Add("    " + zoneGroup.Key + " : " + zoneGroup.Sum(d => d.Tons).ToString("0.0") + " t");
+
+                    foreach (var item in zoneGroup.OrderBy(x => x.Formation.Name, StringComparer.OrdinalIgnoreCase))
+                        FullLog.Add("        " + item.Formation.Name + " : " + item.Base.ToString("0.0") + " t/turn (strength " + (item.Strength * 100).ToString("0") + "%) x " + item.Coef.ToString("0.##") + " (" + item.State + ") = " + item.Tons.ToString("0.0") + " t");
+                }
+
+                double sideTons = demand.Where(d => d.Side == demandSide).Sum(d => d.Tons);
+                FullLog.Add("    TOTAL " + demandSide.ToUpperInvariant() + " : " + sideTons.ToString("0.0") + " t");
+            }
+
+            log.Add("  supply demand: blue " + demand.Where(d => d.Side == WargameSide.Blue).Sum(d => d.Tons).ToString("0") + " t / red "
+                + demand.Where(d => d.Side == WargameSide.Red).Sum(d => d.Tons).ToString("0") + " t per turn (details in the full journal)");
+
             FullLog.Add("");
             FullLog.Add("-- Turn summary --");
             FullLog.Add("  zones changed hands: " + (LastFlippedIds.Count == 0 ? "none" : string.Join(", ", LastFlippedIds.OrderBy(x => x)))
@@ -1010,7 +1038,7 @@ namespace DCE_Manager
                 + " | engaged recovery x" + c.EngagedRecoveryFactor.ToString("0.00") + " | cut-off supply x" + c.CutOffSupplyFactor.ToString("0.00"));
             lines.Add("  supply: full at capacity " + c.SupplySourceFull.ToString("0") + " | starving -" + (c.CutOffAttrition * 100).ToString("0.#") + "% per turn down to "
                 + (c.CutOffAttritionFloor * 100).ToString("0") + "% | convoys " + c.SupplyConvoys + " (max " + c.ConvoyMax.ToString("0") + " per side, needed below "
-                + (c.ConvoyNeedLevel * 100).ToString("0") + "%, forward point capacity " + c.ForwardPointCapacity.ToString("0") + ", stock " + c.ForwardPointReserve.ToString("0") + " turn(s), sources reach " + c.ConvoyFreeRange.ToString("0.#") + " without convoy)");
+                + (c.ConvoyNeedLevel * 100).ToString("0") + "%, forward point capacity " + c.ForwardPointCapacity.ToString("0") + ", max stock " + c.ForwardPointStockTons.ToString("0") + " t, convoy payload " + c.ConvoyPayloadTons.ToString("0") + " t, sources reach " + c.ConvoyFreeRange.ToString("0.#") + " without convoy)");
             lines.Add("  landings: " + c.LandingWaveGap + " turn(s) between waves | a repulsed wave loses " + (c.LandingFailLoss * 100).ToString("0.#") + "% and retries up to "
                 + c.LandingMaxRetries.ToString("0") + " time(s), then gives up | a lost beach re-embarks by sea (fleet present) losing " + (c.ReembarkLoss * 100).ToString("0") + "%");
             lines.Add("  army follows the axes (surplus pull) " + c.AxisPullSurplus + " | flexible axis path: " + (c.AxisFlexDetour > 0 ? "up to +" + c.AxisFlexDetour + " zone(s)" : "off") + " | axis paths follow terrain and roads: " + (c.AxisUseTerrain ? "on" : "off"));

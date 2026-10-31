@@ -694,6 +694,10 @@ namespace DCE_Manager
             // Points de ravitaillement avancés posés dans DCS + ordres de convois / aérien pour scriptsMod
             report.AddRange(WargameLogistics.PostPointsAndOrders(campaignName, zones, session.Convoys, turn));
 
+            // FARP des plages : position + état (utilisable dès que la plage est tenue par son camp) écrits dans Active/db_airbases.lua
+            string farpReport = WargameFarpStore.SyncActive(campaignName, WargameFarpStore.Load(campaignName), zones, true);
+            if (farpReport.Length > 0) report.Add(farpReport);
+
             Dictionary<string, double> damaged = session.ObjectiveDamage();
             if (damaged.Count > 0)
             {
@@ -972,7 +976,7 @@ namespace DCE_Manager
     // Fichier rendu par scriptsMod (bloc "logistique B", pas encore fait) :
     //   wargame_logistics_result = {
     //       ["convoys"] = { ["BLUE_1"] = 60, ... },   -- part du convoi ARRIVEE ou encore vivante en fin de mission, en %
-    //       ["air"]     = { ["BLUE_1"] = 100, ... },  -- part des livraisons aériennes réussies, en %
+    //       ["air"]     = { ["BLUE_1"] = 1200, ... }, -- kg (entiers) réellement livrés par air (hélicos...) ; DCE_Manager divise par la charge d'un point plein
     //   }
     // Absent : les valeurs par défaut du moteur s'appliquent (convois arrivés en entier, pas d'aérien).
     // ==========================================================================================
@@ -989,7 +993,8 @@ namespace DCE_Manager
             return "WG_POINT_" + side.ToUpperInvariant() + "_" + slot;
         }
 
-        private static readonly Regex LogisticRx = new Regex(@"wargameLogistic""?\]?\s*=\s*""point""");
+        // point = point de ravitaillement avancé, airlift = mission de transport par hélicoptère (offerte aux joueurs) : tous deux reposés à chaque tour
+        private static readonly Regex LogisticRx = new Regex(@"wargameLogistic""?\]?\s*=\s*""(point|airlift)""");
 
         // ---- Avant le tour : ce que la mission jouée a fait aux points et aux convois ----
         public static List<string> ReadResults(string campaignFolder, List<WargameZoneData> zones, WargameCombatConfig config)
@@ -1026,7 +1031,7 @@ namespace DCE_Manager
                         {
                             zone.ForwardReserve = zone.ForwardReserve * alive / 100.0;
                             report.Add("supply point in " + zone.Id + " (" + side + ") damaged (" + alive.ToString("0") + "%) : stock "
-                                + zone.ForwardReserve.ToString("0.#") + " turn(s)");
+                                + zone.ForwardReserve.ToString("0.#") + " t");
                         }
                     }
                 }
@@ -1052,7 +1057,7 @@ namespace DCE_Manager
 
                         LuaTable root = lua["wargame_logistics_result"] as LuaTable;
                         ReadPercentTable(root == null ? null : root["convoys"] as LuaTable, config.ConvoyDeliveredBySlot);
-                        ReadPercentTable(root == null ? null : root["air"] as LuaTable, config.AirDeliveredBySlot);
+                        ReadKgTable(root == null ? null : root["air"] as LuaTable, config.AirDeliveredBySlot);   // air : kg livrés par scriptsMod, convertis en tonnes ici
                     }
 
                     report.Add("convoy results read : " + config.ConvoyDeliveredBySlot.Count + " convoy(s), " + config.AirDeliveredBySlot.Count + " air delivery(ies)");
@@ -1069,6 +1074,19 @@ namespace DCE_Manager
             }
 
             return report;
+        }
+
+        // Résultat en kg (entiers) livrés par air pour un emplacement, converti en TONNES (1 t = 1000 kg)
+        private static void ReadKgTable(LuaTable table, Dictionary<string, double> into)
+        {
+            if (table == null) return;
+
+            foreach (object key in table.Keys)
+            {
+                double kg;
+                if (double.TryParse(Convert.ToString(table[key], CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out kg))
+                    into[key.ToString()] = Math.Max(0, kg / 1000.0);
+            }
         }
 
         private static void ReadPercentTable(LuaTable table, Dictionary<string, double> into)
@@ -1224,7 +1242,46 @@ namespace DCE_Manager
                 foreach (string side in missingTemplate)
                     report.Add("no 'supplypoint' template for " + side + " in the template catalog : its supply points are NOT posted in DCS");
 
-                report.Add(WriteOrders(campaignFolder, zones, convoys, mission, catalog, campaignInfo, pointPosition, pointLines, rng, report));
+                // Missions de transport par hélicoptère offertes aux joueurs : camp -> corps des blocs (remplis par WriteOrders)
+                var airlifts = new Dictionary<string, List<List<string>>>(StringComparer.OrdinalIgnoreCase)
+                {
+                    { WargameSide.Blue, new List<List<string>>() },
+                    { WargameSide.Red, new List<List<string>>() },
+                };
+
+                report.Add(WriteOrders(campaignFolder, zones, convoys, mission, catalog, campaignInfo, pointPosition, pointLines, rng, report, airlifts));
+
+                // Les missions de transport sont ajoutées à la targetlist APRES le tour d'écriture des points (WriteOrders sait quels hélicos existent)
+                if (airlifts.Values.Any(list => list.Count > 0))
+                {
+                    List<string> now = File.ReadAllLines(activePath).ToList();
+                    TargetListBlockScanner.ScanBlocks(now, (l, start, end) => false, out Dictionary<string, int> closeLinesAfter);
+                    Dictionary<string, int> nextAfter = Saver_TargetList_Wargame.FindNextNumericIndexBySide(now);
+
+                    var airliftBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
+                    {
+                        { WargameSide.Blue, new List<string>() },
+                        { WargameSide.Red, new List<string>() },
+                    };
+
+                    foreach (KeyValuePair<string, List<List<string>>> kv in airlifts)
+                    {
+                        foreach (List<string> body in kv.Value)
+                        {
+                            int idxAirlift = nextAfter.TryGetValue(kv.Key, out int nextAirlift) ? nextAirlift : 1;
+                            nextAfter[kv.Key] = idxAirlift + 1;
+
+                            airliftBlocksBySide[kv.Key].Add("\t\t[" + idxAirlift + "] = ");
+                            airliftBlocksBySide[kv.Key].Add("\t\t{");
+                            airliftBlocksBySide[kv.Key].AddRange(body);
+                            airliftBlocksBySide[kv.Key].Add("\t\t},");
+                        }
+                    }
+
+                    List<string> withAirlifts = TargetListBlockScanner.RemoveAndInsert(now, new HashSet<int>(), closeLinesAfter, airliftBlocksBySide);
+                    withAirlifts = TargetListBlockScanner.RenumberBlocks(withAirlifts);
+                    File.WriteAllLines(activePath, withAirlifts);
+                }
             }
             catch (Exception ex)
             {
@@ -1238,8 +1295,11 @@ namespace DCE_Manager
         // Ordres pour scriptsMod : convois à fabriquer en jeu (itinéraire, véhicules, destination) et aérien demandé
         private static string WriteOrders(string campaignFolder, List<WargameZoneData> zones, List<WargameEngineCombat.WargameConvoy> convoys,
             int mission, WargameTemplateCatalog catalog, WargameCampaignInfo campaignInfo, Dictionary<string, PointF> pointPosition,
-            List<string> pointLines, Random rng, List<string> report)
+            List<string> pointLines, Random rng, List<string> report, Dictionary<string, List<List<string>>> airlifts)
         {
+            // Réglages hélicoptères du balance (charge par rotation, flotte...) : lus par les petites méthodes Heli* ci-dessous
+            _heli = campaignInfo != null ? campaignInfo.CombatConfig : new WargameCombatConfig();
+
             var sb = new StringBuilder();
             sb.AppendLine("-- Written by DCE_Manager before each mission (wargame logistics). Read by scriptsMod.");
             sb.AppendLine("-- supplyPoints : forward supply points, to be placed IN GAME on a road inside 'polygon' (hint = fallback position).");
@@ -1249,8 +1309,15 @@ namespace DCE_Manager
             sb.AppendLine("--           from = xy of the center of the start zone (= route[1], fromZone = its name),");
             sb.AppendLine("--           to   = xy of the destination supply point 'supplyPoint' (toZone = its zone),");
             sb.AppendLine("--           ending ON the road at the in-game position of the supply point ('destination' = hint only).");
-            sb.AppendLine("-- air     : supply drops wanted for each sector (the only way when byRoad = false).");
-            sb.AppendLine("-- Result expected after the mission in Active/wargame_logistics_result.lua (see DCE_Manager WargameLogistics).");
+            sb.AppendLine("-- air     : supply by air wanted for each sector (the only way when byRoad = false).");
+            sb.AppendLine("--           fullKg = cargo of a FULL supply point (all sorties of all kinds are counted against it).");
+            sb.AppendLine("--           rank   = urgency of the point (1 = first): the helicopter fleet is limited, DCE_Manager already shared it.");
+            sb.AppendLine("--           heli   = helicopter flights to build in game (absent = no helicopter possible for this point):");
+            sb.AppendLine("--                    type / sorties (one helicopter each, one trip) / cargoKg per sortie / share = sorties x cargoKg / fullKg,");
+            sb.AppendLine("--                    from = xy of the supply objective (depot, port...) where they take off (fromName, fromZone),");
+            sb.AppendLine("--                    flight to the supply point (x, y of this request), land or hover there, unload, come back.");
+            sb.AppendLine("-- Result expected after the mission in Active/wargame_logistics_result.lua (see DCE_Manager WargameLogistics):");
+            sb.AppendLine("--           air[slot] = kg (integer) really delivered by air for this slot. DCE_Manager divides by fullKg itself.");
             sb.AppendLine("wargame_logistics = ");
             sb.AppendLine("{");
             sb.AppendLine("\t[\"mission\"] = " + mission + ",");
@@ -1258,7 +1325,136 @@ namespace DCE_Manager
             var convoyLines = new List<string>();
             var airLines = new List<string>();
             var missingConvoyTemplate = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            int nc = 0, na = 0;
+            int nc = 0, na = 0, nh = 0, np = 0;
+
+            // Aérodromes connus de la targetlist (pour la base de départ des missions de transport offertes aux joueurs)
+            List<Tuple<string, PointF>> airbases = LoadAirbases(campaignFolder);
+
+            // FARP des plages (Init/db_airbases.lua) : base de départ de repli des joueurs quand aucun aérodrome n'est tenu par le camp
+            List<WargameFarp> farpList = WargameFarpStore.LoadFromFolder(campaignFolder);
+
+            // Sources possibles des hélicoptères : objectifs-sources (entrepôt, port...) vivants, dans une zone encore tenue par leur camp
+            List<Tuple<WargameObjective, WargameZoneData>> heliSources = LoadHeliSources(campaignFolder, zones);
+
+            // Flotte limitée (HeliFleet par camp) : les hélicos vont d'abord aux points les plus urgents
+            //   1. point sans route (l'hélico est son seul moyen)  2. stock après convoi le plus bas  3. numéro d'emplacement
+            var heliPlans = new Dictionary<WargameEngineCombat.WargameConvoy, HeliPlan>();
+            var heliNotes = new Dictionary<WargameEngineCombat.WargameConvoy, string>();
+            var heliRank = new Dictionary<WargameEngineCombat.WargameConvoy, int>();
+            var fleetLeft = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                { WargameSide.Blue, (int)Math.Round(_heli.HeliFleet) },
+                { WargameSide.Red, (int)Math.Round(_heli.HeliFleet) },
+            };
+
+            List<WargameEngineCombat.WargameConvoy> byUrgency = (convoys ?? new List<WargameEngineCombat.WargameConvoy>())
+                .Where(c => !c.Lost && zones.Any(z => string.Equals(z.Id, c.TargetId, StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(c => c.ByRoad ? 1 : 0).ThenBy(c => c.ReserveAfter).ThenBy(c => c.SlotIndex)
+                .ToList();
+
+            foreach (WargameEngineCombat.WargameConvoy c in byUrgency)
+            {
+                WargameZoneData tz = zones.First(z => string.Equals(z.Id, c.TargetId, StringComparison.OrdinalIgnoreCase));
+                PointF pos;
+                if (!pointPosition.TryGetValue(tz.Id, out pos)) pos = tz.Center;
+
+                string note = "";
+                // Rotations IA voulues par le moteur (0 = pas de besoin). Le point reçoit quand même sa mission "Transport" offerte aux joueurs.
+                int want = c.AirSorties;
+                HeliPlan plan = PlanHelicopters(c.Side, Math.Max(1, want), pos, heliSources, out note);
+
+                // Pas de source utilisable (camp sans dépôt vivant, ou trop loin) : repli sur la zone de départ du convoi, ou la zone tenue la plus proche
+                if (plan == null)
+                {
+                    // Un camp sans dépôt charge à sa FARP (l'entrepôt de la plage tenue), la plus proche du point
+                    WargameFarp srcFarp = farpList
+                        .Where(f => string.Equals(f.Side, c.Side, StringComparison.OrdinalIgnoreCase) && WargameFarpStore.IsHeld(f, zones))
+                        .OrderBy(f => Math.Pow(f.X - pos.X, 2) + Math.Pow(f.Y - pos.Y, 2))
+                        .FirstOrDefault();
+                    WargameZoneData farpZone = srcFarp == null ? null : zones.FirstOrDefault(z => string.Equals(z.Id, srcFarp.Beach, StringComparison.OrdinalIgnoreCase));
+
+                    if (srcFarp != null && farpZone != null)
+                    {
+                        var farpSource = new WargameObjective { Name = srcFarp.Name, Position = new PointF((float)srcFarp.X, (float)srcFarp.Y), SupplyValue = 1, Alive = 100 };
+                        string noteFarp;
+                        plan = PlanHelicopters(c.Side, Math.Max(1, want), pos,
+                            new List<Tuple<WargameObjective, WargameZoneData>> { Tuple.Create(farpSource, farpZone) }, out noteFarp);
+                        if (plan != null) note = "";
+                    }
+                }
+
+                if (plan == null)
+                {
+                    WargameZoneData startZone = zones.FirstOrDefault(z => !string.IsNullOrEmpty(c.SourceId) && string.Equals(z.Id, c.SourceId, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(z.Control, c.Side, StringComparison.OrdinalIgnoreCase));
+                    if (startZone == null)
+                    {
+                        double bestD = double.MaxValue;
+                        foreach (WargameZoneData z in zones)
+                        {
+                            if (!string.Equals(z.Control, c.Side, StringComparison.OrdinalIgnoreCase) || !WargameEngineCombat.IsFightingSide(z.Control)) continue;
+                            double dd = Math.Pow(z.Center.X - pos.X, 2) + Math.Pow(z.Center.Y - pos.Y, 2);
+                            if (dd < bestD) { bestD = dd; startZone = z; }
+                        }
+                    }
+                    if (startZone != null)
+                    {
+                        var pseudo = new WargameObjective { Name = startZone.Id + " (no depot : zone centre)", Position = startZone.Center, SupplyValue = 1, Alive = 100 };
+                        var srcs = new List<Tuple<WargameObjective, WargameZoneData>> { Tuple.Create(pseudo, startZone) };
+                        string note2;
+                        plan = PlanHelicopters(c.Side, Math.Max(1, want), pos, srcs, out note2);
+                        if (plan != null) note = ""; else note = note2;
+                    }
+                }
+
+                // Toujours rien (aucune source, même lointaine) : la mission est offerte quand même, chargement au point lui-même
+                if (plan == null)
+                {
+                    var noDepot = new WargameObjective { Name = "(no depot)", Position = pos, SupplyValue = 1, Alive = 100 };
+                    plan = new HeliPlan { Source = noDepot, SourceZone = tz, DistanceKm = 0, Far = true, Reason = note + " : mission still offered to players" };
+                }
+
+                if (plan != null)
+                {
+                    if (plan.Far)
+                    {
+                        plan.Sorties = 0;
+                        plan.Share = 0;
+                        note = plan.Reason.Length > 0 ? plan.Reason : "AI helicopters out of range (" + plan.DistanceKm.ToString("0") + " km from " + (plan.Source.Name ?? "the depot") + ", range " + HeliRangeKm.ToString("0") + " km) : mission still offered to players";
+                    }
+                    else if (want <= 0)
+                    {
+                        plan.Sorties = 0;
+                        plan.Share = 0;
+                        note = "no AI helicopter needed (stock and convoy cover the sector) : mission still offered to players";
+                    }
+                    else
+                    {
+                        int left;
+                        fleetLeft.TryGetValue(c.Side, out left);
+
+                        if (left <= 0)
+                        {
+                            plan.Sorties = 0;
+                            plan.Share = 0;
+                            note = "no AI helicopter left (fleet of " + _heli.HeliFleet.ToString("0") + " for " + c.Side + ", kept for more urgent points) : mission still offered to players";
+                        }
+                        else
+                        {
+                            if (plan.Sorties > left)
+                            {
+                                plan.Sorties = left;
+                                plan.Share = Math.Min(1.0, plan.Sorties * HeliCargoKg(c.Side) / HeliPointFullKg);
+                            }
+                            fleetLeft[c.Side] = left - plan.Sorties;
+                        }
+                    }
+                }
+
+                heliPlans[c] = plan;
+                heliNotes[c] = note;
+                heliRank[c] = heliRank.Count + 1;
+            }
 
             foreach (WargameEngineCombat.WargameConvoy c in convoys ?? new List<WargameEngineCombat.WargameConvoy>())
             {
@@ -1303,7 +1499,11 @@ namespace DCE_Manager
 
                     // Véhicules : pris dans un template "convoy" du camp (le convoi lui-même est fabriqué en jeu)
                     List<WargameTemplateEntry> convoyTemplates = catalog.OfType(WargameUnitType.Convoy, c.Side);
-                    WargameTemplateEntry chosen = convoyTemplates.Count > 0 ? convoyTemplates[rng.Next(convoyTemplates.Count)] : null;
+                    // Le template a été choisi par le moteur (c.Template) : sa taille a servi à calculer la charge du convoi
+                    WargameTemplateEntry chosen = string.IsNullOrEmpty(c.Template) ? null
+                        : convoyTemplates.FirstOrDefault(t => string.Equals(t.Template, c.Template, StringComparison.OrdinalIgnoreCase));
+                    if (chosen == null && convoyTemplates.Count > 0)
+                        chosen = convoyTemplates[rng.Next(convoyTemplates.Count)];
                     string country = "", countryId = "";
                     List<string> vehicles = new List<string>();
                     if (chosen != null)
@@ -1324,10 +1524,112 @@ namespace DCE_Manager
                     convoyLines.Add("\t\t},");
                 }
 
+                // Hélicoptères : depuis l'objectif-source le plus proche du point, dans le rayon d'action
+                HeliPlan heli;
+                heliPlans.TryGetValue(c, out heli);
+                if (heli == null ? (!c.ByRoad || c.AirSorties > 0) : (heli.Sorties == 0 && c.AirSorties > 0))
+                    report.Add("air supply " + c.Slot + " : " + (heliNotes.ContainsKey(c) ? heliNotes[c] : "no helicopter"));
+
                 na++;
-                airLines.Add("\t\t[" + na + "] = { [\"slot\"] = \"" + c.Slot + "\", [\"side\"] = \"" + c.Side + "\", [\"to\"] = \"" + Esc(c.TargetId)
-                    + "\", [\"supplyPoint\"] = \"" + pointName + "\", [\"x\"] = " + Num(dest.X) + ", [\"y\"] = " + Num(dest.Y)
-                    + ", [\"byRoad\"] = " + (c.ByRoad ? "true" : "false") + " },");
+                airLines.Add("\t\t[" + na + "] = ");
+                airLines.Add("\t\t{");
+                airLines.Add("\t\t\t[\"slot\"] = \"" + c.Slot + "\",");
+                airLines.Add("\t\t\t[\"side\"] = \"" + c.Side + "\",");
+                airLines.Add("\t\t\t[\"to\"] = \"" + Esc(c.TargetId) + "\",");
+                airLines.Add("\t\t\t[\"supplyPoint\"] = \"" + pointName + "\",");
+                airLines.Add("\t\t\t[\"x\"] = " + Num(dest.X) + ",");
+                airLines.Add("\t\t\t[\"y\"] = " + Num(dest.Y) + ",");
+                airLines.Add("\t\t\t[\"byRoad\"] = " + (c.ByRoad ? "true" : "false") + ",");
+                airLines.Add("\t\t\t[\"fullKg\"] = " + HeliPointFullKg.ToString("0", CultureInfo.InvariantCulture) + ",");
+                int rank;
+                if (heliRank.TryGetValue(c, out rank))
+                    airLines.Add("\t\t\t[\"rank\"] = " + rank + ",");   // 1 = point le plus urgent (les hélicos partent dans cet ordre)
+
+                if (heli != null)
+                {
+                    nh += heli.Sorties;
+                    airLines.Add("\t\t\t[\"heli\"] = ");
+                    airLines.Add("\t\t\t{");
+                    airLines.Add("\t\t\t\t[\"type\"] = \"" + HeliType(c.Side) + "\",");
+                    airLines.Add("\t\t\t\t[\"sorties\"] = " + heli.Sorties + ",");
+                    airLines.Add("\t\t\t\t[\"cargoKg\"] = " + HeliCargoKg(c.Side).ToString("0", CultureInfo.InvariantCulture) + ",");
+                    airLines.Add("\t\t\t\t[\"share\"] = " + heli.Share.ToString("0.##", CultureInfo.InvariantCulture) + ",");
+                    airLines.Add("\t\t\t\t[\"distanceKm\"] = " + heli.DistanceKm.ToString("0.#", CultureInfo.InvariantCulture) + ",");
+                    airLines.Add("\t\t\t\t[\"from\"] = { [\"x\"] = " + Num(heli.Source.Position.X) + ", [\"y\"] = " + Num(heli.Source.Position.Y) + " },");
+                    airLines.Add("\t\t\t\t[\"fromName\"] = \"" + Esc(heli.Source.Name ?? "") + "\",");
+                    airLines.Add("\t\t\t\t[\"loadName\"] = \"WG_LOAD_" + c.Side.ToUpperInvariant() + "_" + c.SlotIndex + "\",");   // point de chargement (= position "from")
+                    airLines.Add("\t\t\t\t[\"fromZone\"] = \"" + Esc(heli.SourceZone.Id) + "\",");
+
+                    // Mission de transport offerte aux joueurs : tâche "Transport" dans la table de LEUR camp (comme les "Airlift" de DCE).
+                    // Les hélicos IA de ce point sont remplacés par les joueurs qui la prennent (à gérer côté scriptsMod).
+                    // "base" (base de départ de l'hélicoptère) est choisie par scriptsMod avec l'escadrille : ici seulement un INDICE
+                    // (aérodrome tenu le plus proche du point de chargement). Le point de chargement est le dépôt / la FARP (wargameLoad*).
+                    string baseName = FindHeliBase(airbases, zones, c.Side, heli.Source.Position);
+
+                    // Les lignes sont écrites dans tous les cas ; on précise seulement qu'aucune escadrille d'hélicoptères n'est assez proche
+                    string squadNote = (heli.Far || baseName.Length == 0) ? " (no helicopter squad close enough)" : "";
+
+                    // Besoin réel du secteur à livrer par air (kg) : tonnes manquantes au stock en début de tour
+                    long needKg = (long)Math.Round(Math.Max(0, c.DemandEstimate - c.ReserveBefore) * 1000.0);
+
+                    if (true)
+                    {
+                        airLines.Add("\t\t\t\t[\"baseHint\"] = \"" + Esc(baseName) + "\",");
+                        airLines.Add("\t\t\t\t[\"needKg\"] = " + needKg.ToString(CultureInfo.InvariantCulture) + ",");
+
+                        string slotText = c.Side.ToUpperInvariant() + "_" + c.SlotIndex;
+
+                        // Une tâche par hélicoptère (firepower 1/1) : un joueur prend UN hélico, l'IA fabrique les autres
+                        for (int heliNo = 1; heliNo <= Math.Max(1, heli.Sorties); heliNo++)
+                        {
+                        List<string> body = new List<string>
+                        {
+                            "\t\t\t[\"attributes\"] = ",
+                            "\t\t\t{",
+                            "\t\t\t},",
+                            "\t\t\t[\"ATO\"] = true,",
+                            "\t\t\t[\"wargameBaseHint\"] = \"" + Esc(baseName) + "\",",   // indice seulement : scriptsMod choisit l'escadrille et la base
+                            "\t\t\t[\"y\"] = " + Num(dest.Y) + ",",
+                            "\t\t\t[\"x\"] = " + Num(dest.X) + ",",
+                            "\t\t\t[\"firepower\"] = ",
+                            "\t\t\t{",
+                            "\t\t\t\t[\"min\"] = 1,",
+                            "\t\t\t\t[\"max\"] = 1,",
+                            "\t\t\t},",
+                            "\t\t\t[\"destination\"] = \"" + pointName + "\",",
+                            "\t\t\t[\"name\"] = \"WG_AIRLIFT_" + slotText + "_" + heliNo + "\",",
+                            "\t\t\t[\"priority\"] = 1,",
+                            "\t\t\t[\"task\"] = \"Transport\",",
+                            "\t\t\t[\"titleName\"] = \"Supply " + Esc(heli.Source.Name ?? slotText) + " > " + Esc(c.TargetId) + squadNote + "\",",   // sans type d'hélico : n'importe lequel convient
+                            "\t\t\t[\"wargameLogistic\"] = \"airlift\",",
+                            "\t\t\t[\"wargameNote\"] = \"" + Esc(squadNote.Trim()) + "\",",
+                            "\t\t\t[\"wargameSlot\"] = \"" + slotText + "\",",
+                            // Point de chargement : le dépôt / port / entrepôt où l'hélico prend sa cargaison, avant d'aller au point (destination)
+                            "\t\t\t[\"wargameLoadName\"] = \"WG_LOAD_" + slotText + "\",",
+                            "\t\t\t[\"wargameLoadLabel\"] = \"" + Esc(heli.Source.Name ?? "") + "\",",
+                            "\t\t\t[\"wargameLoadX\"] = " + Num(heli.Source.Position.X) + ",",
+                            "\t\t\t[\"wargameLoadY\"] = " + Num(heli.Source.Position.Y) + ",",
+                            "\t\t\t[\"wargameNeedKg\"] = " + needKg.ToString(CultureInfo.InvariantCulture) + ",",   // besoin TOTAL du secteur (tous hélicos confondus)
+                            "\t\t\t[\"wargameSorties\"] = " + Math.Max(1, c.AirSorties) + ",",   // rotations voulues par le moteur
+                            "\t\t\t[\"wargameCargoKg\"] = " + HeliCargoKg(c.Side).ToString("0", CultureInfo.InvariantCulture) + ",",   // charge de CET hélico
+                        };
+
+                        List<List<string>> sideList;
+                        if (airlifts != null && airlifts.TryGetValue(c.Side, out sideList))
+                        {
+                            sideList.Add(body);
+                            np++;
+                        }
+                        }
+                    }
+
+                    if (baseName.Length == 0)
+                        report.Add("air supply " + c.Slot + " : no airbase held by " + c.Side + " : no base hint written, scriptsMod chooses squadron and base");
+
+                    airLines.Add("\t\t\t},");
+                }
+
+                airLines.Add("\t\t},");
             }
 
             sb.AppendLine("\t[\"supplyPoints\"] = ");
@@ -1346,7 +1648,202 @@ namespace DCE_Manager
 
             File.WriteAllText(Path.Combine(campaignFolder, "Active", "wargame_logistics.lua"), sb.ToString(), new UTF8Encoding(false));
             return "logistics orders for scriptsMod : " + (pointLines == null ? 0 : pointLines.Count(l => l == "\t\t{")) + " supply point(s) to place, "
-                + nc + " road convoy(s), " + na + " air request(s) (Active/wargame_logistics.lua)";
+                + nc + " road convoy(s), " + na + " air request(s), " + nh + " helicopter sortie(s), " + np + " transport mission(s) offered to players (Active/wargame_logistics.lua)";
+        }
+
+        // Aérodromes de la targetlist (blocs class = "airbase", les deux tables), sans doublon : nom + position
+        private static List<Tuple<string, PointF>> LoadAirbases(string campaignFolder)
+        {
+            var list = new List<Tuple<string, PointF>>();
+
+            try
+            {
+                string path = Path.Combine(campaignFolder, "Active", "targetlist.lua");
+                if (!File.Exists(path)) return list;
+
+                LuaLineIndex idx = LuaLineIndex.Build(File.ReadAllLines(path).ToList());
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (string table in idx.Tables)
+                {
+                    if (table.Split('/').Length != 2) continue;
+                    if (idx.Text(table, "class") != "airbase") continue;
+
+                    string name = idx.Text(table, "name");
+                    if (string.IsNullOrEmpty(name) || !seen.Add(name)) continue;
+
+                    list.Add(Tuple.Create(name, new PointF((float)idx.Number(table, "x", 0), (float)idx.Number(table, "y", 0))));
+                }
+            }
+            catch (Exception ex)
+            {
+                WargameLog.Line("WargameLogistics | airbases NOT read : " + ex.Message);
+            }
+
+            return list;
+        }
+
+        private const double HeliBaseMaxKm = 150;   // base de départ des joueurs : au plus à cette distance de l'objectif-source
+
+        // Aérodrome de son camp (dans une zone qu'il tient) le plus proche de l'objectif-source, "" si aucun dans HeliBaseMaxKm
+        private static string FindHeliBase(List<Tuple<string, PointF>> airbases, List<WargameZoneData> zones, string side, PointF from)
+        {
+            string best = "";
+            double bestKm = HeliBaseMaxKm;
+            string farName = "";          // à défaut de base dans le rayon : la plus proche, même loin (le joueur décide de la distance)
+            double farKm = double.MaxValue;
+
+            foreach (Tuple<string, PointF> b in airbases)
+            {
+                WargameZoneData zone = WargameEngineCombat.FindZoneContaining(zones, b.Item2);
+                if (zone == null || !string.Equals(zone.Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                double dx = b.Item2.X - from.X, dy = b.Item2.Y - from.Y;
+                double km = Math.Sqrt(dx * dx + dy * dy) / 1000.0;
+                if (km <= bestKm)
+                {
+                    bestKm = km;
+                    best = b.Item1;
+                }
+                if (km < farKm) { farKm = km; farName = b.Item1; }
+            }
+
+            return best.Length > 0 ? best : farName;
+        }
+
+        // ---- Ravitaillement par hélicoptère (planification, côté DCE_Manager) ----
+        // Pas de template : on décrit la charge. Un point plein = HeliPointFullKg de cargaison. Chaque rotation transporte HeliCargoKg
+        // (type d'hélico par camp), et le nombre de rotations est plafonné par point. scriptsMod fabrique les vols en jeu et rend,
+        // dans wargame_logistics_result.lua, les kg réellement livrés (air[slot], entiers) : DCE_Manager divise par un point plein (ReadKgTable).
+        // Valeurs fixes pour l'instant (à passer dans wargame_balance.lua si on veut les régler).
+        // Plus de "point plein" pour les calculs : tout est en tonnes, le moteur (WargameEngineCombat.PlanConvoys) décide du nombre de rotations
+        // d'après le besoin du secteur, et les réglages (charge, flotte...) sont dans wargame_balance.lua. HeliPointFullKg n'est plus qu'une
+        // valeur INDICATIVE écrite dans le fichier d'ordres (fullKg, share) pour garder le même format vers scriptsMod.
+        private const double HeliPointFullKg = 6000;
+
+        // Réglages du balance pour la planification en cours (posés au début de WriteOrders)
+        [ThreadStatic]
+        private static WargameCombatConfig _heliCfg;
+        private static WargameCombatConfig _heli
+        {
+            get { return _heliCfg ?? (_heliCfg = new WargameCombatConfig()); }
+            set { _heliCfg = value; }
+        }
+        private const double HeliRangeKm = 100;        // distance maximum objectif-source -> point (vol bas, charge, retour)
+
+        private static bool IsBlue(string side)
+        {
+            return string.Equals(side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Types DCS : UH-1H (cabine + élingue, environ 1,2 t utile) côté bleu, Mi-8MT (environ 3 t) côté rouge
+        private static string HeliType(string side) { return IsBlue(side) ? "UH-1H" : "Mi-8MT"; }
+        private static double HeliCargoKg(string side) { return (IsBlue(side) ? _heli.HeliCargoBlueTons : _heli.HeliCargoRedTons) * 1000.0; }
+
+        private class HeliPlan
+        {
+            public WargameObjective Source;
+            public WargameZoneData SourceZone;
+            public double DistanceKm;
+            public int Sorties;
+            public string Reason = "";   // pourquoi aucun hélico IA (affiché dans le journal)
+            public bool Far;       // source hors de portée des hélicos IA : mission offerte aux joueurs seulement
+            public double Share;   // part d'un point plein transportée par toutes les rotations (0 à 1)
+        }
+
+        // Objectifs-sources vivants (entrepôt, port...), dans une zone encore tenue par leur camp et non capturée
+        private static List<Tuple<WargameObjective, WargameZoneData>> LoadHeliSources(string campaignFolder, List<WargameZoneData> zones)
+        {
+            var list = new List<Tuple<WargameObjective, WargameZoneData>>();
+
+            try
+            {
+                string path = Path.Combine(campaignFolder, "Active", "targetlist.lua");
+                if (!File.Exists(path)) return list;
+
+                foreach (WargameObjective obj in new Parser_WargameObjectives().Load(path))
+                {
+                    if (obj.SupplyValue <= 0 || obj.Alive < 10) continue;
+
+                    WargameZoneData zone = WargameEngineCombat.FindZoneContaining(zones, obj.Position);
+                    if (zone == null || !WargameEngineCombat.IsFightingSide(zone.Control)) continue;
+
+                    // zone prise depuis le début : la source n'est plus à son camp d'origine
+                    if (!string.IsNullOrEmpty(zone.SupplyOwner) && !string.Equals(zone.SupplyOwner, zone.Control, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    list.Add(Tuple.Create(obj, zone));
+                }
+            }
+            catch (Exception ex)
+            {
+                WargameLog.Line("WargameLogistics | helicopter sources NOT read : " + ex.Message);
+            }
+
+            return list;
+        }
+
+        // Hélicoptères d'un point : source la plus proche dans le rayon d'action (à égalité, la plus forte), rotations selon la charge voulue.
+        // Nombre de rotations voulues : décidé par le moteur selon le besoin du secteur (convoy.AirSorties).
+        // null = pas d'hélico possible (note = pourquoi).
+        private static HeliPlan PlanHelicopters(string side, int wantedSorties, PointF dest, List<Tuple<WargameObjective, WargameZoneData>> sources, out string note)
+        {
+            note = "";
+            Tuple<WargameObjective, WargameZoneData> best = null;
+            double bestKm = double.MaxValue;
+            double nearestKm = double.MaxValue;
+            Tuple<WargameObjective, WargameZoneData> far = null;   // la plus proche hors de portée : sert à OFFRIR la mission aux joueurs
+            double farKm = double.MaxValue;
+            bool isFar = false;
+
+            foreach (Tuple<WargameObjective, WargameZoneData> s in sources)
+            {
+                if (!string.Equals(s.Item2.Control, side, StringComparison.OrdinalIgnoreCase)) continue;
+
+                double dx = s.Item1.Position.X - dest.X, dy = s.Item1.Position.Y - dest.Y;
+                double km = Math.Sqrt(dx * dx + dy * dy) / 1000.0;
+                nearestKm = Math.Min(nearestKm, km);
+                if (km > HeliRangeKm)
+                {
+                    if (km < farKm) { farKm = km; far = s; }
+                    continue;
+                }
+
+                if (best == null || km < bestKm - 0.001
+                    || (Math.Abs(km - bestKm) <= 0.001 && s.Item1.SupplyValue * s.Item1.Alive > best.Item1.SupplyValue * best.Item1.Alive))
+                {
+                    best = s;
+                    bestKm = km;
+                }
+            }
+
+            // Aucune source à portée mais une source plus loin : on la garde, les joueurs peuvent la rejoindre (pas les hélicos IA)
+            if (best == null && far != null)
+            {
+                best = far;
+                bestKm = farKm;
+                isFar = true;
+            }
+
+            if (best == null)
+            {
+                note = nearestKm == double.MaxValue
+                    ? "no living supply objective (depot, port...) for " + side + " : no helicopter possible"
+                    : "nearest supply objective is " + nearestKm.ToString("0") + " km away (helicopter range " + HeliRangeKm.ToString("0") + " km) : no helicopter possible";
+                return null;
+            }
+
+            double cargo = HeliCargoKg(side);
+            int sorties = Math.Max(1, wantedSorties);
+
+            return new HeliPlan
+            {
+                Source = best.Item1,
+                SourceZone = best.Item2,
+                DistanceKm = bestKm,
+                Far = isFar,
+                Sorties = sorties,
+                Share = Math.Min(1.0, sorties * cargo / HeliPointFullKg),
+            };
         }
 
         // Types DCS des véhicules d'un template .stm (pour fabriquer le convoi en jeu), et le pays qui les porte

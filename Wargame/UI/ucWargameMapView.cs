@@ -315,6 +315,77 @@ namespace DCE_Manager
         // Fin d'un glissement de boîte (elle a bougé)
         public event Action<WargameZoneData> LandingMoved;
 
+        // ---- FARP des plages de débarquement (marqueurs déplaçables, vue Init de l'éditeur) ----
+        private List<WargameFarp> _farps = new List<WargameFarp>();
+        private WargameFarp _movingFarp;          // FARP attrapée à la souris
+        private bool _movingFarpMoved;
+
+        // true = on peut glisser une FARP (éditeur, vue Init). Sans effet en ReadOnly.
+        public bool FarpEditable { get; set; }
+
+        // Fin d'un glissement de FARP (elle a bougé)
+        public event Action<WargameFarp> FarpMoved;
+
+        // Clic droit sur une FARP : l'éditeur propose de la remettre au milieu de sa plage
+        public event Action<WargameFarp, Point> FarpRightClicked;
+
+        public void SetFarps(List<WargameFarp> farps)
+        {
+            _farps = farps ?? new List<WargameFarp>();
+            Invalidate();
+        }
+
+        private const float FarpMarkerHalf = 7f;   // demi-côté du carré, en pixels ECRAN
+
+        private WargameFarp HitTestFarp(PointF imagePoint)
+        {
+            if (_calibration == null || !_calibration.IsCalibrated) return null;
+
+            float tolerance = (FarpMarkerHalf + 3f) / _zoom;
+
+            foreach (WargameFarp farp in _farps)
+            {
+                PointF p = _calibration.DcsToPixel(new PointF((float)farp.X, (float)farp.Y));
+                if (Math.Abs(p.X - imagePoint.X) <= tolerance && Math.Abs(p.Y - imagePoint.Y) <= tolerance)
+                    return farp;
+            }
+
+            return null;
+        }
+
+        // Carré de la couleur du camp avec un "F", et le nom dessous. Tailles divisées par le zoom : constantes à l'écran.
+        private void DrawFarps(Graphics g)
+        {
+            if (_farps.Count == 0) return;
+
+            float half = FarpMarkerHalf / _zoom;
+
+            using (var outline = new Pen(Color.White, 2f / _zoom))
+            using (var font = new Font("Segoe UI", 8f / _zoom, FontStyle.Bold))
+            using (var textBrush = new SolidBrush(Color.White))
+            using (var shadowBrush = new SolidBrush(Color.Black))
+            {
+                foreach (WargameFarp farp in _farps)
+                {
+                    PointF p = _calibration.DcsToPixel(new PointF((float)farp.X, (float)farp.Y));
+                    var rect = new RectangleF(p.X - half, p.Y - half, half * 2, half * 2);
+
+                    using (var fill = new SolidBrush(GetZoneColor(farp.Side)))
+                        g.FillRectangle(fill, rect);
+
+                    g.DrawRectangle(outline, rect.X, rect.Y, rect.Width, rect.Height);
+
+                    SizeF fs = g.MeasureString("F", font);
+                    g.DrawString("F", font, textBrush, p.X - fs.Width / 2f, p.Y - fs.Height / 2f);
+
+                    SizeF ns = g.MeasureString(farp.Name, font);
+                    float tx = p.X - ns.Width / 2f, ty = p.Y + half + 1f / _zoom, shadow = 1f / _zoom;
+                    g.DrawString(farp.Name, font, shadowBrush, tx + shadow, ty + shadow);
+                    g.DrawString(farp.Name, font, textBrush, tx, ty);
+                }
+            }
+        }
+
         private WargameZoneData _movingLanding;   // boîte attrapée à la souris
         private PointF _movingLastImage;          // dernière position souris (pixel image)
         private bool _movingMoved;                // elle a vraiment bougé
@@ -712,8 +783,17 @@ namespace DCE_Manager
             // Clic gauche sur une boîte de débarquement : on la saisit (le glissement la déplacera au lieu de la carte)
             _movingLanding = null;
             _movingMoved = false;
+            _movingFarp = null;
+            _movingFarpMoved = false;
 
-            if (e.Button == MouseButtons.Left && !ReadOnly && LandingEditable
+            // Une FARP est posée par-dessus tout : on la teste en premier
+            if (e.Button == MouseButtons.Left && !ReadOnly && FarpEditable
+                && _zonePickCallback == null && !_pickingCalibrationPoint)
+            {
+                _movingFarp = HitTestFarp(ClientToImage(e.X, e.Y));
+            }
+
+            if (_movingFarp == null && e.Button == MouseButtons.Left && !ReadOnly && LandingEditable
                 && _zonePickCallback == null && !_pickingCalibrationPoint)
             {
                 PointF downPoint = ClientToImage(e.X, e.Y);
@@ -755,6 +835,21 @@ namespace DCE_Manager
                 Cursor = Cursors.SizeAll;
             }
 
+            // Une FARP est saisie : elle suit la souris (position DCS), pas la carte
+            if (_movingFarp != null)
+            {
+                if (_isDragging && _calibration != null && _calibration.IsCalibrated)
+                {
+                    PointF dcs = _calibration.PixelToDcs(ClientToImage(e.X, e.Y));
+                    _movingFarp.X = dcs.X;
+                    _movingFarp.Y = dcs.Y;
+                    _movingFarpMoved = true;
+                    Invalidate();
+                }
+
+                return;
+            }
+
             // Une boîte de débarquement est saisie : c'est elle qui suit la souris, pas la carte
             if (_movingLanding != null)
             {
@@ -793,6 +888,18 @@ namespace DCE_Manager
 
             if (!_pickingCalibrationPoint)
                 Cursor = Cursors.Default;
+
+            if (_movingFarp != null)
+            {
+                WargameFarp movedFarp = _movingFarp;
+                bool didMoveFarp = _movingFarpMoved;
+
+                _movingFarp = null;
+                _movingFarpMoved = false;
+
+                if (didMoveFarp)
+                    FarpMoved?.Invoke(movedFarp);
+            }
 
             // Fin du glissement d'une boîte : on prévient l'éditeur (Unsaved changes)
             if (_movingLanding != null)
@@ -861,6 +968,16 @@ namespace DCE_Manager
 
             if (e.Button == MouseButtons.Right)
             {
+                if (!ReadOnly && FarpEditable)
+                {
+                    WargameFarp rightFarp = HitTestFarp(clickPoint);
+                    if (rightFarp != null)
+                    {
+                        FarpRightClicked?.Invoke(rightFarp, Cursor.Position);
+                        return;
+                    }
+                }
+
                 WargameObjective rightObjective = HitTestObjective(clickPoint);
                 if (rightObjective != null)
                 {
@@ -1061,6 +1178,7 @@ namespace DCE_Manager
                     DrawZoneArrows(e.Graphics);
 
                 DrawConvoys(e.Graphics);
+                DrawFarps(e.Graphics);
 
                 // Points de force APRES les axes et les flèches (et après toutes les zones) : rien ne les recouvre
                 foreach (var kvp in _zonePixelShapes)

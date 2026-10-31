@@ -75,13 +75,23 @@ namespace DCE_Manager
         public double CutOffGraceTurns = 3;
 
         // ---- Convois et points de ravitaillement avancés (supply_convoys) ----
-        // Activés : les zones mal ravitaillées reçoivent un convoi, qui alimente un point avancé (petite source + réserve en tours).
+        // Activés : les zones mal ravitaillées reçoivent un convoi, qui alimente un point avancé (petite source + stock en TONNES).
         // Le point avancé REMPLACE alors le délai de grâce (CutOffGraceTurns ne sert plus, sauf pour une vague qui débarque).
         public bool SupplyConvoys = false;
         public double ConvoyMax = 3;                 // convois maximum par camp et par tour
         public double ConvoyNeedLevel = 0.6;         // une zone avec des formations, sous ce niveau, a besoin d'un convoi
         public double ForwardPointCapacity = 40;     // capacité de ravitaillement d'un point avancé actif
-        public double ForwardPointReserve = 3;       // réserve pleine d'un point avancé (en tours)
+        public double ForwardPointStockTons = 300;   // stock maximum d'un point avancé, en tonnes (1 tonne = 1000 kg)
+        public double ConvoyTruckTons = 10;          // charge d'UN véhicule de convoi, en tonnes (charge d'un convoi = nombre de véhicules de son template x ceci)
+        // Hélicoptères (ravitaillement aérien d'un secteur) : charge d'une rotation par camp, en tonnes (UH-1H environ 1,2 t, Mi-8MT environ 3 t),
+        // rotations maximum par point et par mission, flotte par camp et par mission (tous points confondus), et part du besoin non couvert
+        // que les hélicos apportent EN PLUS d'un convoi routier (secours). Sans route, ils visent tout le besoin non couvert.
+        public double HeliCargoBlueTons = 1.2;
+        public double HeliCargoRedTons = 3.0;
+        public double HeliMaxSorties = 1;
+        public double HeliFleet = 3;
+        public double HeliRoadShare = 0.3;
+        public double ConvoyPayloadTons = 100;       // charge d'un convoi quand elle ne vient pas d'un template (pas de template "convoy", ou ravitaillement aérien seul)
         public double ConvoyFreeRange = 4;           // portée (en coût) que les sources couvrent SANS convoi quand les convois sont activés
         public double ForwardRebuildLoss = 0.5;      // point avancé détruit à la mission d'avant : le convoi qui le rebâtit ne recharge que (1 - ceci)
 
@@ -92,16 +102,31 @@ namespace DCE_Manager
         // Remplis avant chaque tour (ce ne sont pas des réglages) : part de la cargaison qui arrive (0 à 1).
         // Production : valeurs par défaut tant que l'état des convois n'est pas relu ; Preview : contrôles de test.
         public double ConvoyDeliveredBlue = 1.0, ConvoyDeliveredRed = 1.0;   // convois routiers
-        public double AirDeliveredBlue = 0.0, AirDeliveredRed = 0.0;         // ravitaillement aérien (hélico, aérolargage)
+        public double AirDeliveredBlue = 0.0, AirDeliveredRed = 0.0;         // ravitaillement aérien : part (0 à 1) des tonnes PLANIFIEES par air qui arrivent (test de la preview)
 
         // Résultats réels de la mission jouée, par emplacement de convoi ("BLUE_1"...) : prioritaires sur les valeurs par camp
         // ci-dessus quand ils existent (lus par WargameLogistics.ReadResults avant le tour)
         public Dictionary<string, double> ConvoyDeliveredBySlot = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        // Air : TONNES réellement livrées par emplacement (scriptsMod rend des kg, convertis en tonnes à la lecture)
         public Dictionary<string, double> AirDeliveredBySlot = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
         // Remplis par PlanConvoys : zone -> capacité du point avancé actif, et les convois du tour (journal, carte)
         public Dictionary<string, double> ForwardSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
         public List<WargameEngineCombat.WargameConvoy> Convoys = new List<WargameEngineCombat.WargameConvoy>();
+
+        // ---- Consommation en TONNES (1 tonne = 1000 kg) : coefficients selon l'état de la formation ----
+        // La consommation du catalogue est par JOUR (24 h) ; un tour n'en vaut qu'une part (TurnDayFraction).
+        // Le besoin d'une formation sur un tour = xN x consommation du template x part du jour x le coefficient de son état :
+        //   arrière (pas au contact de l'ennemi) / front sans combat / engagée en attaque / engagée en défense.
+        // Pour l'instant le besoin n'est que CALCULE et affiché dans la preview : il ne change rien au jeu.
+        // balance : supply_use_rear, supply_use_front, supply_use_attack, supply_use_defend.
+        // Part d'un jour que dure un tour (0.125 = 8 tours par jour). Calculée au chargement d'après conf_mod.lua
+        // (durée de mission + pause moyenne, et jour / nuit) : voir WargameCampaignInfo.LoadTurnLength.
+        public double TurnDayFraction = 0.25;
+        public double SupplyUseRear = 0.5;
+        public double SupplyUseFront = 1.0;
+        public double SupplyUseAttack = 2.0;
+        public double SupplyUseDefend = 1.5;
 
         // Zones vides : passent au camp qui a clairement le plus d'influence autour d'elles
         // (voir SettleEmptyZones). false = une zone vide garde son camp.
@@ -294,6 +319,10 @@ namespace DCE_Manager
         // Formations engagées dans un combat jugé ce tour : elles récupèrent moins (EngagedRecoveryFactor)
         public HashSet<int> EngagedFormationIds = new HashSet<int>();
 
+        // Parmi les engagées : celles qui attaquent, et celles qui défendent (sert au besoin en tonnes, voir ComputeSupplyDemand)
+        public HashSet<int> AttackingFormationIds = new HashSet<int>();
+        public HashSet<int> DefendingFormationIds = new HashSet<int>();
+
         // Formations dissoutes car trop faibles (voir RemoveBrokenFormations)
         public int Disbanded;
         public List<string> DisbandedNotes = new List<string>();
@@ -445,7 +474,7 @@ namespace DCE_Manager
             ApplyLandingSupply(zones, activeFlags, config);
 
             // Convois : un par secteur mal ravitaillé (plafonné), qui recharge son point avancé
-            PlanConvoys(zones, config);
+            PlanConvoys(zones, config, catalog);
 
             if (zones == null || axes == null || axes.Count == 0)
                 return result;
@@ -671,6 +700,13 @@ namespace DCE_Manager
 
             foreach (AxisPair p in foughtPairs)
             {
+                // Qui attaque, qui défend (pour le besoin en tonnes) : une formation qui attaque ne compte pas comme défenseuse
+                foreach (WargameFormation fa in DirectionFormations(allocations, p.AttZone, p.AttackSide, p.DefZone.Id))
+                    result.AttackingFormationIds.Add(fa.FormationId);
+                foreach (WargameFormation fd in DirectionFormations(allocations, p.DefZone, p.DefendSide, p.AttZone.Id))
+                    if (!result.AttackingFormationIds.Contains(fd.FormationId))
+                        result.DefendingFormationIds.Add(fd.FormationId);
+
                 foreach (WargameFormation f in DirectionFormations(allocations, p.AttZone, p.AttackSide, p.DefZone.Id)
                     .Concat(DirectionFormations(allocations, p.DefZone, p.DefendSide, p.AttZone.Id)))
                 {
@@ -687,6 +723,8 @@ namespace DCE_Manager
                     }
                 }
             }
+
+            result.DefendingFormationIds.ExceptWith(result.AttackingFormationIds);
 
             if (config.CombatAttrition > 0)
             {
@@ -2366,6 +2404,79 @@ namespace DCE_Manager
             return result;
         }
 
+        // ---- Besoin en ravitaillement (tonnes par tour) ----
+        // Une ligne par formation vivante d'une zone de la carte (les boîtes RESERVE / LANDING et les zones sans camp sont ignorées :
+        // une formation en transit ne consomme rien).
+        public class WargameSupplyDemand
+        {
+            public string ZoneId;
+            public string Side;
+            public WargameFormation Formation;
+            public string State;      // "rear", "front", "attack", "defense"
+            public double Strength;   // force restante / force nominale, de 0 à 1 (une formation affaiblie consomme moins)
+            public double Base;       // xN x consommation du template (par jour) x part du jour d'un tour x force restante, en tonnes par tour (état "front")
+            public double Coef;       // coefficient de l'état (config)
+            public double Tons;       // Base x Coef
+        }
+
+        // Besoin d'un tour = xN x tonnes par jour du template x part du jour d'un tour x force restante (0 à 1) x coefficient de l'état.
+        // Calcule le besoin du tour. A appeler APRES Resolve (result sait qui a attaqué / défendu) ; la position est celle de fin de tour.
+        //   engagée en attaque -> SupplyUseAttack      engagée en défense -> SupplyUseDefend
+        //   sinon au contact de l'ennemi (zone voisine d'une zone ennemie) -> SupplyUseFront
+        //   sinon (arrière) -> SupplyUseRear
+        // Ne modifie rien.
+        public static List<WargameSupplyDemand> ComputeSupplyDemand(
+            List<WargameZoneData> zones, WargameTemplateCatalog catalog, WargameCombatConfig config, WargameCombatResult result)
+        {
+            var list = new List<WargameSupplyDemand>();
+            if (zones == null || catalog == null || config == null) return list;
+
+            var zoneById = new Dictionary<string, WargameZoneData>(StringComparer.OrdinalIgnoreCase);
+            foreach (WargameZoneData z in zones) zoneById[z.Id] = z;
+
+            Dictionary<string, List<string>> links = BuildLinks(zones);
+
+            foreach (WargameZoneData zone in zones)
+            {
+                if (IsOffMapId(zone.Id) || !IsFightingSide(zone.Control)) continue;
+
+                bool front = links[zone.Id].Any(id => IsFightingSide(zoneById[id].Control)
+                    && !string.Equals(zoneById[id].Control, zone.Control, StringComparison.OrdinalIgnoreCase));
+
+                foreach (WargameFormation f in zone.Formations)
+                {
+                    if (f.ForcePower <= 0) continue;
+                    if (!string.Equals(f.Side, zone.Control, StringComparison.OrdinalIgnoreCase)) continue;
+
+                    string state;
+                    double coef;
+
+                    if (result != null && result.AttackingFormationIds.Contains(f.FormationId)) { state = "attack"; coef = config.SupplyUseAttack; }
+                    else if (result != null && result.DefendingFormationIds.Contains(f.FormationId)) { state = "defense"; coef = config.SupplyUseDefend; }
+                    else if (front) { state = "front"; coef = config.SupplyUseFront; }
+                    else { state = "rear"; coef = config.SupplyUseRear; }
+
+                    // Formation affaiblie = moins de véhicules = moins de consommation (plafonné à 100 %)
+                    double strength;
+                    double baseTons = FormationBaseTons(f, catalog, config, out strength);
+
+                    list.Add(new WargameSupplyDemand
+                    {
+                        ZoneId = zone.Id,
+                        Side = f.Side,
+                        Formation = f,
+                        State = state,
+                        Strength = strength,
+                        Base = baseTons,
+                        Coef = coef,
+                        Tons = baseTons * coef,
+                    });
+                }
+            }
+
+            return list;
+        }
+
         // Formations trop affaiblies : sous DisbandBelowFraction de leur force NOMINALE, elles sont
         // dissoutes (ForcePower = 0, WargameEngineLosses retire alors leurs unités de la targetlist).
         // Seules les formations AU CONTACT de l'ennemi (zone voisine d'une zone ennemie) sont dissoutes :
@@ -3121,6 +3232,9 @@ namespace DCE_Manager
             // Points avancés dont la zone a été prise pendant le combat : perdus (stock pris ou détruit), avant la récupération
             DropLostForwardPoints(zoneById, config);
 
+            // Les secteurs des points avancés consomment leur besoin du tour dans le stock (tonnes)
+            ConsumeForwardStock(zones, zoneById, catalog, config, combat);
+
             if (config.SupplyRecoveryRate <= 0)
                 return;
 
@@ -3561,7 +3675,16 @@ namespace DCE_Manager
             public List<string> ServedIds = new List<string>();   // zones du secteur
             public bool ByRoad;
             public double Delivered;                              // part de la cargaison arrivée (route + air), 0 à 1
-            public double ReserveBefore, ReserveAfter;            // réserve du point avancé, en tours
+            public double ReserveBefore, ReserveAfter;            // stock du point avancé, en TONNES (avant livraison / après livraison puis consommation)
+            public double DeliveredTons;                          // tonnes livrées ce tour (part livrée x charge du convoi)
+            public double PayloadTons;                            // charge du convoi s'il arrive en entier (véhicules du template x ConvoyTruckTons)
+            public int AirSorties;                                // rotations d'hélicoptère voulues pour ce secteur (l'export les limite selon la flotte et la portée)
+            public double AirPlannedTons;                         // tonnes que ces rotations apporteraient
+            public double AirTons;                                // tonnes réellement livrées par air ce tour
+            public string Template = "";                          // template "convoy" choisi (le même sert à fabriquer le convoi en jeu), "" = aucun
+            public double DemandEstimate;                         // besoin estimé du secteur en début de tour, en tonnes
+            public double Coverage = 1.0;                         // part du besoin couverte par le stock (0 à 1) : multiplie la capacité du point
+            public double UsedTons;                               // tonnes réellement consommées par le secteur (rempli par ApplySupply)
             public double Capacity;                               // capacité du point avancé (plafonnée par la source)
             public bool Lost;                                     // la zone du point avancé a été prise pendant le tour : point perdu
             public int SlotIndex;                                 // numéro d'emplacement (1 à ConvoyMax), stable d'un tour à l'autre
@@ -3571,7 +3694,8 @@ namespace DCE_Manager
 
         // Appelé une fois par tour, au début de la résolution (après le débarquement). Recalcule les secteurs, les convois,
         // et remplit config.ForwardSupplyByZone (les points avancés actifs, qui servent ensuite de sources).
-        internal static void PlanConvoys(List<WargameZoneData> zones, WargameCombatConfig config)
+        // catalog (facultatif) : sert à estimer le besoin en tonnes du secteur ; sans lui, le stock n'est pas comparé au besoin (couverture 100 %).
+        internal static void PlanConvoys(List<WargameZoneData> zones, WargameCombatConfig config, WargameTemplateCatalog catalog = null)
         {
             config.ForwardSupplyByZone = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             config.Convoys = new List<WargameConvoy>();
@@ -3724,26 +3848,68 @@ namespace DCE_Manager
                     convoy.SlotIndex = slot;
                     convoy.Slot = side.ToUpperInvariant() + "_" + slot;
 
-                    // Livraison : résultat réel de la mission (par emplacement) s'il existe, sinon la valeur par camp
-                    double ground = 0, air, bySlot;
+                    // Livraison par la route : résultat réel de la mission (par emplacement) s'il existe, sinon la valeur par camp.
+                    // C'est la part (0 à 1) de la charge du convoi qui arrive.
+                    double ground = 0, bySlot;
                     if (byRoad)
                         ground = config.ConvoyDeliveredBySlot.TryGetValue(convoy.Slot, out bySlot) ? Clamp01(bySlot)
                             : Clamp01(side == WargameSide.Blue ? config.ConvoyDeliveredBlue : config.ConvoyDeliveredRed);
-                    air = config.AirDeliveredBySlot.TryGetValue(convoy.Slot, out bySlot) ? Clamp01(bySlot)
-                        : Clamp01(side == WargameSide.Blue ? config.AirDeliveredBlue : config.AirDeliveredRed);
-                    convoy.Delivered = Math.Min(1.0, ground + air);
+                    convoy.Delivered = ground;
 
                     // Point détruit à la mission d'avant : le convoi le rebâtit, mais ne recharge qu'une partie
                     convoy.Rebuilt = g.Value.Any(z => destroyed.Contains(z.Id));
-                    if (convoy.Rebuilt)
-                        convoy.Delivered *= Math.Max(0, 1.0 - config.ForwardRebuildLoss);
 
-                    // Réserve : celle du point avancé du secteur au tour précédent, moins un tour consommé, ou rechargée par la livraison
+                    // Stock en TONNES : ce qui restait au point avancé du secteur (déjà diminué de la consommation du tour d'avant, voir
+                    // ConsumeForwardStock) + la livraison du convoi (part livrée x charge d'un convoi), plafonné au stock maximum
                     double before = 0, r;
                     foreach (WargameZoneData z in g.Value)
                         if (oldReserve.TryGetValue(z.Id, out r)) before = Math.Max(before, r);
 
-                    double after = Math.Max(0, Math.Max(before - 1, convoy.Delivered * config.ForwardPointReserve));
+                    // Charge du convoi = nombre de véhicules de son template x tonnes par véhicule (le campaignMaker règle la taille du convoi
+                    // avec le template). Le template est choisi ici, de façon fixe selon l'emplacement, pour que l'export fabrique le même.
+                    double payload = Math.Max(0, config.ConvoyPayloadTons);
+                    if (catalog != null && byRoad)
+                    {
+                        List<WargameTemplateEntry> convoyTemplates = catalog.OfType(WargameUnitType.Convoy, side)
+                            .OrderBy(t => t.Template, StringComparer.OrdinalIgnoreCase).ToList();
+
+                        if (convoyTemplates.Count > 0)
+                        {
+                            WargameTemplateEntry pick = convoyTemplates[(slot - 1) % convoyTemplates.Count];
+                            convoy.Template = pick.Template;
+                            // Tonnes emportées réglées dans le catalogue, sinon véhicules du template x tonnes par véhicule
+                            if (pick.CarryTons > 0) payload = pick.CarryTons;
+                            else if (pick.VehicleCount > 0) payload = pick.VehicleCount * Math.Max(0, config.ConvoyTruckTons);
+                        }
+                    }
+                    convoy.PayloadTons = payload;
+
+                    // Besoin estimé du secteur (tonnes) en début de tour
+                    convoy.DemandEstimate = EstimateSectorDemand(g.Value, side, links, zoneById, catalog, config);
+
+                    // Hélicoptères : ils visent le besoin que le stock actuel ne couvre pas (une part seulement si un convoi routier y va,
+                    // tout le besoin sans route). Nombre de rotations = tonnes voulues / charge d'une rotation, plafonné par point.
+                    double heliCargo = side == WargameSide.Blue ? config.HeliCargoBlueTons : config.HeliCargoRedTons;
+                    double heliWanted = Math.Max(0, convoy.DemandEstimate - before) * (byRoad ? config.HeliRoadShare : 1.0);
+                    int maxSorties = (int)Math.Round(Math.Max(0, config.HeliMaxSorties));
+                    convoy.AirSorties = (heliCargo > 0.001 && heliWanted > 0.05 && maxSorties > 0)
+                        ? Math.Min(maxSorties, (int)Math.Ceiling(heliWanted / heliCargo - 1e-9)) : 0;
+                    convoy.AirPlannedTons = convoy.AirSorties * heliCargo;
+
+                    // Livraison par air : tonnes rendues par la mission (par emplacement) si elles existent, sinon une part du plan (test)
+                    double airTons;
+                    if (!config.AirDeliveredBySlot.TryGetValue(convoy.Slot, out airTons))
+                        airTons = convoy.AirPlannedTons * Clamp01(side == WargameSide.Blue ? config.AirDeliveredBlue : config.AirDeliveredRed);
+                    convoy.AirTons = Math.Max(0, airTons);
+
+                    convoy.DeliveredTons = ground * payload + convoy.AirTons;
+                    if (convoy.Rebuilt)
+                        convoy.DeliveredTons *= Math.Max(0, 1.0 - config.ForwardRebuildLoss);
+
+                    double after = Math.Max(0, Math.Min(Math.Max(0, config.ForwardPointStockTons), before + convoy.DeliveredTons));
+
+                    // Le stock couvre-t-il le besoin du secteur ? Sinon le point fournit moins (baisse proportionnelle de sa capacité)
+                    convoy.Coverage = convoy.DemandEstimate > 0.001 ? Math.Min(1.0, after / convoy.DemandEstimate) : 1.0;
 
                     // Un convoi n'apporte que ce que sa source peut fournir : point avancé plafonné à la capacité de la source
                     // (par la route) ; un point ravitaillé seulement par air garde la capacité normale d'un point avancé
@@ -3761,16 +3927,87 @@ namespace DCE_Manager
 
                         double current;
                         config.ForwardSupplyByZone.TryGetValue(target.Id, out current);
-                        config.ForwardSupplyByZone[target.Id] = current + capacity;
+                        config.ForwardSupplyByZone[target.Id] = current + capacity * convoy.Coverage;
                     }
 
                     config.Convoys.Add(convoy);
 
                     Trace(config, "  convoy " + convoy.Slot + " -> " + target.Id + (convoy.Rebuilt ? " [rebuilds a destroyed point]" : "") + " (serves " + string.Join(", ", convoy.ServedIds) + ") : "
                         + (byRoad ? "road from " + convoy.SourceId + " (" + convoy.Route.Count + " zone(s))" : "NO ROAD (air only)")
-                        + ", delivered " + (convoy.Delivered * 100).ToString("0") + "% (road " + (ground * 100).ToString("0") + "%, air " + (air * 100).ToString("0") + "%)"
-                        + ", reserve " + before.ToString("0.#") + " -> " + after.ToString("0.#")
-                        + (after > 0.001 ? ", forward point active (capacity " + capacity.ToString("0.#") + ")" : ", forward point EMPTY"));
+                        + ", road " + (ground * 100).ToString("0") + "% of the payload, air " + convoy.AirTons.ToString("0.#") + " t (planned " + convoy.AirPlannedTons.ToString("0.#") + " t, " + convoy.AirSorties + " sortie(s))"
+                        + ", stock " + before.ToString("0.#") + " t + delivered " + convoy.DeliveredTons.ToString("0.#") + " t (payload " + convoy.PayloadTons.ToString("0.#") + " t" + (convoy.Template.Length > 0 ? ", template " + convoy.Template : "") + ") = " + after.ToString("0.#") + " t"
+                        + (convoy.DemandEstimate > 0.001 ? ", sector needs about " + convoy.DemandEstimate.ToString("0.#") + " t -> covered " + (convoy.Coverage * 100).ToString("0") + "%" : "")
+                        + (after > 0.001 ? ", forward point active (capacity " + (capacity * convoy.Coverage).ToString("0.#") + " of " + capacity.ToString("0.#") + ")" : ", forward point EMPTY"));
+                }
+            }
+        }
+
+        // Besoin estimé (tonnes) des formations d'un secteur en DEBUT de tour : on ne sait pas encore qui va combattre,
+        // donc seulement front (au contact de l'ennemi) ou arrière. Le vrai besoin est calculé en fin de tour (ComputeSupplyDemand).
+        private static double EstimateSectorDemand(List<WargameZoneData> served, string side,
+            Dictionary<string, List<string>> links, Dictionary<string, WargameZoneData> zoneById, WargameTemplateCatalog catalog, WargameCombatConfig config)
+        {
+            if (catalog == null) return 0;
+
+            double total = 0;
+
+            foreach (WargameZoneData z in served)
+            {
+                double coef = IsFrontZone(z, links, zoneById) ? config.SupplyUseFront : config.SupplyUseRear;
+
+                foreach (WargameFormation f in LiveFormations(z, side))
+                {
+                    double strength;
+                    total += FormationBaseTons(f, catalog, config, out strength) * coef;
+                }
+            }
+
+            return total;
+        }
+
+        // Tonnes consommées en UN TOUR par une formation à l'état "front" :
+        // xN x consommation du template (par jour) x part du jour d'un tour x force restante (0 à 1)
+        private static double FormationBaseTons(WargameFormation f, WargameTemplateCatalog catalog, WargameCombatConfig config, out double strength)
+        {
+            double nominal = f.GetNominalForcePower(catalog);
+            strength = nominal > 0 ? Math.Min(1.0, f.ForcePower / nominal) : 1.0;
+            return f.Multiplier * catalog.GetConsumption(f.Template) * config.TurnDayFraction * strength;
+        }
+
+        // Fin de tour : le secteur de chaque point avancé consomme son besoin REEL (attaque / défense / front / arrière) dans le stock.
+        // Stock insuffisant : il tombe à 0 (le manque s'est déjà traduit par une capacité réduite au début du tour).
+        private static void ConsumeForwardStock(List<WargameZoneData> zones, Dictionary<string, WargameZoneData> zoneById,
+            WargameTemplateCatalog catalog, WargameCombatConfig config, WargameCombatResult combat)
+        {
+            if (catalog == null || config.Convoys == null || config.Convoys.Count == 0) return;
+
+            List<WargameSupplyDemand> demand = ComputeSupplyDemand(zones, catalog, config, combat);
+
+            foreach (WargameConvoy convoy in config.Convoys)
+            {
+                if (convoy.Lost) continue;
+
+                WargameZoneData target;
+                if (!zoneById.TryGetValue(convoy.TargetId, out target)) continue;
+                if (!string.Equals(target.ForwardSide, convoy.Side, StringComparison.OrdinalIgnoreCase)) continue;   // point vide ou déjà retiré
+
+                var served = new HashSet<string>(convoy.ServedIds, StringComparer.OrdinalIgnoreCase);
+                double used = demand.Where(d => d.Side == convoy.Side && served.Contains(d.ZoneId)).Sum(d => d.Tons);
+
+                double stock = target.ForwardReserve;
+                double taken = Math.Min(stock, used);
+
+                convoy.UsedTons = used;
+                target.ForwardReserve = stock - taken;
+                convoy.ReserveAfter = target.ForwardReserve;
+
+                Detail(config, "  forward stock " + convoy.Slot + " (" + target.Id + ") : " + stock.ToString("0.#") + " t, sector used " + used.ToString("0.#")
+                    + " t -> " + target.ForwardReserve.ToString("0.#") + " t left" + (used > stock ? " (stock too small: " + (used - stock).ToString("0.#") + " t missing)" : ""));
+
+                if (target.ForwardReserve <= 0.001)
+                {
+                    target.ForwardReserve = 0;   // point épuisé : plus rien à enregistrer (voir Saver_WargameZoneActive)
+                    convoy.ReserveAfter = 0;
                 }
             }
         }

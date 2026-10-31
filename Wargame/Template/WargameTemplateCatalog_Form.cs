@@ -15,7 +15,8 @@ namespace DCE_Manager
     //
     // Colonnes retirées (plus utilisées par le moteur) : Attack, Defense, Supply cost.
     // Elles restent dans le fichier du catalogue, pour ne rien abîmer.
-    // Type "supplypoint" / "convoy" : pas des formations ; Power et xN n'y servent pas (grisés).
+    // Type "supplypoint" / "convoy" : pas des formations ; Power, t/turn et xN n'y servent pas (grisés).
+    // t/turn = consommation en tonnes par tour d'un exemplaire (proposée d'après le type, modifiable).
     internal class WargameTemplateCatalog_Form : Form
     {
         private readonly WargameTemplateCatalog _catalog;
@@ -64,6 +65,8 @@ namespace DCE_Manager
             _grid.Columns.Add(colSide);
             _grid.Columns.Add(colType);
             _grid.Columns.Add("colPower", "Power");
+            _grid.Columns.Add("colConsumption", "Tons (1000 kg) / day");
+            _grid.Columns.Add("colCarry", "Convoy tons");
             _grid.Columns.Add("colMultiplier", "Default xN");
             _grid.Columns.Add("colVehicles", "Units");
             _grid.Columns.Add("colPriority", "tgt_Priority");
@@ -72,6 +75,8 @@ namespace DCE_Manager
             _grid.Columns.Add("colFirepowerMax", "tgt_FP_max");
 
             _grid.Columns["colPower"].Width = 60;
+            _grid.Columns["colConsumption"].Width = 120;
+            _grid.Columns["colCarry"].Width = 90;
             _grid.Columns["colMultiplier"].Width = 75;
             _grid.Columns["colVehicles"].Width = 60;
             _grid.Columns["colPriority"].Width = 75;
@@ -85,6 +90,8 @@ namespace DCE_Manager
 
             _grid.Columns["colType"].ToolTipText = "Unit type. supplypoint = forward supply point placed near the formations. convoy = road convoy (only its vehicle types are used, the convoy is built in game).";
             _grid.Columns["colPower"].ToolTipText = "Strength of ONE copy of this template in the wargame. A formation is worth xN x Power.";
+            _grid.Columns["colConsumption"].ToolTipText = "Supply used by ONE copy of this template in 24 hours, in tons (1 ton = 1000 kg: fuel, ammo, food). A formation uses xN x this value. The engine converts it to one turn with the timing of conf_mod (mission length, pauses, daylight). Proposed from the type: armor 25, mech 20, artillery 15, infantry 8, air defense 6, logistics 3. Use 'Apply type defaults' to get the proposal back.";
+            _grid.Columns["colCarry"].ToolTipText = "Convoy templates only: tons the convoy carries when it arrives complete. Grey italic = automatic (Units x tons per vehicle, 10 by default in wargame_balance.lua), recalculated when the unit count changes. Type a number to set your own value (bold): carry more with few trucks = fewer units in DCS = better FPS. Clear the cell to go back to automatic.";
             _grid.Columns["colMultiplier"].ToolTipText = "xN proposed when you add this template to a zone.";
             _grid.Columns["colVehicles"].ToolTipText = "Number of units in the .stm file (information only). Counted again with 'Recount units'.";
 
@@ -142,7 +149,7 @@ namespace DCE_Manager
 
                 foreach (WargameTemplateEntry e in _catalog.Entries)
                 {
-                    int index = _grid.Rows.Add(e.Template, e.Side, e.Type, e.Power,
+                    int index = _grid.Rows.Add(e.Template, e.Side, e.Type, e.Power, e.Consumption, e.CarryTons,
                         e.DefaultMultiplier, e.VehicleCount,
                         e.Priority, string.Join(", ", e.Attributes), e.FirepowerMin, e.FirepowerMax);
 
@@ -162,12 +169,67 @@ namespace DCE_Manager
             string type = row.Cells["colType"].Value?.ToString() ?? WargameUnitType.Infantry;
             bool formation = WargameUnitType.IsFormationType(type);
 
-            foreach (string col in new[] { "colPower", "colMultiplier" })
+            foreach (string col in new[] { "colPower", "colConsumption", "colMultiplier" })
             {
                 DataGridViewCell cell = row.Cells[col];
                 cell.ReadOnly = !formation;
                 cell.Style.BackColor = formation ? Color.Empty : Color.Gainsboro;
                 cell.Style.ForeColor = formation ? Color.Empty : Color.Gray;
+            }
+
+            // Tonnes emportées : seulement pour un convoi
+            bool convoy = string.Equals(type, WargameUnitType.Convoy, StringComparison.OrdinalIgnoreCase);
+            DataGridViewCell carry = row.Cells["colCarry"];
+            carry.ReadOnly = !convoy;
+            carry.Style.BackColor = convoy ? Color.Empty : Color.Gainsboro;
+
+            WargameTemplateEntry entry = _catalog.Find(row.Cells["colTemplate"].Value?.ToString());
+            if (entry != null) RefreshCarryCell(row, entry);
+        }
+
+        // Tonnes par véhicule de convoi (wargame_balance.lua : convoy_truck_tons)
+        private double TruckTons
+        {
+            get { return _campaignInfo != null ? _campaignInfo.CombatConfig.ConvoyTruckTons : 10.0; }
+        }
+
+        // Valeur automatique d'un convoi : nombre d'unités du template x tonnes par véhicule
+        private double AutoCarry(WargameTemplateEntry entry)
+        {
+            return entry.VehicleCount * TruckTons;
+        }
+
+        // Affiche la cellule "Convoy tons" : la valeur automatique (gris, italique) tant que le campaignMaker n'a rien saisi,
+        // sinon sa valeur (gras). Rien pour un template qui n'est pas un convoi.
+        private void RefreshCarryCell(DataGridViewRow row, WargameTemplateEntry entry)
+        {
+            DataGridViewCell cell = row.Cells["colCarry"];
+            bool convoy = string.Equals(row.Cells["colType"].Value?.ToString(), WargameUnitType.Convoy, StringComparison.OrdinalIgnoreCase);
+
+            bool wasLoading = _loading;
+            _loading = true;
+            try
+            {
+                if (!convoy)
+                {
+                    cell.Value = null;
+                    cell.ToolTipText = "";
+                    return;
+                }
+
+                double auto = AutoCarry(entry);
+                bool manual = entry.CarryTons > 0;
+
+                cell.Value = manual ? entry.CarryTons : auto;
+                cell.Style.ForeColor = manual ? Color.Black : Color.DimGray;
+                cell.Style.Font = new Font(_grid.Font, manual ? FontStyle.Bold : FontStyle.Italic);
+                cell.ToolTipText = manual
+                    ? "Your value. Automatic would be " + auto.ToString("0.#") + " t (" + entry.VehicleCount + " unit(s) x " + TruckTons.ToString("0.#") + " t). Clear the cell to go back to automatic."
+                    : "Automatic: " + entry.VehicleCount + " unit(s) x " + TruckTons.ToString("0.#") + " t. Type a number to set your own value.";
+            }
+            finally
+            {
+                _loading = wasLoading;
             }
         }
 
@@ -188,6 +250,7 @@ namespace DCE_Manager
                 out priority, out attributes, out firepowerMin, out firepowerMax);
 
             row.Cells["colPower"].Value = power;
+            row.Cells["colConsumption"].Value = WargameUnitType.GetDefaultConsumption(type);
             row.Cells["colPriority"].Value = priority;
             row.Cells["colAttributes"].Value = string.Join(", ", attributes);
             row.Cells["colFirepowerMin"].Value = firepowerMin;
@@ -265,6 +328,15 @@ namespace DCE_Manager
 
                 entry.Type = row.Cells["colType"].Value?.ToString() ?? entry.Type;
                 entry.Power = ParseDouble(row.Cells["colPower"], entry.Power);
+                entry.Consumption = Math.Max(0, ParseDouble(row.Cells["colConsumption"], entry.Consumption));
+
+                // Tonnes emportées (convoi) : une cellule vide, à 0, ou égale à la valeur automatique = automatique (CarryTons = 0)
+                if (string.Equals(entry.Type, WargameUnitType.Convoy, StringComparison.OrdinalIgnoreCase))
+                {
+                    double typed = ParseDouble(row.Cells["colCarry"], -1);
+                    entry.CarryTons = (typed <= 0 || Math.Abs(typed - AutoCarry(entry)) < 0.001) ? 0 : typed;
+                    RefreshCarryCell(row, entry);
+                }
 
                 int multiplier = (int)ParseDouble(row.Cells["colMultiplier"], entry.DefaultMultiplier);
                 entry.DefaultMultiplier = multiplier > 0 ? multiplier : 1;

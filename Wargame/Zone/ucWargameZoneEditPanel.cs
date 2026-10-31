@@ -35,6 +35,7 @@ namespace DCE_Manager
         private DataGridView _gridFormations;
         private DataGridViewComboBoxColumn _colTemplate;
         private Label _labelTotalStock;
+        private Label _labelDemand;
 
         private ComboBox _comboSupplyRoute;
         private ComboBox _comboTerrain;
@@ -236,8 +237,9 @@ namespace DCE_Manager
                 if (!string.IsNullOrEmpty(f.Template) && !_colTemplate.Items.Contains(f.Template))
                     _colTemplate.Items.Add(f.Template);
 
+                // L'ordre des valeurs suit l'ordre des colonnes (voir BuildUi)
                 int rowIndex = _gridFormations.Rows.Add(
-                    f.Template, f.Name, f.Wave, f.Multiplier, f.ForcePower,
+                    f.Template, f.Name, f.Wave, f.Multiplier, f.ForcePower, FormationDemand(f.Template, f.Multiplier),
                     f.Priority, string.Join(", ", f.Attributes), f.FirepowerMin, f.FirepowerMax);
 
                 // L'identifiant n'est pas affiché (non modifiable) mais doit suivre sa
@@ -325,11 +327,55 @@ namespace DCE_Manager
             return fallback;
         }
 
+        // Consommation d'une formation en tonnes par JOUR = xN x consommation du template (catalogue).
+        // Valeur NOMINALE : elle ne tient pas compte de la position (arrière / front / combat), c'est le moteur qui l'appliquera.
+        private double FormationDemand(string template, int multiplier)
+        {
+            if (string.IsNullOrWhiteSpace(template) || _templateCatalog == null)
+                return 0;
+
+            return Math.Round(multiplier * _templateCatalog.GetConsumption(template), 1);
+        }
+
+        // Met à jour la cellule "t/turn" d'une ligne (colonne en lecture seule : on écrit directement dans la cellule).
+        private void RefreshDemandCell(int rowIndex)
+        {
+            DataGridViewRow row = _gridFormations.Rows[rowIndex];
+
+            string template = row.Cells["colTemplate"].Value?.ToString();
+            if (string.IsNullOrWhiteSpace(template)) return;
+
+            int multiplier = ParseCell(row.Cells["colMultiplier"], _templateCatalog?.GetDefaultMultiplier(template) ?? 1);
+
+            _loading = true;
+            try
+            {
+                row.Cells["colDemand"].Value = FormationDemand(template, multiplier);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+
         private void UpdateTotalStockLabel()
         {
             _labelTotalStock.Text = _zone != null
                 ? "Zone total ForcePower: " + Math.Round(_zone.GetTotalForcePower(), 1)
                 : "Zone total ForcePower: -";
+
+            // Besoin de la zone : somme des formations, valeur nominale (voir FormationDemand)
+            if (_zone == null)
+            {
+                _labelDemand.Text = "Zone supply demand: -";
+                return;
+            }
+
+            double demand = 0;
+            foreach (WargameFormation f in _zone.Formations)
+                demand += FormationDemand(f.Template, f.Multiplier);
+
+            _labelDemand.Text = "Zone supply demand: " + Math.Round(demand, 1) + " tons/day (1 ton = 1000 kg)";
         }
 
         private void GridFormations_CurrentCellDirtyStateChanged(object sender, EventArgs e)
@@ -354,6 +400,12 @@ namespace DCE_Manager
                 RecomputeForcePower(e.RowIndex);
 
             FillRowDefaults(e.RowIndex);
+
+            // Template ou xN modifié -> la consommation de la ligne change aussi
+            if (e.ColumnIndex == _gridFormations.Columns["colMultiplier"].Index ||
+                e.ColumnIndex == _gridFormations.Columns["colTemplate"].Index)
+                RefreshDemandCell(e.RowIndex);
+
             SyncFormationsFromGrid();
             ZoneModified?.Invoke();
         }
@@ -633,7 +685,8 @@ namespace DCE_Manager
             flow.Controls.Add(groupControl);
 
             // ---- Units ----
-            var groupFormations = new GroupBox { Text = "Units", Width = 300, Height = 280 };
+            // Hauteur 320 : grille (20 -> 240), bouton Remove (246 -> 272), puis les deux lignes de totaux
+            var groupFormations = new GroupBox { Text = "Units", Width = 300, Height = 320 };
             _groupUnits = groupFormations;
 
             _gridFormations = new DataGridView
@@ -660,6 +713,7 @@ namespace DCE_Manager
             _gridFormations.Columns.Add("colWave", "Wave");   // visible seulement pour un plan de débarquement
             _gridFormations.Columns.Add("colMultiplier", "xN");
             _gridFormations.Columns.Add("colForcePower", "ForcePower");
+            _gridFormations.Columns.Add("colDemand", "Tons/day");   // consommation, lecture seule (se règle dans la grille des templates)
             _gridFormations.Columns.Add("colPriority", "tgt_Priority");
             _gridFormations.Columns.Add("colAttributes", "tgt_Attributes");
             _gridFormations.Columns.Add("colFirepowerMin", "tgt_FP_min");
@@ -672,6 +726,11 @@ namespace DCE_Manager
             _gridFormations.Columns["colWave"].ToolTipText = "Landing order: same number = lands together, lowest first. 0 = abandoned (never launched).";
             _gridFormations.Columns["colMultiplier"].Width = 45;
             _gridFormations.Columns["colForcePower"].Width = 75;
+            _gridFormations.Columns["colDemand"].Width = 70;
+            _gridFormations.Columns["colDemand"].ReadOnly = true;
+            _gridFormations.Columns["colDemand"].DefaultCellStyle.BackColor = Color.WhiteSmoke;
+            _gridFormations.Columns["colDemand"].DefaultCellStyle.ForeColor = Color.DimGray;
+            _gridFormations.Columns["colDemand"].ToolTipText = "Supply this unit uses in 24 hours, in tons (1 ton = 1000 kg) (xN x the template's consumption). Read only: change it in the Templates step. Fighting units use more, rear units less.";
             _gridFormations.Columns["colPriority"].Width = 65;
             _gridFormations.Columns["colAttributes"].Width = 120;
             _gridFormations.Columns["colFirepowerMin"].Width = 65;
@@ -716,13 +775,23 @@ namespace DCE_Manager
             buttonRemoveFormation.Click += ButtonRemoveFormation_Click;
             groupFormations.Controls.Add(buttonRemoveFormation);
 
+            // Les deux totaux sont sous le bouton Remove (avant, le total était à y=172, donc caché derrière la grille)
             _labelTotalStock = new Label
             {
                 Text = "Zone total ForcePower: -",
-                Location = new Point(10, 172),
+                Location = new Point(10, buttonRemoveFormation.Bottom + 6),
                 AutoSize = true,
             };
             groupFormations.Controls.Add(_labelTotalStock);
+
+            _labelDemand = new Label
+            {
+                Text = "Zone supply demand: -",
+                Location = new Point(10, buttonRemoveFormation.Bottom + 26),
+                AutoSize = true,
+            };
+            new ToolTip().SetToolTip(_labelDemand, "Sum of the units' consumption, in tons (1 ton = 1000 kg) per 24 hours, before any combat effect (the engine converts it to one turn). Compare it with the supply points and convoys that feed the zone.");
+            groupFormations.Controls.Add(_labelDemand);
 
             flow.Controls.Add(groupFormations);
 

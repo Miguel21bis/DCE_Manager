@@ -55,6 +55,7 @@ namespace DCE_Manager
             string campaignFolder = WargameZoneRepository.GetCampaignFolder(campaignName);
 
             info.LoadSideLabels(Path.Combine(campaignFolder, "Init", "camp_init.lua"));
+            info.LoadTurnLength(campaignFolder);
 
             string balancePath = Path.Combine(campaignFolder, "Init", "Wargame", "wargame_balance.lua");
             if (info.HasWargameConfig)
@@ -69,6 +70,39 @@ namespace DCE_Manager
             info.RedTemplates = ListTemplates(info.RedFolder);
 
             return info;
+        }
+
+        // Part d'un jour que dure un tour, d'après les temps de conf_mod.lua : mission_duration + pause moyenne (idle_time_min / max).
+        // Avec "daylight missions only", les tours ne se jouent que de l'aube au crépuscule : on compte combien tiennent dans
+        // ce créneau, et un tour vaut 1 / ce nombre de jour (la nuit passe aussi). Illisible : valeur par défaut du code.
+        private void LoadTurnLength(string campaignFolder)
+        {
+            try
+            {
+                string confMod = Path.Combine(campaignFolder, "Init", "conf_mod.lua");
+                if (!File.Exists(confMod)) confMod = Path.Combine(campaignFolder, "conf_mod.lua");
+
+                string campInit = Path.Combine(campaignFolder, "Init", "camp_init.lua");
+                if (!File.Exists(campInit)) campInit = Path.Combine(campaignFolder, "camp_init.lua");
+
+                string note;
+                WargameCampClock clock = WargameCampClock.FromConfMod(confMod, campInit, out note);
+
+                double cycle = Math.Max(60.0, clock.CycleSeconds);
+                double fraction = cycle / 86400.0;
+
+                if (clock.OnlyDay && clock.Dusk > clock.Dawn)
+                {
+                    double perDay = Math.Floor((clock.Dusk - clock.Dawn) / cycle) + 1.0;
+                    fraction = 1.0 / Math.Max(1.0, perDay);
+                }
+
+                CombatConfig.TurnDayFraction = Math.Max(0.02, Math.Min(1.0, fraction));
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("WargameCampaignInfo | durée d'un tour non lue (conf_mod.lua) : " + ex.Message);
+            }
         }
 
         // Libellé affiché pour une valeur de Control (WargameSide.*)
@@ -229,13 +263,24 @@ wargame_balance = {
 	cutoff_grace_turns = 3, -- @ui numeric min=0 max=20 group=""Wargame - supply"" label=""Turns before a cut-off zone stops attacking"" help=A zone that just lost its supply (for example a landing beach) can still attack for this many turns: the formations live on the stock they brought. The count restarts when a landing wave arrives or when supply comes back. [default: 3]
 	cutoff_attrition = 0.05, -- @ui numeric min=0 max=0.5 group=""Wargame - supply"" label=""Strength lost per mission without stock"" help=A formation cut off from supply, with no stock left for 2 missions or more, loses this share of its strength each mission, even without fighting (0.05 = 5 %). [default: 0.05]
 	cutoff_attrition_floor = 0.25, -- @ui numeric min=0 max=1 group=""Wargame - supply"" label=""Lowest strength from lack of supply"" help=Lack of supply never brings a formation below this share of its normal strength (0.25 = 25 %). [default: 0.25]
-	supply_convoys = false, -- @ui checkbox group=""Wargame - convoys"" label=""Supply convoys and forward supply points"" help=If enabled, zones with formations that are badly supplied get a road convoy. Each convoy feeds a forward supply point near the formations: a small supply source with a stock of a few missions. Destroyed convoys do not refill it. The forward point replaces the ""turns before a cut-off zone stops attacking"" stock (except for a landing wave, which keeps its own stock). [default: false]
+	supply_convoys = false, -- @ui checkbox group=""Wargame - convoys"" label=""Supply convoys and forward supply points"" help=If enabled, zones with formations that are badly supplied get a road convoy. Each convoy feeds a forward supply point near the formations: a small supply source with a stock in tons. Destroyed convoys do not refill it. The forward point replaces the ""turns before a cut-off zone stops attacking"" stock (except for a landing wave, which keeps its own stock). [default: false]
 	convoy_max = 3, -- @ui numeric min=0 max=20 group=""Wargame - convoys"" label=""Maximum convoys per side"" help=Most convoys a side can send each mission. If more zones need one, they are grouped into this many sectors. [default: 3]
 	convoy_free_range = 4, -- @ui numeric min=0.5 max=100 group=""Wargame - convoys"" label=""Reach of a source without convoys"" help=When convoys are enabled, a supply source only supplies the zones around it, up to this cost (about 2 to 3 zones on good roads; same costs as ""Supply range""). Farther zones need a convoy and a forward supply point. When convoys are disabled, ""Supply range"" is used. [default: 4]
 	convoy_need_level = 0.6, -- @ui numeric min=0 max=1 group=""Wargame - convoys"" label=""Supply level that needs a convoy"" help=A zone with formations whose supply level is below this value (0.6 = 60 %) needs a convoy. Front line zones come first. [default: 0.6]
 	forward_point_capacity = 40, -- @ui numeric min=0 max=1000 group=""Wargame - convoys"" label=""Forward supply point capacity"" help=Supply capacity of a forward supply point while it still has stock (same scale as the other sources). [default: 40]
-	forward_point_reserve = 3, -- @ui numeric min=0 max=20 group=""Wargame - convoys"" label=""Forward supply point stock (missions)"" help=Stock of a full forward supply point, in missions. A convoy that arrives fills it in proportion to what it delivers (half destroyed = half the stock). Each mission without a convoy uses one mission of stock. [default: 3]
+	forward_point_stock_tons = 300, -- @ui numeric min=0 max=5000 group=""Wargame - convoys"" label=""Forward supply point max stock (tons)"" help=Most supplies a forward supply point can hold, in tons (1 ton = 1000 kg). Each mission the formations of its sector use their consumption from this stock (see the consumption multipliers). If the stock is smaller than the need, the point supplies less in proportion. [default: 300]
+	convoy_truck_tons = 10, -- @ui numeric min=0 max=100 group=""Wargame - convoys"" label=""Tons per convoy vehicle"" help=Supplies carried by ONE vehicle of a convoy, in tons (1 ton = 1000 kg; a military truck carries about 10). The payload of a convoy = number of vehicles of its 'convoy' template x this value. A bigger convoy template = more supplies per mission, but more units in the game. [default: 10]
+	convoy_payload_tons = 100, -- @ui numeric min=0 max=5000 group=""Wargame - convoys"" label=""Convoy payload without template (tons)"" help=Payload of a convoy when it cannot be computed from a 'convoy' template (no such template in the template catalog, or supply by air only). Normally the payload comes from the template: vehicles x tons per vehicle. [default: 100]
 	forward_point_rebuild_loss = 0.5, -- @ui numeric min=0 max=1 group=""Wargame - convoys"" label=""Loss when a destroyed supply point is rebuilt"" help=If the forward supply point was destroyed in the last mission (below 10 %), the next convoy rebuilds it but only refills (1 - this value) of what it delivers (0.5 = half). [default: 0.5]
+	supply_use_rear = 0.5, -- @ui numeric min=0 max=10 group=""Wargame - consumption"" label=""Consumption x: rear"" help=Multiplier of the daily consumption (tons per turn, set per template in the template catalog) for a formation that is NOT in contact with the enemy. 0.5 = half. Only shown in the Preview for now. [default: 0.5]
+	supply_use_front = 1, -- @ui numeric min=0 max=10 group=""Wargame - consumption"" label=""Consumption x: front, no fight"" help=Multiplier for a formation in a zone next to an enemy zone, but not fighting this turn. 1 = the normal consumption of the template. [default: 1]
+	supply_use_attack = 2, -- @ui numeric min=0 max=10 group=""Wargame - consumption"" label=""Consumption x: attacking"" help=Multiplier for a formation that attacks this turn (ammunition, fuel). 2 = twice the normal consumption. [default: 2]
+	supply_use_defend = 1.5, -- @ui numeric min=0 max=10 group=""Wargame - consumption"" label=""Consumption x: defending"" help=Multiplier for a formation that defends against an attack this turn. 1.5 = one and a half times the normal consumption. [default: 1.5]
+	heli_cargo_blue_tons = 1.2, -- @ui numeric min=0 max=50 group=""Wargame - helicopters"" label=""Blue helicopter cargo (tons)"" help=Supplies carried by ONE blue helicopter sortie, in tons (1 ton = 1000 kg). A UH-1H carries about 1.2 t. [default: 1.2]
+	heli_cargo_red_tons = 3, -- @ui numeric min=0 max=50 group=""Wargame - helicopters"" label=""Red helicopter cargo (tons)"" help=Supplies carried by ONE red helicopter sortie, in tons. A Mi-8MT carries about 3 t. [default: 3]
+	heli_max_sorties = 1, -- @ui numeric min=0 max=10 group=""Wargame - helicopters"" label=""Helicopter sorties per supply point"" help=Most helicopter flights sent to one forward supply point each mission. The number really sent = tons still missing / cargo of one sortie, up to this value. 0 = no helicopter supply. [default: 1]
+	heli_fleet = 3, -- @ui numeric min=0 max=20 group=""Wargame - helicopters"" label=""Helicopters per side and mission"" help=Helicopters available to each side each mission, for all its supply points together. The most urgent points get them first (no road first). [default: 3]
+	heli_road_share = 0.3, -- @ui numeric min=0 max=1 group=""Wargame - helicopters"" label=""Helicopter share when a convoy goes by road"" help=When a road convoy already serves the point, helicopters only try to bring this share of the tons still missing. Without a road they try to bring all of it. 0.3 = 30%. [default: 0.3]
 	terrain = { -- @ui matrix group=""Wargame - terrain and roads"" label=""Terrain"" rows=""plain:Plain,hills:Hills,mountain:Mountain,urban:Urban,coastal:Coastal"" cols=""1:Defense x,2:Supply cost x"" help=Defense x: how much the terrain helps the DEFENDER of a zone. 1.0 = no effect. 1.5 = the defender counts as 50% stronger. Below 1.0 = the defender is weaker. Allowed 0.5 to 3. Supply cost x: how hard it is to bring supplies THROUGH this terrain (see ""Supply range""). 1.0 = easy. 3 = three times harder. Allowed 0.5 to 10. [default: plain 1.0/1.0, hills 1.3/1.5, mountain 1.8/3.0, urban 1.6/1.5, coastal 1.1/1.0]
 		plain    = { 1.0, 1.0 },
 		hills    = { 1.3, 1.5 },
@@ -322,9 +367,20 @@ wargame_balance = {
             ReadNumber(cfg, "convoy_max", ref CombatConfig.ConvoyMax);
             ReadNumber(cfg, "convoy_need_level", ref CombatConfig.ConvoyNeedLevel);
             ReadNumber(cfg, "forward_point_capacity", ref CombatConfig.ForwardPointCapacity);
-            ReadNumber(cfg, "forward_point_reserve", ref CombatConfig.ForwardPointReserve);
+            ReadNumber(cfg, "forward_point_stock_tons", ref CombatConfig.ForwardPointStockTons);
+            ReadNumber(cfg, "convoy_payload_tons", ref CombatConfig.ConvoyPayloadTons);
+            ReadNumber(cfg, "convoy_truck_tons", ref CombatConfig.ConvoyTruckTons);
+            ReadNumber(cfg, "heli_cargo_blue_tons", ref CombatConfig.HeliCargoBlueTons);
+            ReadNumber(cfg, "heli_cargo_red_tons", ref CombatConfig.HeliCargoRedTons);
+            ReadNumber(cfg, "heli_max_sorties", ref CombatConfig.HeliMaxSorties);
+            ReadNumber(cfg, "heli_fleet", ref CombatConfig.HeliFleet);
+            ReadNumber(cfg, "heli_road_share", ref CombatConfig.HeliRoadShare);
             ReadNumber(cfg, "convoy_free_range", ref CombatConfig.ConvoyFreeRange);
             ReadNumber(cfg, "forward_point_rebuild_loss", ref CombatConfig.ForwardRebuildLoss);
+            ReadNumber(cfg, "supply_use_rear", ref CombatConfig.SupplyUseRear);
+            ReadNumber(cfg, "supply_use_front", ref CombatConfig.SupplyUseFront);
+            ReadNumber(cfg, "supply_use_attack", ref CombatConfig.SupplyUseAttack);
+            ReadNumber(cfg, "supply_use_defend", ref CombatConfig.SupplyUseDefend);
             ReadBool(cfg, "empty_zone_influence", ref CombatConfig.EmptyZoneInfluence);
             ReadBool(cfg, "axis_reinforcement", ref CombatConfig.AxisReinforcement);
             ReadBool(cfg, "axis_pull_surplus", ref CombatConfig.AxisPullSurplus);
