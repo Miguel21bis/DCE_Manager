@@ -203,6 +203,7 @@
     <Compile Include="ConfMod\CampInitUpdater.cs" />
     <Compile Include="ConfMod\ConfModDynamicData.cs" />
     <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
+    <Compile Include="ConfMod\ConfMod_SunTimes.cs" />
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
     <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
     <Compile Include="Core\ChildProcessTracker.cs" />
@@ -224,6 +225,11 @@
     <Compile Include="Grid_Campaign\ManageFamily_Form.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Map\Map_UI_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_View.cs" />
+    <Compile Include="Map\Map_Web.cs" />
     <Compile Include="Parser\Parser_BugList.cs" />
     <Compile Include="Core\UserLevel.cs" />
     <Compile Include="Grid_Campaign\CampaignRepair.cs" />
@@ -313,6 +319,8 @@
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
     <Compile Include="Wargame\Engine\WargameAxis.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_Air.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_BaseCapture.cs" />
     <Compile Include="Wargame\Engine\Wargame_Engine_Farp.cs" />
     <Compile Include="Wargame\Spawn\WargameConfigGrid.cs" />
     <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />

@@ -315,6 +315,98 @@ namespace DCE_Manager
         // Fin d'un glissement de boîte (elle a bougé)
         public event Action<WargameZoneData> LandingMoved;
 
+        // ---- Règle de distance (comme la carte F10 de DCS) ----
+        // Activée par un bouton de l'éditeur. Clic = point A, la ligne suit alors la souris avec la distance en direct ;
+        // clic = point B, la mesure reste affichée ; clic suivant = nouvelle mesure. Clic droit ou Echap = efface.
+        // Les points sont gardés en coordonnées DCS : zoom et déplacement de la carte ne les décalent pas.
+        private bool _rulerOn;
+        private bool _hasRulerA, _hasRulerB;
+        private PointF _rulerA, _rulerB;          // DCS
+        private Rectangle _rulerDirty = Rectangle.Empty;   // dernière zone écran dessinée : seule elle est redessinée à chaque mouvement
+
+        public bool RulerEnabled
+        {
+            get { return _rulerOn; }
+            set
+            {
+                _rulerOn = value;
+                _hasRulerA = false;
+                _hasRulerB = false;
+                Cursor = value ? Cursors.Cross : Cursors.Default;
+                Invalidate();
+            }
+        }
+
+        private void ClearRuler()
+        {
+            _hasRulerA = false;
+            _hasRulerB = false;
+            Invalidate();
+        }
+
+        // Zone écran à redessiner pour la règle : du point A à la souris, avec la place du texte
+        private Rectangle RulerRect()
+        {
+            if (!_hasRulerA || _calibration == null || !_calibration.IsCalibrated) return Rectangle.Empty;
+
+            PointF a = _calibration.DcsToPixel(_rulerA);
+            PointF end = _hasRulerB ? _calibration.DcsToPixel(_rulerB) : ClientToImage(_lastMouseClient.X, _lastMouseClient.Y);
+
+            var pa = new Point((int)(a.X * _zoom + _pan.X), (int)(a.Y * _zoom + _pan.Y));
+            var pb = new Point((int)(end.X * _zoom + _pan.X), (int)(end.Y * _zoom + _pan.Y));
+
+            Rectangle r = Rectangle.FromLTRB(Math.Min(pa.X, pb.X), Math.Min(pa.Y, pb.Y), Math.Max(pa.X, pb.X), Math.Max(pa.Y, pb.Y));
+            r.Inflate(12, 12);
+            r = Rectangle.Union(r, new Rectangle(pb.X - 20, pb.Y - 60, 260, 80));   // texte à côté du bout de la ligne
+            return r;
+        }
+
+        private void DrawRuler(Graphics g)
+        {
+            if (!_rulerOn || !_hasRulerA || _calibration == null || !_calibration.IsCalibrated) return;
+
+            PointF a = _calibration.DcsToPixel(_rulerA);
+            PointF b;
+            PointF bDcs;
+
+            if (_hasRulerB)
+            {
+                bDcs = _rulerB;
+                b = _calibration.DcsToPixel(_rulerB);
+            }
+            else
+            {
+                b = ClientToImage(_lastMouseClient.X, _lastMouseClient.Y);
+                bDcs = _calibration.PixelToDcs(b);
+            }
+
+            double meters = Math.Sqrt(Math.Pow(bDcs.X - _rulerA.X, 2) + Math.Pow(bDcs.Y - _rulerA.Y, 2));
+            string text = (meters / 1000.0).ToString("0.0") + " km   |   " + (meters / 1852.0).ToString("0.0") + " Nm";
+
+            float z = _zoom;
+
+            using (var back = new Pen(Color.FromArgb(230, Color.Black), 5f / z))
+            using (var front = new Pen(Color.Yellow, 2.5f / z) { DashStyle = DashStyle.Dash })
+            using (var dot = new SolidBrush(Color.Yellow))
+            using (var font = new Font("Segoe UI", 10f / z, FontStyle.Bold))
+            using (var textBrush = new SolidBrush(Color.White))
+            using (var boxBrush = new SolidBrush(Color.FromArgb(215, Color.Black)))
+            {
+                g.DrawLine(back, a, b);
+                g.DrawLine(front, a, b);
+
+                float r = 4f / z;
+                g.FillEllipse(dot, a.X - r, a.Y - r, r * 2, r * 2);
+                g.FillEllipse(dot, b.X - r, b.Y - r, r * 2, r * 2);
+
+                // Texte près du bout de la ligne (la souris, ou le point B), un peu au-dessus à droite pour ne pas être sous le curseur
+                SizeF size = g.MeasureString(text, font);
+                float tx = b.X + 14f / z, ty = b.Y - size.Height - 10f / z;
+                g.FillRectangle(boxBrush, tx - 3f / z, ty - 1f / z, size.Width + 6f / z, size.Height + 2f / z);
+                g.DrawString(text, font, textBrush, tx, ty);
+            }
+        }
+
         // ---- FARP des plages de débarquement (marqueurs déplaçables, vue Init de l'éditeur) ----
         private List<WargameFarp> _farps = new List<WargameFarp>();
         private WargameFarp _movingFarp;          // FARP attrapée à la souris
@@ -787,13 +879,13 @@ namespace DCE_Manager
             _movingFarpMoved = false;
 
             // Une FARP est posée par-dessus tout : on la teste en premier
-            if (e.Button == MouseButtons.Left && !ReadOnly && FarpEditable
+            if (e.Button == MouseButtons.Left && !ReadOnly && FarpEditable && !_rulerOn
                 && _zonePickCallback == null && !_pickingCalibrationPoint)
             {
                 _movingFarp = HitTestFarp(ClientToImage(e.X, e.Y));
             }
 
-            if (_movingFarp == null && e.Button == MouseButtons.Left && !ReadOnly && LandingEditable
+            if (_movingFarp == null && !_rulerOn && e.Button == MouseButtons.Left && !ReadOnly && LandingEditable
                 && _zonePickCallback == null && !_pickingCalibrationPoint)
             {
                 PointF downPoint = ClientToImage(e.X, e.Y);
@@ -820,6 +912,15 @@ namespace DCE_Manager
             _mouseInside = true;
             if (ShowMouseCoordinates)
                 Invalidate(CoordBoxRect());
+
+            // Règle en cours : on ne redessine que la zone de la ligne (ancienne + nouvelle), pas toute la carte
+            if (_rulerOn && _hasRulerA && !_hasRulerB)
+            {
+                Rectangle now = RulerRect();
+                Rectangle old = _rulerDirty;
+                _rulerDirty = now;
+                Invalidate(old.IsEmpty ? now : Rectangle.Union(old, now));
+            }
 
             if (e.Button != MouseButtons.Left)
                 return;
@@ -873,6 +974,14 @@ namespace DCE_Manager
             }
         }
 
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+
+            if (e.KeyCode == Keys.Escape && _rulerOn)
+                ClearRuler();
+        }
+
         protected override void OnMouseLeave(EventArgs e)
         {
             base.OnMouseLeave(e);
@@ -887,7 +996,7 @@ namespace DCE_Manager
             _isDragging = false;
 
             if (!_pickingCalibrationPoint)
-                Cursor = Cursors.Default;
+                Cursor = _rulerOn ? Cursors.Cross : Cursors.Default;
 
             if (_movingFarp != null)
             {
@@ -931,6 +1040,34 @@ namespace DCE_Manager
             if (e.Button == MouseButtons.Left && (ModifierKeys & Keys.Alt) == Keys.Alt && !_pickingCalibrationPoint)
             {
                 CopyDcsToClipboard(_mouseDownClientPoint);
+                return;
+            }
+
+            // Règle de distance : clic gauche = point A, puis point B ; clic droit = efface
+            if (_rulerOn && !_pickingCalibrationPoint && _zonePickCallback == null && _calibration != null && _calibration.IsCalibrated)
+            {
+                if (e.Button == MouseButtons.Right)
+                {
+                    ClearRuler();
+                    return;
+                }
+
+                PointF clickDcs = _calibration.PixelToDcs(ClientToImage(_mouseDownClientPoint.X, _mouseDownClientPoint.Y));
+
+                if (!_hasRulerA || _hasRulerB)
+                {
+                    _rulerA = clickDcs;
+                    _hasRulerA = true;
+                    _hasRulerB = false;
+                }
+                else
+                {
+                    _rulerB = clickDcs;
+                    _hasRulerB = true;
+                }
+
+                _rulerDirty = Rectangle.Empty;
+                Invalidate();
                 return;
             }
 
@@ -1179,6 +1316,7 @@ namespace DCE_Manager
 
                 DrawConvoys(e.Graphics);
                 DrawFarps(e.Graphics);
+                DrawRuler(e.Graphics);
 
                 // Points de force APRES les axes et les flèches (et après toutes les zones) : rien ne les recouvre
                 foreach (var kvp in _zonePixelShapes)

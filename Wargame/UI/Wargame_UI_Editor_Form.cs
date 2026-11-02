@@ -71,6 +71,7 @@ namespace DCE_Manager
 
         // Calque "Supply" : zones colorées selon leur ravitaillement, recalculé à chaque modification
         private CheckBox _chkSupply;
+        private CheckBox _chkRuler;
 
         private void RefreshSupplyOverlay()
         {
@@ -154,6 +155,19 @@ namespace DCE_Manager
             LoadStaticData();
             BuildUi();
 
+            // Campagne déjà commencée (mission 2 ou plus) : on ouvre directement la vue Active
+            if (StartInActive())
+            {
+                _suppressModeChange = true;
+                _viewingActive = true;
+                _radioInit.Checked = false;
+                _radioActive.Checked = true;
+                _mapView.LandingEditable = false;
+                _mapView.FarpEditable = false;
+                UpdateSaveButtonLabel();
+                _suppressModeChange = false;
+            }
+
             LoadZonesForCurrentMode();
             _mapView.LoadMap(_mapImage, _calibration, _zones);
             _mapView.SetObjectives(_objectives);
@@ -167,6 +181,21 @@ namespace DCE_Manager
                 MessageBox.Show(
                     "This campaign may not be fully ready for the wargame:\n\n- " + string.Join("\n\n- ", warnings),
                     "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        // Vue Active par défaut dès que la mission en cours est la 2 ou plus (et que l'état Active existe)
+        private bool StartInActive()
+        {
+            try
+            {
+                string folder = WargameZoneRepository.GetCampaignFolder(_campaignName);
+                return WargameLogistics.ReadMission(folder) > 1
+                    && File.Exists(WargameZoneRepository.GetActiveWargameZonesPath(_campaignName));
+            }
+            catch
+            {
+                return false;
             }
         }
 
@@ -417,6 +446,32 @@ namespace DCE_Manager
             buttonSettings.Click += (s, e) => OpenBalanceSettings();
             new ToolTip().SetToolTip(buttonSettings, "Wargame settings (combat, army, supply, convoys, terrain...)");
             gearStrip.Controls.Add(buttonSettings);
+
+            // Outils de la carte : boutons à bascule, toujours visibles dans la bande de gauche (de la place pour en ajouter d'autres dessous)
+            _chkRuler = MakeMapTool("⟷", 100);
+            _chkRuler.CheckedChanged += (s, e) => _mapView.RulerEnabled = _chkRuler.Checked;
+            new ToolTip().SetToolTip(_chkRuler, "Ruler (km / Nm), like the DCS F10 map: click point A, move the mouse (live distance), click point B. Right-click or Esc = clear. Untick to go back to normal clicks.");
+
+            _chkSupply = MakeMapTool("▦", 138);
+            _chkSupply.CheckedChanged += (s, e) => RefreshSupplyOverlay();
+            new ToolTip().SetToolTip(_chkSupply, "Show supply (colours). Colours each zone by its supply: green = full, red = weak, hatched grey = cut off, S = source. Updates as soon as you change a zone, route, source or bridge. Hover a zone for details.");
+
+            var buttonFit = new Button
+            {
+                Text = "⛶",
+                Font = new Font("Segoe UI Symbol", 15f),
+                Location = new Point(3, 176),
+                Size = new Size(32, 32),
+                FlatStyle = FlatStyle.Flat,
+                TabStop = false,
+            };
+            buttonFit.FlatAppearance.BorderColor = Color.Silver;
+            buttonFit.Click += (s, e) => _mapView.ResetZoom();
+            new ToolTip().SetToolTip(buttonFit, "Reset zoom (whole map)");
+
+            gearStrip.Controls.Add(_chkRuler);
+            gearStrip.Controls.Add(_chkSupply);
+            gearStrip.Controls.Add(buttonFit);
 
             Controls.Add(splitContainer);
             Controls.Add(_stepsPanel);
@@ -993,6 +1048,25 @@ namespace DCE_Manager
 
         // Bandeau Init/Active tout en haut de la zone d'édition - toujours visible,
         // quel que soit l'état de sélection sur la carte.
+        // Crée un bouton à bascule de la bande d'outils de la carte (y = position verticale)
+        private CheckBox MakeMapTool(string symbol, int y)
+        {
+            var chk = new CheckBox
+            {
+                Text = symbol,
+                Appearance = Appearance.Button,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Font = new Font("Segoe UI Symbol", 15f),
+                Location = new Point(3, y),
+                Size = new Size(32, 32),
+                FlatStyle = FlatStyle.Flat,
+                TabStop = false,
+            };
+            chk.FlatAppearance.BorderColor = Color.Silver;
+            chk.FlatAppearance.CheckedBackColor = Color.Gold;
+            return chk;
+        }
+
         private Panel BuildModeSelectorRow()
         {
             var panel = new Panel { Dock = DockStyle.Top, Height = 34, Padding = new Padding(10, 6, 10, 0) };
@@ -1005,14 +1079,9 @@ namespace DCE_Manager
             _radioInit.CheckedChanged += (s, e) => { if (_radioInit.Checked) TrySwitchMode(false); };
             _radioActive.CheckedChanged += (s, e) => { if (_radioActive.Checked) TrySwitchMode(true); };
 
-            _chkSupply = new CheckBox { Text = "Show supply (colours)", Location = new Point(225, 4), AutoSize = true };
-            _chkSupply.CheckedChanged += (s, e) => RefreshSupplyOverlay();
-            new ToolTip().SetToolTip(_chkSupply, "Colours each zone by its supply: green = full, red = weak, hatched grey = cut off, S = source. Updates as soon as you change a zone, route, source or bridge. Hover a zone for details.");
-
             panel.Controls.Add(label);
             panel.Controls.Add(_radioInit);
             panel.Controls.Add(_radioActive);
-            panel.Controls.Add(_chkSupply);
 
             return panel;
         }

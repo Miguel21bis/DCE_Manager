@@ -355,10 +355,10 @@ namespace DCE_Manager
         }
 
         // Zones capturées : tout ce qui est au sol et appartenait au camp qui a perdu la zone est détruit, définitivement
-        // (une reprise plus tard ne le ressuscite pas). Les navires et les bases aériennes ne sont pas touchés.
+        // (une reprise plus tard ne le ressuscite pas). Les navires ne sont pas touchés ; les bases aériennes sont désactivées à part (WargameBaseCapture).
         //   captured : zone -> camp qui l'a perdue
         public static List<string> DestroyInCapturedZones(string campaignFolder, List<WargameZoneData> zones,
-            Dictionary<WargameZoneData, string> captured, double checkDay)
+            Dictionary<WargameZoneData, string> captured, double checkDay, bool closeBases = true)
         {
             var report = new List<string>();
             if (captured == null || captured.Count == 0) return report;
@@ -391,6 +391,10 @@ namespace DCE_Manager
                 report.Add("captured zones : old DCE units NOT destroyed (" + ex.Message + ")");
                 WargameLog.Line("WargameOldDce | destruction en zone capturée impossible : " + ex.Message);
             }
+
+            // Bases aériennes du perdant dans ces zones : base + tous ses squads désactivés pour de bon
+            if (closeBases)
+                report.AddRange(WargameBaseCapture.Deactivate(campaignFolder, captured));
 
             return report;
         }
@@ -646,7 +650,8 @@ namespace DCE_Manager
 
         // Ecrit la situation du tour actuel de la session dans la campagne. Aucune mission n'est lancée ici.
         // Renvoie le compte rendu (une ligne par étape).
-        public static List<string> Export(string campaignName, WargameCombatSession session, WargameCampClock clock, Random rng)
+        //   airWar : true = écrit aussi la guerre aérienne fictive (appareils perdus, bases capturées désactivées) dans Active
+        public static List<string> Export(string campaignName, WargameCombatSession session, WargameCampClock clock, Random rng, bool airWar)
         {
             var report = new List<string>();
             string campaignFolder = WargameZoneRepository.GetCampaignFolder(campaignName);
@@ -697,6 +702,7 @@ namespace DCE_Manager
             // FARP des plages : position + état (utilisable dès que la plage est tenue par son camp) écrits dans Active/db_airbases.lua
             string farpReport = WargameFarpStore.SyncActive(campaignName, WargameFarpStore.Load(campaignName), zones, true);
             if (farpReport.Length > 0) report.Add(farpReport);
+            WargameFarpTrace.Snapshot(campaignName, "EXPORT turn " + turn + " : after the FARP sync");
 
             Dictionary<string, double> damaged = session.ObjectiveDamage();
             if (damaged.Count > 0)
@@ -705,8 +711,33 @@ namespace DCE_Manager
                 report.Add("objectives damaged in the preview : " + damaged.Count + " (" + parts + " building part(s) destroyed)");
             }
 
-            // 4. Ancien DCE : zones capturées (tout détruit) puis pertes simulées en première ligne
-            report.AddRange(WargameOldDce.DestroyInCapturedZones(campaignFolder, zones, captured, checkDay));
+            // Guerre aérienne, étape 1 : squads et bases remis comme au départ de la campagne (la Preview part de l'Init)
+            if (airWar && session.Air != null)
+                report.AddRange(WargameAirExport.ResetToInit(campaignFolder, session.Air));
+
+            if (airWar && session.Air != null) WargameFarpTrace.Snapshot(campaignName, "EXPORT turn " + turn + " : after the air reset to Init");
+
+            // 4. Ancien DCE : zones capturées (tout détruit, bases aériennes désactivées) puis pertes simulées en première ligne
+            report.AddRange(WargameOldDce.DestroyInCapturedZones(campaignFolder, zones, captured, checkDay, airWar));
+            WargameFarpTrace.Snapshot(campaignName, "EXPORT turn " + turn + " : after the captured zones / air bases were closed");
+
+            // Guerre aérienne, étape 2 : rosters (pertes, endommagés, réserves, renforts), minuterie de renfort, triggers faits
+            if (airWar)
+            {
+                if (session.Air != null)
+                {
+                    report.AddRange(WargameAirExport.WriteState(campaignFolder, session.Air));
+                    report.AddRange(WargameAirExport.MarkFiredTriggers(campaignFolder, session.Triggers));
+                }
+                else
+                {
+                    report.Add("air war NOT written : no air model (Active\\oob_air.lua missing or unreadable)");
+                }
+            }
+            else
+            {
+                report.Add("air war NOT written (box unchecked) : squads and air bases of Active left as they are");
+            }
 
             Dictionary<string, double> killChance = session.FrontKillChance();   // "zone|camp" -> probabilité d'être détruit
             if (killChance.Count > 0)
@@ -732,6 +763,8 @@ namespace DCE_Manager
             File.WriteAllText(Path.Combine(campaignFolder, "Active", WargameEngineLosses.ExportedFlagFile),
                 "turn " + turn + " written by the wargame preview on " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
             report.Add("next SkipMission will NOT play an extra wargame turn (" + WargameEngineLosses.ExportedFlagFile + ")");
+            WargameFarpTrace.Snapshot(campaignName, "EXPORT turn " + turn + " : END (before SkipMission)");
+            report.Add("FARP trace : " + WargameFarpTrace.FilePath(campaignName));
 
             WargameLog.Line("---- export summary (turn " + turn + ") ----");
             WargameLog.Lines(report, "  ");

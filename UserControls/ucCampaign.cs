@@ -25,6 +25,7 @@ namespace DCE_Manager.UserControls
             InitializeComponent();
 
             BuildWargameTab();
+            BuildMapTab();
 
             CampaignTab.Selected += CampaignTab_Selected;
 
@@ -52,8 +53,9 @@ namespace DCE_Manager.UserControls
         {
             Main_Form.Instance.CampaignGridLeft.UpdateCampaignButtonsVisibility();
 
-            // Init/Active, Save et Reset ne servent à rien dans l'onglet Wargame (il a ses propres commandes)
-            panel_but_monitoring_campaign.Visible = CampaignTab.SelectedTab != tabPage_wargame;
+            // Init/Active, Save et Reset ne servent à rien dans les onglets Wargame et Map (ils ont leurs propres commandes)
+            bool ownCommands = CampaignTab.SelectedTab == tabPage_wargame || CampaignTab.SelectedTab == _mapTab;
+            panel_but_monitoring_campaign.Visible = !ownCommands;
         }
 
 
@@ -229,7 +231,14 @@ namespace DCE_Manager.UserControls
 
         // Appelée à chaque changement de campagne affichée (campaignName vide = aucune campagne)
         // et quand le niveau d'utilisateur change.
+        // Rafraîchit l'onglet Wargame, puis l'onglet Map (qui doit rester le dernier).
         public void RefreshWargameTab(string campaignName)
+        {
+            RefreshWargameTabOnly(campaignName);
+            RefreshMapTab(campaignName);
+        }
+
+        private void RefreshWargameTabOnly(string campaignName)
         {
             _wgCampaign = campaignName ?? "";
 
@@ -352,6 +361,99 @@ namespace DCE_Manager.UserControls
             }
 
             RefreshWargameTab(_wgCampaign);
+        }
+
+        // =====================================================================
+        //  ONGLET MAPS
+        //  - toujours le dernier onglet, visible dès qu'une campagne est affichée
+        //  - trois boutons : Wargame (éditeur, campaign maker), Map (bases + squadrons), Mission (mission en cours)
+        // =====================================================================
+
+        private TabPage _mapTab;
+        private string _mapCampaign = "";
+        private Button _mapWargameButton;
+        private Label _mapWargameHelp;
+
+        private void BuildMapTab()
+        {
+            _mapTab = new TabPage("Maps") { UseVisualStyleBackColor = true };
+
+            _mapWargameButton = new Button { Text = "Wargame...", Left = 8, Top = 8, Width = 150, Height = 30 };
+            _mapWargameButton.Click += (s, e) => { _wgCampaign = _mapCampaign; EditWargame(); };
+            _mapWargameHelp = MakeMapHelp(8, "Opens the wargame editor: zones, forces, axes, combat preview. (Campaign maker only.)");
+
+            var mapButton = new Button { Text = "Map...", Left = 8, Top = 98, Width = 150, Height = 30 };
+            mapButton.Click += (s, e) => OpenMap(false);
+
+            var missionButton = new Button { Text = "Mission...", Left = 8, Top = 188, Width = 150, Height = 30 };
+            missionButton.Click += (s, e) => OpenMap(true);
+
+            _mapTab.Controls.Add(_mapWargameButton);
+            _mapTab.Controls.Add(_mapWargameHelp);
+            _mapTab.Controls.Add(mapButton);
+            _mapTab.Controls.Add(MakeMapHelp(98, "Every airbase of the map, with the squadrons based on it. Click a base to see its squadrons."));
+            _mapTab.Controls.Add(missionButton);
+            _mapTab.Controls.Add(MakeMapHelp(188, "The mission in progress: players' flight plans with their waypoints, and the range of the SAM sites that are not hidden."));
+        }
+
+        private static Label MakeMapHelp(int buttonTop, string text)
+        {
+            return new Label
+            {
+                Left = 8,
+                Top = buttonTop + 38,
+                AutoSize = true,
+                MaximumSize = new Size(620, 0),
+                Text = text
+            };
+        }
+
+        // Appelée par RefreshWargameTab : affiche ou cache l'onglet Map selon la campagne
+        private void RefreshMapTab(string campaignName)
+        {
+            _mapCampaign = campaignName ?? "";
+
+            if (string.IsNullOrEmpty(_mapCampaign))
+            {
+                CampaignTab.TabPages.Remove(_mapTab);
+                return;
+            }
+
+            // Le bouton Wargame : seulement pour le campaign maker, et si la campagne a un wargame
+            bool wargame = ParamConf.UserLevel == UserLevel.CampaignMaker && CampaignHasWargame(_mapCampaign);
+            _mapWargameButton.Visible = wargame;
+            _mapWargameHelp.Visible = wargame;
+
+            if (!CampaignTab.TabPages.Contains(_mapTab))
+            {
+                CampaignTab.TabPages.Add(_mapTab);
+            }
+            else if (CampaignTab.TabPages.IndexOf(_mapTab) != CampaignTab.TabPages.Count - 1
+                  && CampaignTab.SelectedTab != _mapTab)
+            {
+                // Remis en dernière position (l'onglet Wargame peut être apparu après lui)
+                CampaignTab.TabPages.Remove(_mapTab);
+                CampaignTab.TabPages.Add(_mapTab);
+            }
+        }
+
+        private void OpenMap(bool missionMode)
+        {
+            if (string.IsNullOrEmpty(_mapCampaign))
+                return;
+
+            try
+            {
+                using (var form = new Map_UI_Form(_mapCampaign, missionMode))
+                {
+                    form.ShowDialog(FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OpenMap('" + _mapCampaign + "') a échoué : " + ex);
+                MessageBox.Show("The map could not be opened: " + ex.Message, "Map");
+            }
         }
     }
 }

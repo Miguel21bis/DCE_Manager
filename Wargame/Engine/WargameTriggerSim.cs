@@ -206,6 +206,7 @@ namespace DCE_Manager
     //   - Return.Time/Day/Month/Year/DatePassed/DateBefore    : vrais, calculés sur l'horloge (WargameCampClock)
     //   - Action.SetCampFlag, AddCampFlag, WargameDeploy, WargameLand : vraies, elles lèvent les flags de la preview
     //   - Action.Text                                          : notée dans le journal
+    //   - Return.AirUnit*, Action.AirUnit*                     : vraies si la guerre aérienne est branchée (AttachAir, voir Wargame_Engine_Air.cs)
     //   - tout le reste (TargetAlive, GroundTarget...)         : "non simulable" -> le trigger reste en attente,
     //                                                            sauf si on le force à la main.
     // Rien n'est écrit sur le disque.
@@ -217,6 +218,10 @@ namespace DCE_Manager
         public WargameCampClock Clock = new WargameCampClock();
 
         private Lua _lua;
+
+        // Guerre aérienne simulée (squads, bases). Null = les conditions/actions aériennes restent "non simulables".
+        // Posée par la Preview (AttachAir) : les fonctions Lua ci-dessous parlent à ce modèle.
+        public WargameAirModel Air;
 
         // Vrai si une condition parle des zones wargame : sinon on ne les envoie pas à Lua à chaque tour
         private bool _needsZones;
@@ -282,6 +287,12 @@ end
 function Action.SetCampFlag(n, value) camp.flag[n] = value end
 function Action.AddCampFlag(n, add) camp.flag[n] = (camp.flag[n] or 0) + add end
 function Action.Text(text) __notes[#__notes + 1] = 'Briefing: ' .. tostring(text) end
+function Action.ActivateBaseAndItsUnits(base, state)
+    __notes[#__notes + 1] = 'Action.ActivateBaseAndItsUnits(' .. tostring(base) .. ', ' .. tostring(state) .. ') NOT simulated : in the real run this switches the base (inactive) and its squads'
+end
+function Action.SideBase(side, base)
+    __notes[#__notes + 1] = 'Action.SideBase(' .. tostring(side) .. ', ' .. tostring(base) .. ') NOT simulated : in the real run this changes the side of the base'
+end
 function Action.WargameDeploy(formation, zone)
     local function cle(s) return (string.gsub(tostring(s or ''), '[^%w]', '_')) end
     camp.flag['wg_deploy__' .. cle(formation) .. '__' .. cle(zone)] = true
@@ -337,6 +348,53 @@ function __snapshot()
     for k, v in pairs(camp.flag) do old_flag[k] = v end
 end
 ";
+
+        // Fonctions aériennes (mêmes noms que DC_CheckTriggers.lua), branchées sur le modèle C# par AttachAir
+        private const string AirPrelude = @"
+function Return.AirUnitAlive(n) return __air_alive(tostring(n or '')) end
+function Return.AirUnitActive(n) return __air_active(tostring(n or '')) end
+function Return.AirUnitBase(n) return __air_base(tostring(n or '')) end
+function Return.totalAirUnitAliveBySide(side) return __air_total(tostring(side or ''), camp.mission) end
+
+function Action.AirUnitActive(n, state)
+    if state == true or state == false then __air_setactive(tostring(n or ''), state) end
+end
+function Action.AirUnitBase(n, b)
+    if type(b) == 'table' then b = b[1] end
+    if b ~= nil then __air_setbase(tostring(n or ''), tostring(b)) end
+end
+function Action.AirUnitReinforce(source, dest) __air_reinforce(tostring(source or ''), tostring(dest or '')) end
+function Action.AirUnitRepair(arg) __air_repair(arg == nil and '' or tostring(arg)) end
+";
+
+        private const string AirOff = @"
+rawset(Return, 'AirUnitAlive', nil) rawset(Return, 'AirUnitActive', nil) rawset(Return, 'AirUnitBase', nil) rawset(Return, 'totalAirUnitAliveBySide', nil)
+rawset(Action, 'AirUnitActive', nil) rawset(Action, 'AirUnitBase', nil) rawset(Action, 'AirUnitReinforce', nil) rawset(Action, 'AirUnitRepair', nil)
+";
+
+        // Branche (ou débranche si air == null) la guerre aérienne simulée. A appeler avant la première partie.
+        public void AttachAir(WargameAirModel air)
+        {
+            Air = air;
+            if (_lua == null) return;
+
+            if (air == null)
+            {
+                _lua.DoString(AirOff);
+                return;
+            }
+
+            Type t = typeof(WargameAirModel);
+            _lua.RegisterFunction("__air_alive", air, t.GetMethod("LuaAlive"));
+            _lua.RegisterFunction("__air_active", air, t.GetMethod("LuaActive"));
+            _lua.RegisterFunction("__air_base", air, t.GetMethod("LuaBase"));
+            _lua.RegisterFunction("__air_total", air, t.GetMethod("LuaTotal"));
+            _lua.RegisterFunction("__air_setactive", air, t.GetMethod("LuaSetActive"));
+            _lua.RegisterFunction("__air_setbase", air, t.GetMethod("LuaSetBase"));
+            _lua.RegisterFunction("__air_reinforce", air, t.GetMethod("LuaReinforce"));
+            _lua.RegisterFunction("__air_repair", air, t.GetMethod("LuaRepair"));
+            _lua.DoString(AirPrelude);
+        }
 
         private WargameTriggerSim() { }
 

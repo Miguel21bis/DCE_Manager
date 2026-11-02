@@ -1050,6 +1050,8 @@ namespace DCE_Manager
             ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
             ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
 
+            ConfMod_SunTimes.UpdateConfMod(name);   // dawn / dusk d'après le soleil (une fois par session)
+
             if (!_referenceWarningShown &&
                 (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing))
             {

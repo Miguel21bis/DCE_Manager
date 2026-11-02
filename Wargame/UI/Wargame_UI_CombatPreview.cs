@@ -542,6 +542,43 @@ namespace DCE_Manager
             }
         }
 
+        // Guerre aérienne simulée (squads, réserves, réparations, renforts). Null = pas de guerre aérienne (oob_air illisible).
+        // Chaque tour, un camp qui tient une première ligne perd son % de pertes de test en appareils ; x2 si l'ennemi a la
+        // maîtrise du ciel, x0.5 s'il l'a lui-même. Sert à l'export (rosters de Active\oob_air.lua) et aux conditions de triggers.
+        public WargameAirModel Air;
+
+        private void RecordAirLosses()
+        {
+            if (Air == null) return;
+
+            foreach (string side in new[] { WargameSide.Blue, WargameSide.Red })
+            {
+                string enemy = side == WargameSide.Blue ? WargameSide.Red : WargameSide.Blue;
+
+                bool hasFront = false;
+                foreach (WargameZoneData z in Zones)
+                {
+                    if (WargameEngineCombat.IsOffMapId(z.Id) || z.Control != side) continue;
+
+                    List<string> neighbors;
+                    if (_links.TryGetValue(z.Id, out neighbors) && neighbors.Any(id => _byId.ContainsKey(id) && _byId[id].Control == enemy))
+                    {
+                        hasFront = true;
+                        break;
+                    }
+                }
+                if (!hasFront) continue;
+
+                double percent = side == WargameSide.Blue ? BlueLossPercent : RedLossPercent;
+                double factor = string.Equals(AirSide, enemy, StringComparison.OrdinalIgnoreCase) ? 2.0
+                              : string.Equals(AirSide, side, StringComparison.OrdinalIgnoreCase) ? 0.5 : 1.0;
+                double p = Math.Max(0, Math.Min(1, percent / 100.0 * factor));
+
+                foreach (string line in Air.Attrition(side, p))
+                    FullLog.Add("  " + line);
+            }
+        }
+
         public HashSet<WargameObjective> DestroyedObjectives()
         {
             return new HashSet<WargameObjective>(_objectives.Where(o => _alive.ContainsKey(o) && _alive[o] <= 0));
@@ -720,9 +757,22 @@ namespace DCE_Manager
                 }
             }
 
+            // Renforcement automatique des squads (réserve -> prêts), comme scriptsMod à chaque génération de mission
+            if (Air != null && Clock != null)
+            {
+                double hours = Math.Max(0, (Clock.At(Turn) - Clock.Start.Date).TotalHours);
+                List<string> airLines = Air.AutoReinforce(hours);
+                foreach (string line in airLines)
+                {
+                    FullLog.Add("  " + line);
+                    log.Add("  " + line);
+                }
+            }
+
             Dictionary<int, double> power0 = SnapshotPower();
 
             RecordFrontLosses();   // pour l'export : pertes de l'ancien DCE en première ligne
+            RecordAirLosses();     // pour l'export : usure des squads
             WargameCombatPreview.ApplyAttrition(Zones, _byId, _links, BlueLossPercent, RedLossPercent, _rng, _catalog);
             Dictionary<int, double> power1 = SnapshotPower();
 
@@ -1263,6 +1313,7 @@ namespace DCE_Manager
         private NumericUpDown _numMaxPerZone;
         private NumericUpDown _numDisband;
         private CheckBox _checkShowAxes;
+        private CheckBox _checkAirWar;     // export : écrire aussi la guerre aérienne fictive dans Active
         private CheckBox _checkShowArrows;
         private CheckBox _checkShowSupply;
         private NumericUpDown _numAxisOpacity;
@@ -1279,6 +1330,7 @@ namespace DCE_Manager
         private ListView _listTriggers;
         private Label _labelTriggers;
         private WargameTriggerSim _triggerSim;
+        private WargameAirModel _air;      // guerre aérienne simulée (recréée à chaque remise à zéro)
         private string _triggerError = "";
         private Label _labelStatus;
 
@@ -1405,7 +1457,7 @@ namespace DCE_Manager
             tabs.TabPages.Add(tabReport);
 
             // Réglages : 4 petits cadres (même logique que le moteur), puis les boutons, puis l'état
-            var settings = new Panel { Dock = DockStyle.Top, Height = 700 };
+            var settings = new Panel { Dock = DockStyle.Top, Height = 724 };
             var tip = new ToolTip { AutoPopDelay = 15000 };
 
             // Hasard : on part du réglage de la campagne, ou 10 % si elle n'en a pas
@@ -1620,29 +1672,33 @@ namespace DCE_Manager
             tip.SetToolTip(buttonRestore, "Remet en place un dossier Active sauvegardé (Active_Backups). L'Active actuel est lui-même mis de côté avant.");
             settings.Controls.Add(buttonRestore);
 
+            _checkAirWar = new CheckBox { Text = "Overwrite the campaign air war with this simulated state", Checked = true, Location = new Point(10, 582), AutoSize = true };
+            tip.SetToolTip(_checkAirWar, "Coché : l'export écrit aussi dans Active les appareils perdus par chaque squad (maîtrise du ciel, front) et désactive les bases capturées avec leurs squads.\nDécoché : squads et bases de Active restent tels quels.");
+            settings.Controls.Add(_checkAirWar);
+
             // ---- Affichage des axes : on peut les masquer ou les rendre transparents pour voir les points de force ----
-            _checkShowAxes = new CheckBox { Text = "Afficher les axes", Checked = true, Location = new Point(10, 588), AutoSize = true };
+            _checkShowAxes = new CheckBox { Text = "Afficher les axes", Checked = true, Location = new Point(10, 610), AutoSize = true };
             _checkShowAxes.CheckedChanged += (s, e) => _mapView.ShowAxes = _checkShowAxes.Checked;
             settings.Controls.Add(_checkShowAxes);
 
-            AddLabel(settings, "Opacité des axes %", 170, 590);
-            _numAxisOpacity = AddNumber(settings, 300, 586, 60, 35, 0, 100);
+            AddLabel(settings, "Opacité des axes %", 170, 612);
+            _numAxisOpacity = AddNumber(settings, 300, 608, 60, 35, 0, 100);
             _numAxisOpacity.ValueChanged += (s, e) => _mapView.AxisOpacity = (float)_numAxisOpacity.Value / 100f;
             _mapView.AxisOpacity = 0.35f;
 
-            _checkShowArrows = new CheckBox { Text = "Flèches", Checked = true, Location = new Point(378, 588), AutoSize = true };
+            _checkShowArrows = new CheckBox { Text = "Flèches", Checked = true, Location = new Point(378, 610), AutoSize = true };
             _checkShowArrows.CheckedChanged += (s, e) => _mapView.ShowArrows = _checkShowArrows.Checked;
             settings.Controls.Add(_checkShowArrows);
             tip.SetToolTip(_checkShowArrows, "Une flèche par zone ennemie à laquelle une zone fait face. Grosse = force principale, petite = garde de flanc.");
 
-            _checkShowSupply = new CheckBox { Text = "Afficher le ravitaillement (couleurs, convois)", Checked = false, Location = new Point(10, 612), AutoSize = true };
+            _checkShowSupply = new CheckBox { Text = "Afficher le ravitaillement (couleurs, convois)", Checked = false, Location = new Point(10, 634), AutoSize = true };
             _checkShowSupply.CheckedChanged += (s, e) => RefreshSupplyOverlay();
             settings.Controls.Add(_checkShowSupply);
             tip.SetToolTip(_checkShowSupply, "Colore chaque zone selon son ravitaillement : vert = plein, rouge = faible, gris hachuré = coupée. S = source. Survol = détail.");
 
             _labelStatus = new Label
             {
-                Location = new Point(10, 634),
+                Location = new Point(10, 656),
                 Size = new Size(485, 58),
                 Font = new Font("Segoe UI", 9f, FontStyle.Bold),
             };
@@ -1745,6 +1801,14 @@ namespace DCE_Manager
 
             // Triggers de la campagne : lus UNE fois à l'ouverture (bouton "Relire" pour les relire), ici on remet juste l'état à zéro
             if (_triggerSim != null) _triggerSim.Reset();
+
+            // Guerre aérienne : repart de l'Init à chaque remise à zéro (squads de Active\oob_air.lua, délais de conf_mod)
+            string airError;
+            _air = WargameAirModel.Load(WargameZoneRepository.GetCampaignFolder(_campaignName), out airError);
+            if (_air == null) FormUtils.LogRegister("WargameCombatPreview | guerre aérienne : " + airError);
+            if (_triggerSim != null) _triggerSim.AttachAir(_air);
+            _session.Air = _air;
+
             _session.Triggers = _triggerSim;
             _session.Clock = _clock;
             _session.TriggersNote = _triggerError;
@@ -1992,7 +2056,8 @@ namespace DCE_Manager
             DialogResult answer = MessageBox.Show(
                 "Jouer la situation du tour " + turn + " dans DCS ?\n\n"
                 + "ATTENTION : l'état actuel de la campagne (dossier Active) va être ÉCRASÉ : zones et formations du wargame, cibles, "
-                + "unités au sol de l'ancien DCE (pertes et zones capturées), flags, mission n°" + turn + ", date et heure du tour.\n\n"
+                + "unités au sol de l'ancien DCE (pertes et zones capturées), flags, mission n°" + turn + ", date et heure du tour"
+                + (_checkAirWar.Checked ? ", ET la guerre aérienne (appareils perdus / endommagés / renforcés par squad, bases capturées désactivées avec leurs squads, triggers « once » faits)" : "") + ".\n\n"
                 + "Une sauvegarde complète du dossier Active est faite avant, dans Active_Backups "
                 + "(bouton « Restaurer une sauvegarde » pour revenir en arrière).\n\n"
                 + "DCS DOIT ÊTRE FERMÉ : le carnet de vol (logbook.lua) est modifié pour que DCS lance la mission « _ongoing » "
@@ -2022,7 +2087,7 @@ namespace DCE_Manager
                 Cursor = Cursors.WaitCursor;
                 try
                 {
-                    report = WargamePreviewExport.Export(_campaignName, _session, _clock, new Random());
+                    report = WargamePreviewExport.Export(_campaignName, _session, _clock, new Random(), _checkAirWar.Checked);
                 }
                 catch (Exception ex)
                 {
@@ -2057,6 +2122,9 @@ namespace DCE_Manager
             {
                 runner.ShowDialog(this);
             }
+
+            // Trace des FARP : état laissé par scriptsMod (à comparer avec la fin de l'export)
+            WargameFarpTrace.Snapshot(_campaignName, "AFTER the scriptsMod window was closed (state written by scriptsMod)");
         }
 
         // Remet en place un dossier Active sauvegardé

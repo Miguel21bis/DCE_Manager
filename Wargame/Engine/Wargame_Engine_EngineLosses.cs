@@ -42,7 +42,9 @@ namespace DCE_Manager
             WargameLog.Begin(campaignName, "Turn", WargameLogistics.ReadMission(folder) + 1);
             try
             {
+                WargameFarpTrace.Snapshot(campaignName, "REAL TURN START (state left by the previous scriptsMod run, before the wargame turn)");
                 ProcessBeforeMissionCore(campaignName);
+                WargameFarpTrace.Snapshot(campaignName, "REAL TURN END (written by DCE_Manager, scriptsMod SkipMission not started yet)");
             }
             catch (Exception ex)
             {
@@ -293,6 +295,11 @@ namespace DCE_Manager
                 int zeroed = WargameLogistics.ZeroCapturedSupply(activePath, zones, combat.FlippedZones);
                 if (zeroed > 0) WargameLog.Line("WargameLogistics | " + zeroed + " source(s) de ravitaillement capturée(s) mise(s) à 0");
             }
+
+            // ---- 4b. FARP des plages (débarquements) : actives tant que leur plage est tenue par leur camp, inactives sinon ----
+            // Dans les deux sens, à chaque tour. scriptsMod (WargameFarpSync) pose ou retire ensuite le FARP selon ce "inactive".
+            string farpReport = WargameFarpStore.SyncActive(campaignName, WargameFarpStore.Load(campaignName), zones, true);
+            if (farpReport.Length > 0) WargameLog.Line("WargameFarp | " + farpReport);
 
             // ---- 5. Ancien DCE : dans une zone capturée, tout ce qui est au sol et appartenait au perdant est détruit ----
             // (définitivement : une reprise plus tard ne le ressuscite pas, comme les entrepôts)

@@ -184,6 +184,7 @@ namespace DCE_Manager
                         block.Add("\t\tdivert = false,");
                         block.Add("\t\tLimitedParkNb = 4,");
                         block.Add("\t\tinactive = " + (IsHeld(f, zones) ? "false" : "true") + ",");
+                        WargameFarpTrace.Note(campaignName, "Save Init db_airbases : " + f.Name + " inactive = " + (IsHeld(f, zones) ? "false" : "true") + (zones == null ? " (no zones given : all inactive)" : ""));
                         block.Add("\t\twargameFarp = true,");
                         block.Add("\t\twargamePlan = '" + f.Plan + "',");
                         block.Add("\t\twargameBeach = '" + f.Beach + "',");
@@ -223,6 +224,10 @@ namespace DCE_Manager
                 {
                     bool inactive = !IsHeld(f, zones);
                     if (!inactive) active++;
+
+                    WargameZoneData beachZone = zones == null ? null : zones.FirstOrDefault(z => string.Equals(z.Id, f.Beach, StringComparison.OrdinalIgnoreCase));
+                    WargameFarpTrace.Note(campaignName, "SyncActive " + f.Name + " : beach " + f.Beach + " control " + (beachZone == null ? "zone not found" : beachZone.Control)
+                        + " / farp side " + f.Side + " -> inactive = " + (inactive ? "true" : "false") + (updateInactive ? "" : " (NOT written : position only)"));
 
                     int start = lines.FindIndex(l => l.Trim() == "[\"" + f.Name + "\"] =" || l.Trim() == "['" + f.Name + "'] =");
 
@@ -355,6 +360,135 @@ namespace DCE_Manager
 
             farp.X = beach.Center.X;
             farp.Y = beach.Center.Y;
+        }
+    }
+
+    // ==========================================================================================
+    // Trace des FARP du wargame : pour trouver QUI remet "inactive" à true.
+    // Fichier unique, jamais effacé : <campagne>\Debug\Wargame\wargame_farp_trace.txt (on y AJOUTE des lignes).
+    // Chaque "Snapshot" liste, pour chaque FARP : inactive dans Init et dans Active, la plage, son camp actuel, et l'heure
+    // de dernière écriture de Active\db_airbases.lua (un scriptsMod qui réécrit le fichier change cette heure).
+    // En comparant deux snapshots à la suite, on voit entre lesquels l'état a changé.
+    // ==========================================================================================
+    internal static class WargameFarpTrace
+    {
+        private static readonly object _lock = new object();
+
+        public static string FilePath(string campaignName)
+        {
+            return Path.Combine(WargameLog.Folder(campaignName), "wargame_farp_trace.txt");
+        }
+
+        // Une ligne dans le fichier de trace (et dans le journal wargame en cours, s'il y en a un)
+        public static void Note(string campaignName, string text)
+        {
+            try
+            {
+                lock (_lock)
+                {
+                    string path = FilePath(campaignName);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.AppendAllText(path, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " " + text + Environment.NewLine, new UTF8Encoding(false));
+                }
+                WargameLog.Line("FARPTRACE " + text);
+            }
+            catch { }
+        }
+
+        // État de tous les FARP du wargame à cet instant. step = où on en est (texte libre).
+        public static void Snapshot(string campaignName, string step)
+        {
+            try
+            {
+                string folder = WargameZoneRepository.GetCampaignFolder(campaignName);
+                string initPath = Path.Combine(folder, "Init", "db_airbases.lua");
+                string activePath = Path.Combine(folder, "Active", "db_airbases.lua");
+
+                Note(campaignName, "==== " + step + " | mission " + WargameLogistics.ReadMission(folder)
+                    + " | Active db_airbases.lua written " + (File.Exists(activePath) ? File.GetLastWriteTime(activePath).ToString("HH:mm:ss", CultureInfo.InvariantCulture) : "(missing)") + " ====");
+
+                var init = ReadFarps(initPath);
+                var active = ReadFarps(activePath);
+
+                List<WargameZoneData> zones = null;
+                try
+                {
+                    zones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
+                    new WargameZoneActiveLoader().ApplyActiveState(WargameZoneRepository.GetActiveWargameZonesPath(campaignName), zones);
+                }
+                catch { zones = null; }
+
+                var names = new SortedSet<string>(init.Keys.Concat(active.Keys), StringComparer.OrdinalIgnoreCase);
+                if (names.Count == 0) Note(campaignName, "   no wargameFarp entry in Init nor Active db_airbases.lua");
+
+                foreach (string name in names)
+                {
+                    string i, a;
+                    init.TryGetValue(name, out i);
+                    active.TryGetValue(name, out a);
+
+                    string beach = ExtractField(a ?? i, "beach");
+                    string side = ExtractField(a ?? i, "side");
+                    string control = "?";
+                    if (zones != null)
+                    {
+                        WargameZoneData z = zones.FirstOrDefault(x => string.Equals(x.Id, beach, StringComparison.OrdinalIgnoreCase));
+                        control = z == null ? "zone not found" : z.Control;
+                    }
+
+                    bool held = string.Equals(control, side, StringComparison.OrdinalIgnoreCase);
+                    Note(campaignName, "   " + name + " | Init " + (i == null ? "(absent)" : "inactive=" + ExtractField(i, "inactive"))
+                        + " | Active " + (a == null ? "(absent)" : "inactive=" + ExtractField(a, "inactive") + " airdromeId=" + ExtractField(a, "airdromeId"))
+                        + " | side " + side + " beach " + beach + " control " + control + " -> should be " + (held ? "ACTIVE" : "inactive"));
+                }
+
+                // Triggers qui touchent à des bases (Init et Active) : un trigger peut remettre inactive
+                foreach (string file in new[] { "Init\\camp_triggers_init.lua", "Active\\camp_triggers.lua" })
+                {
+                    string tp = Path.Combine(folder, file);
+                    if (!File.Exists(tp)) continue;
+
+                    foreach (string line in File.ReadAllLines(tp))
+                        if (Regex.IsMatch(line, @"ActivateBaseAndItsUnits|SideBase|moveToAnotherBaseOrDeactivate|AirUnitBase"))
+                            Note(campaignName, "   trigger line in " + file + " : " + line.Trim());
+                }
+            }
+            catch (Exception ex)
+            {
+                Note(campaignName, "snapshot failed : " + ex.Message);
+            }
+        }
+
+        // nom de FARP -> texte brut de son bloc (seulement les entrées wargameFarp = true)
+        private static Dictionary<string, string> ReadFarps(string path)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!File.Exists(path)) return result;
+
+            string text = File.ReadAllText(path);
+            var lua = new WargameBaseCapture.LuaText(text);
+            foreach (var b in lua.Blocks.Where(x => x.DepthBefore == 1))
+            {
+                bool farp;
+                if (!lua.BoolField(b, "wargameFarp", out farp) || !farp) continue;
+
+                string key = lua.KeyOf(b);
+                if (key == null) continue;
+                result[key] = text.Substring(b.Open, b.Close - b.Open + 1);
+            }
+            return result;
+        }
+
+        // Valeur d'un champ dans le texte d'un bloc (niveau direct : les FARP n'ont pas de sous-table utile ici)
+        private static string ExtractField(string block, string field)
+        {
+            if (block == null) return "?";
+
+            string key = field == "beach" ? "wargameBeach" : field;
+            Match m = Regex.Match(block, @"(?:\[\s*[""']" + key + @"[""']\s*\]|\b" + key + @")\s*=\s*(?:""([^""]*)""|'([^']*)'|([^\s,}]+))");
+            if (!m.Success) return "(absent)";
+            if (m.Groups[1].Success) return m.Groups[1].Value;
+            return m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Value;
         }
     }
 }
