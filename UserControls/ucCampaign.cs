@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
@@ -366,13 +367,16 @@ namespace DCE_Manager.UserControls
         // =====================================================================
         //  ONGLET MAPS
         //  - toujours le dernier onglet, visible dès qu'une campagne est affichée
-        //  - trois boutons : Wargame (éditeur, campaign maker), Map (bases + squadrons), Mission (mission en cours)
+        //  - quatre boutons : Wargame (éditeur, campaign maker), Map (bases + squadrons), Mission (mission en cours),
+        //    Debriefing (carte des événements d'une mission passée : on choisit la mission dans une liste)
         // =====================================================================
 
         private TabPage _mapTab;
         private string _mapCampaign = "";
         private Button _mapWargameButton;
         private Label _mapWargameHelp;
+        private Button _mapDebriefButton;
+        private readonly ToolTip _mapTip = new ToolTip { AutoPopDelay = 15000 };
 
         private void BuildMapTab()
         {
@@ -388,12 +392,18 @@ namespace DCE_Manager.UserControls
             var missionButton = new Button { Text = "Mission...", Left = 8, Top = 188, Width = 150, Height = 30 };
             missionButton.Click += (s, e) => OpenMap(true);
 
+            _mapDebriefButton = new Button { Text = "Debriefing...", Left = 8, Top = 278, Width = 150, Height = 30 };
+            _mapDebriefButton.Click += (s, e) => ShowDebriefMenu();
+            _mapTip.SetToolTip(_mapDebriefButton, "DEBRIEFING MAP\nShows the events of a past mission (kills, ejections, bomb impacts) on the map.\nYou choose the mission in a list: one file is kept for each debriefing.");
+
             _mapTab.Controls.Add(_mapWargameButton);
             _mapTab.Controls.Add(_mapWargameHelp);
             _mapTab.Controls.Add(mapButton);
             _mapTab.Controls.Add(MakeMapHelp(98, "Every airbase of the map, with the squadrons based on it. Click a base to see its squadrons."));
             _mapTab.Controls.Add(missionButton);
             _mapTab.Controls.Add(MakeMapHelp(188, "The mission in progress: players' flight plans with their waypoints, and the range of the SAM sites that are not hidden."));
+            _mapTab.Controls.Add(_mapDebriefButton);
+            _mapTab.Controls.Add(MakeMapHelp(278, "The events of a past mission: aircraft lost, vehicles, buildings, ejections, bomb impacts. You choose the mission in a list."));
         }
 
         private static Label MakeMapHelp(int buttonTop, string text)
@@ -453,6 +463,83 @@ namespace DCE_Manager.UserControls
             {
                 FormUtils.LogRegister("OpenMap('" + _mapCampaign + "') a échoué : " + ex);
                 MessageBox.Show("The map could not be opened: " + ex.Message, "Map");
+            }
+        }
+
+        // ---- Debriefing : les fichiers "Debriefing\DebriefEvents <n>.lua" de la campagne (un par mission, écrits par DEBRIEF_ExportMap.lua) ----
+
+        private static readonly Regex RxDebriefFile = new Regex(@"^DebriefEvents (\d+)\.lua$", RegexOptions.IgnoreCase);
+
+        // Renvoie (numéro de mission, chemin complet), la mission la plus récente en premier
+        private static List<KeyValuePair<int, string>> ListDebriefFiles(string campaignName)
+        {
+            var result = new List<KeyValuePair<int, string>>();
+
+            try
+            {
+                string dir = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Debriefing");
+                if (!Directory.Exists(dir))
+                    return result;
+
+                foreach (string path in Directory.GetFiles(dir, "DebriefEvents *.lua"))
+                {
+                    Match m = RxDebriefFile.Match(Path.GetFileName(path));
+                    int n;
+                    if (m.Success && int.TryParse(m.Groups[1].Value, out n))
+                        result.Add(new KeyValuePair<int, string>(n, path));
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ListDebriefFiles('" + campaignName + "') a échoué : " + ex.Message);
+            }
+
+            result.Sort((a, b) => b.Key.CompareTo(a.Key));
+            return result;
+        }
+
+        // Bouton "Debriefing..." : petit menu sous le bouton, une ligne par mission trouvée
+        private void ShowDebriefMenu()
+        {
+            if (string.IsNullOrEmpty(_mapCampaign))
+                return;
+
+            List<KeyValuePair<int, string>> files = ListDebriefFiles(_mapCampaign);
+            if (files.Count == 0)
+            {
+                MessageBox.Show("No debriefing map saved yet for this campaign.\r\n\r\nOne file is written at each mission debriefing.", "Debriefing");
+                return;
+            }
+
+            var menu = new ContextMenuStrip { ShowImageMargin = false };
+
+            for (int i = 0; i < files.Count; i++)
+            {
+                string path = files[i].Value;
+                string text = "Mission " + files[i].Key + "     " + File.GetLastWriteTime(path).ToString("yyyy-MM-dd  HH:mm") + (i == 0 ? "     (latest)" : "");
+
+                var item = new ToolStripMenuItem(text);
+                item.Click += (s, e) => OpenDebrief(path);
+                menu.Items.Add(item);
+            }
+
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(_mapDebriefButton, new Point(0, _mapDebriefButton.Height));
+        }
+
+        private void OpenDebrief(string eventsFile)
+        {
+            try
+            {
+                using (var form = new Map_Events_Form(_mapCampaign, eventsFile, false))
+                {
+                    form.ShowDialog(FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OpenDebrief('" + eventsFile + "') a échoué : " + ex);
+                MessageBox.Show("The debriefing map could not be opened: " + ex.Message, "Debriefing");
             }
         }
     }

@@ -161,6 +161,21 @@ namespace DCE_Manager
 
             // Appel de la méthode de chargement
             LoadConfiguration();
+            EnsureDefaultConfig();   // premier lancement : crée le profil "Main"
+
+            // Guide l'utilisateur au premier lancement (chemins, puis ScriptsMod), une fois la fenêtre affichée
+            this.Shown += (s, e) => GuideFirstRun();
+
+            // Bouton "web" (vert / rouge barré) dans la barre du haut, à la place du cadre rouge
+            // Bouton "web" : sur la ligne des onglets de gauche, à droite
+            _webToggle = new Main_WebToggle { Width = 130 };
+            Controls.Add(_webToggle);
+            _webToggle.BringToFront();   // sinon il reste caché derrière le TabControl
+            tabControl_LEFT.SizeChanged += (s, e) => PlaceWebToggle();
+            tabControl_LEFT.LocationChanged += (s, e) => PlaceWebToggle();
+            PlaceWebToggle();
+            tabControl_LEFT.SelectedIndexChanged += (s, e) => UpdateWebToggleVisibility();
+            UpdateWebToggleVisibility();
 
             // Écoute les demandes de debriefing venant de DCS (DCE_Manager.exe --debrief).
             // Après LoadConfiguration() : le listener a besoin des chemins pour travailler.
@@ -251,6 +266,26 @@ namespace DCE_Manager
         }
 
 
+        private Main_WebToggle _webToggle;
+
+        // Colle le bouton web à droite de la ligne des onglets (suit le redimensionnement et le bandeau d'aide)
+        private void PlaceWebToggle()
+        {
+            if (_webToggle == null || tabControl_LEFT.TabCount == 0)
+                return;
+
+            Rectangle tab = tabControl_LEFT.GetTabRect(0);
+
+            _webToggle.Height = tab.Height;
+            _webToggle.Location = new Point(tabControl_LEFT.Right - _webToggle.Width - 6, tabControl_LEFT.Top + tab.Top);
+        }
+
+        // Le bouton "Web MAP" ne concerne que les campagnes : visible seulement sur l'onglet Campaigns
+        private void UpdateWebToggleVisibility()
+        {
+            if (_webToggle != null)
+                _webToggle.Visible = (tabControl_LEFT.SelectedTab == tabPageLeft_Campaigns);
+        }
 
         // Évite l'écart (ou le chevauchement) entre la partie gauche et le panneau de droite
         private void AjusterLargeurGauche()
@@ -1009,6 +1044,11 @@ namespace DCE_Manager
                 ParamGithub.DownloadUrl);
 
             await scriptsModUpdater.DownloadLatestScriptsMod();
+
+            homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
+
+            CampaignGridLeft.RefreshScriptsModState();   // les ▶ ⏭ 📋 reviennent dès que ScriptsMod est installé
+
 
 
         }

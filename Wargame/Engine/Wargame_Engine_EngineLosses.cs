@@ -196,6 +196,10 @@ namespace DCE_Manager
 
             int refreshed = 0, degraded = 0, retired = 0, parked = 0;
 
+            // Centres des formations déjà posées pendant ce tour (camp, position) : sert à tenir
+            // les formations ennemies à distance les unes des autres (voir WargameSpawnSolver)
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
+
             foreach (WargameZoneData zone in zones)
             {
                 foreach (WargameFormation formation in zone.Formations)
@@ -250,13 +254,16 @@ namespace DCE_Manager
                     PointF? threatPoint = FindFacingPoint(zone, formation, zones, combat);
 
                     List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount,
-                        formation.Side, zones, campaignInfo.ZoneEdgeMarginMeters);
+                        formation.Side, zones, campaignInfo.ZoneEdgeMarginMeters,
+                        EnemyCenters(placedCenters, formation.Side), campaignInfo.EnemyFormationDistanceMeters);
                     if (placed == null)
                     {
                         WargameLog.Line("WargameEngineLosses | aucune position trouvée pour '" + formation.Name + "', repose annulée ce tour (réserve conservée)");
                         if (moved) RemoveOldBlock(blockByFormationId, formation, linesToRemove);
                         continue; // sinon ancien bloc laissé tel quel, on retentera au prochain tour
                     }
+
+                    placedCenters.Add(new KeyValuePair<string, PointF>(formation.Side, WargameSpawnSolver.CenterOf(placed)));
 
                     RemoveOldBlock(blockByFormationId, formation, linesToRemove);
 
@@ -379,6 +386,9 @@ namespace DCE_Manager
             int posted = 0, failed = 0;
             var failedNames = new List<string>();
 
+            // Comme dans la repose du tour : les formations ennemies ne sont pas posées l'une sur l'autre
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
+
             foreach (WargameZoneData zone in zones)
             {
                 if (!dcsZones.Contains(zone.Id)) continue;
@@ -404,13 +414,16 @@ namespace DCE_Manager
 
                     // Même placement que Saver_TargetList_Wargame (camp, zones voisines, marge au bord de zone)
                     List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount,
-                        formation.Side, zones, campaignInfo.ZoneEdgeMarginMeters);
+                        formation.Side, zones, campaignInfo.ZoneEdgeMarginMeters,
+                        EnemyCenters(placedCenters, formation.Side), campaignInfo.EnemyFormationDistanceMeters);
                     if (placed == null)
                     {
                         failed++; failedNames.Add(formation.Name + " (" + zone.Id + ")");
                         WargameLog.Line("post " + formation.Name + " in " + zone.Id + " : NO POSITION FOUND, not posted in DCS");
                         continue;
                     }
+
+                    placedCenters.Add(new KeyValuePair<string, PointF>(formation.Side, WargameSpawnSolver.CenterOf(placed)));
 
                     formation.SpawnGeneration++;
                     string namePrefix = formation.Name + "_G" + formation.SpawnGeneration;
@@ -449,6 +462,17 @@ namespace DCE_Manager
             {
                 WargameLog.Line("WargameEngineLosses | flags/rapport non écrits : " + ex.Message);
             }
+        }
+
+        // Centres des formations ENNEMIES déjà posées ce tour, pour que le solveur ne colle
+        // pas deux formations adverses l'une contre l'autre (elles se tireraient dessus
+        // dès le lancement de la mission).
+        internal static List<PointF> EnemyCenters(List<KeyValuePair<string, PointF>> placedCenters, string side)
+        {
+            return placedCenters
+                .Where(kv => !string.Equals(kv.Key, side, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Value)
+                .ToList();
         }
 
         // Point vers lequel la formation est tournée dans DCS : la zone ennemie qu'elle attaque ou garde.

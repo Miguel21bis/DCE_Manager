@@ -93,6 +93,10 @@ namespace DCE_Manager
                                 info.Inactive = Convert.ToBoolean(value);
                                 break;
 
+                            case "BaseAirStart":
+                                info.BaseAirStart = Convert.ToBoolean(value);
+                                break;
+
                             case "x":
                                 info.X = Convert.ToDouble(value);
                                 break;

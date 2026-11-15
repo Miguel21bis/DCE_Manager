@@ -9,6 +9,7 @@ using System.Windows.Forms;
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace DCE_Manager
 {
@@ -113,6 +114,13 @@ namespace DCE_Manager
         private const string CsarTargetMarkerPrefix = "##DCEM_CSARTARGET##";
         private const string MissionDateMarkerPrefix = "##DCEM_MISSIONDATE##";
         private const string DebriefTextPathMarkerPrefix = "##DCEM_DEBRIEFTEXT_PATH##";
+
+        // Carte des événements du debrief : DEBRIEF_ExportMap.lua écrit "Debriefing\DebriefEvents <n>.lua" et en donne le chemin
+        // (relatif au dossier de la campagne) avec ce marqueur. Le bouton "Events map" n'apparaît que si le fichier existe.
+        private const string DebriefEventsPathMarkerPrefix = "##DCEM_DEBRIEFEVENTS_PATH##";
+        private string _debriefEventsPath = "";
+        private Map_Events_Form _eventsForm;        // une seule fenêtre à la fois
+
         private const string CycleMarkerPrefix = "##DCEM_CYCLE##";
         private string _headerCycle = "";
         private string _headerCurrentMissionDate = "";
@@ -126,6 +134,15 @@ namespace DCE_Manager
         private const string OutcomeMarkerPrefix = "##DCEM_OUTCOME##";
         private string _outcomeStatus = "";   // "SUCCESS" / "FAILED" / "STOPPED" / "ENDCAMPAIGN" - vide si jamais reçu
         private string _outcomeMessage = "";
+
+        // Fin de campagne annoncée par un trigger (Action.CampaignEnd) : le Lua écrit
+        // "Action.CampaignEnd(arg)---> : win" (en mode debug) puis "...the campaign is over, press to see the rest"
+        // et attend une touche. On le repère ici pour terminer proprement au lieu de rester sur "Running...".
+        private static readonly Regex RegexCampaignEnd = new Regex(@"Action\.CampaignEnd\(arg\)-+>\s*:\s*(.*)$", RegexOptions.IgnoreCase);
+        private const string CampaignOverText = "the campaign is over";
+        private string _campaignEndResult = "";      // win / loss / draw (vide = non vu)
+        private bool _campaignEndHandled = false;
+        private System.Windows.Forms.Timer _campaignEndTimer;
 
         private Panel panelHeader;
         private Label lblHeaderTitle;
@@ -311,8 +328,47 @@ namespace DCE_Manager
             FormClosing += ScriptsModRunner_Form_FormClosing;
         }
 
+        // Un escadron joueur (player = true) est INDISPENSABLE : sans lui, ScriptsMod ne trouve pas le camp du joueur et boucle.
+        // Renvoie null si tout va bien, sinon le message à afficher. Vérifie Init\\oob_air_init.lua et, s'il existe, Active\\oob_air.lua.
+        internal static string CheckPlayerSquad(string campaignFolder)
+        {
+            var rx = new Regex(@"""player""\s*\]\s*=\s*true|\bplayer\s*=\s*true");
+            string[] files =
+            {
+                Path.Combine(campaignFolder, "Init", "oob_air_init.lua"),
+                Path.Combine(campaignFolder, "Active", "oob_air.lua")
+            };
+
+            for (int i = 0; i < files.Length; i++)
+            {
+                if (!File.Exists(files[i]))
+                {
+                    if (i == 0) return "File not found:\r\n" + files[i];   // l'Init est obligatoire, l'Active n'existe pas avant la 1re mission
+                    continue;
+                }
+
+                if (!rx.IsMatch(File.ReadAllText(files[i])))
+                    return "No squadron has player = true in:\r\n" + files[i]
+                        + "\r\n\r\nThe mission generator would loop forever. Set a player squadron in the campaign (or restore the file), then try again.";
+            }
+
+            return null;
+        }
+
         private void StartInteractiveSession()
         {
+            string playerProblem = CheckPlayerSquad(_workingDirectory);
+            if (playerProblem != null)
+            {
+                lblStatus.Text = "Blocked";
+                lblStatus.ForeColor = Color.Red;
+                AppendOutputLine("[BLOCKED] " + playerProblem);
+                btnClose.Enabled = true;
+                MessageBox.Show(playerProblem, "Mission generation blocked", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                BeginInvoke(new Action(Close));
+                return;
+            }
+
             ScriptsModBatParser.LaunchInfo launchInfo = ScriptsModBatParser.Parse(_batPath, _workingDirectory, _luaScriptName);
 
             if (launchInfo == null)
@@ -1031,6 +1087,7 @@ namespace DCE_Manager
             if (!isError && line.StartsWith(MetarMarkerPrefix)) { ParseMetarMarkerLine(line); return; }
             if (!isError && line.StartsWith(MissionDateMarkerPrefix)) { ParseMissionDateMarkerLine(line); return; }
             if (!isError && line.StartsWith(DebriefTextPathMarkerPrefix)) { ShowDebriefText(line.Substring(DebriefTextPathMarkerPrefix.Length)); return; }
+            if (!isError && line.StartsWith(DebriefEventsPathMarkerPrefix)) { _debriefEventsPath = line.Substring(DebriefEventsPathMarkerPrefix.Length).Trim(); return; }
 
             if (!isError && line.StartsWith(BugListStartMarkerPrefix)) { _bugListItems.Clear(); _bugListCapturePending = true; return; }
             if (!isError && line.StartsWith(BugListItemMarkerPrefix))
@@ -1075,6 +1132,9 @@ namespace DCE_Manager
                 return;
             }
 
+            if (!isError)
+                CheckCampaignEndLine(line);
+
             if (isError && RegexLuaCrashSignature.IsMatch(line))
                 ShowCrashWarning(line);
 
@@ -1091,6 +1151,59 @@ namespace DCE_Manager
             // "X. Label"), pour tout menu qui n'a pas encore son propre marqueur ##DCEM_PROMPT##.
             if (_inputMode == InputMode.QuickOptions)
                 RebuildQuickOptions();
+        }
+
+        // ---- Fin de campagne (trigger Action.CampaignEnd) ----
+
+        private void CheckCampaignEndLine(string line)
+        {
+            if (_campaignEndHandled)
+                return;
+
+            Match m = RegexCampaignEnd.Match(line);
+            if (m.Success)
+            {
+                string value = m.Groups[1].Value.Trim().ToLowerInvariant();
+                if (_campaignEndResult == "" && (value == "win" || value == "loss" || value == "draw"))
+                    _campaignEndResult = value;
+                return;
+            }
+
+            if (line.IndexOf(CampaignOverText, StringComparison.OrdinalIgnoreCase) >= 0)
+                HandleCampaignEnd();
+        }
+
+        // Le script attend une touche après "the campaign is over" : on la lui envoie, il se termine tout seul
+        // (OnProcessExited affiche alors le résultat). Un minuteur de secours le coupe s'il ne s'arrête pas.
+        private void HandleCampaignEnd()
+        {
+            if (_campaignEndHandled)
+                return;
+            _campaignEndHandled = true;
+
+            _userCancelled = true;          // pas de carte de mission : il n'y a pas de nouvelle mission à voir
+            progressRunning.Visible = false;
+            ClearQuickOptionsPanel();
+
+            lblStatus.Text = "Campaign over";
+            lblStage.Text = "The campaign is over (" + CampaignEndText() + ").";
+            lblStage.ForeColor = Color.DarkOrange;
+
+            SendQueuedAnswer("");
+
+            _campaignEndTimer = new System.Windows.Forms.Timer { Interval = 8000 };
+            _campaignEndTimer.Tick += (s, e) =>
+            {
+                _campaignEndTimer.Stop();
+                if (_bridge.IsRunning)
+                    _bridge.Kill();
+            };
+            _campaignEndTimer.Start();
+        }
+
+        private string CampaignEndText()
+        {
+            return _campaignEndResult == "" ? "result unknown" : _campaignEndResult.ToUpperInvariant();
         }
 
         // ---- Menu à lettre classique (comportement d'origine) ----
@@ -1194,12 +1307,17 @@ namespace DCE_Manager
         // Écran spécifique au y/n "Accept mission results?" de DEBRIEF_Master.lua (marqueur
         // ##DCEM_PROMPT##debriefaccept). Distinct du "yesno" générique (Continue?) utilisé
         // ailleurs, car le texte et le comportement de sortie diffèrent.
+        // Le bouton "Events map" (carte des événements du debrief) s'ajoute si DEBRIEF_ExportMap.lua a fourni son fichier :
+        // il n'est pas modal et ne répond pas à la question, on peut toujours choisir Yes / No.
         private void ShowDebriefAcceptControl()
         {
             ClearQuickOptionsPanel();
             SetStageCaption("Accept mission results?");
 
-            int width = ComputeUniformButtonWidth(new[] { "Yes", "No" });
+            string eventsFile = _debriefEventsPath == "" ? "" : Path.Combine(_workingDirectory, _debriefEventsPath);
+            bool hasEvents = eventsFile != "" && File.Exists(eventsFile);
+
+            int width = ComputeUniformButtonWidth(hasEvents ? new[] { "Yes", "No", "Events map" } : new[] { "Yes", "No" });
 
             var btnYes = new Button()
             {
@@ -1231,6 +1349,26 @@ namespace DCE_Manager
                 SendInput("n");
             };
             CurrentOptionsHost().Controls.Add(btnNo);
+
+            if (!hasEvents)
+                return;
+
+            var btnMap = new Button()
+            {
+                Text = "Events map",
+                AutoSize = false,
+                Width = width,
+                Height = 34,
+                Font = new Font(Font.FontFamily, 10F)
+            };
+            _toolTip.SetToolTip(btnMap, "EVENTS MAP\nShows the kills, ejections and bomb impacts of this mission on the map, with the flight plans. It does not answer the question: you can still choose Yes or No.");
+            btnMap.Click += (s, e) =>
+            {
+                if (_eventsForm != null && !_eventsForm.IsDisposed) { _eventsForm.Activate(); return; }
+                _eventsForm = new Map_Events_Form(_campaignName, eventsFile, false);
+                _eventsForm.Show(this);     // pas modale : le debrief reste utilisable
+            };
+            CurrentOptionsHost().Controls.Add(btnMap);
         }
 
         // Referme la vue debrief et redonne la main au panneau de propositions habituel
@@ -1818,6 +1956,15 @@ namespace DCE_Manager
             progressRunning.Visible = false;
             UpdateStepper(3); // dernière étape : "Confirm"
 
+            if (_campaignEndHandled)
+            {
+                if (_campaignEndTimer != null) _campaignEndTimer.Stop();
+                lblStatus.Text = "Campaign over.";
+                lblStage.Text = "The campaign is over (" + CampaignEndText() + ") - no new mission.";
+                lblStage.ForeColor = Color.DarkOrange;
+                success = true;     // fin normale, pas une erreur
+            }
+
             ClearQuickOptionsPanel();
             txtInput.Enabled = false;
             btnSend.Enabled = false;
@@ -1825,6 +1972,11 @@ namespace DCE_Manager
             btnClose.Enabled = true;
 
             BuildCompletionReportPanel(success);
+
+
+            // Génération réussie (pas annulée par l'utilisateur) : on ouvre la carte de mission
+            if (success && !_userCancelled)
+                OpenMissionMapBehind();
         }
 
         // Panneau final ("Style 1" de la maquette) : réutilise panelQuickOptions, libre une fois
@@ -1857,10 +2009,12 @@ namespace DCE_Manager
                 TextAlign = ContentAlignment.TopLeft,
                 Padding = new Padding(18, 20, 14, 14),
                 Font = new Font(Font.FontFamily, 11F, FontStyle.Bold),
-                ForeColor = success ? Color.SeaGreen : Color.Red,
-                Text = success
-                    ? "✓  Mission generated.\r\n\r\nDone."
-                    : "✗  The script stopped with an error.\r\n\r\nSee the technical details."
+                ForeColor = _campaignEndHandled ? Color.DarkOrange : (success ? Color.SeaGreen : Color.Red),
+                Text = _campaignEndHandled
+                    ? "■  The campaign is over: " + CampaignEndText() + ".\r\n\r\nNo new mission was generated.\r\nSee the technical details to know which trigger ended it."
+                    : (success
+                        ? "✓  Mission generated.\r\n\r\nDone."
+                        : "✗  The script stopped with an error.\r\n\r\nSee the technical details.")
             };
             tabSummary.Controls.Add(lblSummary);
             tabs.TabPages.Add(tabSummary);
@@ -2003,6 +2157,9 @@ namespace DCE_Manager
 
                 _bridge.Kill();
             }
+
+            if (_campaignEndTimer != null)
+                _campaignEndTimer.Dispose();
 
             _bridge.Dispose();
         }
@@ -2575,7 +2732,7 @@ namespace DCE_Manager
 
             if (_pendingFlightOptionAnswers.Count == 0)
                 EndMultiFlightOptionSequence();
-        }      
+        }
 
         // Mesure la largeur du texte le plus long PARMI CE LOT de propositions (pas tout le script),
         // pour que tous les boutons de ce menu aient la même largeur, ajustée au contenu.
@@ -2754,7 +2911,39 @@ namespace DCE_Manager
                     break;
             }
         }
-        
+
+        [DllImport("user32.dll")]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+        private const uint SWP_NOSIZE = 0x0001, SWP_NOMOVE = 0x0002, SWP_NOACTIVATE = 0x0010;
+
+        private Map_UI_Form _missionMap;
+
+        // Ouvre la carte de mission (non bloquante) juste DERRIÈRE cette Form : on remplace la fenêtre
+        // de la carte dans l'ordre d'empilement, juste sous nous, sans activer la carte.
+        private void OpenMissionMapBehind()
+        {
+            try
+            {
+                if (_missionMap != null && !_missionMap.IsDisposed)
+                    return;
+
+                var map = new Map_UI_Form(_campaignName, true);
+                _missionMap = map;
+                map.FormClosed += (s, e) =>
+                {
+                    if (ReferenceEquals(_missionMap, map)) _missionMap = null;
+                    map.Dispose();
+                };
+
+                map.Show();
+                SetWindowPos(map.Handle, Handle, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+                Activate();
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ScriptsModRunner_Form | OpenMissionMapBehind | " + ex.Message);
+            }
+        }
 
         private const string MetarMarkerPrefix = "##DCEM_METAR##";
 

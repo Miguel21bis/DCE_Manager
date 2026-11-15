@@ -309,6 +309,7 @@ namespace DCE_Manager.Parameters
         public int AirdromeId { get; set; }
         public bool Divert { get; set; }
         public bool Inactive { get; set; }
+        public bool BaseAirStart { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
 
@@ -381,6 +382,19 @@ namespace DCE_Manager.Parameters
         public Dictionary<string, List<string>> TaskByPlane { get; set; }
 
         public List<string> Country { get; set; } = new List<string>();
+
+        public Dictionary<string, List<double[]>> RadioByModule { get; set; }
+
+        public class ModuleRadio
+        {
+            public string Name = "";
+            public int NbCanal;
+            public bool IsDefault;                                  // vrai = aucune donnée pour ce module (plage 100-156 par défaut)
+            public List<double[]> Ranges = new List<double[]>();    // { min, max } en MHz
+        }
+
+        public Dictionary<string, List<ModuleRadio>> RadioDetail { get; set; }
+
     }
 
     public static class List_oob_air_Manager

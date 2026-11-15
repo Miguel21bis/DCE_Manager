@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -7,6 +7,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -88,6 +89,17 @@ namespace DCE_Manager.Update
         private static HashSet<string> _allKeys = new HashSet<string>(); // noms de tout le catalogue (voir FindInstalled)
         private bool _userCancelled;        // vrai si l'utilisateur a cliqué sur Cancel (et pas une panne réseau)
         private Panel _panel;               // panneau actuellement affiché dans l'onglet
+
+        // Surveillance des téléchargements faits à la main (campagnes hébergées chez ED, bouton "Open page")
+        private System.Windows.Forms.Timer _watchTimer;
+        private CatalogCampaign _watchItem;                 // l'entrée choisie par l'utilisateur
+        private DateTime _watchStart;                       // seuls les zip arrivés après ce moment comptent
+        private DateTime _watchEnd;                         // abandon automatique de la surveillance
+        private Label _watchStatus;                         // texte affiché sur la carte (peut être détruit par DisplayCatalog)
+        private Button _watchCancel;
+        private readonly Dictionary<string, long> _watchSizes = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase); // taille vue au tick précédent
+        private readonly HashSet<string> _watchHandled = new HashSet<string>(StringComparer.OrdinalIgnoreCase);                  // zip déjà examinés
+        private const string WatchWaitingText = "Waiting for your download... When the ZIP file arrives in your Downloads folder, it will be installed automatically.";
 
         // Campagne trouvée dans les dossiers installés (lecture de Init\camp_init.lua).
         private class InstalledCampaign
@@ -893,7 +905,17 @@ namespace DCE_Manager.Update
             ProgressBar bar = new ProgressBar { Height = 14, Visible = false };
             Label status = new Label { Font = smallFont, ForeColor = Color.DimGray, AutoSize = false, Height = 18, Width = wrapWidth, Visible = false };
 
-            cancel.Click += (s, e) => { _userCancelled = true; form.campaignUpdater.CancelDownload(); };
+            cancel.Click += (s, e) =>
+            {
+                // Pendant l'attente d'un téléchargement manuel, Cancel arrête juste la surveillance
+                if (_watchItem != null)
+                    StopWatch("Waiting stopped.");
+
+                _userCancelled = true;
+                form.campaignUpdater.CancelDownload();
+            };
+
+            int watchRows = 0;   // lignes dont le zip sera téléchargé à la main (pas de bouton Download)
 
             void AddRow(CatalogCampaign item, string label)
             {
@@ -902,6 +924,9 @@ namespace DCE_Manager.Update
 
                 if (!hasDownload && !hasPage)
                     return;
+
+                if (!hasDownload)
+                    watchRows++;
 
                 int x = margin;
 
@@ -960,7 +985,15 @@ namespace DCE_Manager.Update
                     Button open = new Button { Text = "Open page", Width = 100, Height = 26, Location = new Point(x, y + 4), Cursor = Cursors.Hand };
 
                     string url = item.UrlDetail;
-                    open.Click += (s, e) => OpenUrl(url);
+                    open.Click += (s, e) =>
+                    {
+                        OpenUrl(url);
+
+                        // Pas de téléchargement automatique possible (ex : fichiers utilisateur ED) :
+                        // on surveille le dossier Téléchargements pour installer le zip dès qu'il arrive.
+                        if (!hasDownload)
+                            StartWatch(item, cancel, status);
+                    };
 
                     card.Controls.Add(open);
                 }
@@ -981,8 +1014,8 @@ namespace DCE_Manager.Update
                 AddRow(c, null);
             }
 
-            // Place réservée à la progression (visible seulement pendant un téléchargement)
-            if (downloadButtons.Count > 0)
+            // Place réservée à la progression (visible seulement pendant un téléchargement ou une attente)
+            if (downloadButtons.Count > 0 || watchRows > 0)
             {
                 cancel.Location = new Point(margin, y + 2);
                 bar.Location = new Point(margin + 78, y + 7);
@@ -992,6 +1025,17 @@ namespace DCE_Manager.Update
                 card.Controls.Add(cancel);
                 card.Controls.Add(bar);
                 card.Controls.Add(status);
+
+                // La carte a pu être reconstruite pendant l'attente : on réaffiche le message sur la nouvelle carte
+                if (_watchItem != null && CardContains(c, _watchItem))
+                {
+                    _watchStatus = status;
+                    _watchCancel = cancel;
+
+                    cancel.Visible = true;
+                    status.Visible = true;
+                    status.Text = WatchWaitingText;
+                }
 
                 y += 2 + 24 + 2 + 18 + 4;
             }
@@ -1263,49 +1307,7 @@ namespace DCE_Manager.Update
                     return;
                 }
 
-                // Le fichier reçu est-il bien un paquet de campagne ?
-                string folderName = ReadCampaignFolderFromZip(zipFile);
-
-                if (folderName == null)
-                {
-                    try { File.Delete(zipFile); } catch { }
-
-                    OfferDetailPage(c, "The downloaded file is not a valid DCE campaign package (no DCS_SavedGames_Path\\...\\Init\\camp_init.lua inside).");
-                    return;
-                }
-
-                info.Name = folderName;
-
-                string newFolderName = folderName + " " + info.LatestVersion;
-                string newFolderPath = Path.Combine(ParamConf.PATH_SavedGames_DCS, "Mods", "tech", "DCE", "Missions", "Campaigns", newFolderName);
-
-                if (Directory.Exists(newFolderPath))
-                {
-                    DialogResult overwrite = MessageBox.Show(
-                        "'" + newFolderName + "' is already installed.\r\n\r\nInstall it again over the existing files? (campaign progress in the Active folder is not touched)",
-                        "Download - " + c.Name,
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question,
-                        MessageBoxDefaultButton.Button2);
-
-                    if (overwrite != DialogResult.Yes)
-                        return;
-                }
-
-                status.Text = "Installing...";
-
-                try
-                {
-                    form.campaignUpdater.ExtractCampaignZip(zipFile, ParamConf.PATH_SavedGames_DCS, info);
-                }
-                catch (Exception ex)
-                {
-                    FormUtils.LogRegister("DownloadAndInstallAsync : installation impossible : " + ex.Message);
-                    OfferDetailPage(c, "The installation failed:\r\n" + ex.Message);
-                    return;
-                }
-
-                installedFolder = newFolderName;
+                installedFolder = InstallZipFile(c, info, zipFile, status, true);
             }
             catch (Exception ex)
             {
@@ -1326,16 +1328,378 @@ namespace DCE_Manager.Update
             }
 
             if (installedFolder != null)
+                await FinishInstallAsync(c, installedFolder);
+        }
+
+        // Lit le zip, demande confirmation si le dossier existe déjà, puis installe.
+        // Renvoie le nom du dossier installé, ou null (le message d'erreur a déjà été montré).
+        // ownsZip = vrai si le zip est dans notre dossier de téléchargement : un fichier invalide y est supprimé.
+        // Un zip qui vient du dossier Téléchargements de l'utilisateur n'est JAMAIS supprimé.
+        private string InstallZipFile(CatalogCampaign c, CampaignInfo info, string zipFile, Label status, bool ownsZip)
+        {
+            // Le fichier reçu est-il bien un paquet de campagne ?
+            string folderName = ReadCampaignFolderFromZip(zipFile);
+
+            if (folderName == null)
             {
-                // Met à jour l'onglet Update, la liste des campagnes, puis les badges de ce catalogue.
-                form.campaignUpdater.RefreshCampaignUpdatesLocalOnly(form.CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
+                if (ownsZip)
+                {
+                    try { File.Delete(zipFile); } catch { }
+                }
 
-                await form.CampaignGridLeft.LoadCampaignsAsync(selectCampaignName: installedFolder);
-
-                DisplayCatalog();
-
-                MessageBox.Show("'" + installedFolder + "' installed.", "Download - " + c.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                OfferDetailPage(c, "The downloaded file is not a valid DCE campaign package (no DCS_SavedGames_Path\\...\\Init\\camp_init.lua inside).");
+                return null;
             }
+
+            info.Name = folderName;
+
+            string newFolderName = folderName + " " + info.LatestVersion;
+            string newFolderPath = Path.Combine(ParamConf.PATH_SavedGames_DCS, "Mods", "tech", "DCE", "Missions", "Campaigns", newFolderName);
+
+            if (Directory.Exists(newFolderPath))
+            {
+                DialogResult overwrite = MessageBox.Show(
+                    "'" + newFolderName + "' is already installed.\r\n\r\nInstall it again over the existing files? (campaign progress in the Active folder is not touched)",
+                    "Download - " + c.Name,
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question,
+                    MessageBoxDefaultButton.Button2);
+
+                if (overwrite != DialogResult.Yes)
+                    return null;
+            }
+
+            if (status != null && !status.IsDisposed)
+                status.Text = "Installing...";
+
+            try
+            {
+                form.campaignUpdater.ExtractCampaignZip(zipFile, ParamConf.PATH_SavedGames_DCS, info);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("InstallZipFile : installation impossible : " + ex.Message);
+                OfferDetailPage(c, "The installation failed:\r\n" + ex.Message);
+                return null;
+            }
+
+            return newFolderName;
+        }
+
+        // Après une installation réussie : met à jour l'onglet Update, bascule sur l'onglet Campaigns,
+        // se place sur la ligne de la campagne, rafraîchit les badges du catalogue, puis prévient l'utilisateur.
+        private async Task FinishInstallAsync(CatalogCampaign c, string installedFolder)
+        {
+            form.campaignUpdater.RefreshCampaignUpdatesLocalOnly(form.CampaignDataGridView, ParamConf.PATH_SavedGames_DCS);
+
+            await form.ShowInstalledCampaignAsync(installedFolder);
+
+            DisplayCatalog();
+
+            MessageBox.Show("'" + installedFolder + "' installed.", "Download - " + c.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+
+        // ============================================================================
+        // Téléchargement fait à la main (ex : fichiers utilisateur du site ED)
+        // Le clic sur "Open page" lance une surveillance : toutes les 2 secondes on regarde si un
+        // NOUVEAU zip est arrivé dans Téléchargements (Bureau, Documents, et notre dossier aussi).
+        // Si c'est un paquet DCE qui correspond au choix de l'utilisateur, il est installé tout seul.
+        // ============================================================================
+
+        // Vrai si 'target' est la carte elle-même ou l'une de ses variantes.
+        private static bool CardContains(CatalogCampaign card, CatalogCampaign target)
+        {
+            return ReferenceEquals(card, target) || card.Variants.Any(v => ReferenceEquals(v, target));
+        }
+
+        [DllImport("shell32.dll")]
+        private static extern int SHGetKnownFolderPath([MarshalAs(UnmanagedType.LPStruct)] Guid rfid, uint dwFlags, IntPtr hToken, out IntPtr ppszPath);
+
+        // Vrai dossier "Téléchargements" de Windows (il peut avoir été déplacé sur un autre disque).
+        private static string GetDownloadsFolder()
+        {
+            try
+            {
+                Guid downloads = new Guid("374DE290-123F-4565-9164-39C4925E467B");
+                IntPtr ptr;
+
+                if (SHGetKnownFolderPath(downloads, 0, IntPtr.Zero, out ptr) == 0 && ptr != IntPtr.Zero)
+                {
+                    string path = Marshal.PtrToStringUni(ptr);
+                    Marshal.FreeCoTaskMem(ptr);
+
+                    if (!string.IsNullOrEmpty(path))
+                        return path;
+                }
+            }
+            catch { }
+
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        }
+
+        private static List<string> GetWatchFolders()
+        {
+            List<string> all = new List<string>
+            {
+                GetDownloadsFolder(),
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                Updater_Param.PathDownloadCampaigns
+            };
+
+            return all.Where(f => !string.IsNullOrEmpty(f) && Directory.Exists(f))
+                      .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        }
+
+        private void StartWatch(CatalogCampaign item, Button cancel, Label status)
+        {
+            if (_downloading)
+                return;
+
+            StopWatch(null);
+
+            _watchItem = item;
+            _watchStart = DateTime.Now.AddSeconds(-10);   // petite marge : horloge du navigateur / création du fichier
+            _watchEnd = DateTime.Now.AddMinutes(30);
+            _watchStatus = status;
+            _watchCancel = cancel;
+            _watchSizes.Clear();
+            _watchHandled.Clear();
+
+            cancel.Visible = true;
+            status.Visible = true;
+            status.Text = WatchWaitingText;
+
+            if (_watchTimer == null)
+            {
+                _watchTimer = new System.Windows.Forms.Timer();
+                _watchTimer.Interval = 2000;
+                _watchTimer.Tick += (s, e) => WatchTick();
+            }
+
+            _watchTimer.Start();
+
+            FormUtils.LogRegister("Catalogue : surveillance des téléchargements pour '" + item.Name + "' dans " + string.Join(" | ", GetWatchFolders()));
+        }
+
+        private void StopWatch(string message)
+        {
+            if (_watchTimer != null)
+                _watchTimer.Stop();
+
+            _watchItem = null;
+
+            if (_watchStatus != null && !_watchStatus.IsDisposed)
+            {
+                if (string.IsNullOrEmpty(message))
+                    _watchStatus.Visible = false;
+                else
+                    _watchStatus.Text = message;
+            }
+
+            if (_watchCancel != null && !_watchCancel.IsDisposed)
+                _watchCancel.Visible = false;
+
+            _watchStatus = null;
+            _watchCancel = null;
+        }
+
+        private async void WatchTick()
+        {
+            if (_watchItem == null || _downloading)
+                return;
+
+            if (DateTime.Now > _watchEnd)
+            {
+                StopWatch("Waiting stopped (30 minutes). Click 'Open page' to start again.");
+                return;
+            }
+
+            string zipFile = FindNewCampaignZip();
+
+            if (zipFile == null)
+                return;
+
+            // On arrête d'écouter pendant l'installation
+            CatalogCampaign item = _watchItem;
+            _watchTimer.Stop();
+            _watchHandled.Add(zipFile);
+
+            _downloading = true;
+            string installedFolder = null;
+
+            try
+            {
+                CampaignInfo info = new CampaignInfo();
+                info.Name = item.Name;
+                info.AssetName = Path.GetFileName(zipFile);
+                info.DownloadUrl = item.UrlDownload;
+
+                // Version : celle du catalogue, sinon celle écrite dans le zip, sinon 1.0
+                string version = string.IsNullOrWhiteSpace(item.Version) ? ReadVersionFromZip(zipFile) : item.Version.Trim();
+                info.LatestVersion = string.IsNullOrWhiteSpace(version) ? "1.0" : version;
+
+                if (_watchStatus != null && !_watchStatus.IsDisposed)
+                    _watchStatus.Text = "ZIP found: " + info.AssetName;
+
+                FormUtils.LogRegister("Catalogue : zip détecté '" + zipFile + "' pour '" + item.Name + "'");
+
+                try { form.Activate(); } catch { }
+
+                installedFolder = InstallZipFile(item, info, zipFile, _watchStatus, false);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("WatchTick : " + ex);
+                OfferDetailPage(item, "Unexpected error:\r\n" + ex.Message);
+            }
+            finally
+            {
+                _downloading = false;
+            }
+
+            if (installedFolder != null)
+            {
+                StopWatch(null);
+                await FinishInstallAsync(item, installedFolder);
+            }
+            else if (_watchItem != null && DateTime.Now <= _watchEnd)
+            {
+                // Refus, erreur : on continue d'attendre un autre fichier
+                if (_watchStatus != null && !_watchStatus.IsDisposed)
+                    _watchStatus.Text = WatchWaitingText;
+
+                _watchTimer.Start();
+            }
+        }
+
+        // Cherche, dans les dossiers surveillés, un zip arrivé depuis le clic, terminé (taille stable,
+        // plus verrouillé par le navigateur), qui est un paquet DCE correspondant au choix de l'utilisateur.
+        private string FindNewCampaignZip()
+        {
+            HashSet<string> keys = new HashSet<string>();
+            CollectKeys(_watchItem, keys);
+            keys.Remove("");
+
+            foreach (string folder in GetWatchFolders())
+            {
+                List<string> files;
+
+                try { files = Directory.EnumerateFiles(folder, "*.zip", SearchOption.TopDirectoryOnly).ToList(); }
+                catch { continue; }
+
+                foreach (string path in files)
+                {
+                    if (_watchHandled.Contains(path))
+                        continue;
+
+                    FileInfo fi = new FileInfo(path);
+
+                    // Arrivé après le clic ? (date de création ou de modification)
+                    DateTime arrival = fi.CreationTime > fi.LastWriteTime ? fi.CreationTime : fi.LastWriteTime;
+
+                    if (arrival < _watchStart)
+                        continue;
+
+                    // Fini d'être écrit : même taille qu'au tick précédent ET ouvrable
+                    long length = fi.Length;
+                    long previous;
+
+                    if (!_watchSizes.TryGetValue(path, out previous) || previous != length)
+                    {
+                        _watchSizes[path] = length;
+                        continue;
+                    }
+
+                    if (length == 0 || !CanOpenExclusively(path))
+                        continue;
+
+                    // À partir d'ici le fichier est complet : on ne l'examine qu'une fois
+                    string folderName = ReadCampaignFolderFromZip(path);
+
+                    if (folderName == null)
+                    {
+                        _watchHandled.Add(path);   // un zip quelconque, pas une campagne DCE
+                        continue;
+                    }
+
+                    string baseName = Regex.Replace(folderName, @"\s+v?\d+(\.\d+)*$", "", RegexOptions.IgnoreCase);
+
+                    bool sameName = keys.Contains(Normalize(folderName)) || keys.Contains(Normalize(baseName));
+                    bool sameId = !string.IsNullOrEmpty(_watchItem.Id)
+                        && string.Equals(ReadCampaignIdFromZip(path), _watchItem.Id, StringComparison.OrdinalIgnoreCase);
+
+                    if (sameName || sameId)
+                        return path;
+
+                    // Paquet DCE valide mais qui ne ressemble pas au choix : on demande une seule fois.
+                    _watchHandled.Add(path);
+
+                    DialogResult answer = MessageBox.Show(
+                        "'" + Path.GetFileName(path) + "' is a DCE campaign (folder '" + folderName + "'),\r\n" +
+                        "but it does not look like '" + _watchItem.Name + "'.\r\n\r\nInstall it anyway?",
+                        "Download - " + _watchItem.Name,
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Question);
+
+                    if (answer == DialogResult.Yes)
+                        return path;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool CanOpenExclusively(string path)
+        {
+            try
+            {
+                using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None)) { }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        // Texte de Init\camp_init.lua dans le zip (vide si absent).
+        private static string ReadCampInitFromZip(string zipFile)
+        {
+            try
+            {
+                using (ZipArchive archive = ZipFile.OpenRead(zipFile))
+                {
+                    foreach (ZipArchiveEntry entry in archive.Entries)
+                    {
+                        if (!Regex.IsMatch(entry.FullName.Replace('\\', '/'),
+                            @"^DCS_SavedGames_Path/Mods/tech/DCE/Missions/Campaigns/[^/]+/Init/camp_init\.lua$", RegexOptions.IgnoreCase))
+                            continue;
+
+                        using (StreamReader reader = new StreamReader(entry.Open()))
+                            return reader.ReadToEnd();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ReadCampInitFromZip : " + ex.Message);
+            }
+
+            return "";
+        }
+
+        private static string ReadCampaignIdFromZip(string zipFile)
+        {
+            Match m = Regex.Match(ReadCampInitFromZip(zipFile), @"campaignId\s*=\s*""([^""]+)""");
+            return m.Success ? m.Groups[1].Value : "";
+        }
+
+        private static string ReadVersionFromZip(string zipFile)
+        {
+            Match m = Regex.Match(ReadCampInitFromZip(zipFile), @"(?<!\w)version\s*=\s*""([^""]+)""");
+            return m.Success ? m.Groups[1].Value : "";
         }
 
 

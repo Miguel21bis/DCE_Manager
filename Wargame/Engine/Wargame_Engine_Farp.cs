@@ -330,14 +330,20 @@ namespace DCE_Manager
 
                 if (farp == null)
                 {
+                    // Milieu de la plage ; si le relief (web, facultatif) dit eau ou forte pente, on prend le point acceptable
+                    // le plus proche dans la plage. Sans web ou sans réponse : position d'avant, rien ne change.
+                    double farpX = beach.Center.X, farpY = beach.Center.Y;
+                    PointF? better = WargameRelief.FindFarpPoint(new PointF((float)farpX, (float)farpY), beach.DcsPoints);
+                    if (better.HasValue) { farpX = better.Value.X; farpY = better.Value.Y; }
+
                     farps.Add(new WargameFarp
                     {
                         Name = NameFor(beach.Id),
                         Beach = beach.Id,
                         Plan = kvp.Value.Id,
                         Side = kvp.Value.Control,
-                        X = beach.Center.X,
-                        Y = beach.Center.Y,
+                        X = farpX,
+                        Y = farpY,
                     });
                     changed = true;
                 }

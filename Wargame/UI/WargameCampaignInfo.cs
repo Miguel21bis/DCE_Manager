@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,6 +40,17 @@ namespace DCE_Manager
         // valeur différente.
         public double ZoneEdgeMarginMeters = WargameSpawnSolver.DefaultZoneEdgeMarginMeters;
 
+        // Distance à tenir (mètres) entre une formation et les formations ENNEMIES déjà
+        // posées dans les zones voisines, pour qu'elles ne s'entretuent pas dès le
+        // lancement de la mission. Lue dans camp.wargame_config.enemy_formation_distance_meters ;
+        // à défaut, la valeur par défaut du solveur. Comme la marge de bord : par campagne,
+        // l'échelle des cartes et la taille des zones changent tout.
+        public double EnemyFormationDistanceMeters = WargameSpawnSolver.DefaultEnemyFormationDistanceMeters;
+
+        // Distance vide (mètres) entre l'empreinte de la FARP et celle de son supply depot, BORD A BORD.
+        // Lue dans camp.wargame_config.farp_depot_gap_meters.
+        public double FarpDepotGapMeters = 500.0;
+
         // Réglages d'équilibrage du combat : valeurs par défaut du code, surchargées par
         // camp.wargame_config dans Init/camp_init.lua (voir ReadCombatConfig).
         public WargameCombatConfig CombatConfig = new WargameCombatConfig();
@@ -70,6 +81,20 @@ namespace DCE_Manager
             info.RedTemplates = ListTemplates(info.RedFolder);
 
             return info;
+        }
+
+        // Relit les dossiers de templates sur disque (fichiers ajoutés ou supprimés depuis le chargement).
+        // On vide et on remplit les MÊMES listes : ceux qui les ont déjà en main voient la mise à jour.
+        public void RefreshTemplates()
+        {
+            List<string> blue = ListTemplates(BlueFolder);
+            List<string> red = ListTemplates(RedFolder);
+
+            BlueTemplates.Clear();
+            BlueTemplates.AddRange(blue);
+
+            RedTemplates.Clear();
+            RedTemplates.AddRange(red);
         }
 
         // Part d'un jour que dure un tour, d'après les temps de conf_mod.lua : mission_duration + pause moyenne (idle_time_min / max).
@@ -200,6 +225,22 @@ namespace DCE_Manager
                         && margin >= 0)
                     {
                         ZoneEdgeMarginMeters = margin;
+                    }
+
+                    object keepAwayRaw = wargameConfig["enemy_formation_distance_meters"];
+                    if (keepAwayRaw != null
+                        && double.TryParse(Convert.ToString(keepAwayRaw, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out double keepAway)
+                        && keepAway >= 0)
+                    {
+                        EnemyFormationDistanceMeters = keepAway;
+                    }
+
+                    object gapRaw = wargameConfig["farp_depot_gap_meters"];
+                    if (gapRaw != null
+                        && double.TryParse(Convert.ToString(gapRaw, CultureInfo.InvariantCulture), NumberStyles.Any, CultureInfo.InvariantCulture, out double gap)
+                        && gap >= 0)
+                    {
+                        FarpDepotGapMeters = gap;
                     }
 
                     ReadCombatConfig(wargameConfig);

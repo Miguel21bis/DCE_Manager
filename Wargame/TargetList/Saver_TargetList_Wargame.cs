@@ -74,6 +74,8 @@ namespace DCE_Manager
 
             var rng = new Random();
 
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
+
             // side -> lignes Lua déjà indentées, prêtes à insérer telles quelles
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
     {
@@ -183,6 +185,9 @@ namespace DCE_Manager
             if (missing.Count == 0)
                 return failures; // rien de nouveau, on ne touche pas au fichier
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
+
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
+
             var rng = new Random();
 
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
@@ -233,7 +238,8 @@ namespace DCE_Manager
 
         private static List<WargamePlacedUnit> PlaceFormation(WargameFormation formation, WargameZoneData zone,
             WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng, PointF? threatPoint,
-            int sectorIndex, int sectorCount, List<WargameZoneData> allZones)
+            int sectorIndex, int sectorCount, List<WargameZoneData> allZones,
+            List<KeyValuePair<string, PointF>> placedCenters = null)
         {
             string stmPath = campaignInfo?.GetTemplateFilePath(formation.Template);
             if (string.IsNullOrEmpty(stmPath))
@@ -249,9 +255,14 @@ namespace DCE_Manager
                 return null;
             }
 
+            // Les formations ennemies déjà posées sont tenues à distance (elles se tireraient dessus au lancement)
+            List<PointF> enemies = placedCenters == null ? null : WargameEngineLosses.EnemyCenters(placedCenters, formation.Side);
+
             List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(
-     zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, formation.Side, allZones,
-     campaignInfo?.ZoneEdgeMarginMeters ?? WargameSpawnSolver.DefaultZoneEdgeMarginMeters);
+                zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, formation.Side, allZones,
+                campaignInfo?.ZoneEdgeMarginMeters ?? WargameSpawnSolver.DefaultZoneEdgeMarginMeters,
+                enemies,
+                campaignInfo?.EnemyFormationDistanceMeters ?? WargameSpawnSolver.DefaultEnemyFormationDistanceMeters);
 
             if (placed == null)
             {
@@ -259,8 +270,13 @@ namespace DCE_Manager
                 return null;
             }
 
+            if (placedCenters != null)
+                placedCenters.Add(new KeyValuePair<string, PointF>(formation.Side, WargameSpawnSolver.CenterOf(placed)));
+
             return placed;
         }
+
+
         // Zone contrôlée par le camp adverse la plus proche du centre de "ownZone" -
         // sans limite de distance (couvre aussi bien l'infanterie que
         // l'artillerie longue portée, sans logique séparée par type d'unité).

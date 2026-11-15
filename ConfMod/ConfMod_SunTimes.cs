@@ -14,24 +14,19 @@ namespace DCE_Manager
     //   lieu  = base du joueur (squad player = true dans oob_air) -> position dans db_airbases -> latitude / longitude
     //   heure = heure LOCALE du théâtre (DCS compte les missions en heure locale, fuseau fixe par carte)
     // Calcul local (formule NOAA), sans internet : précis à 1-2 minutes.
-    // Appelé une fois par session et par campagne (voir EnsureCampaignFilesUpToDate).
+    // Appelé : une fois par session et par campagne (EnsureCampaignFilesUpToDate), à la fermeture de la fenêtre Parameters
+    // et à chaque sauvegarde de l'OOB (changement de base / de squadron joueur). Ne fait rien si dawnDuskAuto = false.
     internal static class ConfMod_SunTimes
     {
-        // Fuseau horaire utilisé par DCS pour chaque carte (heures par rapport à UTC, pas d'heure d'été).
-        // Si une valeur est fausse pour ta carte, c'est ici qu'il faut la corriger.
-        private static readonly Dictionary<string, double> TimeZones = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "Caucasus", 4 }, { "Nevada", -8 }, { "PersianGulf", 4 }, { "Syria", 3 }, { "Normandy", 0 },
-            { "TheChannel", 0 }, { "MarianaIslands", 10 }, { "SouthAtlantic", -3 }, { "SinaiMap", 2 },
-            { "Kola", 3 }, { "Afghanistan", 4.5 }
-        };
-
         // Renvoie une ligne de compte-rendu (aussi écrite dans le journal). Ne lève jamais d'exception.
         public static string UpdateConfMod(string campaign)
         {
             try
             {
                 string root = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns", campaign);
+                // Case "Dawn/dusk updated automatically" (conf_mod : dawnDuskAuto). Absente = automatique (valeur par défaut).
+                if (!IsAuto(root)) return Log(campaign, "dawnDuskAuto is off: dawn/dusk left as set by hand");
+
                 string campInit = Path.Combine(root, "Init", "camp_init.lua");
                 if (!File.Exists(campInit)) return Log(campaign, "camp_init.lua not found");
 
@@ -43,7 +38,7 @@ namespace DCE_Manager
                 if (proj == null) return Log(campaign, "theatre '" + theatre + "' unknown: dawn/dusk unchanged");
 
                 double tz;
-                if (!TimeZones.TryGetValue(theatre, out tz)) return Log(campaign, "no time zone known for '" + theatre + "'");
+                if (!Map_Data.TheatreTimeZone(theatre, out tz)) return Log(campaign, "no time zone known for '" + theatre + "'");
 
                 // Position : base du joueur, sinon centre des bases connues
                 string place;
@@ -54,8 +49,8 @@ namespace DCE_Manager
                 Map_Web.DcsToLatLon(proj, x, y, out lat, out lon);
 
                 double rise, set;
-                if (!SunTimes(lat, lon, date, tz, out rise, out set))
-                    return Log(campaign, "no sunrise/sunset at this latitude on this date: dawn/dusk unchanged");
+                int polar;
+                SunTimesPolar(lat, lon, date, tz, out rise, out set, out polar);
 
                 int dawn = (int)Math.Round(rise), dusk = (int)Math.Round(set);
 
@@ -65,12 +60,43 @@ namespace DCE_Manager
 
                 return Log(campaign, "sun at " + place + " (" + lat.ToString("0.00") + ", " + lon.ToString("0.00") + ") on " + date.ToString("yyyy-MM-dd")
                     + ", " + theatre + " UTC" + (tz >= 0 ? "+" : "") + tz + " : dawn " + Hm(dawn) + " (" + dawn + "), dusk " + Hm(dusk) + " (" + dusk + ")"
+                    + (polar > 0 ? "   [POLAR DAY: sun never sets, dawn = 0 / dusk = end of day]" : (polar < 0 ? "   [POLAR NIGHT: sun never rises, dawn = dusk = solar noon]" : ""))
                     + (changed > 0 ? " -> conf_mod.lua updated" : " -> conf_mod.lua already correct"));
             }
             catch (Exception ex)
             {
                 return Log(campaign, "failed : " + ex.Message);
             }
+        }
+
+        // Position (latitude / longitude), fuseau horaire et lieu de la base du joueur : pour le panneau "ciel" de la carte de mission
+        internal static bool Locate(string campaign, out double lat, out double lon, out double tz, out string place, out string theatre)
+        {
+            lat = lon = tz = 0;
+            place = "";
+
+            string root = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns", campaign);
+            Map_Projection proj = Map_Web.KnownProjection(campaign, out theatre);
+            if (proj == null || !Map_Data.TheatreTimeZone(theatre, out tz)) return false;
+
+            double x, y;
+            if (!PlayerBasePosition(campaign, root, out x, out y, out place)) return false;
+
+            Map_Web.DcsToLatLon(proj, x, y, out lat, out lon);
+            return true;
+        }
+
+        // dawnDuskAuto de conf_mod.lua (Init d'abord, sinon Active) ; true si absent
+        private static bool IsAuto(string root)
+        {
+            foreach (string file in new[] { Path.Combine(root, "Init", "conf_mod.lua"), Path.Combine(root, "Active", "conf_mod.lua") })
+            {
+                if (!File.Exists(file)) continue;
+
+                Match m = Regex.Match(File.ReadAllText(file), @"(?m)^\s*dawnDuskAuto\s*=\s*(true|false)");
+                if (m.Success) return m.Groups[1].Value == "true";
+            }
+            return true;
         }
 
         private static string Log(string campaign, string text)
@@ -194,32 +220,67 @@ namespace DCE_Manager
             return bm.Success ? bm.Groups[2].Value : "";
         }
 
+        // Déclinaison du soleil et équation du temps (formule NOAA) à un instant donné : jour de l'année + heure UTC (fraction de jour)
+        private static void SunParams(DateTime date, double utcHour, out double eqTime, out double decl)
+        {
+            double gamma = 2.0 * Math.PI / (DateTime.IsLeapYear(date.Year) ? 366.0 : 365.0) * (date.DayOfYear - 1 + (utcHour - 12.0) / 24.0);
+
+            eqTime = 229.18 * (0.000075 + 0.001868 * Math.Cos(gamma) - 0.032077 * Math.Sin(gamma)
+                               - 0.014615 * Math.Cos(2 * gamma) - 0.040849 * Math.Sin(2 * gamma));
+            decl = 0.006918 - 0.399912 * Math.Cos(gamma) + 0.070257 * Math.Sin(gamma)
+                 - 0.006758 * Math.Cos(2 * gamma) + 0.000907 * Math.Sin(2 * gamma)
+                 - 0.002697 * Math.Cos(3 * gamma) + 0.00148 * Math.Sin(3 * gamma);
+        }
+
+        // cos de l'angle horaire du lever / coucher (soleil à 90.833 deg du zénith : rayon du soleil + réfraction). Hors [-1 ; 1] = pas de lever / coucher.
+        private static double CosHourAngle(double lat, double decl)
+        {
+            double latR = Math.Max(-89.5, Math.Min(89.5, lat)) * Math.PI / 180.0;       // évite la division par zéro au pôle
+            return Math.Cos(90.833 * Math.PI / 180.0) / (Math.Cos(latR) * Math.Cos(decl)) - Math.Tan(latR) * Math.Tan(decl);
+        }
+
         // Lever / coucher du soleil en secondes depuis minuit, heure locale (formule NOAA, soleil au ras de l'horizon).
         // false = pas de lever ou de coucher ce jour-là (jour ou nuit polaire).
+        // La déclinaison est recalculée à l'heure du lever / coucher (3 passes) : près des pôles, le soleil rase l'horizon
+        // et quelques centièmes de degré de déclinaison changent l'heure de plusieurs minutes.
         public static bool SunTimes(double lat, double lon, DateTime date, double tzHours, out double riseSec, out double setSec)
         {
             riseSec = setSec = 0;
 
-            double gamma = 2.0 * Math.PI / (DateTime.IsLeapYear(date.Year) ? 366.0 : 365.0) * (date.DayOfYear - 1);
+            double riseUtcMin = 720.0 - 4.0 * lon, setUtcMin = riseUtcMin;       // départ : midi solaire
+            for (int pass = 0; pass < 3; pass++)
+            {
+                double eq, decl;
 
-            double eqTime = 229.18 * (0.000075 + 0.001868 * Math.Cos(gamma) - 0.032077 * Math.Sin(gamma)
-                                      - 0.014615 * Math.Cos(2 * gamma) - 0.040849 * Math.Sin(2 * gamma));
-            double decl = 0.006918 - 0.399912 * Math.Cos(gamma) + 0.070257 * Math.Sin(gamma)
-                        - 0.006758 * Math.Cos(2 * gamma) + 0.000907 * Math.Sin(2 * gamma)
-                        - 0.002697 * Math.Cos(3 * gamma) + 0.00148 * Math.Sin(3 * gamma);
+                SunParams(date, riseUtcMin / 60.0, out eq, out decl);
+                double cosHa = CosHourAngle(lat, decl);
+                if (cosHa < -1.0 || cosHa > 1.0) return false;
+                riseUtcMin = 720.0 - 4.0 * (lon + Math.Acos(cosHa) * 180.0 / Math.PI) - eq;
 
-            double latR = lat * Math.PI / 180.0;
-            double cosHa = Math.Cos(90.833 * Math.PI / 180.0) / (Math.Cos(latR) * Math.Cos(decl)) - Math.Tan(latR) * Math.Tan(decl);
-            if (cosHa < -1.0 || cosHa > 1.0) return false;
-
-            double ha = Math.Acos(cosHa) * 180.0 / Math.PI;
-
-            double riseUtcMin = 720.0 - 4.0 * (lon + ha) - eqTime;
-            double setUtcMin = 720.0 - 4.0 * (lon - ha) - eqTime;
+                SunParams(date, setUtcMin / 60.0, out eq, out decl);
+                cosHa = CosHourAngle(lat, decl);
+                if (cosHa < -1.0 || cosHa > 1.0) return false;
+                setUtcMin = 720.0 - 4.0 * (lon - Math.Acos(cosHa) * 180.0 / Math.PI) - eq;
+            }
 
             riseSec = Wrap((riseUtcMin + tzHours * 60.0) * 60.0);
             setSec = Wrap((setUtcMin + tzHours * 60.0) * 60.0);
             return true;
+        }
+
+        // Comme SunTimes, mais jamais "false" : jour polaire (soleil toujours levé) -> dawn 0 / dusk 86399 ;
+        // nuit polaire (jamais levé) -> dawn = dusk = midi solaire. polar : +1 jour polaire, -1 nuit polaire, 0 normal.
+        public static void SunTimesPolar(double lat, double lon, DateTime date, double tzHours, out double riseSec, out double setSec, out int polar)
+        {
+            polar = 0;
+            if (SunTimes(lat, lon, date, tzHours, out riseSec, out setSec)) return;
+
+            double eq, decl;
+            SunParams(date, 12.0 - lon / 15.0, out eq, out decl);
+            polar = CosHourAngle(lat, decl) < 0 ? 1 : -1;       // < -1 : toujours levé ; > 1 : jamais levé
+
+            if (polar > 0) { riseSec = 0; setSec = 86399; }
+            else riseSec = setSec = Wrap((720.0 - 4.0 * lon - eq + tzHours * 60.0) * 60.0);
         }
 
         private static double Wrap(double seconds)

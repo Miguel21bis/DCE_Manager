@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -27,12 +27,13 @@ namespace DCE_Manager
         public const string SupplyPoint = "supplypoint";
         public const string Convoy = "convoy";
         public const string Farp = "farp";   // FARP d'une plage de débarquement : l'héliport + les véhicules / tentes autour (carburant, munitions...)
+        public const string SupplyDepot = "supplydepot";   // "supply depot" posé à côté de la FARP, template À PART (pas les tentes de la FARP) ; à défaut, le template "supplypoint" est utilisé
 
-        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics, SupplyPoint, Convoy, Farp };
+        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics, SupplyPoint, Convoy, Farp, SupplyDepot };
 
         public static bool IsFormationType(string type)
         {
-            return type != SupplyPoint && type != Convoy && type != Farp;
+            return type != SupplyPoint && type != Convoy && type != Farp && type != SupplyDepot;
         }
 
         // Valeurs proposées à la création d'une entrée de catalogue, pour éviter
@@ -72,6 +73,7 @@ namespace DCE_Manager
                     priority = 6; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
                     break;
                 case Farp:
+                case SupplyDepot:
                     power = 0; attack = 0; defense = 0.5; supplyCost = 0;
                     priority = 6; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
                     break;
@@ -104,6 +106,7 @@ namespace DCE_Manager
                 case SupplyPoint: return 0;   // un point de ravitaillement ne consomme pas, il distribue
                 case Convoy: return 0;
                 case Farp: return 0;
+                case SupplyDepot: return 0;
                 default: return 8;
             }
         }
@@ -353,7 +356,7 @@ namespace DCE_Manager
                         {
                             Template = key.ToString(),
                             Side = entryLua["side"]?.ToString() ?? "",
-                            Type = entryLua["type"]?.ToString() ?? WargameUnitType.Infantry,
+                            Type = ReadType(entryLua["type"]),
                             Attack = ToDouble(entryLua["attack"], 1.0),
                             Defense = ToDouble(entryLua["defense"], 1.0),
                             SupplyCost = ToDouble(entryLua["supplyCost"], 1.0),
@@ -445,6 +448,13 @@ namespace DCE_Manager
         private static string FormatNumber(double value)
         {
             return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        // "warehouse" (premier essai, mot réservé par DCS) est relu comme "supplydepot"
+        private static string ReadType(object raw)
+        {
+            string type = raw?.ToString() ?? WargameUnitType.Infantry;
+            return string.Equals(type, "warehouse", StringComparison.OrdinalIgnoreCase) ? WargameUnitType.SupplyDepot : type;
         }
 
         private static string Escape(string value)

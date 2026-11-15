@@ -95,6 +95,7 @@ namespace DCE_Manager
                 AddWarningBanner(warningBanner);
 
             BindValues();
+            LinkDawnDusk();
             SyncPresetButtons();
         }
 
@@ -358,6 +359,9 @@ namespace DCE_Manager
 
                 return;
             }
+
+            if (_campaignName != null && Text.StartsWith("Config"))
+                ConfMod_SunTimes.UpdateConfMod(_campaignName);   // recalcule tout de suite si la case vient d'être cochée
 
             DialogResult = DialogResult.OK;
             Close();
@@ -663,6 +667,8 @@ namespace DCE_Manager
                     BuildList(layout, row, fc);
                     break;
             }
+
+            fc.Input = layout.GetControlFromPosition(1, row);
 
             return fc;
         }
@@ -1289,6 +1295,8 @@ namespace DCE_Manager
             public ConfUiFieldSchema Schema;
             public Func<object> GetValue;
             public Action<object> SetValue;
+
+            public Control Input;   // contrôle de saisie (colonne 1), pour pouvoir le griser
         }
 
         // Case "HH:MM" avec flèches, pour les champs format=hhmm.
@@ -1498,5 +1506,24 @@ namespace DCE_Manager
             public Func<Dictionary<string, double[]>> GetValue;
             public Action<Dictionary<string, double[]>> SetValue;
         }
+
+        // Case "dawnDuskAuto" cochée : dawn et dusk sont calculés par DCE_Manager, donc grisés
+        private void LinkDawnDusk()
+        {
+            UiFieldControl auto = _controls.FirstOrDefault(c => c.Schema.Key == "dawnDuskAuto");
+            CheckBox check = auto != null ? auto.Input as CheckBox : null;
+            if (check == null) return;
+
+            Action apply = () =>
+            {
+                foreach (UiFieldControl fc in _controls.Where(c => c.Schema.Key == "dawn" || c.Schema.Key == "dusk"))
+                    if (fc.Input != null) fc.Input.Enabled = !check.Checked;
+            };
+
+            check.CheckedChanged += (s, e) => apply();
+            apply();
+        }
+
+
     }
 }

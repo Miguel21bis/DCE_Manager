@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -67,6 +67,7 @@ namespace DCE_Manager
             var endRed = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var changedRuns = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var reachedTurns = new Dictionary<string, List<int>>(StringComparer.OrdinalIgnoreCase);
+            var endings = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // fin de campagne annoncée par un trigger : résultat -> nombre de parties
 
             double sumLastChange = 0, sumBlueForce = 0, sumRedForce = 0;
 
@@ -105,6 +106,13 @@ namespace DCE_Manager
                     if (triggerSim != null)
                         triggerSim.Run(turn, work, runFlags);
 
+                    // Un trigger a mis fin à la campagne (Action.CampaignEnd) : cette partie s'arrête là
+                    if (triggerSim != null && triggerSim.EndResult != "")
+                    {
+                        Add(endings, triggerSim.EndResult);
+                        break;
+                    }
+
                     ApplyAttrition(work, byId, links, blueLossPercent, redLossPercent, rng, catalog);
 
                     WargameCombatResult result = WargameEngineCombat.Resolve(work, axes, runFlags, config, rng, catalog);
@@ -142,7 +150,7 @@ namespace DCE_Manager
             }
 
             return BuildReport(zones, axes, info, turns, runs, variance, blueLossPercent, redLossPercent,
-                startControl, endBlue, endRed, changedRuns, reachedTurns,
+                startControl, endBlue, endRed, changedRuns, reachedTurns, endings,
                 sumLastChange / runs, startBlue, startRed, sumBlueForce / runs, sumRedForce / runs);
         }
 
@@ -211,6 +219,7 @@ namespace DCE_Manager
             Dictionary<string, string> startControl,
             Dictionary<string, int> endBlue, Dictionary<string, int> endRed,
             Dictionary<string, int> changedRuns, Dictionary<string, List<int>> reachedTurns,
+            Dictionary<string, int> endings,
             double avgLastChange, double startBlue, double startRed, double endBlueForce, double endRedForce)
         {
             var sb = new StringBuilder();
@@ -275,6 +284,14 @@ namespace DCE_Manager
 
             if (!anyAxis)
                 sb.AppendLine("  (no axis with a flag)");
+
+            sb.AppendLine();
+            sb.AppendLine("Campaign end (trigger Action.CampaignEnd):");
+            if (endings.Count == 0)
+                sb.AppendLine("  no trigger ended the campaign");
+            else
+                foreach (KeyValuePair<string, int> kv in endings.OrderByDescending(x => x.Value))
+                    sb.AppendLine("  " + kv.Key + " : " + kv.Value + "/" + runs + " run(s)");
 
             sb.AppendLine();
             sb.AppendLine("Front last moved around turn " + avgLastChange.ToString("0.0") + " (average)"
@@ -428,6 +445,14 @@ namespace DCE_Manager
 
         public int Turn;
 
+        // Missions déjà jouées par la campagne quand la Preview a demarre (0 en vue Init, camp.mission en vue Active).
+        // Le numéro de mission écrit dans la campagne = BaseMission + Turn : sans ca, une Preview partie de l'Active
+        // remettrait camp.mission à 1 (DCE repartirait alors sur _first.miz et sur la date du premier jour).
+        public int BaseMission;
+
+        // Numéro de mission de la campagne pour le tour affiché
+        public int CampMission { get { return Math.Max(1, BaseMission + Turn); } }
+
         // Modifiables en cours de partie : relus à chaque tour
         public double Variance;
         public double BlueLossPercent;
@@ -448,6 +473,20 @@ namespace DCE_Manager
         public bool ConvoysOn;
         public double BlueConvoyLossPercent, RedConvoyLossPercent;
         public double BlueAirPercent, RedAirPercent;
+
+        // Résultat de fin de campagne annoncé par un trigger ("win", "loss", "draw") ; vide = la campagne continue
+        public string CampaignEnd { get { return Triggers == null ? "" : Triggers.EndResult; } }
+
+        public string CampaignEndText()
+        {
+            switch (CampaignEnd)
+            {
+                case "win": return "FIN DE CAMPAGNE : VICTOIRE (trigger : win)";
+                case "loss": return "FIN DE CAMPAGNE : DÉFAITE (trigger : loss)";
+                case "draw": return "FIN DE CAMPAGNE : MATCH NUL (trigger : draw)";
+                default: return "FIN DE CAMPAGNE (trigger : " + CampaignEnd + ")";
+            }
+        }
 
         // Convois du dernier tour (journal, carte)
         public List<WargameEngineCombat.WargameConvoy> Convoys { get { return _config.Convoys; } }
@@ -686,8 +725,15 @@ namespace DCE_Manager
         {
             var log = new List<string>();
 
+            // Campagne déjà terminée par un trigger : plus rien ne se joue (Réinitialiser pour recommencer)
+            if (CampaignEnd != "")
+            {
+                log.Add("  " + CampaignEndText() + " - Réinitialiser pour recommencer.");
+                return log;
+            }
+
             Turn++;
-            log.Add("--- Turn " + Turn + " ---");
+            log.Add("--- Turn " + Turn + (BaseMission > 0 ? " (mission " + CampMission + ")" : "") + " ---");
 
             // Événements programmés de ce tour : appliqués AVANT l'état de départ, pour que le ravitaillement en tienne compte
             List<string> eventLines = WargameCombatPreview.ApplyEventsTo(Events, Turn, _objectives, _alive);
@@ -755,6 +801,15 @@ namespace DCE_Manager
                         log.Add("  " + line);
                     }
                 }
+            }
+
+            // Fin de campagne annoncée par un trigger : en vrai aucune mission n'est générée, donc ni pertes ni combat
+            if (CampaignEnd != "")
+            {
+                log.Add("  *** " + CampaignEndText() + " ***");
+                FullLog.Add("");
+                FullLog.Add("*** " + CampaignEndText() + " (turn " + Turn + ") ***");
+                return log;
             }
 
             // Renforcement automatique des squads (réserve -> prêts), comme scriptsMod à chaque génération de mission
@@ -1247,7 +1302,12 @@ namespace DCE_Manager
                 }
             }
 
-            return "Tour " + Turn + " / " + maxTurns + (Clock == null ? "" : "  -  " + TimeText(Turn)) + "\r\n"
+            // Vue Active : numéros de la campagne ("Tour 21 / 41") avec le décompte de l'aperçu entre parenthèses. Vue Init : comme avant.
+            string turnText = BaseMission > 0
+                ? "Tour " + CampMission + " / " + (BaseMission + maxTurns) + "  (aperçu : " + Turn + " / " + maxTurns + ")"
+                : "Tour " + Turn + " / " + maxTurns + " (mission " + CampMission + ")";
+
+            return turnText + (Clock == null ? "" : "  -  " + TimeText(CampMission)) + "\r\n"
                 + _info.BlueLabel + " : " + blueZones + " zone(s), force " + WargameCombatPreview.SideForce(Zones, WargameSide.Blue).ToString("0")
                 + "   |   "
                 + _info.RedLabel + " : " + redZones + " zone(s), force " + WargameCombatPreview.SideForce(Zones, WargameSide.Red).ToString("0")
@@ -1339,10 +1399,23 @@ namespace DCE_Manager
         private TextBox _txtJournal;
         private TextBox _txtReport;
 
+        // Missions déjà jouées par la campagne (0 depuis la vue Init, camp.mission depuis la vue Active) - voir WargameCombatSession.BaseMission
+        private readonly int _baseMission;
+
+        private readonly bool _fromActiveView;
+
+        // Nombre de tours à jouer. En vue Active la case "Missions N →" contient le NUMÉRO de la dernière mission
+        // (ex. 41 pour une campagne à la mission 21 = 20 tours) ; en vue Init (base 0) c'est le nombre de tours, comme avant.
+        private int MaxTurns
+        {
+            get { return Math.Max(1, (int)_numTurns.Value - _baseMission); }
+        }
+
         public WargameCombatPreview_Form(
             string campaignName, List<WargameZoneData> zones, List<WargameAxis> axes,
             WargameTemplateCatalog catalog, WargameCampaignInfo info,
-            Image mapImage, WargameMapCalibration calibration, List<WargameObjective> objectives)
+            Image mapImage, WargameMapCalibration calibration, List<WargameObjective> objectives,
+            bool fromActiveView = false)
         {
             _campaignName = campaignName;
             _zones = zones;
@@ -1352,6 +1425,11 @@ namespace DCE_Manager
             _mapImage = mapImage;       // appartient à l'éditeur : on ne le libère pas ici
             _calibration = calibration;
             _objectives = objectives;
+
+            // Vue Active : la Preview continue la campagne là où elle en est (numéro de mission et date),
+            // au lieu de repartir de la mission 1 et du premier jour.
+            _fromActiveView = fromActiveView;
+            _baseMission = fromActiveView ? WargameLogistics.ReadMission(WargameZoneRepository.GetCampaignFolder(campaignName)) : 0;
 
             // Ravitaillement : sources et ponts viennent des objectifs de l'éditeur (en Init, tous intacts)
             WargameEngineCombat.ApplyObjectivesToSupply(_zones, _objectives, _info.CombatConfig);
@@ -1466,8 +1544,12 @@ namespace DCE_Manager
             // ---- Cadre 1 : simulation ----
             GroupBox boxSim = AddGroup(settings, "Simulation", 4, 86);
 
-            AddLabel(boxSim, "Tours max", 12, 26);
-            _numTurns = AddNumber(boxSim, 150, 22, 60, 20, 1, 500);
+            // Vue Active : on compte en numéros de mission de la campagne ("Missions 21 → 41"), vue Init : en tours ("Tours max 20")
+            AddLabel(boxSim, _baseMission > 0 ? "Missions " + _baseMission + " →" : "Tours max", 12, 26);
+            _numTurns = AddNumber(boxSim, 150, 22, 60, _baseMission + 20, _baseMission + 1, _baseMission + 500);
+            _numTurns.ValueChanged += (s, e) => { if (_session != null && _labelStatus != null) _labelStatus.Text = _session.BuildStatus(MaxTurns); };
+            if (_baseMission > 0)
+                tip.SetToolTip(_numTurns, "Numéro de la dernière mission à simuler. La campagne en est à la mission " + _baseMission + " : nombre de tours joués = cette valeur - " + _baseMission + ".");
 
             AddLabel(boxSim, "Délai (ms)", 225, 26);
             _numDelay = AddNumber(boxSim, 290, 22, 60, 800, 100, 5000);
@@ -1715,7 +1797,9 @@ namespace DCE_Manager
             {
                 DoStep();
 
-                if (_session.Turn >= (int)_numTurns.Value)
+                if (_session.CampaignEnd != "") return;   // déjà arrêté et signalé par DoStep
+
+                if (_session.Turn >= MaxTurns)
                 {
                     Append("Nombre de tours max atteint.");
                     StopPlay();
@@ -1790,6 +1874,7 @@ namespace DCE_Manager
             WargameAxisPathFinder.RememberAttackers(_axes, _zones);   // attaquant = camp qui tient la zone de départ MAINTENANT
 
             _session = new WargameCombatSession(_zones, _axes, ComputeFlags(), _catalog, _info);
+            _session.BaseMission = _baseMission;
             _session.Variance = (double)_numVariance.Value / 100.0;
             _session.BlueLossPercent = (double)_numLossBlue.Value;
             _session.RedLossPercent = (double)_numLossRed.Value;
@@ -1804,7 +1889,7 @@ namespace DCE_Manager
 
             // Guerre aérienne : repart de l'Init à chaque remise à zéro (squads de Active\oob_air.lua, délais de conf_mod)
             string airError;
-            _air = WargameAirModel.Load(WargameZoneRepository.GetCampaignFolder(_campaignName), out airError);
+            _air = WargameAirModel.Load(WargameZoneRepository.GetCampaignFolder(_campaignName), out airError, _fromActiveView);
             if (_air == null) FormUtils.LogRegister("WargameCombatPreview | guerre aérienne : " + airError);
             if (_triggerSim != null) _triggerSim.AttachAir(_air);
             _session.Air = _air;
@@ -2052,9 +2137,9 @@ namespace DCE_Manager
                 return;
             }
 
-            int turn = _session.Turn;
+            int turn = _session.CampMission;        // numéro de mission écrit dans la campagne (= missions déjà jouées + tour de la Preview)
             DialogResult answer = MessageBox.Show(
-                "Jouer la situation du tour " + turn + " dans DCS ?\n\n"
+                "Jouer la situation du tour " + _session.Turn + " de l'aperçu dans DCS (mission n°" + turn + ") ?\n\n"
                 + "ATTENTION : l'état actuel de la campagne (dossier Active) va être ÉCRASÉ : zones et formations du wargame, cibles, "
                 + "unités au sol de l'ancien DCE (pertes et zones capturées), flags, mission n°" + turn + ", date et heure du tour"
                 + (_checkAirWar.Checked ? ", ET la guerre aérienne (appareils perdus / endommagés / renforcés par squad, bases capturées désactivées avec leurs squads, triggers « once » faits)" : "") + ".\n\n"
@@ -2100,7 +2185,7 @@ namespace DCE_Manager
                 }
                 Cursor = Cursors.Default;
 
-                Append("=== Tour " + turn + " écrit dans la campagne ===");
+                Append("=== Tour " + _session.Turn + " de l'aperçu écrit dans la campagne (mission n°" + turn + ") ===");
                 foreach (string line in report) Append("  " + line);
                 Append("  sauvegarde de l'Active d'avant : " + backup);
 
@@ -2276,10 +2361,24 @@ namespace DCE_Manager
 
         private void DoStep()
         {
+            bool wasOver = _session.CampaignEnd != "";
+
             List<string> lines = _session.Step();
             Append(string.Join("\r\n", lines));
             RefreshMap();
             SaveFullLog(true);
+
+            // Un trigger vient de mettre fin à la campagne : on arrête la lecture et on prévient
+            if (!wasOver && _session.CampaignEnd != "")
+            {
+                StopPlay();
+
+                string end = _session.CampaignEnd;
+                MessageBox.Show(_session.CampaignEndText() + "\n\nAnnoncée par un trigger au tour " + _session.Turn + " (mission " + _session.CampMission + ").\n"
+                    + "La simulation est arrêtée. Réinitialiser pour recommencer.",
+                    "Wargame - fin de campagne",
+                    MessageBoxButtons.OK, end == "loss" ? MessageBoxIcon.Warning : MessageBoxIcon.Information);
+            }
         }
 
         private void RefreshMap()
@@ -2290,7 +2389,7 @@ namespace DCE_Manager
             _mapView.SetFlashZones(_session.LastFlippedIds);
             _mapView.SetDestroyedObjectives(_session.DestroyedObjectives());
             RefreshSupplyOverlay();
-            _labelStatus.Text = _session.BuildStatus((int)_numTurns.Value);
+            _labelStatus.Text = _session.BuildStatus(MaxTurns);
             RefreshTriggers();
         }
 
@@ -2341,7 +2440,7 @@ namespace DCE_Manager
 
                 _txtReport.Text = WargameCombatPreview.Run(
                     _zones, _axes, ComputeFlags(), _catalog, _info,
-                    (int)_numTurns.Value, (int)_numRuns.Value,
+                    MaxTurns, (int)_numRuns.Value,
                     (double)_numVariance.Value / 100.0, (double)_numLossBlue.Value, (double)_numLossRed.Value,
                     AirSideFromCombo(), (double)_numAirBonus.Value / 100.0,
                     (double)_numRetreatLoss.Value, (int)_numMaxPerZone.Value, (double)_numDisband.Value,

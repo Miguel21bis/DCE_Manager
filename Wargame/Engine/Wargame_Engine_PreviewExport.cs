@@ -172,24 +172,37 @@ namespace DCE_Manager
 
         public List<string> Apply(List<string> lines)
         {
-            var result = new List<string>(lines);
+            var replace = new Dictionary<int, string>();
+            var insert = new Dictionary<int, List<string>>();
 
-            // De la fin vers le début ; sur une même ligne, les insertions gardent leur ordre d'ajout
-            var ordered = _edits.Select((e, n) => new { e, n })
-                .OrderByDescending(x => x.e.Item1).ThenByDescending(x => x.n).ToList();
-
-            var replaced = new HashSet<int>();
-            foreach (var x in ordered)
+            // Dans l'ordre d'ajout : pour un remplacement, le dernier gagne ; les insertions gardent leur ordre
+            foreach (var e in _edits)
             {
-                if (x.e.Item2 == 0)
+                if (e.Item2 == 0)
                 {
-                    if (replaced.Add(x.e.Item1)) result[x.e.Item1] = x.e.Item3;
+                    replace[e.Item1] = e.Item3;
                 }
                 else
                 {
-                    result.Insert(x.e.Item1, x.e.Item3);
+                    List<string> list;
+                    if (!insert.TryGetValue(e.Item1, out list)) { list = new List<string>(); insert[e.Item1] = list; }
+                    list.Add(e.Item3);
                 }
             }
+
+            var result = new List<string>(lines.Count + _edits.Count);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                List<string> before;
+                if (insert.TryGetValue(i, out before)) result.AddRange(before);
+
+                string text;
+                result.Add(replace.TryGetValue(i, out text) ? text : lines[i]);
+            }
+
+            // insertion demandée juste après la dernière ligne : on ne la perd pas
+            List<string> tail;
+            if (insert.TryGetValue(lines.Count, out tail)) result.AddRange(tail);
 
             return result;
         }
@@ -224,7 +237,7 @@ namespace DCE_Manager
                 if (p[3] != "group" || p[5] != "units") continue;
                 if (p[2] != "vehicle" && p[2] != "static") continue;
                 if (p[0] != "blue" && p[0] != "red") continue;
-                if (idx.Value(string.Join("/", p, 0, 5), "wargameFormationId") != null) continue;   // groupe wargame : pas l'ancien DCE
+                if (idx.Value(string.Join("/", p, 0, 5), "wargameFormationId") != null) continue;   // groupe wargame : géré par DCE_Manager (blocs) et scriptsMod, jamais tué ici
 
                 double x = idx.Number(path, "x", double.NaN);
                 double y = idx.Number(path, "y", double.NaN);
@@ -258,6 +271,8 @@ namespace DCE_Manager
         }
 
         // Tue les unités choisies par "shouldKill" (camp propriétaire, position) dans Active/oob_ground.lua. Renvoie le nombre tué.
+        // Les groupes du wargame ne sont jamais visés : une formation qui recule ou qui meurt est retirée de la targetlist,
+        // et scriptsMod (DC_UpdateWargame) déplace ou retire son groupe tout seul.
         public static int KillGroundUnits(string campaignFolder, Func<string, PointF, bool> shouldKill, double checkDay)
         {
             string path = Path.Combine(campaignFolder, "Active", "oob_ground.lua");
@@ -610,6 +625,9 @@ namespace DCE_Manager
             return Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Active_Backups");
         }
 
+        // Nombre de sauvegardes gardées dans Active_Backups. Les plus anciennes sont effacées à chaque nouvelle sauvegarde.
+        public const int MaxBackups = 12;
+
         // Copie complète du dossier Active dans Active_Backups\<nom>. Renvoie le dossier créé.
         public static string BackupActive(string campaignName, string label)
         {
@@ -618,7 +636,51 @@ namespace DCE_Manager
             string target = Path.Combine(BackupRoot(campaignName), label + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss"));
 
             CopyFolder(active, target);
+            PruneBackups(campaignName, MaxBackups);
             return target;
+        }
+
+        // Ne garde que les "keep" sauvegardes les plus récentes (la plus récente vient d'être faite, elle est donc gardée).
+        // Renvoie le nombre de dossiers effacés. Un dossier qu'on n'arrive pas à effacer est simplement sauté.
+        public static int PruneBackups(string campaignName, int keep)
+        {
+            string root = BackupRoot(campaignName);
+            if (keep < 1 || !Directory.Exists(root)) return 0;
+
+            // Le nom finit par _yyyyMMdd_HHmmss : c'est lui qui donne l'ordre (la date du dossier bouge à la copie)
+            List<string> folders = Directory.GetDirectories(root)
+                .OrderByDescending(d => BackupStamp(d))
+                .ThenByDescending(d => Directory.GetCreationTime(d))
+                .ToList();
+
+            int removed = 0;
+            for (int i = keep; i < folders.Count; i++)
+            {
+                try
+                {
+                    Directory.Delete(folders[i], true);
+                    removed++;
+                    WargameLog.Line("old backup removed : " + Path.GetFileName(folders[i]));
+                }
+                catch (Exception ex)
+                {
+                    WargameLog.Line("old backup NOT removed (" + Path.GetFileName(folders[i]) + ") : " + ex.Message);
+                }
+            }
+
+            if (removed > 0)
+                WargameLog.Line("Active_Backups : " + removed + " old backup(s) removed, " + keep + " kept");
+
+            return removed;
+        }
+
+        // "Preview_T12_20261106_173801" -> 20261106173801. Un nom sans horodatage lisible passe en dernier (0).
+        private static long BackupStamp(string folder)
+        {
+            Match m = Regex.Match(Path.GetFileName(folder) ?? "", @"(\d{8})_(\d{6})$");
+            long stamp;
+            if (m.Success && long.TryParse(m.Groups[1].Value + m.Groups[2].Value, out stamp)) return stamp;
+            return 0;
         }
 
         // Remet une sauvegarde en place. L'Active actuel n'est pas effacé : il part lui-même en sauvegarde ("BeforeRestore").
@@ -655,7 +717,9 @@ namespace DCE_Manager
         {
             var report = new List<string>();
             string campaignFolder = WargameZoneRepository.GetCampaignFolder(campaignName);
-            int turn = Math.Max(1, session.Turn);
+            // Numéro de mission écrit dans la campagne : missions déjà jouées (0 depuis la vue Init) + tour de la Preview.
+            // La date du tour suit le même numéro, sinon une Preview partie de l'Active renverrait la campagne au premier jour.
+            int turn = session.CampMission;
             DateTime when = clock != null ? clock.At(turn) : DateTime.Now;
 
             // Temps de campagne écoulé (CheckDay des destructions) : depuis le début de la campagne, à minuit
@@ -981,6 +1045,21 @@ namespace DCE_Manager
             Begin(campaignName, "FirstMission", 1, true);
             try
             {
+                // Nouvelle partie : l'état wargame de l'ancienne partie (zones, flags, rapport, logistique) est supprimé,
+                // sinon la carte (mode Active) repeint les zones avec les couleurs du dernier Preview exporté
+                string activeFolder = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Active");
+                string[] stale = { "wargame_zones.lua", "wargame_flags.txt", "wargame_report.txt", WargameEngineLosses.ExportedFlagFile,
+                                   "wargame_logistics.lua", "wargame_logistics_result.lua", "wargame_logistics_result_used.lua" };
+                foreach (string name in stale)
+                {
+                    try
+                    {
+                        string f = Path.Combine(activeFolder, name);
+                        if (File.Exists(f)) { File.Delete(f); Line("Active/" + name + " : removed (new game)"); }
+                    }
+                    catch (Exception ex) { Line("Active/" + name + " : could not be removed (" + ex.Message + ")"); }
+                }
+
                 List<string> failures = Saver_TargetList_Wargame.WriteInitialFormations(campaignName);
                 Line("Init/targetlist_init.lua : starting formations written" + (failures.Count > 0 ? ", " + failures.Count + " could not be placed :" : ""));
                 Lines(failures, "   NOT PLACED : ");
@@ -1026,8 +1105,72 @@ namespace DCE_Manager
             return "WG_POINT_" + side.ToUpperInvariant() + "_" + slot;
         }
 
-        // point = point de ravitaillement avancé, airlift = mission de transport par hélicoptère (offerte aux joueurs) : tous deux reposés à chaque tour
-        private static readonly Regex LogisticRx = new Regex(@"wargameLogistic""?\]?\s*=\s*""(point|airlift)""");
+        // point = point de ravitaillement avancé, airlift = mission de transport par hélicoptère (offerte aux joueurs),
+        // supplydepot = supply depot posé à côté d'une FARP : reposé à chaque tour. (Les caisses WG_CARGO sont posées par scriptsMod.)
+        // "warehouse" = ancien nom du supply depot (premier essai) : gardé ici pour nettoyer les anciens blocs.
+        private static readonly Regex LogisticRx = new Regex(@"wargameLogistic""?\]?\s*=\s*""(point|airlift|supplydepot|warehouse)""");
+
+        // wargameFormationId réservés : supply depot de FARP bleu 920001... / rouge 930001...
+        private static int DepotId(string side, int slot)
+        {
+            return (string.Equals(side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase) ? 920000 : 930000) + slot;
+        }
+
+        // Empreinte d'un template : rayon (m) du plus lointain élément autour de son point de référence.
+        // FARP : la référence est l'héliport (c'est lui qui est à la position de la FARP). Sinon : le centre du template.
+        private static double FootprintRadius(List<WargameTemplateUnit> layout, bool aroundHeliport)
+        {
+            if (layout == null || layout.Count == 0) return 0;
+
+            PointF center;
+            WargameTemplateUnit heli = aroundHeliport
+                ? layout.FirstOrDefault(u => string.Equals(u.DcsCategory, "Heliports", StringComparison.OrdinalIgnoreCase))
+                : null;
+
+            if (heli != null) center = heli.Position;
+            else center = new PointF(layout.Average(u => u.Position.X), layout.Average(u => u.Position.Y));
+
+            double radius = 0;
+            foreach (WargameTemplateUnit u in layout)
+            {
+                double dx = u.Position.X - center.X, dy = u.Position.Y - center.Y;
+                radius = Math.Max(radius, Math.Sqrt(dx * dx + dy * dy));
+            }
+
+            return radius;
+        }
+
+        // Direction (vecteur unitaire) de la FARP vers le centre de sa plage : le supply depot est rangé vers l'intérieur des terres.
+        private static PointF InlandDirection(WargameFarp farp, WargameZoneData beach)
+        {
+            if (beach != null)
+            {
+                double dx = beach.Center.X - farp.X, dy = beach.Center.Y - farp.Y;
+                double len = Math.Sqrt(dx * dx + dy * dy);
+                if (len >= 1.0) return new PointF((float)(dx / len), (float)(dy / len));
+            }
+
+            return new PointF(1f, 0f);   // pas de centre exploitable : plein nord
+        }
+
+        // Pose un template tel quel autour d'un point précis : pas de tirage au sort, le depot et les colis
+        // doivent rester à leur place par rapport à la FARP (le solveur, lui, cherche une place au hasard dans une zone).
+        private static List<WargamePlacedUnit> PlaceAt(List<WargameTemplateUnit> layout, PointF anchor)
+        {
+            float sx = 0, sy = 0;
+            foreach (WargameTemplateUnit u in layout) { sx += u.Position.X; sy += u.Position.Y; }
+
+            float dx = anchor.X - sx / layout.Count, dy = anchor.Y - sy / layout.Count;
+
+            return layout.Select(u => new WargamePlacedUnit
+            {
+                Name = u.Name,
+                GroupName = u.GroupName,
+                Category = u.Category,
+                Position = new PointF(u.Position.X + dx, u.Position.Y + dy),
+                Heading = u.Heading,
+            }).ToList();
+        }
 
         // ---- Avant le tour : ce que la mission jouée a fait aux points et aux convois ----
         public static List<string> ReadResults(string campaignFolder, List<WargameZoneData> zones, WargameCombatConfig config)
@@ -1264,7 +1407,53 @@ namespace DCE_Manager
                     pointLines.Add("\t\t},");
                 }
 
-                if (linesToRemove.Count > 0 || posted > 0)
+                // ---- Supply depot des FARP ----
+                // Le supply depot est son propre template (type "supplydepot"), pas les tentes de la FARP. À défaut pour ce camp,
+                // le template du point de ravitaillement avancé ("supplypoint") est utilisé.
+                // Distance : FarpDepotGapMeters (500 m) de BORD A BORD, donc rayon FARP + rayon depot + 500 m entre les centres.
+                // Les caisses de fret entre la FARP et l'entrepôt ne sont PAS posées ici : c'est scriptsMod (WG_CARGO_SCPT_...).
+                int depots = 0;
+                var missingDepot = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                List<WargameFarp> farps = WargameFarpStore.Load(campaignName);
+
+                for (int fi = 0; fi < farps.Count; fi++)
+                {
+                    WargameFarp farp = farps[fi];
+                    if (!WargameFarpStore.IsHeld(farp, zones)) continue;   // plage pas encore tenue : la FARP n'existe pas, son depot non plus
+
+                    FarpDepot geo = ComputeFarpDepot(farp, zones, catalog, campaignInfo);
+                    if (geo == null) { missingDepot.Add(farp.Side); continue; }
+                    if (geo.Layout.Count == 0) { failed++; continue; }
+
+                    WargameTemplateEntry depotEntry = geo.Entry;
+                    List<WargamePlacedUnit> depotPlaced = PlaceAt(geo.Layout, geo.Center);
+
+                    WargameLog.Line("WargameLogistics | " + farp.Name + " : FARP radius " + geo.FarpRadius.ToString("0") + " m, supply depot radius "
+                        + geo.DepotRadius.ToString("0") + " m, centres " + geo.Distance.ToString("0") + " m apart (gap " + campaignInfo.FarpDepotGapMeters.ToString("0") + " m edge to edge)");
+
+                    string depotName = farp.Name + " Supply Depot";   // "FARP" dans le nom : DC_Prune garde les unités qui en portent un
+                    var fakeDepot = new WargameFormation
+                    {
+                        FormationId = DepotId(farp.Side, fi + 1),
+                        Name = depotName,
+                        Template = depotEntry.Template,
+                        Side = farp.Side,
+                        Priority = depotEntry.Priority,
+                        Attributes = new List<string>(depotEntry.Attributes),
+                        FirepowerMin = depotEntry.FirepowerMin,
+                        FirepowerMax = depotEntry.FirepowerMax,
+                    };
+
+                    string depotTargetSide = Saver_TargetList_Wargame.TargetTableSide(farp.Side);
+                    newBlocksBySide[depotTargetSide].AddRange(MakeFarpBlock(nextIndexBySide, depotTargetSide, fakeDepot, depotPlaced, depotName, "supplydepot", farp));
+                    depots++;
+                }
+
+                if (depots > 0) report.Add("FARP supply depots posted in DCS : " + depots);
+                foreach (string side in missingDepot)
+                    report.Add("no 'supplydepot' template (and no 'supplypoint' either) for " + side + " in the template catalog : its FARP supply depot is NOT posted");
+
+                if (linesToRemove.Count > 0 || posted > 0 || depots > 0)
                 {
                     List<string> rewritten = TargetListBlockScanner.RemoveAndInsert(lines, linesToRemove, sideCloseLine, newBlocksBySide);
                     rewritten = TargetListBlockScanner.RenumberBlocks(rewritten);
@@ -1325,7 +1514,134 @@ namespace DCE_Manager
             return report;
         }
 
+        // Bloc de targetlist du supply depot d'une FARP : dans la targetlist pour exister en jeu, pas comme cible
+        // de l'ATO adverse (ATO = false). kind = "supplydepot" (relu par LogisticRx pour le retirer au tour suivant).
+        private static List<string> MakeFarpBlock(Dictionary<string, int> nextIndexBySide, string targetSide, WargameFormation f,
+            List<WargamePlacedUnit> placed, string name, string kind, WargameFarp farp)
+        {
+            int index = nextIndexBySide.TryGetValue(targetSide, out int n) ? n : 1;
+            nextIndexBySide[targetSide] = index + 1;
+
+            List<string> block = Saver_TargetList_Wargame.BuildActiveBlockLines(index, f, placed, name);
+
+            int ato = block.FindIndex(l => l.Trim() == "[\"ATO\"] = true,");
+            if (ato >= 0) block[ato] = "\t\t\t[\"ATO\"] = false,";
+
+            block.InsertRange(block.Count - 1, new[]
+            {
+                "\t\t\t[\"wargameLogistic\"] = \"" + kind + "\",",
+                "\t\t\t[\"wargameFarp\"] = \"" + Esc(farp.Name) + "\",",
+                "\t\t\t[\"wargameSide\"] = \"" + farp.Side + "\",",
+            });
+
+            return block;
+        }
+
         // Ordres pour scriptsMod : convois à fabriquer en jeu (itinéraire, véhicules, destination) et aérien demandé
+        // Geometrie du supply depot d'une FARP (template, rayons, centre). Null = aucun template supplydepot / supplypoint pour ce camp.
+        // Utilisee a la fois pour poser le depot et pour dire a scriptsMod ou il est (wargameDepotX/Y des missions WG_AIRLIFT).
+        // ---- Zone de largage (hélicoptères) : terrain dégagé de 300 m de diamètre, en arrière du point de ravitaillement ----
+        private const double DropRadius = 150;   // diamètre 300 m
+
+        private static bool InZone(WargameZoneData z, PointF p)
+        {
+            if (z.Shape == WargameZoneShape.Circle || z.DcsPoints.Count < 3)
+            {
+                double dx = p.X - z.Center.X, dy = p.Y - z.Center.Y;
+                return dx * dx + dy * dy <= (double)z.Radius * z.Radius;
+            }
+
+            bool inside = false;
+            int j = z.DcsPoints.Count - 1;
+            for (int i = 0; i < z.DcsPoints.Count; i++)
+            {
+                PointF a = z.DcsPoints[i], b = z.DcsPoints[j];
+                if ((a.Y > p.Y) != (b.Y > p.Y) && p.X < (b.X - a.X) * (p.Y - a.Y) / (b.Y - a.Y) + a.X) inside = !inside;
+                j = i;
+            }
+            return inside;
+        }
+
+        // L'arrière = à l'opposé de la zone ennemie la plus proche du point. Sans ennemi : vers la source de l'hélicoptère.
+        private static PointF RearDirection(PointF dest, string side, PointF heliSource, List<WargameZoneData> zones)
+        {
+            string enemy = string.Equals(side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase) ? WargameSide.Red : WargameSide.Blue;
+            WargameZoneData nearest = zones.Where(z => string.Equals(z.Control, enemy, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(z => Math.Pow(z.Center.X - dest.X, 2) + Math.Pow(z.Center.Y - dest.Y, 2)).FirstOrDefault();
+
+            double dx, dy;
+            if (nearest != null) { dx = dest.X - nearest.Center.X; dy = dest.Y - nearest.Center.Y; }
+            else { dx = heliSource.X - dest.X; dy = heliSource.Y - dest.Y; }
+
+            double len = Math.Sqrt(dx * dx + dy * dy);
+            return len < 1.0 ? new PointF(-1f, 0f) : new PointF((float)(dx / len), (float)(dy / len));
+        }
+
+        // 1er essai : dans la zone du point. 2e essai : n'importe où hors d'une zone ennemie.
+        private static PointF? FindDropZone(WargameZoneData target, PointF dest, string side, PointF heliSource, List<WargameZoneData> zones, out string note)
+        {
+            PointF rear = RearDirection(dest, side, heliSource, zones);
+            string enemy = string.Equals(side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase) ? WargameSide.Red : WargameSide.Blue;
+            double minDist = DropRadius + 60, maxDist = 1500;
+
+            PointF? p = WargameRelief.FindClearArea(dest, rear, DropRadius, minDist, maxDist, q => InZone(target, q));
+            string where = "in zone " + target.Id;
+
+            if (!p.HasValue)
+            {
+                p = WargameRelief.FindClearArea(dest, rear, DropRadius, minDist, maxDist,
+                    q => !zones.Any(z => string.Equals(z.Control, enemy, StringComparison.OrdinalIgnoreCase) && InZone(z, q)));
+                where = "outside zone " + target.Id;
+            }
+
+            if (!p.HasValue)
+            {
+                note = "none found (no clear 300 m spot, or relief unknown / web off) : scriptsMod keeps the supply point";
+                return null;
+            }
+
+            double d = Math.Sqrt(Math.Pow(p.Value.X - dest.X, 2) + Math.Pow(p.Value.Y - dest.Y, 2));
+            note = "x=" + p.Value.X.ToString("0") + " y=" + p.Value.Y.ToString("0") + ", " + d.ToString("0") + " m behind the point, " + where;
+            return p;
+        }
+
+        private class FarpDepot
+        {
+            public WargameTemplateEntry Entry;
+            public List<WargameTemplateUnit> Layout;
+            public double FarpRadius, DepotRadius, Distance;
+            public PointF Center;
+        }
+
+        private static FarpDepot ComputeFarpDepot(WargameFarp farp, List<WargameZoneData> zones, WargameTemplateCatalog catalog, WargameCampaignInfo campaignInfo)
+        {
+            WargameTemplateEntry depotEntry = catalog.OfType(WargameUnitType.SupplyDepot, farp.Side).FirstOrDefault()
+                                           ?? catalog.OfType(WargameUnitType.SupplyPoint, farp.Side).FirstOrDefault();
+            if (depotEntry == null) return null;
+
+            var geo = new FarpDepot { Entry = depotEntry };
+            geo.Layout = new Parser_WargameTemplateLayout().LoadLayout(campaignInfo.GetTemplateFilePath(depotEntry.Template));
+            if (geo.Layout.Count == 0) return geo;
+
+            // Empreinte de la FARP : lue dans son template (heliport, tentes, vehicules autour)
+            WargameTemplateEntry farpEntry = catalog.OfType(WargameUnitType.Farp, farp.Side).FirstOrDefault();
+            geo.FarpRadius = 80;   // valeur de secours si le template de la FARP est illisible
+            if (farpEntry != null)
+            {
+                List<WargameTemplateUnit> farpLayout = new Parser_WargameTemplateLayout().LoadLayout(campaignInfo.GetTemplateFilePath(farpEntry.Template));
+                if (farpLayout.Count > 0) geo.FarpRadius = FootprintRadius(farpLayout, true);
+            }
+
+            geo.DepotRadius = FootprintRadius(geo.Layout, false);
+
+            WargameZoneData beach = zones.FirstOrDefault(z => string.Equals(z.Id, farp.Beach, StringComparison.OrdinalIgnoreCase));
+            PointF dir = InlandDirection(farp, beach);
+
+            geo.Distance = geo.FarpRadius + campaignInfo.FarpDepotGapMeters + geo.DepotRadius;   // entre les centres
+            geo.Center = new PointF((float)(farp.X + dir.X * geo.Distance), (float)(farp.Y + dir.Y * geo.Distance));
+            return geo;
+        }
+
         private static string WriteOrders(string campaignFolder, List<WargameZoneData> zones, List<WargameEngineCombat.WargameConvoy> convoys,
             int mission, WargameTemplateCatalog catalog, WargameCampaignInfo campaignInfo, Dictionary<string, PointF> pointPosition,
             List<string> pointLines, Random rng, List<string> report, Dictionary<string, List<List<string>>> airlifts)
@@ -1605,6 +1921,11 @@ namespace DCE_Manager
                     // Besoin réel du secteur à livrer par air (kg) : tonnes manquantes au stock en début de tour
                     long needKg = (long)Math.Round(Math.Max(0, c.DemandEstimate - c.ReserveBefore) * 1000.0);
 
+                    // Zone de largage : terrain dégagé de 300 m en arrière du point (null = rien de bon, scriptsMod garde le point)
+                    string dropNote;
+                    PointF? drop = FindDropZone(target, dest, c.Side, heli.Source.Position, zones, out dropNote);
+                    report.Add("air supply " + c.Slot + " : drop zone " + dropNote);
+
                     if (true)
                     {
                         airLines.Add("\t\t\t\t[\"baseHint\"] = \"" + Esc(baseName) + "\",");
@@ -1646,6 +1967,25 @@ namespace DCE_Manager
                             "\t\t\t[\"wargameSorties\"] = " + Math.Max(1, c.AirSorties) + ",",   // rotations voulues par le moteur
                             "\t\t\t[\"wargameCargoKg\"] = " + HeliCargoKg(c.Side).ToString("0", CultureInfo.InvariantCulture) + ",",   // charge de CET hélico
                         };
+
+                        // Chargement a une FARP : on donne aussi la position de son supply depot (scriptsMod pose les caisses autour).
+                        // wargameLoadX/Y reste la source de l'helicoptere.
+                        WargameFarp loadFarp = farpList.FirstOrDefault(f => string.Equals(f.Side, c.Side, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(f.Name, heli.Source.Name, StringComparison.OrdinalIgnoreCase) && WargameFarpStore.IsHeld(f, zones));
+                        FarpDepot loadDepot = loadFarp == null ? null : ComputeFarpDepot(loadFarp, zones, catalog, campaignInfo);
+                        if (loadDepot != null && loadDepot.Layout.Count > 0)
+                        {
+                            body.Add("\t\t\t[\"wargameDepotName\"] = \"" + Esc(loadFarp.Name + " Supply Depot") + "\",");
+                            body.Add("\t\t\t[\"wargameDepotX\"] = " + Num(loadDepot.Center.X) + ",");
+                            body.Add("\t\t\t[\"wargameDepotY\"] = " + Num(loadDepot.Center.Y) + ",");
+                        }
+
+                        if (drop.HasValue)
+                        {
+                            body.Add("\t\t\t[\"wargameDropX\"] = " + Num(drop.Value.X) + ",");
+                            body.Add("\t\t\t[\"wargameDropY\"] = " + Num(drop.Value.Y) + ",");
+                            body.Add("\t\t\t[\"wargameDropRadius\"] = " + DropRadius.ToString("0", CultureInfo.InvariantCulture) + ",");
+                        }
 
                         List<List<string>> sideList;
                         if (airlifts != null && airlifts.TryGetValue(c.Side, out sideList))

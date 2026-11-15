@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -88,7 +88,7 @@ namespace DCE_Manager
             _grid.Columns["colVehicles"].ReadOnly = true;
             _grid.Columns["colVehicles"].DefaultCellStyle.ForeColor = Color.DimGray;
 
-            _grid.Columns["colType"].ToolTipText = "Unit type. supplypoint = forward supply point placed near the formations. convoy = road convoy (only its vehicle types are used, the convoy is built in game).";
+            _grid.Columns["colType"].ToolTipText = "Unit type. supplypoint = forward supply point placed near the formations. convoy = road convoy (only its vehicle types are used, the convoy is built in game). farp = the FARP itself (helipad + its own vehicles) placed on a landing beach. supplydepot = the supply depot placed NEXT TO the FARP (at least 500 m edge to edge), its own template; if there is none for this side, the supplypoint template is used instead.";
             _grid.Columns["colPower"].ToolTipText = "Strength of ONE copy of this template in the wargame. A formation is worth xN x Power.";
             _grid.Columns["colConsumption"].ToolTipText = "Supply used by ONE copy of this template in 24 hours, in tons (1 ton = 1000 kg: fuel, ammo, food). A formation uses xN x this value. The engine converts it to one turn with the timing of conf_mod (mission length, pauses, daylight). Proposed from the type: armor 25, mech 20, artillery 15, infantry 8, air defense 6, logistics 3. Use 'Apply type defaults' to get the proposal back.";
             _grid.Columns["colCarry"].ToolTipText = "Convoy templates only: tons the convoy carries when it arrives complete. Grey italic = automatic (Units x tons per vehicle, 10 by default in wargame_balance.lua), recalculated when the unit count changes. Type a number to set your own value (bold): carry more with few trucks = fewer units in DCS = better FPS. Clear the cell to go back to automatic.";
@@ -266,7 +266,7 @@ namespace DCE_Manager
         private void RecountAll()
         {
             if (MessageBox.Show(
-                    "Recount units from the .stm files?",
+                    "Recount the units from the .stm files?\n\nThis replaces the Units values, including the ones you changed by hand.",
                     "Wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes)
             {
                 return;

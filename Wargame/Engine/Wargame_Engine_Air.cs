@@ -82,7 +82,8 @@ namespace DCE_Manager
 
         // Structure : Active\oob_air.lua (ce que la campagne contient). Départ : Init\oob_air_init.lua (inactive, base),
         // reserve et number sont ceux du squad. Renvoie null (et la raison) si on ne peut pas.
-        public static WargameAirModel Load(string campaignFolder, out string error)
+        // fromActive = vue Active de la Preview : on part de l'état actuel de la campagne (Active), pas de l'Init
+        public static WargameAirModel Load(string campaignFolder, out string error, bool fromActive = false)
         {
             error = "";
             string activePath = Path.Combine(campaignFolder, "Active", "oob_air.lua");
@@ -108,7 +109,7 @@ namespace DCE_Manager
                 foreach (WargameAirSquad s in ReadSquads(File.ReadAllText(activePath)))
                 {
                     WargameAirSquad i;
-                    if (init.TryGetValue(s.Side + "|" + s.Name, out i))
+                    if (!fromActive && init.TryGetValue(s.Side + "|" + s.Name, out i))
                     {
                         s.Inactive = i.Inactive;
                         if (!string.IsNullOrEmpty(i.Base)) s.Base = i.Base;

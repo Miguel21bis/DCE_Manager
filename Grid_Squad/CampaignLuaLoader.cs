@@ -2,6 +2,10 @@
 using DCE_Manager.Parameters;
 using DCE_Manager.Utils;
 using NLua;
+using System.Globalization;
+using System.Linq;
+using static DCE_Manager.Parameters.CampaignLuaData;
+using System;
 
 namespace DCE_Manager
 {
@@ -158,6 +162,84 @@ namespace DCE_Manager
                         _data.SpecificCallnames[aircraft] = countryDict;
                     }
                 }
+
+                _data.RadioByModule = new Dictionary<string, List<double[]>>();
+                LuaTable radioLua = luaTable["RadioRanges"] as LuaTable;
+                if (radioLua != null)
+                {
+                    foreach (object moduleKey in radioLua.Keys)
+                    {
+                        LuaTable mod = radioLua[moduleKey] as LuaTable;
+                        if (mod == null) continue;
+
+                        // default = true : aucune donnée radio pour ce module, la plage 100-156 n'est qu'un repli : on ne contrôle rien
+                        if (mod["default"] is bool && (bool)mod["default"]) continue;
+
+                        LuaTable radios = mod["radios"] as LuaTable;
+                        if (radios == null) continue;
+
+                        var ranges = new List<double[]>();
+                        foreach (object rk in radios.Keys)
+                        {
+                            LuaTable radio = radios[rk] as LuaTable;
+                            LuaTable rl = radio == null ? null : radio["ranges"] as LuaTable;
+                            if (rl == null) continue;
+
+                            foreach (object ek in rl.Keys)
+                            {
+                                LuaTable r = rl[ek] as LuaTable;
+                                if (r == null || r["min"] == null || r["max"] == null) continue;
+                                ranges.Add(new double[]
+                                {
+                    System.Convert.ToDouble(r["min"], System.Globalization.CultureInfo.InvariantCulture),
+                    System.Convert.ToDouble(r["max"], System.Globalization.CultureInfo.InvariantCulture)
+                                });
+                            }
+                        }
+                        if (ranges.Count > 0) _data.RadioByModule[moduleKey.ToString()] = ranges;
+                    }
+                }
+
+                LuaTable radioInfoLua = luaTable["RadioRangesInfo"] as LuaTable;
+                if (radioInfoLua != null)
+                    FormUtils.LogRegister("Radio ranges (scriptsMod) | dcsRoot=" + radioInfoLua["dcsRoot"] + " (" + radioInfoLua["dcsRootSource"] + ") | modules=" + radioInfoLua["modules"] + " | withData=" + radioInfoLua["withData"] + " | missing=" + radioInfoLua["missing"] + " | seconds=" + radioInfoLua["seconds"] + " | error=" + radioInfoLua["error"]);
+                else
+                    FormUtils.LogRegister("Radio ranges (scriptsMod) | RadioRangesInfo missing in the DCEM_Function.lua result");
+
+                // radios séparées par module (nom, nombre de canaux, plages) : sert aux presets radio de la carte
+                _data.RadioDetail = new Dictionary<string, List<ModuleRadio>>();
+                LuaTable radioAll = luaTable["RadioRanges"] as LuaTable;
+                if (radioAll != null)
+                {
+                    foreach (object mk in radioAll.Keys)
+                    {
+                        LuaTable mod = radioAll[mk] as LuaTable;
+                        LuaTable radios = mod == null ? null : mod["radios"] as LuaTable;
+                        if (radios == null) continue;
+
+                        bool isDefault = mod["default"] is bool && (bool)mod["default"];
+                        var list = new List<ModuleRadio>();
+                        foreach (object rk in radios.Keys.Cast<object>().OrderBy(k => Convert.ToDouble(k, CultureInfo.InvariantCulture)))
+                        {
+                            LuaTable r = radios[rk] as LuaTable;
+                            LuaTable rr = r == null ? null : r["ranges"] as LuaTable;
+                            if (rr == null) continue;
+
+                            var mr = new ModuleRadio { Name = Convert.ToString(r["name"], CultureInfo.InvariantCulture), IsDefault = isDefault };
+                            if (r["nbCanal"] != null) mr.NbCanal = Convert.ToInt32(r["nbCanal"], CultureInfo.InvariantCulture);
+                            foreach (object gk in rr.Keys)
+                            {
+                                LuaTable g = rr[gk] as LuaTable;
+                                if (g != null && g["min"] != null && g["max"] != null)
+                                    mr.Ranges.Add(new[] { Convert.ToDouble(g["min"], CultureInfo.InvariantCulture), Convert.ToDouble(g["max"], CultureInfo.InvariantCulture) });
+                            }
+                            list.Add(mr);
+                        }
+                        if (list.Count > 0) _data.RadioDetail[Convert.ToString(mk, CultureInfo.InvariantCulture)] = list;
+                    }
+                }
+                FormUtils.LogRegister("Radio ranges (loader) | modules kept in RadioByModule : " + _data.RadioByModule.Count + " | with detail : " + _data.RadioDetail.Count);
+
 
                 LuaTable TabSquad = luaTable["TabSquad"] as LuaTable;
                 if (TabSquad != null)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -205,6 +205,7 @@ namespace DCE_Manager
     //   - Return.Mission, Return.CampFlag, Return.Wargame... : vrais, calculés sur l'état de la preview
     //   - Return.Time/Day/Month/Year/DatePassed/DateBefore    : vrais, calculés sur l'horloge (WargameCampClock)
     //   - Action.SetCampFlag, AddCampFlag, WargameDeploy, WargameLand : vraies, elles lèvent les flags de la preview
+    //   - Action.CampaignEnd                                   : vraie, elle fixe EndResult ("win", "loss", "draw") : la preview s'arrête
     //   - Action.Text                                          : notée dans le journal
     //   - Return.AirUnit*, Action.AirUnit*                     : vraies si la guerre aérienne est branchée (AttachAir, voir Wargame_Engine_Air.cs)
     //   - tout le reste (TargetAlive, GroundTarget...)         : "non simulable" -> le trigger reste en attente,
@@ -218,6 +219,9 @@ namespace DCE_Manager
         public WargameCampClock Clock = new WargameCampClock();
 
         private Lua _lua;
+
+        // Fin de campagne annoncée par un trigger (Action.CampaignEnd) : "win", "loss", "draw". Vide = la campagne continue.
+        public string EndResult = "";
 
         // Guerre aérienne simulée (squads, bases). Null = les conditions/actions aériennes restent "non simulables".
         // Posée par la Preview (AttachAir) : les fonctions Lua ci-dessous parlent à ce modèle.
@@ -239,6 +243,7 @@ camp = { mission = 1, flag = {}, time = 28800, date = { year = 2006, month = 7, 
 old_flag = {}
 __wg = {}
 __notes = {}
+__end = ''
 
 local function nosim(name)
     return function() error('NOSIM:' .. name, 0) end
@@ -287,6 +292,10 @@ end
 function Action.SetCampFlag(n, value) camp.flag[n] = value end
 function Action.AddCampFlag(n, add) camp.flag[n] = (camp.flag[n] or 0) + add end
 function Action.Text(text) __notes[#__notes + 1] = 'Briefing: ' .. tostring(text) end
+function Action.CampaignEnd(result)
+    __end = tostring(result or 'end')
+    __notes[#__notes + 1] = 'Action.CampaignEnd(' .. __end .. ') : the campaign ends here'
+end
 function Action.ActivateBaseAndItsUnits(base, state)
     __notes[#__notes + 1] = 'Action.ActivateBaseAndItsUnits(' .. tostring(base) .. ', ' .. tostring(state) .. ') NOT simulated : in the real run this switches the base (inactive) and its squads'
 end
@@ -340,6 +349,7 @@ function __clear()
     old_flag = {}
     __wg = {}
     __notes = {}
+    __end = ''
 end
 
 function __setflag(name, value) camp.flag[name] = value end
@@ -526,6 +536,7 @@ rawset(Action, 'AirUnitActive', nil) rawset(Action, 'AirUnitBase', nil) rawset(A
             }
 
             _mirrored.Clear();
+            EndResult = "";
             if (_lua != null) _lua.DoString("__clear()");
         }
 
@@ -605,6 +616,10 @@ rawset(Action, 'AirUnitActive', nil) rawset(Action, 'AirUnitBase', nil) rawset(A
                 }
 
                 PullFlags(flags);
+
+                // Un trigger a-t-il mis fin à la campagne (Action.CampaignEnd) ?
+                string endValue = _lua["__end"] as string;
+                if (!string.IsNullOrEmpty(endValue)) EndResult = endValue.Trim().ToLowerInvariant();
 
                 LuaTable notes = _lua["__notes"] as LuaTable;
                 if (notes != null)

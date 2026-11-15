@@ -50,6 +50,35 @@ namespace DCE_Manager
 
         private int _lastQuickActionsMouseX = -1;
 
+        // ScriptsMod installé ? Calculé UNE fois par chargement de la grille (pas à chaque dessin).
+        // true par défaut : pas de faux avertissement avant le premier calcul.
+        private bool _scriptsModInstalled = true;
+
+        // Recalcule l'état de ScriptsMod et redessine la grille seulement si ça a changé.
+        // Appelée au chargement de la grille et après une installation de ScriptsMod.
+        public void RefreshScriptsModState()
+        {
+            bool installed = false;
+
+            if (!string.IsNullOrWhiteSpace(ParamConf.PATH_SavedGames_DCS))
+            {
+                string folder = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\ScriptsMod.NG");
+
+                try { installed = Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any(); }
+                catch { installed = false; }
+            }
+
+            if (installed != _scriptsModInstalled)
+            {
+                _scriptsModInstalled = installed;
+
+                if (installed)
+                    _alreadyUpdated.Clear();   // ScriptsMod vient d'arriver : toutes les campagnes doivent être recalées sur ses fichiers de référence
+
+                _mainForm.dataGridViewCampaigns.Invalidate();
+            }
+        }
+
         // Infobulle des icônes QuickActions, pilotée à la main (voir CellMouseMove).
         // _lastQuickActionsZone = ligne * 3 + zone sous la souris, pour ne ré-afficher que si on change d'icône.
         // Infobulle maison : un simple Label posé sur la grid (le ToolTip standard ne s'affiche pas sur ce contrôle)
@@ -108,7 +137,8 @@ namespace DCE_Manager
                 Name = "Image",
                 HeaderText = "",
                 Width = 90,
-                ImageLayout = DataGridViewImageCellLayout.Zoom
+                ImageLayout = DataGridViewImageCellLayout.Zoom,
+                DefaultCellStyle = { NullValue = null }   // pas de croix rouge quand il n'y a pas d'image
             };
             _mainForm.dataGridViewCampaigns.Columns.Add(colImg);
 
@@ -458,6 +488,18 @@ namespace DCE_Manager
                 return; // ligne orpheline non réparable, ou 🔧 déjà dessiné : rien d'autre à peindre ici
             }
 
+            // ScriptsMod absent : un seul ⚠ orange à la place des 3 icônes (First/Skip/Debrief impossibles)
+            if (!_scriptsModInstalled)
+            {
+                using (var warnFont = new Font("Segoe UI Symbol", 16, FontStyle.Bold))
+                {
+                    TextRenderer.DrawText(e.Graphics, "⚠", warnFont, e.CellBounds, Color.DarkOrange,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+
+                return;
+            }
+
             bool showFirst, showSkip, showDebrief;
             GetQuickActionVisibility(e.RowIndex, out showFirst, out showSkip, out showDebrief);
 
@@ -483,6 +525,9 @@ namespace DCE_Manager
 
             if (_incompleteOrOrphanNames.Contains(name))
                 return _repairableIncompleteNames.Contains(name); // toute la cellule = zone "Repair"
+
+            if (!_scriptsModInstalled)
+                return true; // toute la cellule = zone "ScriptsMod manquant"
 
             bool showFirst, showSkip, showDebrief;
             GetQuickActionVisibility(rowIndex, out showFirst, out showSkip, out showDebrief);
@@ -530,6 +575,17 @@ namespace DCE_Manager
             }
 
             EnsureCampaignFilesUpToDate(name);
+
+
+            if (!_scriptsModInstalled)
+            {
+                MessageBox.Show(
+                    "ScriptsMod is not installed yet.\r\n\r\nIt is the engine that builds the missions.\r\nGo to the Update tab and click Install.",
+                    "ScriptsMod missing",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
 
             int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
             int thirdWidth = cellWidth / 3;
@@ -597,13 +653,6 @@ namespace DCE_Manager
         {
             var grid = _mainForm.dataGridViewCampaigns;
 
-            //if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
-            //{
-            //    grid.Cursor = Cursors.Default;
-            //    _lastQuickActionsMouseX = -1;
-            //    HideQuickActionsToolTip();
-            //    return;
-            //}
             if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
             {
                 grid.Cursor = Cursors.Default;
@@ -636,8 +685,14 @@ namespace DCE_Manager
                 zone = 0;
                 text = "Repair this campaign (recreate the missing files)";
             }
+            else if (!_scriptsModInstalled)
+            {
+                zone = 0;
+                text = "ScriptsMod is not installed. Go to the Update tab and click Install.";
+            }
             else
             {
+                
                 int thirdWidth = grid.Columns["QuickActions"].Width / 3;
                 zone = Math.Min(e.X / thirdWidth, 2);
                 text = GetQuickActionTooltipText(e.X);
@@ -664,14 +719,6 @@ namespace DCE_Manager
             }
         }
 
-        //private void HideQuickActionsToolTip()
-        //{
-        //    if (_lastQuickActionsZone == -1)
-        //        return;
-
-        //    _lastQuickActionsZone = -1;
-        //    _quickActionsToolTip.Hide(_mainForm.dataGridViewCampaigns);
-        //}
 
         private void HideQuickActionsToolTip()
         {
@@ -1044,6 +1091,9 @@ namespace DCE_Manager
         // par GridCampaigns_CellClick pour ces 3 actions.
         private void EnsureCampaignFilesUpToDate(string name)
         {
+            if (!_scriptsModInstalled)
+                return;   // sans ScriptsMod, pas de fichiers de référence : on ne marque PAS la campagne comme "recalée"
+
             if (!_alreadyUpdated.Add(name))
                 return;
 
@@ -1564,6 +1614,8 @@ namespace DCE_Manager
             // same folder name; the ConfMod cache is only keyed by that name, so it
             // must be cleared whenever the campaign list is (re)loaded.
             ConfModLoader.ClearCache();
+
+            RefreshScriptsModState();
 
             if (keepRightPanel && CurrentCampaignEdit != null)
             {

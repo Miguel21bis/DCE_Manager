@@ -1,4 +1,4 @@
-﻿// Fichier à remplacer : FormSquadEdit.cs
+// Fichier à remplacer : FormSquadEdit.cs
 // But : remplir automatiquement la grande fenêtre avec toutes les données du squad.
 // Pourquoi : permettre d'afficher et modifier immédiatement toutes les variables connues et futures.
 
@@ -9,6 +9,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 
 //using System.Web.UI.WebControls;
 using System.Windows.Forms;
@@ -37,6 +38,22 @@ namespace DCE_Manager
         // Vrai pendant le remplissage initial des contrôles.
         // Pourquoi : éviter que l'ouverture du form écrase le roster de la campagne.
         private bool _isLoading;
+
+        // On édite une COPIE du squad (EditedSquad). L'original (celui de la campagne en mémoire) n'est modifié qu'au clic sur Save.
+        // null en mode clone : le clone est alors le résultat, rendu à l'appelant.
+        private Squad _original;
+
+        // Vrai dès que l'utilisateur a changé quelque chose (sert à demander confirmation à la fermeture)
+        private bool _dirty;
+
+        // Vrai pendant la construction de la zone des tâches (les NumericUpDown déclenchent ValueChanged en se remplissant)
+        private bool _building;
+
+        // Vrai quand on ferme avec Cancel : pas de question
+        private bool _discard;
+
+        private Button _btnSave;
+        private Button _btnCancel;
 
 
         // Event déclenché à chaque modification importante du squad
@@ -72,18 +89,19 @@ namespace DCE_Manager
 
             // On clone le squad pour éviter de modifier l'original avant Save.
             // Pourquoi : l'utilisateur peut encore annuler.
-            EditedSquad = cloneMode ? CloneSquad(squad) : squad;
+            _original = cloneMode ? null : squad;
+            EditedSquad = cloneMode ? CloneSquad(squad) : MakeWorkingCopy(squad);
 
             // Abonnement APRÈS l'affectation de EditedSquad.
             // Pourquoi : le handler s'en sert, il ne doit jamais tomber sur un null.
             textBoxName.TextChanged += (s, e) =>
             {
-                if (EditedSquad == null)
+                if (EditedSquad == null || _isLoading)
                     return;
 
                 EditedSquad.Name = textBoxName.Text.Trim();
                 EditedSquad.DisplayName = textBoxName.Text.Trim();
-                SquadUpdated?.Invoke();
+                MarkChanged();
             };
 
             Text = cloneMode
@@ -93,7 +111,6 @@ namespace DCE_Manager
             LoadStaticLists();
             _isLoading = true;
             FillControls();
-            _isLoading = false;
             BuildGenericTables();
             BuildBase();
             BuildBasesAlternative();
@@ -105,6 +122,10 @@ namespace DCE_Manager
             BuildLiveryModex();
             BuildTasksArea();
             BuildScoreArea();
+            BuildSaveCancelButtons();
+
+            // _isLoading reste vrai pendant toute la construction : rien de ce qui se remplit ici ne compte comme une modification
+            _isLoading = false;
            
            
         }
@@ -357,7 +378,7 @@ namespace DCE_Manager
 
             comboBoxBase.SelectedItem = EditedSquad.Base;
 
-            SquadUpdated?.Invoke();
+            MarkChanged();
         }
 
         // Cette fonction remplit la ListBox des bases alternatives.
@@ -482,7 +503,7 @@ namespace DCE_Manager
             {
                 EditedSquad.Base = newBase;
 
-                SquadUpdated?.Invoke();
+                MarkChanged();
 
                 return;
             }
@@ -744,6 +765,8 @@ namespace DCE_Manager
             {
                 EditedSquad.Callsign = selected;
             }
+
+            MarkChanged();
         }
 
 
@@ -911,76 +934,144 @@ namespace DCE_Manager
             textBox_Modex.Focus();
         }
 
-        // Cette fonction construit dynamiquement la zone des Taks.
-        // Pourquoi : chaque squad peut avoir des Tasks différentes.
+        // Cette fonction construit dynamiquement la zone des Tasks.
+        // Pourquoi : chaque squad peut avoir des Tasks différentes (selon son type d'avion).
         private void BuildTasksArea()
         {
-            flowLayoutPanelTasks.Controls.Clear();
-            _taskRows.Clear();
+            _building = true;
 
-            if (EditedSquad.Tasks == null)
+            try
+            {
+                flowLayoutPanelTasks.Controls.Clear();
+                _taskRows.Clear();
+
+                if (EditedSquad.Tasks == null)
+                    return;
+
+                if (EditedSquad.TasksCoef == null)
+                    EditedSquad.TasksCoef = new Dictionary<string, double>();
+
+                foreach (var task in EditedSquad.Tasks.OrderBy(t => t.Key))
+                {
+                    string taskName = task.Key;
+
+                    System.Windows.Forms.Panel row = new System.Windows.Forms.Panel();
+                    row.Width = 400;
+                    row.Height = 32;
+
+                    System.Windows.Forms.Label label = new System.Windows.Forms.Label();
+                    label.Text = taskName;
+                    label.Location = new Point(0, 7);
+                    label.Width = 75;
+
+                    System.Windows.Forms.CheckBox checkBox = new System.Windows.Forms.CheckBox();
+                    checkBox.Checked = Convert.ToBoolean(task.Value);
+                    checkBox.Location = new Point(75, 5);
+
+                    // MAJ de la copie de travail quand on coche/décoche
+                    checkBox.CheckedChanged += (s, e) =>
+                    {
+                        if (_building) return;
+                        EditedSquad.Tasks[taskName] = checkBox.Checked;
+                        MarkChanged();
+                    };
+
+                    System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label();
+                    labelCoef.Text = "Coef";
+                    labelCoef.Location = new Point(100, 7);
+                    labelCoef.Width = 50;
+
+                    NumericUpDown numericCoef = new NumericUpDown();
+                    numericCoef.DecimalPlaces = 2;
+                    numericCoef.Maximum = 999;
+                    numericCoef.Minimum = -999;
+                    numericCoef.Width = 80;
+                    numericCoef.Location = new Point(300, 3);
+
+                    if (EditedSquad.TasksCoef.ContainsKey(taskName))
+                    {
+                        decimal coef = Convert.ToDecimal(EditedSquad.TasksCoef[taskName]);
+                        numericCoef.Value = Math.Max(numericCoef.Minimum, Math.Min(numericCoef.Maximum, coef));
+                    }
+
+                    // MAJ de la copie de travail du coef (abonné APRÈS le remplissage)
+                    numericCoef.ValueChanged += (s, e) =>
+                    {
+                        if (_building) return;
+                        EditedSquad.TasksCoef[taskName] = (double)numericCoef.Value;
+                        MarkChanged();
+                    };
+
+                    row.Controls.Add(label);
+                    row.Controls.Add(checkBox);
+                    row.Controls.Add(labelCoef);
+                    row.Controls.Add(numericCoef);
+
+                    flowLayoutPanelTasks.Controls.Add(row);
+
+                    _taskRows.Add(new TaskRow
+                    {
+                        TaskName = taskName,
+                        EnabledCheckBox = checkBox,
+                        CoefNumeric = numericCoef
+                    });
+                }
+            }
+            finally
+            {
+                _building = false;
+            }
+        }
+
+        // Tâches possibles pour un type d'avion (sans doublon, triées), d'après DCEM_Function.lua.
+        // Type absent de la table : on propose toutes les tâches connues, à l'utilisateur de cocher.
+        private List<string> TasksForType(string type)
+        {
+            Dictionary<string, List<string>> map = _campaignContext?.LuaData?.TaskByPlane;
+            if (map == null)
+                return null;
+
+            List<string> list;
+            if (!string.IsNullOrEmpty(type) && map.TryGetValue(type, out list))
+                return list.Distinct().OrderBy(t => t).ToList();
+
+            return map.Values.SelectMany(l => l).Distinct().OrderBy(t => t).ToList();
+        }
+
+        // Remplace les tâches du squad par celles du type choisi.
+        // Une tâche déjà connue garde son état et son coef ; les nouvelles sont décochées (coef 1) ; les autres disparaissent.
+        private void ApplyTasksOfType()
+        {
+            List<string> wanted = TasksForType(EditedSquad.Type);
+            if (wanted == null)
                 return;
 
-            foreach (var task in EditedSquad.Tasks.OrderBy(t => t.Key))
+            Dictionary<string, bool> oldTasks = EditedSquad.Tasks ?? new Dictionary<string, bool>();
+            Dictionary<string, double> oldCoef = EditedSquad.TasksCoef ?? new Dictionary<string, double>();
+
+            var newTasks = new Dictionary<string, bool>();
+            var newCoef = new Dictionary<string, double>();
+
+            foreach (string t in wanted)
             {
-                System.Windows.Forms.Panel  row = new System.Windows.Forms.Panel ();
-                row.Width = 400;
-                row.Height = 32;
-
-                System.Windows.Forms.Label label = new System.Windows.Forms.Label ();
-                label.Text = task.Key;
-                label.Location = new Point(0, 7);
-                label.Width = 75;
-
-                System.Windows.Forms.CheckBox checkBox = new System.Windows.Forms.CheckBox();
-                checkBox.Checked = Convert.ToBoolean(task.Value);
-                checkBox.Location = new Point(75, 5);
-
-                // MAJ live du squad quand on coche/décoche
-                checkBox.CheckedChanged += (s, e) =>
-                {
-                    EditedSquad.Tasks[task.Key] = checkBox.Checked;
-                    SquadUpdated?.Invoke();
-                };
-
-                System.Windows.Forms.Label labelCoef = new System.Windows.Forms.Label ();
-                labelCoef.Text = "Coef";
-                labelCoef.Location = new Point(100, 7);
-                labelCoef.Width = 50;
-
-                NumericUpDown numericCoef = new NumericUpDown();
-                numericCoef.DecimalPlaces = 2;
-                numericCoef.Maximum = 999;
-                numericCoef.Minimum = -999;
-                numericCoef.Width = 80;
-                numericCoef.Location = new Point(300, 3);
-
-                // MAJ live du coef
-                numericCoef.ValueChanged += (s, e) =>
-                {
-                    EditedSquad.TasksCoef[task.Key] = (double)numericCoef.Value;
-                    SquadUpdated?.Invoke();
-                };
-
-                if (EditedSquad.TasksCoef != null && EditedSquad.TasksCoef.ContainsKey(task.Key))
-                {
-                    numericCoef.Value = Convert.ToDecimal(EditedSquad.TasksCoef[task.Key]);
-                }
-
-                row.Controls.Add(label);
-                row.Controls.Add(checkBox);
-                row.Controls.Add(labelCoef);
-                row.Controls.Add(numericCoef);
-
-                flowLayoutPanelTasks.Controls.Add(row);
-
-                _taskRows.Add(new TaskRow
-                {
-                    TaskName = task.Key,
-                    EnabledCheckBox = checkBox,
-                    CoefNumeric = numericCoef
-                });
+                bool on;
+                double coef;
+                newTasks[t] = oldTasks.TryGetValue(t, out on) && on;
+                newCoef[t] = oldCoef.TryGetValue(t, out coef) ? coef : 1.0;
             }
+
+            EditedSquad.Tasks = newTasks;
+            EditedSquad.TasksCoef = newCoef;
+        }
+
+        // Changement de type d'avion : tâches et callsigns suivent le nouveau type
+        private void ApplyType(string type)
+        {
+            EditedSquad.Type = type;
+            ApplyTasksOfType();
+            BuildTasksArea();
+            RefreshCallsignList();
+            MarkChanged();
         }
 
         private void BuildScoreArea()
@@ -1084,7 +1175,7 @@ namespace DCE_Manager
                 {
                     dict[item.Key] = (int)numeric.Value;
 
-                    SquadUpdated?.Invoke();
+                    MarkChanged();
                 };
 
                 group.Controls.Add(label);
@@ -1097,12 +1188,195 @@ namespace DCE_Manager
         }
 
 
-        // Cette fonction ferme la fenêtre sans rien modifier.
-        // Pourquoi : laisser l'utilisateur annuler ses changements.
+        // ---------------------------------------------------------------
+        //  Copie de travail, Save et Cancel
+        // ---------------------------------------------------------------
+
+        // Noter qu'un changement a été fait (hors remplissage initial)
+        private void MarkChanged()
+        {
+            if (_isLoading || _building)
+                return;
+
+            _dirty = true;
+        }
+
+        // Copie de travail : tous les champs (privés compris) + copie profonde des collections.
+        // Pourquoi : l'original ne doit pas bouger tant que l'utilisateur n'a pas cliqué sur Save.
+        private static Squad MakeWorkingCopy(Squad source)
+        {
+            Squad copy = source.Clone();
+            CopyValues(source, copy);
+
+            copy.BaseAlternative = source.BaseAlternative != null ? new List<string>(source.BaseAlternative) : new List<string>();
+            copy.Tasks = source.Tasks != null ? new Dictionary<string, bool>(source.Tasks) : new Dictionary<string, bool>();
+            copy.TasksCoef = source.TasksCoef != null ? new Dictionary<string, double>(source.TasksCoef) : new Dictionary<string, double>();
+            copy.TasksCoefPourcent = source.TasksCoefPourcent != null ? new Dictionary<string, int>(source.TasksCoefPourcent) : null;
+            copy.Roster = source.Roster != null ? new Dictionary<string, object>(source.Roster) : null;
+            copy.Score = source.Score != null ? new Dictionary<string, object>(source.Score) : null;
+            copy.ScoreLast = source.ScoreLast != null ? new Dictionary<string, object>(source.ScoreLast) : null;
+            copy.AdditionalProperties = source.AdditionalProperties != null ? new Dictionary<string, object>(source.AdditionalProperties) : new Dictionary<string, object>();
+            copy.parking_id = source.parking_id != null ? new Dictionary<string, object>(source.parking_id) : new Dictionary<string, object>();
+            copy.Livery = source.Livery != null ? new Dictionary<int, string>(source.Livery) : new Dictionary<int, string>();
+            copy.LiveryModex = source.LiveryModex != null ? new Dictionary<int, string>(source.LiveryModex) : new Dictionary<int, string>();
+
+            return copy;
+        }
+
+        // Recopie tous les champs (privés et classes parentes compris) d'un squad vers un autre
+        private static void CopyValues(Squad from, Squad to)
+        {
+            for (Type t = typeof(Squad); t != null && t != typeof(object); t = t.BaseType)
+            {
+                foreach (FieldInfo f in t.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                {
+                    if (f.IsInitOnly || f.IsLiteral) continue;
+                    f.SetValue(to, f.GetValue(from));
+                }
+            }
+        }
+
+        // Boutons Save / Cancel en bas de la fenêtre
+        private void BuildSaveCancelButtons()
+        {
+            var bar = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                Height = 46,
+                FlowDirection = FlowDirection.RightToLeft,
+                Padding = new Padding(8)
+            };
+
+            _btnCancel = new Button { Text = "Cancel", Width = 100, Height = 30 };
+            _btnCancel.Click += buttonCancel_Click;
+
+            _btnSave = new Button { Text = "Save", Width = 100, Height = 30 };
+            _btnSave.Click += buttonSave_Click;
+
+            bar.Controls.Add(_btnCancel);   // RightToLeft : le premier ajouté est tout à droite
+            bar.Controls.Add(_btnSave);
+
+            Controls.Add(bar);
+            bar.SendToBack();               // le panneau prend sa place en bas AVANT les autres contrôles
+        }
+
+        // Save : la copie de travail est recopiée dans le squad de la campagne, puis l'appelant est prévenu
+        private void buttonSave_Click(object sender, EventArgs e)
+        {
+            // Type tapé à la main sans être choisi dans la liste
+            string typed = comboBoxType.Text.Trim();
+            if (typed != EditedSquad.Type)
+            {
+                if (!comboBoxType.Items.Contains(typed))
+                {
+                    MessageBox.Show("Unknown aircraft type: " + typed, "Edit Squad", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                ApplyType(typed);
+            }
+
+            if (_original != null)
+            {
+                bool typeChanged = _original.Type != EditedSquad.Type;
+
+                bool stateChanged = _original.Squad_Inactive != EditedSquad.Squad_Inactive;
+
+                CopyValues(EditedSquad, _original);
+
+                // Un squad existe en deux versions (Init et Active). Si le type d'avion change, l'autre version doit suivre,
+                // sinon elle reste sur l'ancien type (A-10) et la génération de mission remet le squad à l'ancien type.
+                if (typeChanged)
+                    SyncTwinType(_original);
+
+                if (stateChanged)
+                    SyncTwinState(_original);
+
+                EditedSquad = _original;   // les appelants lisent frm.EditedSquad : ils doivent voir le vrai squad
+
+                // Un seul Player dans la campagne
+                if (EditedSquad.Player)
+                    _campaignContext.CampaignEditRef.SetSinglePlayerSquad(EditedSquad);
+            }
+
+            _dirty = false;
+            DialogResult = DialogResult.OK;
+            SquadUpdated?.Invoke();
+            Close();
+        }
+
+        // Actif / inactif : l'export de la Preview relit la version Init, l'autre version doit donc suivre
+        private void SyncTwinState(Squad edited)
+        {
+            var list = _campaignContext?.CampaignEditRef?.CurrentCampaignSquads;
+            if (list == null)
+                return;
+
+            foreach (CampaignSquad cs in list)
+            {
+                Squad twin = ReferenceEquals(cs.Init, edited) ? cs.Active
+                           : ReferenceEquals(cs.Active, edited) ? cs.Init
+                           : null;
+
+                if (twin == null || ReferenceEquals(twin, edited))
+                    continue;
+
+                twin.Squad_Inactive = edited.Squad_Inactive;
+                return;
+            }
+        }
+
+        // Recopie le type et ce qui en dépend (tâches, livrées, callsign) sur l'autre version (Init <-> Active) du même squad
+        private void SyncTwinType(Squad edited)
+        {
+            var list = _campaignContext?.CampaignEditRef?.CurrentCampaignSquads;
+            if (list == null)
+                return;
+
+            foreach (CampaignSquad cs in list)
+            {
+                Squad twin = ReferenceEquals(cs.Init, edited) ? cs.Active
+                           : ReferenceEquals(cs.Active, edited) ? cs.Init
+                           : null;
+
+                if (twin == null || ReferenceEquals(twin, edited))
+                    continue;
+
+                twin.Type = edited.Type;
+                twin.Tasks = new Dictionary<string, bool>(edited.Tasks);
+                twin.TasksCoef = new Dictionary<string, double>(edited.TasksCoef);
+                twin.TasksCoefPourcent = edited.TasksCoefPourcent != null ? new Dictionary<string, int>(edited.TasksCoefPourcent) : null;
+                twin.Livery = new Dictionary<int, string>(edited.Livery);
+                twin.LiveryModex = new Dictionary<int, string>(edited.LiveryModex);
+                twin.Callsign = edited.Callsign;
+                return;
+            }
+        }
+
+        // Cancel : on jette la copie de travail, rien n'a été modifié dans la campagne
         private void buttonCancel_Click(object sender, EventArgs e)
         {
+            _discard = true;
             DialogResult = DialogResult.Cancel;
             Close();
+        }
+
+        // Fermeture par la croix avec des changements non enregistrés : on demande
+        protected override void OnFormClosing(FormClosingEventArgs e)
+        {
+            if (!_discard && _dirty && DialogResult != DialogResult.OK && e.CloseReason == CloseReason.UserClosing)
+            {
+                DialogResult answer = MessageBox.Show(
+                    "Discard your changes?",
+                    "Edit Squad",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+
+                if (answer != DialogResult.Yes)
+                    e.Cancel = true;
+            }
+
+            base.OnFormClosing(e);
         }
 
         // Cette classe mémorise une ligne de tâche dynamique.
@@ -1357,31 +1631,42 @@ namespace DCE_Manager
 
         private void comboBoxType_SelectedIndexChanged(object sender, EventArgs e)
         {
-            EditedSquad.Type = comboBoxType.Text;
-            BuildTasksArea();
-            SquadUpdated?.Invoke();
+            // Pendant le remplissage initial, on ne touche à rien (sinon les tâches du fichier seraient remplacées)
+            if (_isLoading)
+                return;
+
+            string type = comboBoxType.SelectedItem as string ?? comboBoxType.Text;
+            if (string.IsNullOrWhiteSpace(type) || type == EditedSquad.Type)
+                return;
+
+            ApplyType(type);
         }
 
         private void comboBoxSkill_SelectedIndexChanged(object sender, EventArgs e)
         {
             EditedSquad.Skill = comboBoxSkill.Text;
+            MarkChanged();
         }
 
         private void checkBoxPlayer_CheckedChanged(object sender, EventArgs e)
         {
-            //  Empêche de décocher si c'est le dernier Player
+            // Remplissage initial : rien à faire
+            if (_isLoading)
+                return;
+
+            // Le vrai squad (celui de la liste) : on ne compare jamais avec la copie de travail
+            Squad self = _original ?? EditedSquad;
+
+            // Empêche de décocher si c'est le dernier Player
             if (!checkBoxPlayer.Checked)
             {
-               
-
                 bool anotherPlayerExists = _campaignContext.CampaignEditRef
                     .CurrentCampaignSquads
                     .Any(cs =>
-                        (cs.Active != EditedSquad && cs.Active?.Player == true)
+                        (cs.Active != null && cs.Active != self && cs.Active.Player)
                         ||
-                        (cs.Init != EditedSquad && cs.Init?.Player == true)
+                        (cs.Init != null && cs.Init != self && cs.Init.Player)
                     );
-
 
                 if (!anotherPlayerExists)
                 {
@@ -1397,30 +1682,15 @@ namespace DCE_Manager
                 }
             }
 
+            // Un seul Player dans la campagne : la règle est appliquée au Save (SetSinglePlayerSquad)
             EditedSquad.Player = checkBoxPlayer.Checked;
-
-            // Applique règle globale (un seul Player)
-            if (EditedSquad.Player)
-            {
-                EditedSquad.Player = checkBoxPlayer.Checked;
-
-                if (EditedSquad.Player)
-                {
-                    _campaignContext.CampaignEditRef.SetSinglePlayerSquad(EditedSquad);
-                }
-            }
+            MarkChanged();
         }
 
         private void checkBox_HumainOnly_CheckedChanged(object sender, EventArgs e)
         {
-            if (checkBox_HumainOnly.Checked)
-            {
-                EditedSquad.HumainOnly = true;
-            }
-            else
-            {
-                EditedSquad.HumainOnly = false;
-            }
+            EditedSquad.HumainOnly = checkBox_HumainOnly.Checked;
+            MarkChanged();
         }
 
 
@@ -1428,7 +1698,7 @@ namespace DCE_Manager
         {
             EditedSquad.Squad_Active = checkBoxActive.Checked;
 
-            SquadUpdated?.Invoke();
+            MarkChanged();
         }
 
         private void numericNumber_ValueChanged(object sender, EventArgs e)
@@ -1454,7 +1724,7 @@ namespace DCE_Manager
                 BuildScoreArea();
             }
 
-            SquadUpdated?.Invoke();
+            MarkChanged();
         }
 
 
@@ -1481,7 +1751,7 @@ namespace DCE_Manager
                 BuildScoreArea();
             }
 
-            SquadUpdated?.Invoke();
+            MarkChanged();
         }
 
 
@@ -1526,6 +1796,7 @@ namespace DCE_Manager
             if (_campaignContext?.LuaData == null)
             {
                 comboBox_Callsign.Enabled = false;
+                _isRefreshingCallsign = false;
                 return;
             }
 
@@ -1595,7 +1866,7 @@ namespace DCE_Manager
             //comboBox_Callsign.Enabled = comboBox_Callsign.Items.Count > 0;
 
             // Toujours ajouter "Automatic" en premier
-            comboBox_Callsign.Items.Insert(0, "Automatic");
+            // ("Automatic" est déjà ajouté tout en haut de la méthode : plus de doublon)
 
             // Vérifie si le callsign actuel existe encore
             string currentCallsign = EditedSquad.Callsign;

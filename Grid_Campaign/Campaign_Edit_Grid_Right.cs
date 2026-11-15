@@ -663,6 +663,9 @@ namespace DCE_Manager
             if (squad == null)
                 return;
 
+            // Version du squad cliqué (c'est elle qui est dans la grille affichée)
+            isActive = string.Equals(squad.FolderFile, "Active", StringComparison.OrdinalIgnoreCase);
+
             if (e.ColumnIndex < 0)
             {
                 // comportement header (ou return)
@@ -698,40 +701,17 @@ namespace DCE_Manager
                     (cs.Active != null && cs.Active.IdSquad == squad.IdSquad)
                 );
 
-                squadToEdit = isActive
-                    ? campaignSquad.Active
-                    : campaignSquad.Init;
+                squadToEdit = squad;   // la ligne cliquée (et non l'autre version Init/Active)
 
-                var frm = new SquadEdit_Form(squadToEdit, _campaignContext, false, "EditColumn");
-
-                frm.SquadUpdated += () =>
+                // Fenêtre modale : on travaille sur une copie, rien ne change dans la campagne sans clic sur Save
+                using (var frm = new SquadEdit_Form(squadToEdit, _campaignContext, false, "EditColumn"))
                 {
-                    Main_Form.Instance.CampaignView.DataGridViewBlue.Refresh();
-                    Main_Form.Instance.CampaignView.DataGridViewRed.Refresh();
-                };
-
-
-                frm.FormClosed += (s, args) =>
-                {
-                    if (frm.DialogResult == DialogResult.OK)
+                    if (frm.ShowDialog(Main_Form.Instance) == DialogResult.OK)
                     {
+                        // Le Player unique a déjà été appliqué par le Save de la fenêtre
                         _campGridLft.RefreshGrids();
                     }
-                };
-
-                frm.SquadUpdated += () =>
-                {
-                    if (frm.EditedSquad.Player)
-                    {
-                        SetSinglePlayerSquad(frm.EditedSquad);
-                    }
-                    else
-                    {
-                        _campGridLft.RefreshGrids();
-                    }
-                };
-
-                frm.Show();
+                }
                 return;
             }
 
@@ -749,9 +729,7 @@ namespace DCE_Manager
                         (cs.Active != null && cs.Active.IdSquad == squad.IdSquad)
                     );
 
-                    squadToEdit = isActive
-                        ? campaignSquad.Active
-                        : campaignSquad.Init;
+                    squadToEdit = squad;   // la ligne cliquée (et non l'autre version Init/Active)
 
                     // -------------------------------------------------
                     // Création clone DIRECTE
@@ -810,20 +788,19 @@ namespace DCE_Manager
                     // OUVERTURE ÉDITION SUR LE CLONE
                     // -------------------------------------------------
 
-                    var frm = new SquadEdit_Form(
-                        clonedSquad,
-                        _campaignContext,
-                        false,
-                        "CloneLive"
-                    );
-
-                    frm.SquadUpdated += () =>
+                    using (var frm = new SquadEdit_Form(clonedSquad, _campaignContext, false, "CloneLive"))
                     {
-                        Main_Form.Instance.CampaignView.DataGridViewBlue.Refresh();
-                        Main_Form.Instance.CampaignView.DataGridViewRed.Refresh();
-                    };
+                        if (frm.ShowDialog(Main_Form.Instance) != DialogResult.OK)
+                        {
+                            // Cancel : le clone n'est pas gardé
+                            CurrentCampaignSquads.Remove(newCampaignSquad);
+                            if (newCampaignSquad.Init != null) CurrentSquads.Remove(newCampaignSquad.Init);
+                            if (newCampaignSquad.Active != null) CurrentSquads.Remove(newCampaignSquad.Active);
+                            _form1.currentSquads = CurrentSquads;
+                        }
+                    }
 
-                    frm.Show();
+                    _campGridLft.RefreshGrids();
 
                     return;
                 }

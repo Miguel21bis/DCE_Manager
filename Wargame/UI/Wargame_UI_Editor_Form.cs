@@ -535,7 +535,7 @@ namespace DCE_Manager
 
             AddStep(flow, "Templates", "Set the power of each formation template.",
                 StepTemplatesDone, OpenTemplateCatalog,
-                "Changing the power of a template changes the strength of every formation that uses it.", false, MissingTemplatesText);
+                null, false, MissingTemplatesText);
 
             AddStep(flow, "Assign camps", "Click a zone (Ctrl+click for several) and pick its camp.",
                 StepCampsDone, ShowZoneEditing, null, false);
@@ -1468,6 +1468,22 @@ namespace DCE_Manager
 
         private void OpenTemplateCatalog()
         {
+            // Campagne en cours : le catalogue est unique (Init et Active le partagent), une modification joue dès le prochain tour
+            int mission = WargameLogistics.ReadMission(WargameZoneRepository.GetCampaignFolder(_campaignName));
+            if (mission > 1)
+            {
+                DialogResult answer = MessageBox.Show(
+                    "The campaign is already running (mission " + mission + ").\n\n"
+                    + "The template catalog is shared by Init and Active, so a change is used from the next turn.\n"
+                    + "Formations keep their current strength, but a new Power changes their maximum strength.\n\n"
+                    + "Open the catalog?",
+                    "Wargame - Templates", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                if (answer != DialogResult.Yes) return;
+            }
+
+            _campaignInfo.RefreshTemplates();   // relit les .stm réellement présents sur disque
+
             using (var form = new WargameTemplateCatalog_Form(_campaignName, _campaignInfo))
             {
                 form.ShowDialog(this);
@@ -1546,7 +1562,7 @@ namespace DCE_Manager
         {
             using (var form = new WargameCombatPreview_Form(
                 _campaignName, _zones, _axes, _templateCatalog, _campaignInfo,
-                _mapImage, _calibration, _objectives))
+              _mapImage, _calibration, _objectives, _viewingActive))
             {
                 form.ShowDialog(this);
             }
