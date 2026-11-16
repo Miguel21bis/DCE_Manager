@@ -1,13 +1,17 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using DCE_Manager.Parameters;
+using DCE_Manager.Update;
+using DCE_Manager.Utils;
 
 namespace DCE_Manager.UserControls
 {
@@ -20,6 +24,9 @@ namespace DCE_Manager.UserControls
         public ucCampaign()
         {
             InitializeComponent();
+
+            BuildWargameTab();
+            BuildMapTab();
 
             CampaignTab.Selected += CampaignTab_Selected;
 
@@ -46,6 +53,10 @@ namespace DCE_Manager.UserControls
         private void CampaignTab_Selected(object sender, TabControlEventArgs e)
         {
             Main_Form.Instance.CampaignGridLeft.UpdateCampaignButtonsVisibility();
+
+            // Init/Active, Save et Reset ne servent à rien dans les onglets Wargame et Map (ils ont leurs propres commandes)
+            bool ownCommands = CampaignTab.SelectedTab == tabPage_wargame || CampaignTab.SelectedTab == _mapTab;
+            panel_but_monitoring_campaign.Visible = !ownCommands;
         }
 
 
@@ -141,38 +152,395 @@ namespace DCE_Manager.UserControls
             Main_Form.Instance.CampaignGridLeft.CurrentCampaignEdit?.buttonResetBackup_Click(sender, e);
         }
 
-        private void but_MakeWarZone_Click(object sender, EventArgs e)
+        // =====================================================================
+        //  ONGLET WARGAME
+        //  - visible seulement si la campagne a un wargame (voir CampaignHasWargame)
+        //  - joueur : carte en lecture seule + dernier rapport + légende
+        //  - campaignMaker : en plus Init/Active, bouton "Edit wargame..." et liste de contrôle
+        // =====================================================================
+
+        private string _wgCampaign = "";
+        private Image _wgImage;
+        private ucWargameMapView _wgMap;
+        private TextBox _wgReport;
+        private Label _wgChecklist;
+        private Button _wgEditButton;
+        private RadioButton _wgRadioInit;
+        private RadioButton _wgRadioActive;
+        private bool _wgLoading;
+
+        // Un wargame existe quand ses zones ont été créées (Init/Wargame/DCE_Generated/wargame_zones_init.lua).
+        // Ce n'est pas camp.wargame_config : celle-ci est recopiée de la référence dans TOUTES les campagnes.
+        public static bool CampaignHasWargame(string campaignName)
         {
-            string campaignName = ParamCampaignSelected.NameCampaign;
-
             if (string.IsNullOrEmpty(campaignName))
-            {
-                MessageBox.Show("No campaign selected.", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
+                return false;
 
-            var zones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
-
-            MessageBox.Show(
-                zones.Count + " zone(s) loaded/generated for campaign '" + campaignName + "'.",
-                "Wargame",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Information);
+            return File.Exists(WargameZoneRepository.GetInitLuaPath(campaignName));
         }
 
-        private void but_wargame_MAP_Click(object sender, EventArgs e)
+        private void BuildWargameTab()
         {
+            _wgEditButton = new Button { Text = "Edit wargame...", Left = 8, Top = 8, Width = 150, Height = 30, Visible = false };
+            _wgEditButton.Click += (s, e) => EditWargame();
 
-            string campaignName = ParamCampaignSelected.NameCampaign;
+            _wgRadioInit = new RadioButton { Text = "Init", Left = 172, Top = 13, AutoSize = true, Checked = true, Visible = false };
+            _wgRadioActive = new RadioButton { Text = "Active", Left = 232, Top = 13, AutoSize = true, Visible = false };
+            _wgRadioInit.CheckedChanged += (s, e) => { if (_wgRadioInit.Checked) LoadWargameView(); };
+            _wgRadioActive.CheckedChanged += (s, e) => { if (_wgRadioActive.Checked) LoadWargameView(); };
 
-            if (string.IsNullOrEmpty(campaignName))
+            _wgChecklist = new Label { Left = 310, Top = 15, AutoSize = true, Visible = false };
+
+            var top = new Panel { Dock = DockStyle.Top, Height = 46 };
+            top.Controls.Add(_wgEditButton);
+            top.Controls.Add(_wgRadioInit);
+            top.Controls.Add(_wgRadioActive);
+            top.Controls.Add(_wgChecklist);
+
+            _wgMap = new ucWargameMapView { ReadOnly = true, ShowAxes = false, ShowMissionUnits = false };
+            var mapPanel = new NoAutoScrollPanel { Dock = DockStyle.Fill, AutoScroll = true };
+            mapPanel.Controls.Add(_wgMap);
+
+            var legend = new Label
             {
-                MessageBox.Show("No campaign selected.", "Wargame", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                Dock = DockStyle.Bottom,
+                Height = 34,
+                Padding = new Padding(6, 4, 6, 0),
+                Text = "Colored zones show who holds the ground. The report below tells what happened at the last turn."
+            };
+
+            _wgReport = new TextBox
+            {
+                Dock = DockStyle.Bottom,
+                Height = 150,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Vertical,
+                Font = new Font("Consolas", 9f),
+                BackColor = Color.White
+            };
+
+            // Ordre d'ajout : d'abord le Fill, ensuite Bottom puis Top
+            tabPage_wargame.Controls.Add(mapPanel);
+            tabPage_wargame.Controls.Add(_wgReport);
+            tabPage_wargame.Controls.Add(legend);
+            tabPage_wargame.Controls.Add(top);
+
+            // Cachée par défaut : RefreshWargameTab la montre si la campagne a un wargame
+            CampaignTab.TabPages.Remove(tabPage_wargame);
+        }
+
+        // Appelée à chaque changement de campagne affichée (campaignName vide = aucune campagne)
+        // et quand le niveau d'utilisateur change.
+        // Rafraîchit l'onglet Wargame, puis l'onglet Map (qui doit rester le dernier).
+        public void RefreshWargameTab(string campaignName)
+        {
+            RefreshWargameTabOnly(campaignName);
+            RefreshMapTab(campaignName);
+        }
+
+        private void RefreshWargameTabOnly(string campaignName)
+        {
+            _wgCampaign = campaignName ?? "";
+
+            if (!CampaignHasWargame(_wgCampaign))
+            {
+                CampaignTab.TabPages.Remove(tabPage_wargame);
                 return;
             }
 
-            new WargameEditor_Form(campaignName).ShowDialog();
+            if (!CampaignTab.TabPages.Contains(tabPage_wargame))
+                CampaignTab.TabPages.Add(tabPage_wargame);
 
+            bool maker = ParamConf.UserLevel == UserLevel.CampaignMaker;
+            _wgEditButton.Visible = maker;
+            _wgRadioInit.Visible = maker;
+            _wgRadioActive.Visible = maker;
+            _wgChecklist.Visible = maker;
+
+            // Joueur : l'état en cours s'il existe, sinon le départ. CampaignMaker : il choisit.
+            _wgLoading = true;
+            bool hasActive = File.Exists(WargameZoneRepository.GetActiveWargameZonesPath(_wgCampaign));
+            if (!maker)
+            {
+                _wgRadioActive.Checked = hasActive;
+                _wgRadioInit.Checked = !hasActive;
+            }
+            _wgLoading = false;
+
+            LoadWargameView();
+        }
+
+        private void LoadWargameView()
+        {
+            if (_wgLoading || string.IsNullOrEmpty(_wgCampaign) || !CampaignHasWargame(_wgCampaign))
+                return;
+
+            try
+            {
+                string folder = WargameZoneRepository.GetCampaignFolder(_wgCampaign);
+                bool showActive = _wgRadioActive.Checked;
+
+                List<WargameZoneData> zones = WargameZoneRepository.LoadOrGenerateInit(_wgCampaign);
+                List<WargameAxis> axes = WargameZoneRepository.State.Axes;
+                WargameMapCalibration calibration = WargameMapCalibration.Load(WargameZoneRepository.GetCalibrationPath(_wgCampaign));
+
+                // La liste de contrôle porte sur le départ (Init), donc AVANT d'appliquer l'état Active
+                if (ParamConf.UserLevel == UserLevel.CampaignMaker)
+                    _wgChecklist.Text = BuildChecklist(zones, axes, calibration);
+
+                if (showActive)
+                {
+                    string activePath = WargameZoneRepository.GetActiveWargameZonesPath(_wgCampaign);
+                    if (File.Exists(activePath))
+                        new WargameZoneActiveLoader().ApplyActiveState(activePath, zones);
+                }
+
+                string targetlistPath = showActive
+                    ? Path.Combine(folder, "Active", "targetlist.lua")
+                    : Path.Combine(folder, "Init", "targetlist_init.lua");
+
+                List<WargameObjective> objectives = File.Exists(targetlistPath)
+                    ? new Parser_WargameObjectives().Load(targetlistPath)
+                    : new List<WargameObjective>();
+
+                // Image copiée en mémoire : le fichier ne reste pas verrouillé
+                Image newImage = null;
+                string imagePath = WargameZoneRepository.GetMapImagePath(_wgCampaign);
+                if (File.Exists(imagePath))
+                {
+                    using (var fs = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                    using (var tmp = Image.FromStream(fs))
+                        newImage = new Bitmap(tmp);
+                }
+
+                _wgMap.LoadMap(newImage, calibration, zones);
+                _wgMap.SetObjectives(objectives);
+                _wgMap.SetAxes(axes);
+
+                _wgImage?.Dispose();
+                _wgImage = newImage;
+
+                string reportPath = Path.Combine(folder, "Active", "wargame_report.txt");
+                _wgReport.Text = File.Exists(reportPath)
+                    ? File.ReadAllText(reportPath).Replace("\r\n", "\n").Replace("\n", "\r\n")
+                    : "No wargame report yet. It appears after the first debriefing.";
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("LoadWargameView('" + _wgCampaign + "') a échoué : " + ex.Message);
+                _wgReport.Text = "The wargame could not be displayed: " + ex.Message;
+            }
+        }
+
+        // "Zones ✓  Map ✓  Camps ✗ ..." : ce qu'il reste à faire avant de livrer la campagne
+        private static string BuildChecklist(List<WargameZoneData> zones, List<WargameAxis> axes, WargameMapCalibration calibration)
+        {
+            List<WargameZoneData> map = zones.Where(z => !WargameEngineCombat.IsReserveZone(z)).ToList();
+
+            bool zonesOk = map.Count > 0;
+            bool mapOk = calibration != null && calibration.IsCalibrated;
+            bool campsOk = map.Count > 0 && map.All(z => z.Control == WargameSide.Blue || z.Control == WargameSide.Red);
+            bool forcesOk = zones.Any(z => z.Control == WargameSide.Blue && z.Formations.Count > 0)
+                         && zones.Any(z => z.Control == WargameSide.Red && z.Formations.Count > 0);
+            bool axesOk = axes != null && axes.Count > 0 && axes.All(a => a.IsValid);
+
+            Func<bool, string> mark = ok => ok ? "✓" : "✗";
+
+            return "Zones " + mark(zonesOk) + "   Map " + mark(mapOk) + "   Camps " + mark(campsOk)
+                 + "   Forces " + mark(forcesOk) + "   Axes " + mark(axesOk);
+        }
+
+        private void EditWargame()
+        {
+            if (string.IsNullOrEmpty(_wgCampaign))
+                return;
+
+            using (var form = new WargameEditor_Form(_wgCampaign))
+            {
+                form.ShowDialog(FindForm());
+            }
+
+            RefreshWargameTab(_wgCampaign);
+        }
+
+        // =====================================================================
+        //  ONGLET MAPS
+        //  - toujours le dernier onglet, visible dès qu'une campagne est affichée
+        //  - quatre boutons : Wargame (éditeur, campaign maker), Map (bases + squadrons), Mission (mission en cours),
+        //    Debriefing (carte des événements d'une mission passée : on choisit la mission dans une liste)
+        // =====================================================================
+
+        private TabPage _mapTab;
+        private string _mapCampaign = "";
+        private Button _mapWargameButton;
+        private Label _mapWargameHelp;
+        private Button _mapDebriefButton;
+        private readonly ToolTip _mapTip = new ToolTip { AutoPopDelay = 15000 };
+
+        private void BuildMapTab()
+        {
+            _mapTab = new TabPage("Maps") { UseVisualStyleBackColor = true };
+
+            _mapWargameButton = new Button { Text = "Wargame...", Left = 8, Top = 8, Width = 150, Height = 30 };
+            _mapWargameButton.Click += (s, e) => { _wgCampaign = _mapCampaign; EditWargame(); };
+            _mapWargameHelp = MakeMapHelp(8, "Opens the wargame editor: zones, forces, axes, combat preview. (Campaign maker only.)");
+
+            var mapButton = new Button { Text = "Map...", Left = 8, Top = 98, Width = 150, Height = 30 };
+            mapButton.Click += (s, e) => OpenMap(false);
+
+            var missionButton = new Button { Text = "Mission...", Left = 8, Top = 188, Width = 150, Height = 30 };
+            missionButton.Click += (s, e) => OpenMap(true);
+
+            _mapDebriefButton = new Button { Text = "Debriefing...", Left = 8, Top = 278, Width = 150, Height = 30 };
+            _mapDebriefButton.Click += (s, e) => ShowDebriefMenu();
+            _mapTip.SetToolTip(_mapDebriefButton, "DEBRIEFING MAP\nShows the events of a past mission (kills, ejections, bomb impacts) on the map.\nYou choose the mission in a list: one file is kept for each debriefing.");
+
+            _mapTab.Controls.Add(_mapWargameButton);
+            _mapTab.Controls.Add(_mapWargameHelp);
+            _mapTab.Controls.Add(mapButton);
+            _mapTab.Controls.Add(MakeMapHelp(98, "Every airbase of the map, with the squadrons based on it. Click a base to see its squadrons."));
+            _mapTab.Controls.Add(missionButton);
+            _mapTab.Controls.Add(MakeMapHelp(188, "The mission in progress: players' flight plans with their waypoints, and the range of the SAM sites that are not hidden."));
+            _mapTab.Controls.Add(_mapDebriefButton);
+            _mapTab.Controls.Add(MakeMapHelp(278, "The events of a past mission: aircraft lost, vehicles, buildings, ejections, bomb impacts. You choose the mission in a list."));
+        }
+
+        private static Label MakeMapHelp(int buttonTop, string text)
+        {
+            return new Label
+            {
+                Left = 8,
+                Top = buttonTop + 38,
+                AutoSize = true,
+                MaximumSize = new Size(620, 0),
+                Text = text
+            };
+        }
+
+        // Appelée par RefreshWargameTab : affiche ou cache l'onglet Map selon la campagne
+        private void RefreshMapTab(string campaignName)
+        {
+            _mapCampaign = campaignName ?? "";
+
+            if (string.IsNullOrEmpty(_mapCampaign))
+            {
+                CampaignTab.TabPages.Remove(_mapTab);
+                return;
+            }
+
+            // Le bouton Wargame : seulement pour le campaign maker, et si la campagne a un wargame
+            bool wargame = ParamConf.UserLevel == UserLevel.CampaignMaker && CampaignHasWargame(_mapCampaign);
+            _mapWargameButton.Visible = wargame;
+            _mapWargameHelp.Visible = wargame;
+
+            if (!CampaignTab.TabPages.Contains(_mapTab))
+            {
+                CampaignTab.TabPages.Add(_mapTab);
+            }
+            else if (CampaignTab.TabPages.IndexOf(_mapTab) != CampaignTab.TabPages.Count - 1
+                  && CampaignTab.SelectedTab != _mapTab)
+            {
+                // Remis en dernière position (l'onglet Wargame peut être apparu après lui)
+                CampaignTab.TabPages.Remove(_mapTab);
+                CampaignTab.TabPages.Add(_mapTab);
+            }
+        }
+
+        private void OpenMap(bool missionMode)
+        {
+            if (string.IsNullOrEmpty(_mapCampaign))
+                return;
+
+            try
+            {
+                using (var form = new Map_UI_Form(_mapCampaign, missionMode))
+                {
+                    form.ShowDialog(FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OpenMap('" + _mapCampaign + "') a échoué : " + ex);
+                MessageBox.Show("The map could not be opened: " + ex.Message, "Map");
+            }
+        }
+
+        // ---- Debriefing : les fichiers "Debriefing\DebriefEvents <n>.lua" de la campagne (un par mission, écrits par DEBRIEF_ExportMap.lua) ----
+
+        private static readonly Regex RxDebriefFile = new Regex(@"^DebriefEvents (\d+)\.lua$", RegexOptions.IgnoreCase);
+
+        // Renvoie (numéro de mission, chemin complet), la mission la plus récente en premier
+        private static List<KeyValuePair<int, string>> ListDebriefFiles(string campaignName)
+        {
+            var result = new List<KeyValuePair<int, string>>();
+
+            try
+            {
+                string dir = Path.Combine(WargameZoneRepository.GetCampaignFolder(campaignName), "Debriefing");
+                if (!Directory.Exists(dir))
+                    return result;
+
+                foreach (string path in Directory.GetFiles(dir, "DebriefEvents *.lua"))
+                {
+                    Match m = RxDebriefFile.Match(Path.GetFileName(path));
+                    int n;
+                    if (m.Success && int.TryParse(m.Groups[1].Value, out n))
+                        result.Add(new KeyValuePair<int, string>(n, path));
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ListDebriefFiles('" + campaignName + "') a échoué : " + ex.Message);
+            }
+
+            result.Sort((a, b) => b.Key.CompareTo(a.Key));
+            return result;
+        }
+
+        // Bouton "Debriefing..." : petit menu sous le bouton, une ligne par mission trouvée
+        private void ShowDebriefMenu()
+        {
+            if (string.IsNullOrEmpty(_mapCampaign))
+                return;
+
+            List<KeyValuePair<int, string>> files = ListDebriefFiles(_mapCampaign);
+            if (files.Count == 0)
+            {
+                MessageBox.Show("No debriefing map saved yet for this campaign.\r\n\r\nOne file is written at each mission debriefing.", "Debriefing");
+                return;
+            }
+
+            var menu = new ContextMenuStrip { ShowImageMargin = false };
+
+            for (int i = 0; i < files.Count; i++)
+            {
+                string path = files[i].Value;
+                string text = "Mission " + files[i].Key + "     " + File.GetLastWriteTime(path).ToString("yyyy-MM-dd  HH:mm") + (i == 0 ? "     (latest)" : "");
+
+                var item = new ToolStripMenuItem(text);
+                item.Click += (s, e) => OpenDebrief(path);
+                menu.Items.Add(item);
+            }
+
+            menu.Closed += (s, e) => BeginInvoke(new Action(menu.Dispose));
+            menu.Show(_mapDebriefButton, new Point(0, _mapDebriefButton.Height));
+        }
+
+        private void OpenDebrief(string eventsFile)
+        {
+            try
+            {
+                using (var form = new Map_Events_Form(_mapCampaign, eventsFile, false))
+                {
+                    form.ShowDialog(FindForm());
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OpenDebrief('" + eventsFile + "') a échoué : " + ex);
+                MessageBox.Show("The debriefing map could not be opened: " + ex.Message, "Debriefing");
+            }
         }
     }
 }

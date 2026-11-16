@@ -203,6 +203,7 @@
     <Compile Include="ConfMod\CampInitUpdater.cs" />
     <Compile Include="ConfMod\ConfModDynamicData.cs" />
     <Compile Include="ConfMod\ConfModTemplateUpdater.cs" />
+    <Compile Include="ConfMod\ConfMod_SunTimes.cs" />
     <Compile Include="ConfMod\ConfUiFieldSchema.cs" />
     <Compile Include="ConfMod\ConfUiSchemaParser.cs" />
     <Compile Include="Core\ChildProcessTracker.cs" />
@@ -224,6 +225,17 @@
     <Compile Include="Grid_Campaign\ManageFamily_Form.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Map\Map_Data.cs" />
+    <Compile Include="Map\Map_Events_Form.cs" />
+    <Compile Include="Map\Map_FlightEdit.cs" />
+    <Compile Include="Map\Map_UI_Briefing.cs" />
+    <Compile Include="Map\Map_UI_Flights.cs" />
+    <Compile Include="Map\Map_UI_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Sky.cs" />
+    <Compile Include="Map\Map_UI_View.cs" />
+    <Compile Include="Map\Map_Web.cs" />
     <Compile Include="Parser\Parser_BugList.cs" />
     <Compile Include="Core\UserLevel.cs" />
     <Compile Include="Grid_Campaign\CampaignRepair.cs" />
@@ -259,9 +271,7 @@
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.cs" />
-    <Compile Include="Forms\Main_Form.Install.cs">
-      <SubType>Form</SubType>
-    </Compile>
+    <Compile Include="Forms\Main_Form.Install.cs" />
     <Compile Include="Core\Statistics.cs" />
     <Compile Include="MissionGenerator\ScriptsModBatParser.cs" />
     <Compile Include="MissionGenerator\ProcessConsoleBridge.cs" />
@@ -298,6 +308,7 @@
     <Compile Include="Core\LuaParse.cs" />
     <Compile Include="UserControls\ChangelogPanel.cs" />
     <Compile Include="UserControls\ContributorCard.cs" />
+    <Compile Include="UserControls\Main_UI_WebToggle.cs" />
     <Compile Include="UserControls\ucAbout.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -315,16 +326,23 @@
     </Compile>
     <Compile Include="Wargame\Engine\Parser_WargameFormationLosses.cs" />
     <Compile Include="Wargame\Engine\WargameAxis.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_Air.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_BaseCapture.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_Farp.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_Relief.cs" />
+    <Compile Include="Wargame\Spawn\WargameConfigGrid.cs" />
     <Compile Include="Wargame\Engine\WargameEngineCombat.cs" />
-    <Compile Include="Wargame\Engine\WargameEngineLosses.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_EngineLosses.cs" />
+    <Compile Include="Wargame\Engine\Wargame_Engine_PreviewExport.cs" />
+    <Compile Include="Wargame\Engine\WargameTriggerSim.cs" />
+    <Compile Include="Wargame\Template\WargameTemplateCatalog.cs" />
     <Compile Include="Wargame\UI\Parser_WargameMissionUnits.cs" />
     <Compile Include="Wargame\Objective\Parser_WargameObjectives.cs" />
     <Compile Include="Wargame\Spawn\Parser_WargameSpawnAreas.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplate.cs" />
     <Compile Include="Wargame\Template\Parser_WargameTemplateLayout.cs" />
-    <Compile Include="Wargame\UI\ucWargameAxisPanel.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
+    <Compile Include="Wargame\UI\ucWargameAxisPanel.cs" />
+    <Compile Include="Wargame\UI\Wargame_UI_CombatPreview.cs" />
     <Compile Include="Wargame\Zone\Parser_WargameZones.cs" />
     <Compile Include="Wargame\TargetList\Saver_TargetList_Wargame.cs" />
     <Compile Include="Wargame\Zone\Saver_WargameZoneActive.cs" />
@@ -341,7 +359,7 @@
     </Compile>
     <Compile Include="Wargame\UI\WargameCampaignInfo.cs" />
     <Compile Include="Wargame\Calibration\WargameDrawingReader.cs" />
-    <Compile Include="Wargame\UI\WargameEditor_Form.cs">
+    <Compile Include="Wargame\UI\Wargame_UI_Editor_Form.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Wargame\Calibration\WargameGeometryCleaner.cs" />
@@ -353,7 +371,6 @@
     <Compile Include="Wargame\Objective\WargameObjectiveWriter.cs" />
     <Compile Include="Wargame\Spawn\WargameSpawnArea.cs" />
     <Compile Include="Wargame\Spawn\WargameSpawnSolver.cs" />
-    <Compile Include="Wargame\Template\WargameTemplateCatalog.cs" />
     <Compile Include="Wargame\Template\WargameTemplateCatalog_Form.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -405,6 +422,9 @@
     <EmbeddedResource Include="UserControls\ucHome.resx">
       <DependentUpon>ucHome.cs</DependentUpon>
     </EmbeddedResource>
+    <Content Include="Data\dce_data.ini">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <None Include="Grid_Campaign\app.manifest" />
     <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>

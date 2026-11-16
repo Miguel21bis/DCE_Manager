@@ -1,4 +1,4 @@
-﻿namespace DCE_Manager.UserControls
+namespace DCE_Manager.UserControls
 {
     partial class ucCampaign
     {
@@ -50,8 +50,6 @@
             this.tabPage12 = new System.Windows.Forms.TabPage();
             this.textBox_Bugs = new System.Windows.Forms.TextBox();
             this.tabPage_wargame = new System.Windows.Forms.TabPage();
-            this.but_MakeWarZone = new System.Windows.Forms.Button();
-            this.but_wargame_MAP = new System.Windows.Forms.Button();
             this.panel_but_monitoring_campaign.SuspendLayout();
             this.CampaignTab.SuspendLayout();
             this.tabPage6.SuspendLayout();
@@ -336,8 +334,6 @@
             // 
             // tabPage_wargame
             // 
-            this.tabPage_wargame.Controls.Add(this.but_wargame_MAP);
-            this.tabPage_wargame.Controls.Add(this.but_MakeWarZone);
             this.tabPage_wargame.Location = new System.Drawing.Point(4, 25);
             this.tabPage_wargame.Name = "tabPage_wargame";
             this.tabPage_wargame.Padding = new System.Windows.Forms.Padding(3);
@@ -345,26 +341,6 @@
             this.tabPage_wargame.TabIndex = 11;
             this.tabPage_wargame.Text = "Wargame";
             this.tabPage_wargame.UseVisualStyleBackColor = true;
-            // 
-            // but_MakeWarZone
-            // 
-            this.but_MakeWarZone.Location = new System.Drawing.Point(67, 77);
-            this.but_MakeWarZone.Name = "but_MakeWarZone";
-            this.but_MakeWarZone.Size = new System.Drawing.Size(320, 23);
-            this.but_MakeWarZone.TabIndex = 0;
-            this.but_MakeWarZone.Text = "Create Warzone";
-            this.but_MakeWarZone.UseVisualStyleBackColor = true;
-            this.but_MakeWarZone.Click += new System.EventHandler(this.but_MakeWarZone_Click);
-            // 
-            // but_wargame_MAP
-            // 
-            this.but_wargame_MAP.Location = new System.Drawing.Point(67, 131);
-            this.but_wargame_MAP.Name = "but_wargame_MAP";
-            this.but_wargame_MAP.Size = new System.Drawing.Size(320, 23);
-            this.but_wargame_MAP.TabIndex = 1;
-            this.but_wargame_MAP.Text = "Wargame MAP";
-            this.but_wargame_MAP.UseVisualStyleBackColor = true;
-            this.but_wargame_MAP.Click += new System.EventHandler(this.but_wargame_MAP_Click);
             // 
             // ucCampaign
             // 
@@ -421,8 +397,6 @@
         public System.Windows.Forms.TabPage tabPage11;
         public System.Windows.Forms.TabPage tabPage12;
         public System.Windows.Forms.TextBox textBox_Bugs;
-        private System.Windows.Forms.TabPage tabPage_wargame;
-        private System.Windows.Forms.Button but_MakeWarZone;
-        private System.Windows.Forms.Button but_wargame_MAP;
+        public System.Windows.Forms.TabPage tabPage_wargame;
     }
 }

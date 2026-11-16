@@ -253,7 +253,7 @@ MISE EN PLACE D'UN WARGAME - PAS A PAS
 
   8. Configurer les zones
      Dans l'éditeur, pour chaque zone règle Control
-     (blue/red/contested), Terrain, Supply source/route, Modifier, et
+     (blue/red), Terrain, Supply source/route, Modifier, et
      vérifie les Neighbors auto-détectés.
 
   9. Placer les formations

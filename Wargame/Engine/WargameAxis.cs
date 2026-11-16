@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Globalization;
@@ -27,8 +27,24 @@ namespace DCE_Manager
         // Vide = l'axe n'est jamais actif (pas de démarrage caché).
         public string ActivationFlag = "";
 
+        // Flag posé par le moteur quand l'objectif de l'axe est atteint (lu ensuite par
+        // les triggers de scriptsMod). Dérivé du flag d'activation : aucune saisie en plus.
+        public string ObjectiveFlag
+        {
+            get { return ActivationFlag + "_reached"; }
+        }
+
+        // Zones de passage obligées, dans l'ordre voulu par le campaignMaker
+        // (départ -> via[0] -> via[1] -> ... -> arrivée). Vide = axe direct, comme avant.
+        public List<string> ViaZoneIds = new List<string>();
+
         // Calculé par WargameAxisPathFinder, pas sauvegardé
         public List<string> Path = new List<string>();
+
+        public string AttackerSide;   // camp attaquant retenu pour la partie (voir RememberAttackers)
+
+        // Camp attaquant CHOISI par le campaignMaker (blue / red). Vide = automatique : le camp qui tient la zone de départ.
+        public string Side = "";
 
         // Valide = un chemin d'au moins 2 zones a été trouvé entre A et B
         public bool IsValid
@@ -54,12 +70,45 @@ namespace DCE_Manager
 
     internal static class WargameAxisPathFinder
     {
-        // Chemin A -> B le plus court en DISTANCE (Dijkstra) en suivant les voisins des
-        // zones. La distance entre deux zones voisines = distance entre leurs centres.
+        // Réglages utilisés pour le COUT des zones (relief et route). Posé par le chargement des zones d'une
+        // campagne (WargameZoneRepository) et par la Preview, avec les réglages de la campagne.
+        // Tant que personne ne l'a posé : valeurs du code (mêmes tables que le ravitaillement).
+        public static WargameCombatConfig CostConfig = new WargameCombatConfig();
+
+        // Coût pour TRAVERSER une zone : coût du terrain / débit de la route, comme pour le ravitaillement
+        // (plaine + route = 1 ; montagne + piste = 6 ; montagne sans route = 12).
+        // Terrain ou route non renseignés : le chargement les met à plaine / route, donc coût 1.
+        // axis_use_terrain = false : toutes les zones coûtent 1, le chemin ne dépend que de la distance (ancien calcul).
+        private static double ZoneCost(WargameZoneData zone)
+        {
+            WargameCombatConfig cfg = CostConfig;
+
+            if (cfg == null || !cfg.AxisUseTerrain)
+                return 1.0;
+
+            double flow = Math.Max(0.01, cfg.GetRouteFlow(zone.SupplyRoute));
+            return cfg.GetTerrainMove(zone.Terrain) / flow;
+        }
+
+        // Chemin A -> B le moins COUTEUX (Dijkstra) en suivant les voisins des zones.
+        // Coût d'un pas entre deux zones voisines = distance entre leurs centres x coût moyen des deux zones
+        // (relief et route, voir ZoneCost). Sans relief ni route renseignés, c'est donc le chemin le plus court en distance.
         // (Un simple "moins de zones possible" donnait des chemins qui sautent d'une
         // grande zone à l'autre en traversant tout le reste de la carte.)
         // Retourne une liste vide si A ou B n'existent pas, ou si aucun chemin.
+        // Ancienne signature gardée : un axe direct, sans zone de passage.
         public static List<string> FindPath(List<WargameZoneData> zones, string startId, string endId)
+        {
+            return FindPath(zones, startId, null, endId);
+        }
+
+        // Chemin départ -> zones de passage (dans l'ordre) -> arrivée, calculé morceau par morceau
+        // (Dijkstra au moindre coût). Un morceau n'a pas le droit de repasser par une
+        // zone déjà utilisée : le chemin reste simple, chaque zone n'y figure qu'une fois, ce qui
+        // garde un index de progression clair pour le combat.
+        // Retourne une liste vide si une zone n'existe plus, ou si un morceau n'a pas de chemin
+        // (par exemple si l'ordre des zones de passage force à repasser par une zone déjà prise).
+        public static List<string> FindPath(List<WargameZoneData> zones, string startId, List<string> viaIds, string endId)
         {
             var path = new List<string>();
 
@@ -68,18 +117,74 @@ namespace DCE_Manager
 
             Dictionary<string, List<string>> links = BuildLinks(zones);
 
-            if (!links.ContainsKey(startId) || !links.ContainsKey(endId))
-                return path;
+            // Les étapes dans l'ordre : départ, zones de passage, arrivée
+            var stops = new List<string> { startId };
 
-            if (string.Equals(startId, endId, StringComparison.OrdinalIgnoreCase))
+            if (viaIds != null)
             {
-                path.Add(startId);
-                return path;
+                foreach (string via in viaIds)
+                {
+                    if (!string.IsNullOrEmpty(via)) stops.Add(via);
+                }
+            }
+
+            stops.Add(endId);
+
+            foreach (string stop in stops)
+            {
+                if (!links.ContainsKey(stop))
+                    return path;   // zone supprimée du .miz
             }
 
             var centers = new Dictionary<string, PointF>(StringComparer.OrdinalIgnoreCase);
+            var costs = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+
             foreach (WargameZoneData zone in zones)
+            {
                 centers[zone.Id] = GetZoneCenter(zone);
+                costs[zone.Id] = ZoneCost(zone);
+            }
+
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            path.Add(startId);
+            used.Add(startId);
+
+            for (int i = 0; i < stops.Count - 1; i++)
+            {
+                string from = stops[i];
+                string to = stops[i + 1];
+
+                if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase))
+                    continue;   // même zone deux fois de suite : rien à parcourir
+
+                // Zones déjà prises par le chemin, sauf celle d'où l'on part
+                var blocked = new HashSet<string>(used, StringComparer.OrdinalIgnoreCase);
+                blocked.Remove(from);
+
+                List<string> segment = FindSegment(links, centers, costs, from, to, blocked);
+                if (segment.Count < 2)
+                    return new List<string>();   // pas de chemin
+
+                for (int j = 1; j < segment.Count; j++)
+                {
+                    path.Add(segment[j]);
+                    used.Add(segment[j]);
+                }
+            }
+
+            return path;
+        }
+
+        // Un morceau de chemin (Dijkstra au moindre coût : distance entre centres x coût moyen des deux zones),
+        // sans jamais passer par les zones "blocked". Retourne une liste vide si aucun chemin.
+        private static List<string> FindSegment(
+            Dictionary<string, List<string>> links,
+            Dictionary<string, PointF> centers,
+            Dictionary<string, double> costs,
+            string startId, string endId,
+            HashSet<string> blocked)
+        {
+            var path = new List<string>();
 
             var distance = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             var cameFrom = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -92,7 +197,7 @@ namespace DCE_Manager
 
             while (true)
             {
-                // Zone non traitée la plus proche du départ (quelques dizaines de zones :
+                // Zone non traitée la moins chère à atteindre (quelques dizaines de zones :
                 // une simple boucle suffit, pas besoin d'une file de priorité)
                 string current = null;
                 double best = double.MaxValue;
@@ -113,11 +218,12 @@ namespace DCE_Manager
 
                 foreach (string next in links[current])
                 {
-                    if (done.Contains(next)) continue;
+                    if (done.Contains(next) || blocked.Contains(next)) continue;
 
                     double dx = centers[current].X - centers[next].X;
                     double dy = centers[current].Y - centers[next].Y;
-                    double candidate = best + Math.Sqrt(dx * dx + dy * dy);
+                    double step = Math.Sqrt(dx * dx + dy * dy) * 0.5 * (costs[current] + costs[next]);
+                    double candidate = best + step;
 
                     if (candidate < distance[next])
                     {
@@ -130,12 +236,12 @@ namespace DCE_Manager
             if (!cameFrom.ContainsKey(endId))
                 return path;   // pas de chemin
 
-            // On remonte de B vers A, puis on retourne la liste
-            string step = endId;
-            while (step != null)
+            // On remonte de l'arrivée vers le départ, puis on retourne la liste
+            string stepId = endId;
+            while (stepId != null)
             {
-                path.Add(step);
-                step = cameFrom.ContainsKey(step) ? cameFrom[step] : null;
+                path.Add(stepId);
+                stepId = cameFrom.ContainsKey(stepId) ? cameFrom[stepId] : null;
             }
 
             path.Reverse();
@@ -184,6 +290,30 @@ namespace DCE_Manager
             return new PointF((float)(cx / (3 * area2)), (float)(cy / (3 * area2)));
         }
 
+        // Mémorise, pour chaque axe, le camp qui tient sa zone de départ. À appeler une fois, au chargement
+        // (après RecomputeAll, avant tout combat) : le camp attaquant ne change plus ensuite.
+        public static void RememberAttackers(List<WargameAxis> axes, List<WargameZoneData> zones)
+        {
+            if (axes == null || zones == null) return;
+
+            foreach (WargameAxis axis in axes)
+            {
+                if (axis.Path == null || axis.Path.Count == 0) continue;
+
+                // Camp choisi dans l'éditeur des axes : il prime sur la zone de départ
+                if (string.Equals(axis.Side, WargameSide.Blue, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(axis.Side, WargameSide.Red, StringComparison.OrdinalIgnoreCase))
+                {
+                    axis.AttackerSide = axis.Side.ToLowerInvariant();
+                    continue;
+                }
+
+                WargameZoneData start = zones.Find(z => string.Equals(z.Id, axis.Path[0], StringComparison.OrdinalIgnoreCase));
+                if (start != null)
+                    axis.AttackerSide = start.Control;
+            }
+        }
+
         // A appeler après chargement des zones, et à chaque fois que les voisins
         // ou les extrémités d'un axe changent.
         public static void RecomputeAll(List<WargameAxis> axes, List<WargameZoneData> zones)
@@ -192,7 +322,7 @@ namespace DCE_Manager
 
             foreach (WargameAxis axis in axes)
             {
-                axis.Path = FindPath(zones, axis.StartZoneId, axis.EndZoneId);
+                axis.Path = FindPath(zones, axis.StartZoneId, axis.ViaZoneIds, axis.EndZoneId);
 
                 FormUtils.LogRegister("WargameAxis | '" + axis.Name + "' " + axis.StartZoneId + " -> " + axis.EndZoneId
                     + (axis.IsValid ? " : " + axis.Path.Count + " zone(s)" : " : AUCUN CHEMIN"));

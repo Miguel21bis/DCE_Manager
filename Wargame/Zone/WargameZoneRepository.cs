@@ -38,6 +38,7 @@ namespace DCE_Manager
                 List<WargameZoneData> loaded = loader.Load(initLuaPath);
                 State = loader.State;
                 WargameAxisPathFinder.RecomputeAll(State.Axes, loaded);
+                WargameAxisPathFinder.RememberAttackers(State.Axes, loaded);
                 return loaded;
             }
 
@@ -92,7 +93,7 @@ namespace DCE_Manager
                 {
                     newZone.Control = oldZone.Control;
                     newZone.Formations = oldZone.Formations;
-                    newZone.Irregular = oldZone.Irregular;
+                    //newZone.Irregular = oldZone.Irregular;
                     newZone.ResupplyModifier = oldZone.ResupplyModifier;
                     newZone.Neighbors = oldZone.Neighbors;
                     newZone.SupplySource = oldZone.SupplySource;

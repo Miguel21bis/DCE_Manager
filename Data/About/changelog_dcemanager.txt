@@ -1,5 +1,12 @@
 
-V12.27.xx
+V13.33.81
+FIX: primo installation
+ADD: DataCard (en cours de développement)
+ADD: Wargame : partie logistic convoi + Air
+ADD: affichage graphique de la mission en cours (en cours de développement)
+ADD: connexion au web pour telecharger des tuiles de map et des data topographique
+ADD: editeur de trigger
+ADD: cataloque des campagnes
 ADD: "MissionScripting" option on the Home page: one click to enable/disable the os/io
 CHANGE: OvGME folder is now optional
 ADD: campaigns can now be renamed

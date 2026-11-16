@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -20,7 +20,21 @@ namespace DCE_Manager
         public const string AirDefense = "airdefense";
         public const string Logistics = "logistics";
 
-        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics };
+        // Templates qui ne sont PAS des formations du wargame (jamais proposés dans les zones) :
+        //   supplypoint : le point de ravitaillement avancé posé près des formations (un par point actif)
+        //   farp        : la FARP posée sur une plage de débarquement, une fois la plage tenue (un template par camp)
+        //   convoy      : un convoi routier ; seuls ses types de véhicules servent, le convoi est fabriqué en jeu par scriptsMod
+        public const string SupplyPoint = "supplypoint";
+        public const string Convoy = "convoy";
+        public const string Farp = "farp";   // FARP d'une plage de débarquement : l'héliport + les véhicules / tentes autour (carburant, munitions...)
+        public const string SupplyDepot = "supplydepot";   // "supply depot" posé à côté de la FARP, template À PART (pas les tentes de la FARP) ; à défaut, le template "supplypoint" est utilisé
+
+        public static readonly string[] All = { Armor, Mech, Infantry, Artillery, AirDefense, Logistics, SupplyPoint, Convoy, Farp, SupplyDepot };
+
+        public static bool IsFormationType(string type)
+        {
+            return type != SupplyPoint && type != Convoy && type != Farp && type != SupplyDepot;
+        }
 
         // Valeurs proposées à la création d'une entrée de catalogue, pour éviter
         // au campaignMaker de partir de zéro.
@@ -54,10 +68,46 @@ namespace DCE_Manager
                     power = 4; attack = 0.1; defense = 0.5; supplyCost = 0.5;
                     priority = 3; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
                     break;
+                case SupplyPoint:
+                    power = 0; attack = 0; defense = 0.5; supplyCost = 0;
+                    priority = 6; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
+                case Farp:
+                case SupplyDepot:
+                    power = 0; attack = 0; defense = 0.5; supplyCost = 0;
+                    priority = 6; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
+                case Convoy:
+                    power = 0; attack = 0; defense = 0.3; supplyCost = 0;
+                    priority = 5; attributes = new List<string> { "soft" }; firepowerMin = 1; firepowerMax = 2;
+                    break;
                 default:
                     power = 10; attack = 1.0; defense = 1.0; supplyCost = 1.0;
                     priority = 5; attributes = new List<string> { "Vehicles" }; firepowerMin = 2; firepowerMax = 2;
                     break;
+            }
+        }
+
+        // Consommation proposée, en TONNES par JOUR (24 h), pour UN exemplaire du
+        // template (xN = 1), formation au contact mais sans combat. Le moteur la ramène au tour d'après la durée d'un tour
+        // (conf_mod : durée de mission + pauses, jour / nuit). Le campaignMaker peut la modifier
+        // dans la grille des templates. Ordres de grandeur : carburant + munitions + vivres.
+        // Séparée de GetDefaults pour ne pas casser les appels existants de cette méthode.
+        public static double GetDefaultConsumption(string type)
+        {
+            switch (type)
+            {
+                case Armor: return 25;
+                case Mech: return 20;
+                case Artillery: return 15;
+                case Infantry: return 8;
+                case AirDefense: return 6;
+                case Logistics: return 3;
+                case SupplyPoint: return 0;   // un point de ravitaillement ne consomme pas, il distribue
+                case Convoy: return 0;
+                case Farp: return 0;
+                case SupplyDepot: return 0;
+                default: return 8;
             }
         }
     }
@@ -70,6 +120,8 @@ namespace DCE_Manager
         public string Side;       // WargameSide.Blue / Red (déduit du dossier)
         public string Type = WargameUnitType.Infantry;
 
+        // Plus utilisés par le moteur (la défense vient du terrain, le coût de ravitaillement du terrain et des routes).
+        // Gardés en lecture/écriture pour ne pas abîmer les fichiers existants ; plus affichés dans la grille.
         public double Attack = 1.0;
         public double Defense = 1.0;
         public double SupplyCost = 1.0;
@@ -78,11 +130,21 @@ namespace DCE_Manager
         // La ForcePower d'une formation vaut xN x Power.
         public double Power = 10.0;
 
+        // Consommation en tonnes par JOUR (24 h) d'UN exemplaire du template (formation au contact, sans combat).
+        // Comme Power, elle suit le xN de la formation : consommation = xN x Consumption.
+        // Pré-remplie d'après le type (WargameUnitType.GetDefaultConsumption), modifiable dans la grille.
+        public double Consumption = 8.0;
+
+        // Convoi seulement : tonnes que le convoi emporte quand il arrive en entier. 0 = automatique (nombre de véhicules du
+        // template x tonnes par véhicule du balance). Sert à représenter plus de fret avec peu de camions (moins d'unités dans DCS).
+        public double CarryTons = 0;
+
         // Taux de représentation par défaut (1 groupe posé = N unités système).
         // Surchargeable zone par zone via la colonne xN du panneau d'édition.
         public int DefaultMultiplier = 1;
 
-        // Nombre d'unités retenu pour les calculs de pertes. Pré-rempli par le
+        // Nombre d'unités du template (pour information : les pertes se calculent maintenant sur l'état "alive" de
+        // l'exemplaire posé, plus par véhicule). Pré-rempli par le
         // parser du .stm, mais MODIFIABLE : le comptage automatique inclut les
         // objets statiques (bâtiments, décor) qui ne valent pas forcément une
         // unité de combat, donc le campaignMaker doit pouvoir corriger.
@@ -122,6 +184,18 @@ namespace DCE_Manager
             return Entries.Find(e => e.Template.Equals(template, StringComparison.OrdinalIgnoreCase));
         }
 
+        // Templates d'un type donné pour un camp (ex. le point de ravitaillement des bleus)
+        public List<WargameTemplateEntry> OfType(string type, string side)
+        {
+            return Entries.FindAll(e => e.Type == type && string.Equals(e.Side, side, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool IsFormationTemplate(string template)
+        {
+            WargameTemplateEntry entry = Find(template);
+            return entry == null || WargameUnitType.IsFormationType(entry.Type);
+        }
+
         public int GetDefaultMultiplier(string template)
         {
             WargameTemplateEntry entry = Find(template);
@@ -132,6 +206,13 @@ namespace DCE_Manager
         {
             WargameTemplateEntry entry = Find(template);
             return entry != null ? entry.Power : 10.0;
+        }
+
+        // Consommation (tonnes par tour) d'UN exemplaire du template ; à multiplier par le xN de la formation.
+        public double GetConsumption(string template)
+        {
+            WargameTemplateEntry entry = Find(template);
+            return entry != null ? entry.Consumption : WargameUnitType.GetDefaultConsumption(WargameUnitType.Infantry);
         }
 
         // Ce que coûte en ForcePower la destruction d'une unité de ce template.
@@ -208,6 +289,7 @@ namespace DCE_Manager
                     Side = kvp.Value,
                     Type = WargameUnitType.Infantry,
                     Power = power,
+                    Consumption = WargameUnitType.GetDefaultConsumption(WargameUnitType.Infantry),
                     Attack = attack,
                     Defense = defense,
                     SupplyCost = supplyCost,
@@ -274,7 +356,7 @@ namespace DCE_Manager
                         {
                             Template = key.ToString(),
                             Side = entryLua["side"]?.ToString() ?? "",
-                            Type = entryLua["type"]?.ToString() ?? WargameUnitType.Infantry,
+                            Type = ReadType(entryLua["type"]),
                             Attack = ToDouble(entryLua["attack"], 1.0),
                             Defense = ToDouble(entryLua["defense"], 1.0),
                             SupplyCost = ToDouble(entryLua["supplyCost"], 1.0),
@@ -283,7 +365,28 @@ namespace DCE_Manager
                             VehicleCount = (int)ToDouble(entryLua["vehicleCount"], 0),
                             DetectedDynamic = (int)ToDouble(entryLua["detectedDynamic"], 0),
                             DetectedStatic = (int)ToDouble(entryLua["detectedStatic"], 0),
+                            Priority = (int)ToDouble(entryLua["priority"], 5),
+                            FirepowerMin = ToDouble(entryLua["firepowerMin"], 2),
+                            FirepowerMax = ToDouble(entryLua["firepowerMax"], 2),
                         };
+
+                        // Consommation : un catalogue ancien n'a pas cette clé (-1 = absente) -> valeur proposée d'après le type
+                        double consumption = ToDouble(entryLua["consumptionTons"], -1);
+                        entry.Consumption = consumption >= 0 ? consumption : WargameUnitType.GetDefaultConsumption(entry.Type);
+                        entry.CarryTons = Math.Max(0, ToDouble(entryLua["carryTons"], 0));
+
+                        // Attributs : table Lua { "Armor", "soft" }
+                        LuaTable attributes = entryLua["attributes"] as LuaTable;
+                        if (attributes != null)
+                        {
+                            var list = new List<string>();
+                            foreach (object v in attributes.Values)
+                            {
+                                string a = v?.ToString();
+                                if (!string.IsNullOrWhiteSpace(a)) list.Add(a.Trim());
+                            }
+                            if (list.Count > 0) entry.Attributes = list;
+                        }
 
                         if (entry.DefaultMultiplier <= 0)
                             entry.DefaultMultiplier = 1;
@@ -319,10 +422,19 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t[\"defense\"] = " + FormatNumber(e.Defense) + ",");
                 sb.AppendLine("\t\t[\"supplyCost\"] = " + FormatNumber(e.SupplyCost) + ",");
                 sb.AppendLine("\t\t[\"power\"] = " + FormatNumber(e.Power) + ",");
+                sb.AppendLine("\t\t[\"consumptionTons\"] = " + FormatNumber(e.Consumption) + ",");
+                sb.AppendLine("\t\t[\"carryTons\"] = " + FormatNumber(e.CarryTons) + ",");
                 sb.AppendLine("\t\t[\"defaultMultiplier\"] = " + e.DefaultMultiplier + ",");
                 sb.AppendLine("\t\t[\"vehicleCount\"] = " + e.VehicleCount + ",");
                 sb.AppendLine("\t\t[\"detectedDynamic\"] = " + e.DetectedDynamic + ",");
                 sb.AppendLine("\t\t[\"detectedStatic\"] = " + e.DetectedStatic + ",");
+                sb.AppendLine("\t\t[\"priority\"] = " + e.Priority + ",");
+                sb.AppendLine("\t\t[\"firepowerMin\"] = " + FormatNumber(e.FirepowerMin) + ",");
+                sb.AppendLine("\t\t[\"firepowerMax\"] = " + FormatNumber(e.FirepowerMax) + ",");
+                sb.Append("\t\t[\"attributes\"] = {");
+                for (int i = 0; i < e.Attributes.Count; i++)
+                    sb.Append((i > 0 ? ", " : " ") + "\"" + Escape(e.Attributes[i]) + "\"");
+                sb.AppendLine(" },");
                 sb.AppendLine("\t},");
             }
 
@@ -336,6 +448,13 @@ namespace DCE_Manager
         private static string FormatNumber(double value)
         {
             return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        // "warehouse" (premier essai, mot réservé par DCS) est relu comme "supplydepot"
+        private static string ReadType(object raw)
+        {
+            string type = raw?.ToString() ?? WargameUnitType.Infantry;
+            return string.Equals(type, "warehouse", StringComparison.OrdinalIgnoreCase) ? WargameUnitType.SupplyDepot : type;
         }
 
         private static string Escape(string value)

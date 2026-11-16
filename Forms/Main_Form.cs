@@ -99,10 +99,11 @@ namespace DCE_Manager
             //// La fenêtre démarre toujours à la taille de l'écran, quelle que soit l'échelle Windows
             //this.Load += (s, e) => { this.WindowState = FormWindowState.Maximized; };
 
-            //// La partie gauche prend la place qui reste entre elle et le panneau de droite
-            //this.Resize += (s, e) => AjusterLargeurGauche();
-            //this.Load += (s, e) => AjusterLargeurGauche();
+            // La partie gauche prend la place qui reste entre elle et le panneau de droite
+            this.Resize += (s, e) => AjusterLargeurGauche();
+            this.Load += (s, e) => AjusterLargeurGauche();
 
+            InitSplitter();
 
             homeView = new ucHome();
             homeView.Dock = DockStyle.Fill;
@@ -160,6 +161,21 @@ namespace DCE_Manager
 
             // Appel de la méthode de chargement
             LoadConfiguration();
+            EnsureDefaultConfig();   // premier lancement : crée le profil "Main"
+
+            // Guide l'utilisateur au premier lancement (chemins, puis ScriptsMod), une fois la fenêtre affichée
+            this.Shown += (s, e) => GuideFirstRun();
+
+            // Bouton "web" (vert / rouge barré) dans la barre du haut, à la place du cadre rouge
+            // Bouton "web" : sur la ligne des onglets de gauche, à droite
+            _webToggle = new Main_WebToggle { Width = 130 };
+            Controls.Add(_webToggle);
+            _webToggle.BringToFront();   // sinon il reste caché derrière le TabControl
+            tabControl_LEFT.SizeChanged += (s, e) => PlaceWebToggle();
+            tabControl_LEFT.LocationChanged += (s, e) => PlaceWebToggle();
+            PlaceWebToggle();
+            tabControl_LEFT.SelectedIndexChanged += (s, e) => UpdateWebToggleVisibility();
+            UpdateWebToggleVisibility();
 
             // Écoute les demandes de debriefing venant de DCS (DCE_Manager.exe --debrief).
             // Après LoadConfiguration() : le listener a besoin des chemins pour travailler.
@@ -250,6 +266,26 @@ namespace DCE_Manager
         }
 
 
+        private Main_WebToggle _webToggle;
+
+        // Colle le bouton web à droite de la ligne des onglets (suit le redimensionnement et le bandeau d'aide)
+        private void PlaceWebToggle()
+        {
+            if (_webToggle == null || tabControl_LEFT.TabCount == 0)
+                return;
+
+            Rectangle tab = tabControl_LEFT.GetTabRect(0);
+
+            _webToggle.Height = tab.Height;
+            _webToggle.Location = new Point(tabControl_LEFT.Right - _webToggle.Width - 6, tabControl_LEFT.Top + tab.Top);
+        }
+
+        // Le bouton "Web MAP" ne concerne que les campagnes : visible seulement sur l'onglet Campaigns
+        private void UpdateWebToggleVisibility()
+        {
+            if (_webToggle != null)
+                _webToggle.Visible = (tabControl_LEFT.SelectedTab == tabPageLeft_Campaigns);
+        }
 
         // Évite l'écart (ou le chevauchement) entre la partie gauche et le panneau de droite
         private void AjusterLargeurGauche()
@@ -258,6 +294,68 @@ namespace DCE_Manager
 
             int w = panelRightView.Left - tabControl_LEFT.Left - 8;
             if (w > 300) tabControl_LEFT.Width = w;
+        }
+
+        // ===== Séparateur déplaçable entre la partie gauche et le panneau de droite =====
+        private Panel _splitter;
+        private bool _splitterDragging;
+
+        private const int SplitterWidth = 8;   // = l'écart laissé par AjusterLargeurGauche()
+        private const int MinPaneWidth = 300;  // largeur minimale de chaque côté
+
+        private void InitSplitter()
+        {
+            _splitter = new Panel();
+            _splitter.Cursor = Cursors.VSplit; // curseur "<->"
+            _splitter.SetBounds(panelRightView.Left - SplitterWidth, panelRightView.Top, SplitterWidth, panelRightView.Height);
+
+            Controls.Add(_splitter);
+            // Même ancrage que panelRightView : il suit le bord droit quand on agrandit la fenêtre
+            _splitter.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Right;
+
+            _splitter.MouseEnter += (s, e) => { if (!_splitterDragging) _splitter.BackColor = SystemColors.ControlDark; };
+            _splitter.MouseLeave += (s, e) => { if (!_splitterDragging) _splitter.BackColor = SystemColors.Control; };
+
+            _splitter.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left)
+                    _splitterDragging = true; // la souris reste capturée par le panel pendant le glisser
+            };
+
+            _splitter.MouseUp += (s, e) =>
+            {
+                _splitterDragging = false;
+                _splitter.BackColor = SystemColors.Control;
+            };
+
+            _splitter.MouseMove += (s, e) =>
+            {
+                if (_splitterDragging)
+                    MoveSplitterTo(PointToClient(Cursor.Position).X);
+            };
+        }
+
+        // mouseX = position de la souris dans la Form. Le bord droit de la partie droite ne bouge pas.
+        private void MoveSplitterTo(int mouseX)
+        {
+            int right = panelRightView.Right;
+            int newLeft = mouseX + SplitterWidth / 2; // le séparateur se centre sous la souris
+
+            int minLeft = tabControl_LEFT.Left + MinPaneWidth + SplitterWidth;
+            int maxLeft = right - MinPaneWidth;
+            newLeft = Math.Max(minLeft, Math.Min(maxLeft, newLeft));
+
+            if (newLeft == panelRightView.Left)
+                return;
+
+            SuspendLayout();
+
+            panelRightView.SetBounds(newLeft, panelRightView.Top, right - newLeft, panelRightView.Height);
+            panel_Down.SetBounds(newLeft, panel_Down.Top, panel_Down.Right - newLeft, panel_Down.Height); // le bouton Exit reste aligné
+            _splitter.Left = newLeft - SplitterWidth;
+            AjusterLargeurGauche();
+
+            ResumeLayout();
         }
 
         private void LoadConfiguration()
@@ -605,7 +703,7 @@ namespace DCE_Manager
             //Copy all the files & Replaces any files with the same name
             foreach (string newPath in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
             {
-                //File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);                
+                //File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
                 try
                 {
                     File.Copy(newPath, newPath.Replace(sourcePath, targetPath), true);
@@ -636,126 +734,232 @@ namespace DCE_Manager
             }
         }
 
-        public void ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
+        // Installe le contenu d'un zip de campagne (paquet de distribution) dans Saved Games.
+        // Renvoie un compte-rendu (ZipExtractReport, défini dans Main_Form.Install.cs) : fichiers installés,
+        // ignorés (avec la raison) et en erreur. Rien n'est ignoré en silence : tout est écrit dans log.txt.
+        public ZipExtractReport ExtractZipFileToDirectory(string sourceZipFilePath, bool overwrite)
         {
-            //MessageBox.Show("ExtractZipFileToDirectory checkBox_OvwNGfolder.Checked? " + checkBox_OvwNGfolder.Checked.ToString());
+            ZipExtractReport report = new ZipExtractReport();
+            HashSet<string> rootsLogged = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             using (var archive = ZipFile.Open(sourceZipFilePath, ZipArchiveMode.Read))
             {
+                // 0. Contrôle de structure, UNE seule fois et AVANT d'écrire quoi que ce soit :
+                // on refuse un zip dont le premier dossier porte le nom du zip (dossier "enveloppe").
+                // Pourquoi : l'ancien contrôle cherchait le nom du dossier dans TOUT le chemin du zip
+                // (un zip rangé dans un dossier "Mods" ou "tech" était refusé) et s'arrêtait à mi-chemin.
+                string zipName = Path.GetFileNameWithoutExtension(sourceZipFilePath).Replace("_", " ");
+
+                foreach (ZipArchiveEntry check in archive.Entries)
+                {
+                    string checkName = check.FullName.Replace('\\', '/');
+
+                    if (!checkName.Contains("/"))
+                        continue; // fichier posé à la racine : pas un dossier
+
+                    string checkRoot = checkName.Split('/')[0].Replace("_", " ");
+
+                    if (checkRoot != "" && checkRoot.Equals(zipName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        MessageBox.Show(
+                            "Incompatible ZIP file structure.\r\n" +
+                            "The first folder in the ZIP ('" + checkRoot + "') has the same name as the ZIP file.\r\n" +
+                            "Please check the content of the ZIP.",
+                            "Error ExtractZipFileToDirectory");
+
+                        report.Refused = true;
+                        return report;
+                    }
+                }
+
+                // ScriptsMod.NG déjà installé ? On le teste UNE fois, avant d'extraire. Testé à chaque entrée,
+                // il devenait "déjà installé" dès que son premier fichier (UTIL_Changelog.lua) était écrit,
+                // et tout le reste de ScriptsMod.NG, dans l'ordre du zip, n'était plus installé.
+                string scriptsModPath = Path.Combine(ParamConf.PATH_SavedGames_DCS, "Mods", "tech", "DCE", "ScriptsMod.NG");
+                bool scriptsModAlreadyInstalled = Directory.Exists(scriptsModPath) &&
+                                                  File.Exists(Path.Combine(scriptsModPath, "UTIL_Changelog.lua"));
+
+                // Dossier OvGME (gestionnaire de mods) de la configuration : optionnel, donc peut être vide ou introuvable.
+                bool ovGmeFolderAvailable = !string.IsNullOrWhiteSpace(ParamConf.PATH_OVGME_MOD) &&
+                                            Directory.Exists(ParamConf.PATH_OVGME_MOD);
+                const string ovGmeSkipReason = "mission script mod (OvGME folder not set)";
+
                 foreach (ZipArchiveEntry file in archive.Entries)
                 {
-                    string DestFullName = file.FullName;
+                    // Certains outils écrivent des "\" dans les zips : on travaille toujours avec des "/"
+                    string DestFullName = file.FullName.Replace('\\', '/');
+                    bool isFolderEntry = DestFullName.EndsWith("/");
                     string[] words = DestFullName.Split('/');
-                    string LowerWordZero = words[0].ToLowerInvariant();
+                    string root = words[0];
+                    string LowerWordZero = root.ToLowerInvariant();
 
-                    bool extractAutorise = true;
-                    string destinationDirectoryName = "";
-
-                    // Valider la structure du fichier zip
-                    if (System.Text.RegularExpressions.Regex.IsMatch(sourceZipFilePath.Replace("_", " "), words[0]))
+                    if (root == "")
                     {
-                        MessageBox.Show("Incompatible ZIP file structure.", "Error ExtractZipFileToDirectory");
-                        return;
+                        report.AddSkipped("invalid path");
+                        continue;
                     }
 
-                    // Vérification des extensions de fichiers inutiles
-                    if (words.Length <= 2 && (Path.GetExtension(words[0]) == ".pdf" || Path.GetExtension(words[0]) == ".exe" || Path.GetExtension(words[0]) == ".txt"))
-                        continue;
-
-                    // Déterminer le répertoire cible en fonction du contenu du zip
-                    if (!LowerWordZero.Contains("mod") && !words[0].Contains("tech") &&
-                        !Regex.IsMatch(LowerWordZero, "savedgame") && !Regex.IsMatch(LowerWordZero, "ovgme"))
+                    // Un fichier posé directement à la racine du zip (readme, pdf, exe...) n'a aucune destination logique.
+                    // Avant, il partait dans Saved Games\Liveries.
+                    if (words.Length == 1)
                     {
+                        report.AddSkipped("file at the root of the ZIP");
+                        continue;
+                    }
+
+                    string destinationDirectoryName = "";
+                    string skipReason = ""; // si rempli : on n'extrait pas ce fichier
+
+                    // Déterminer le répertoire cible en fonction du dossier racine du zip
+                    if (root.Equals("Liveries", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Le dossier racine EST déjà "Liveries" : sans ce cas, la règle "nom d'avion" juste en dessous
+                        // le rangeait dans Saved Games\Liveries\Liveries\...
+                        destinationDirectoryName = ParamConf.PATH_SavedGames_DCS;
+                    }
+                    else if (!LowerWordZero.Contains("mod") && !root.Contains("tech") &&
+                             !LowerWordZero.Contains("savedgame") && !LowerWordZero.Contains("ovgme"))
+                    {
+                        // Dossier racine = nom d'un avion : Saved Games\Liveries\<avion>\...
                         destinationDirectoryName = Path.Combine(ParamConf.PATH_SavedGames_DCS, "Liveries");
                     }
-                    else if (words[0].Contains("tech"))
+                    else if (root.Contains("tech"))
                     {
                         destinationDirectoryName = Path.Combine(ParamConf.PATH_SavedGames_DCS, "Mods");
                     }
-                    else if (words[0].Contains("Missionscript_mod") || words[0].Contains("MOD") || Regex.IsMatch(LowerWordZero, "ovgme"))
+                    else if (root.Contains("Missionscript_mod") || root.Contains("MOD") || LowerWordZero.Contains("ovgme"))
                     {
                         destinationDirectoryName = ParamConf.PATH_SavedGames_DCS;
-                        DestFullName = DestFullName.Replace(words[0] + "/", "");
-                    }
-                    else if (Regex.IsMatch(LowerWordZero, "savedgame"))
-                    {
-                        destinationDirectoryName = ParamConf.PATH_SavedGames_DCS;
-                        DestFullName = DestFullName.Replace(words[0] + "/", "");
+                        DestFullName = DestFullName.Substring(root.Length + 1); // on enlève le dossier racine
 
-                        // Vérification pour "ScriptsMod.NG"
-                        if (words.Contains("ScriptsMod.NG"))
+                        // Mod MissionScripting du créateur de campagne (dossier OvGME_Path / Missionscript_mod) :
+                        // il passe par un gestionnaire de mods. Le dossier OvGME n'est plus obligatoire dans la
+                        // configuration : s'il n'existe pas, on n'installe pas ces fichiers, et on le dit à la fin.
+                        if ((LowerWordZero.Contains("ovgme") || root.Contains("Missionscript_mod")) && !ovGmeFolderAvailable)
                         {
-                            // Construire le chemin complet vers le dossier ScriptsMod.NG en utilisant le répertoire de base (destinationRoot)
-                            string scriptsModPath = Path.Combine(destinationDirectoryName, "Mods", "tech", "DCE", "ScriptsMod.NG");
+                            if (!isFolderEntry)
+                                report.AddSkipped(ovGmeSkipReason);
 
-                            // Vérifier si le dossier ScriptsMod.NG existe déjà et s'il contient UTIL_Changelog.lua
-                            if (Directory.Exists(scriptsModPath) && File.Exists(Path.Combine(scriptsModPath, "UTIL_Changelog.lua")))
-                            {
-                                extractAutorise = false; // Interdire la création et l'extraction des fichiers dans ScriptsMod.NG
-
-                                // Permettre l'extraction uniquement si la case checkBox_OvwNGfolder est cochée
-                                //if (checkBox_OvwNGfolder.Checked)
-                                //{
-                                //    extractAutorise = true;
-                                //}
-                            }
+                            continue;
                         }
-
-                        else
-                        {
-                            foreach (string word in words)
-                            {
-                                if (Regex.IsMatch(word, "Active", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debug", RegexOptions.IgnoreCase) || Regex.IsMatch(word, "Debriefing", RegexOptions.IgnoreCase))
-                                {
-                                    extractAutorise = false;
-                                    break;
-                                }
-                            }
-                        }
-
                     }
-                    else if (words[0].Contains("Liveries") || words[0].Contains("Mods") || words[0].Contains("aircraft"))
+                    else if (LowerWordZero.Contains("savedgame"))
                     {
                         destinationDirectoryName = ParamConf.PATH_SavedGames_DCS;
+                        DestFullName = DestFullName.Substring(root.Length + 1); // on enlève le dossier racine
+
+                        // ScriptsMod.NG : on ne l'écrase pas s'il était déjà installé avant cette installation
+                        if (scriptsModAlreadyInstalled && words.Contains("ScriptsMod.NG"))
+                            skipReason = "ScriptsMod.NG already installed";
+                    }
+                    else if (root.Contains("Mods"))
+                    {
+                        destinationDirectoryName = ParamConf.PATH_SavedGames_DCS;
+                    }
+
+                    // On note une fois, dans le log, où va chaque dossier racine du zip
+                    if (rootsLogged.Add(root))
+                    {
+                        FormUtils.LogRegister("Install | folder '" + root + "' in the ZIP -> " +
+                            (destinationDirectoryName == "" ? "(not recognized, skipped)" : destinationDirectoryName));
+                    }
+
+                    // Dossier racine inconnu (ex: "Modules") : avant, le dossier cible restait vide et
+                    // Directory.CreateDirectory("") faisait planter toute l'installation en plein milieu.
+                    if (destinationDirectoryName == "")
+                    {
+                        report.AddSkipped("unknown folder '" + root + "'");
+                        report.AddWarning("The folder '" + root + "' in the ZIP is not known. Its files were not installed.");
+                        continue;
                     }
 
                     // Créer le répertoire cible si nécessaire
                     DirectoryInfo di = Directory.CreateDirectory(destinationDirectoryName);
                     string destinationDirectoryFullPath = di.FullName;
-                    string completeFileName = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, DestFullName));
+                    string completeFileName;
 
-                    // Vérification pour éviter les vulnérabilités Zip-Slip
-                    if (!completeFileName.StartsWith(destinationDirectoryFullPath, StringComparison.OrdinalIgnoreCase))
-                        throw new IOException("Trying to extract file outside of destination directory.");
+                    try
+                    {
+                        completeFileName = Path.GetFullPath(Path.Combine(destinationDirectoryFullPath, DestFullName));
+                    }
+                    catch (Exception ex)
+                    {
+                        report.Failed++;
+                        FormUtils.LogRegister("Install | invalid path in the ZIP : " + file.FullName + " : " + ex.Message);
+                        continue;
+                    }
+
+                    // Vérification pour éviter les vulnérabilités Zip-Slip (entrée qui sort du dossier cible)
+                    if (!IsInsideFolder(completeFileName, destinationDirectoryFullPath))
+                    {
+                        report.AddSkipped("unsafe path (outside the destination folder)");
+                        report.AddWarning("Some files in the ZIP had an unsafe path. They were not installed.");
+                        FormUtils.LogRegister("Install | unsafe path ignored : " + file.FullName);
+                        continue;
+                    }
 
                     // Si l'entrée du zip est un dossier, le créer sans extraire de fichiers
-                    if (file.Name == "")
+                    // (même Active / Debug / Debriefing : les dossiers vides doivent exister)
+                    if (isFolderEntry)
                     {
                         try
                         {
-                            Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
+                            Directory.CreateDirectory(completeFileName);
                         }
                         catch (Exception ex)
                         {
-                            FormUtils.ErrorGeneral_BoxOrLog(ex, "The process failed", completeFileName, true, true);
+                            report.Failed++;
+                            FormUtils.LogRegister("Install | cannot create folder " + completeFileName + " : " + ex.Message);
                         }
                         continue;
                     }
 
-                    // Si l'extraction est autorisée pour le fichier, l'extraire
-                    if (extractAutorise)
+                    // Parties en cours de l'auteur (Campaigns\<campagne>\Active, Debug, Debriefing) : jamais installées
+                    if (skipReason == "" && IsInCampaignSessionFolder(words))
+                        skipReason = "campaign session folders (Active / Debug / Debriefing)";
+
+                    if (skipReason != "")
                     {
-                        try
-                        {
-                            file.ExtractToFile(completeFileName, overwrite);
-                        }
-                        catch (Exception ex)
-                        {
-                            FormUtils.ErrorGeneral_BoxOrLog(ex, "Error extracting file", file.FullName, true, true);
-                        }
+                        report.AddSkipped(skipReason);
+                        continue;
+                    }
+
+                    // Extraction. Le dossier parent est créé ici aussi : un zip sans entrées de dossier
+                    // (certains outils n'en écrivent pas) faisait échouer l'extraction de ses fichiers.
+                    try
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(completeFileName));
+                        file.ExtractToFile(completeFileName, overwrite);
+                        report.Extracted++;
+                    }
+                    catch (Exception ex)
+                    {
+                        report.Failed++;
+                        FormUtils.LogRegister("Install | cannot extract " + file.FullName + " : " + ex.Message);
                     }
                 }
             }
+
+            // Fichiers du mod MissionScripting non installés : on prévient l'utilisateur (popup de fin d'installation)
+            int ovGmeSkippedCount;
+            if (report.Skipped.TryGetValue("mission script mod (OvGME folder not set)", out ovGmeSkippedCount))
+            {
+                report.AddWarning(
+                    ovGmeSkippedCount + " file(s) of the MissionScripting mod (OvGME folder of the ZIP) were NOT installed, " +
+                    "because no OvGME / mod manager folder is set in the configuration.\r\n" +
+                    "The campaign maker wanted them installed. Without this mod, the campaign may not work " +
+                    "(set the OvGME folder in the configuration and install the campaign again).");
+            }
+
+            FormUtils.LogRegister("Install | " + Path.GetFileName(sourceZipFilePath) + " : " + report.Extracted +
+                " installed, " + report.SkippedTotal + " skipped, " + report.Failed + " failed.");
+
+            foreach (KeyValuePair<string, int> skipped in report.Skipped)
+            {
+                FormUtils.LogRegister("Install |    skipped " + skipped.Value + " : " + skipped.Key);
+            }
+
+            return report;
         }
 
         public static System.Drawing.Icon Question { get; }
@@ -823,7 +1027,7 @@ namespace DCE_Manager
         //    System.Diagnostics.Process.Start("https://forums.eagle.ru/topic/162712-dce-campaigns/");
         //}
 
-      
+
 
         // = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
         // Update du ScriptsMod
@@ -840,6 +1044,11 @@ namespace DCE_Manager
                 ParamGithub.DownloadUrl);
 
             await scriptsModUpdater.DownloadLatestScriptsMod();
+
+            homeView.SetScriptsModVersion(scriptsModUpdater.GetLocalScriptsModVersion());
+
+            CampaignGridLeft.RefreshScriptsModState();   // les ▶ ⏭ 📋 reviennent dès que ScriptsMod est installé
+
 
 
         }
@@ -940,7 +1149,7 @@ namespace DCE_Manager
 
                 CampaignGridLeft.UpdateCampaignButtonsVisibility();
             }
-           
+
 
             //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
             //+++++++++++++++++++++++++++++++++  tabPage?   NEWS    +++++++++++++++++++++++++
@@ -967,7 +1176,7 @@ namespace DCE_Manager
             return versionString;
         }
 
- 
+
         private async void DCEManagerUpdateButton_Click( object sender, EventArgs e)
         {
             {
@@ -980,7 +1189,7 @@ namespace DCE_Manager
 
         }
 
-        
+
         private void button_Log_Click(object sender, EventArgs e)
         {
 
@@ -1017,7 +1226,7 @@ namespace DCE_Manager
         }
 
 
-       
+
         private void ScriptModInstalledVersion_Click(object sender, EventArgs e)
         {
             Process process = new Process();
@@ -1039,7 +1248,7 @@ namespace DCE_Manager
 
             if (File.Exists(pathFile))
             {
-                
+
                 try
                 {
                     File.Copy(pathFile, pathFileTemp, true);
@@ -1048,7 +1257,7 @@ namespace DCE_Manager
                 {
                     FormUtils.ErrorGeneral_BoxOrLog(ex, "checkBoxSanitize_CheckedChanged", pathFile, true, true);
                 }
-            
+
 
                 using (StreamReader reader = new StreamReader(pathFileTemp))
                 {
@@ -1069,7 +1278,7 @@ namespace DCE_Manager
                             //    string ligneModifiee = line.Replace("--", "");
                             //    FormUtils.ModifierLigneByNumber(pathFile, i, ligneModifiee);
                             //}
-                               
+
                         }
 
                         i++;
@@ -1229,7 +1438,7 @@ namespace DCE_Manager
             }
         }
 
-       
+
         public void ShowHome()
         {
             homeView.BringToFront();
@@ -1288,7 +1497,7 @@ namespace DCE_Manager
         private void ShowVoronoyCreditWindow()
         {
 
-        
+
             //const string instagramUrl = "https://www.instagram.com/PAULINE_USERNAME/";
             const string instagramUrl = "https://www.instagram.com/__voronoy_?igsh=MWFmYW44dXlzcW9rNA==";
 
@@ -1685,7 +1894,7 @@ namespace DCE_Manager
             Close();
         }
 
-       
+
 
 
     }

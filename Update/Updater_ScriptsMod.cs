@@ -120,7 +120,10 @@ namespace DCE_Manager.Update
 
 
                 if (!success)
+                {
+                    OfferManualDownload(github.GetStatusMessage());
                     return;
+                }
 
                 form.ScriptsModStatusLabel.Text = "Downloading...";
 
@@ -130,6 +133,8 @@ namespace DCE_Manager.Update
                     Updater_Param.PathDownloadScriptsMod,
                     ParamGithub.AssetName);
 
+                // Le dossier Downloads\ScriptsMod n'existe pas au tout premier lancement : on le crée
+                Directory.CreateDirectory(Path.GetDirectoryName(destinationFile));
 
                 using (HttpClient client = new HttpClient())
                 {
@@ -476,6 +481,10 @@ namespace DCE_Manager.Update
                 string testFile =
                     Path.Combine(folder, "UTIL_Changelog.lua");
 
+                // Pas encore installé : rien à verrouiller (sinon la 1re installation était refusée à tort)
+                if (!File.Exists(testFile))
+                    return true;
+
                 using (FileStream fs = new FileStream(
                     testFile,
                     FileMode.Open,
@@ -492,24 +501,68 @@ namespace DCE_Manager.Update
             }
         }
 
+        // Téléchargement automatique impossible (pas de réseau, quota GitHub dépassé, aucune release...) :
+        // on propose d'ouvrir la page de téléchargement, pour que l'utilisateur ne reste jamais bloqué.
+        private void OfferManualDownload(string reason)
+        {
+            form.ScriptsModStatusLabel.Text = "Download failed";
+
+            string targetFolder = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\ScriptsMod.NG");
+
+            DialogResult answer = MessageBox.Show(
+                "ScriptsMod could not be downloaded automatically." +
+                (string.IsNullOrEmpty(reason) ? "" : "\r\n(" + reason + ")") +
+                "\r\n\r\nOpen the download page in your browser?\r\n\r\n" +
+                "Then unzip the ZIP file into this folder, so that UTIL_Changelog.lua is directly inside it:\r\n" +
+                targetFolder,
+                "ScriptsMod",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning);
+
+            if (answer != DialogResult.Yes)
+                return;
+
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = $"https://github.com/{GithubHelper.GithubAccount}/{GithubHelper.Repository_ScriptsMod}/releases/latest",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("OfferManualDownload : " + ex.Message);
+            }
+        }
+
 
         // Compare la version locale et GitHub et met à jour les labels.
         // Pourquoi : afficher immédiatement à l'utilisateur si une mise à jour existe.
+        // ScriptsMod absent : on interroge quand même GitHub et on affiche le bouton Install
+        // (avant, la méthode s'arrêtait avant et l'utilisateur n'avait aucun moyen de l'installer).
         public async Task CheckGithubScriptsModVersionAsync()
         {
-            string localVersion = GetLocalScriptsModVersion();
-
-            if (string.IsNullOrWhiteSpace(localVersion))
+            // Sans dossier Saved Games valide, on ne peut ni lire ni installer ScriptsMod : on guide l'utilisateur
+            if (string.IsNullOrWhiteSpace(ParamConf.PATH_SavedGames_DCS))
             {
-                form.ScriptsModStatusLabel.Text = "Not installed";
+                form.ScriptModInstalledVersion.Text = "...";
+                form.ScriptsModAvailableVersion.Text = "...";
+                form.ScriptsModStatusLabel.Text = "Set the Saved Games folder first (Install tab)";
                 form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_warning_blue_30;
+                form.ScriptsModUpdateButton.Visible = false;
+
+                Updater_Param.ScriptsModUpdateAvailable = false;
 
                 Utils_Update.RefreshUpdateTab(form);
 
                 return;
             }
 
-            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync A ScriptsMod Local Version : " + localVersion);
+            string localVersion = GetLocalScriptsModVersion();
+            bool notInstalled = string.IsNullOrWhiteSpace(localVersion);
+
+            FormUtils.LogRegister("CheckGithubScriptsModVersionAsync A ScriptsMod Local Version : [" + localVersion + "]");
 
             bool success =
                  await github.GetLatestRelease(
@@ -526,8 +579,14 @@ namespace DCE_Manager.Update
 
             if (!success)
             {
-                form.ScriptsModStatusLabel.Text = github.GetStatusMessage();
+                form.ScriptsModStatusLabel.Text = notInstalled ? "Not installed" : github.GetStatusMessage();
                 form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_warning_blue_30;
+
+                // ScriptsMod absent : le bouton reste là. Au clic, DownloadLatestScriptsMod propose la page de téléchargement.
+                form.ScriptsModUpdateButton.Text = "Install";
+                form.ScriptsModUpdateButton.Visible = notInstalled;
+
+                Updater_Param.ScriptsModUpdateAvailable = notInstalled;
 
                 Utils_Update.RefreshUpdateTab(form);
 
@@ -538,15 +597,31 @@ namespace DCE_Manager.Update
 
             Updater_Param.LastGithubCheckUtc = DateTime.UtcNow;
 
-            //ScriptsModVersion.Text = localVersion;
-            form.ScriptModInstalledVersion.Text = localVersion;
-
-            //ParamConf.DCE_Manager_LocVer = localVersion;
-
             form.ScriptsModAvailableVersion.Text = githubVersion;
 
             FormUtils.LogRegister("CheckGithubScriptsModVersionAsync D ScriptsMod GitHub Version : " + githubVersion);
 
+            // ---- ScriptsMod absent : on propose de l'installer ----
+            if (notInstalled)
+            {
+                form.ScriptModInstalledVersion.Text = "...";
+                form.ScriptsModStatusLabel.Text = "Not installed";
+                form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_warning_blue_30;
+
+                form.ScriptsModUpdateButton.Text = "Install";
+                form.ScriptsModUpdateButton.Visible = true;
+
+                Updater_Param.ScriptsModUpdateAvailable = true;   // l'onglet Update affiche "(1)"
+
+                Utils_Update.RefreshUpdateTab(form);
+
+                return;
+            }
+
+            // ---- ScriptsMod installé : comparaison des versions ----
+            form.ScriptModInstalledVersion.Text = localVersion;
+
+            ParamConf.DCE_ScriptsMod_LocVer = localVersion;
 
             bool updateAvailable = Utils_Update.IsVersionNewer(githubVersion, localVersion);
 
@@ -561,19 +636,12 @@ namespace DCE_Manager.Update
                 form.pictureBox_ScriptsMod_Status.Image = Properties.Resources.icons8_ok_24;
             }
 
-            //form.ScriptsModUpdateButton.Visible = updateAvailable;
+            Updater_Param.ScriptsModUpdateAvailable = updateAvailable;
 
-            //UpdateUtils.RefreshUpdateTab(form);
-
-
-            Updater_Param.ScriptsModUpdateAvailable =
-                updateAvailable;
-
-            form.ScriptsModUpdateButton.Visible =
-                updateAvailable;
+            form.ScriptsModUpdateButton.Text = "Update && Install";
+            form.ScriptsModUpdateButton.Visible = updateAvailable;
 
             Utils_Update.RefreshUpdateTab(form);
-
         }
 
 

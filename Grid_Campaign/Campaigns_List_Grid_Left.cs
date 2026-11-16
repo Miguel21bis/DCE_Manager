@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -49,6 +49,35 @@ namespace DCE_Manager
             { "camp_init.lua", "camp_triggers_init.lua", "conf_mod.lua", "db_airbases.lua", "targetlist_init.lua", "oob_air_init.lua", "path.bat" };
 
         private int _lastQuickActionsMouseX = -1;
+
+        // ScriptsMod installé ? Calculé UNE fois par chargement de la grille (pas à chaque dessin).
+        // true par défaut : pas de faux avertissement avant le premier calcul.
+        private bool _scriptsModInstalled = true;
+
+        // Recalcule l'état de ScriptsMod et redessine la grille seulement si ça a changé.
+        // Appelée au chargement de la grille et après une installation de ScriptsMod.
+        public void RefreshScriptsModState()
+        {
+            bool installed = false;
+
+            if (!string.IsNullOrWhiteSpace(ParamConf.PATH_SavedGames_DCS))
+            {
+                string folder = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\ScriptsMod.NG");
+
+                try { installed = Directory.Exists(folder) && Directory.EnumerateFileSystemEntries(folder).Any(); }
+                catch { installed = false; }
+            }
+
+            if (installed != _scriptsModInstalled)
+            {
+                _scriptsModInstalled = installed;
+
+                if (installed)
+                    _alreadyUpdated.Clear();   // ScriptsMod vient d'arriver : toutes les campagnes doivent être recalées sur ses fichiers de référence
+
+                _mainForm.dataGridViewCampaigns.Invalidate();
+            }
+        }
 
         // Infobulle des icônes QuickActions, pilotée à la main (voir CellMouseMove).
         // _lastQuickActionsZone = ligne * 3 + zone sous la souris, pour ne ré-afficher que si on change d'icône.
@@ -108,7 +137,8 @@ namespace DCE_Manager
                 Name = "Image",
                 HeaderText = "",
                 Width = 90,
-                ImageLayout = DataGridViewImageCellLayout.Zoom
+                ImageLayout = DataGridViewImageCellLayout.Zoom,
+                DefaultCellStyle = { NullValue = null }   // pas de croix rouge quand il n'y a pas d'image
             };
             _mainForm.dataGridViewCampaigns.Columns.Add(colImg);
 
@@ -218,6 +248,13 @@ namespace DCE_Manager
             GridCampaigns_AddButtonColumn("Rename", "✏", 45, headerText: "");
             _mainForm.dataGridViewCampaigns.Columns["Rename"].DisplayIndex = 4; // juste après Name
 
+            // ===== COLONNE WARGAME (🗺) : icône dessinée à la main (grisée si pas de wargame) =====
+            GridCampaigns_AddButtonColumn("Wargame", "🗺", 55, headerText: "Wargame");
+            _mainForm.dataGridViewCampaigns.Columns["Wargame"].DisplayIndex =
+                _mainForm.dataGridViewCampaigns.Columns["Triggers"].DisplayIndex;
+            _mainForm.dataGridViewCampaigns.CellPainting += GridCampaigns_Wargame_CellPainting;
+            _mainForm.dataGridViewCampaigns.CellClick += GridCampaigns_Wargame_CellClick;
+
 
             // ===== STYLE BOUTONS =====
             foreach (DataGridViewColumn col in _mainForm.dataGridViewCampaigns.Columns)
@@ -293,6 +330,11 @@ namespace DCE_Manager
         // Pourquoi : allège le constructeur et regroupe toute la configuration du grid au même endroit.
         public void GridCampaigns_Init_DataGridView()
         {
+            // Double buffering : DoubleBuffered est protégée sur DataGridView, d'où la reflection
+            typeof(DataGridView).GetProperty("DoubleBuffered",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .SetValue(_mainForm.dataGridViewCampaigns, true, null);
+
             GridCampaigns_Init();
             GridCampaigns_InitStyle();
 
@@ -327,6 +369,10 @@ namespace DCE_Manager
             UpdateCampaignSetupColumnVisibility();
 
             GridCampaigns_ApplyColumnWidths();
+
+            // Fige Name (comme "Figer les volets" sur Excel). Frozen fige AUSSI toutes les colonnes
+            // affichées à sa gauche : Clone, Family, Image restent donc visibles avec le nom.
+            _mainForm.dataGridViewCampaigns.Columns["Name"].Frozen = true;
         }
 
 
@@ -353,6 +399,7 @@ namespace DCE_Manager
                 { "QuickActions", 100 },
                 { "CampaignSetup", 55 },
                   { "Triggers", 55 },
+                { "Wargame", 55 },
                 { "Parameters", 55 },
                 { "Delete", 55 },
                 { "Select", 40 }
@@ -441,6 +488,18 @@ namespace DCE_Manager
                 return; // ligne orpheline non réparable, ou 🔧 déjà dessiné : rien d'autre à peindre ici
             }
 
+            // ScriptsMod absent : un seul ⚠ orange à la place des 3 icônes (First/Skip/Debrief impossibles)
+            if (!_scriptsModInstalled)
+            {
+                using (var warnFont = new Font("Segoe UI Symbol", 16, FontStyle.Bold))
+                {
+                    TextRenderer.DrawText(e.Graphics, "⚠", warnFont, e.CellBounds, Color.DarkOrange,
+                        TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                }
+
+                return;
+            }
+
             bool showFirst, showSkip, showDebrief;
             GetQuickActionVisibility(e.RowIndex, out showFirst, out showSkip, out showDebrief);
 
@@ -466,6 +525,9 @@ namespace DCE_Manager
 
             if (_incompleteOrOrphanNames.Contains(name))
                 return _repairableIncompleteNames.Contains(name); // toute la cellule = zone "Repair"
+
+            if (!_scriptsModInstalled)
+                return true; // toute la cellule = zone "ScriptsMod manquant"
 
             bool showFirst, showSkip, showDebrief;
             GetQuickActionVisibility(rowIndex, out showFirst, out showSkip, out showDebrief);
@@ -514,6 +576,17 @@ namespace DCE_Manager
 
             EnsureCampaignFilesUpToDate(name);
 
+
+            if (!_scriptsModInstalled)
+            {
+                MessageBox.Show(
+                    "ScriptsMod is not installed yet.\r\n\r\nIt is the engine that builds the missions.\r\nGo to the Update tab and click Install.",
+                    "ScriptsMod missing",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             int cellWidth = _mainForm.dataGridViewCampaigns.Columns["QuickActions"].Width;
             int thirdWidth = cellWidth / 3;
             int zone = Math.Min(e.X / thirdWidth, 2);
@@ -542,7 +615,7 @@ namespace DCE_Manager
                         return;
                 }
 
-                Saver_TargetList_Wargame.WriteInitialFormations(name);
+                WargameLog.FirstMission(name);
                 await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
             }
             else if (zone == 1)
@@ -580,13 +653,6 @@ namespace DCE_Manager
         {
             var grid = _mainForm.dataGridViewCampaigns;
 
-            //if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
-            //{
-            //    grid.Cursor = Cursors.Default;
-            //    _lastQuickActionsMouseX = -1;
-            //    HideQuickActionsToolTip();
-            //    return;
-            //}
             if (e.RowIndex < 0 || grid.Columns[e.ColumnIndex].Name != "QuickActions")
             {
                 grid.Cursor = Cursors.Default;
@@ -619,8 +685,14 @@ namespace DCE_Manager
                 zone = 0;
                 text = "Repair this campaign (recreate the missing files)";
             }
+            else if (!_scriptsModInstalled)
+            {
+                zone = 0;
+                text = "ScriptsMod is not installed. Go to the Update tab and click Install.";
+            }
             else
             {
+                
                 int thirdWidth = grid.Columns["QuickActions"].Width / 3;
                 zone = Math.Min(e.X / thirdWidth, 2);
                 text = GetQuickActionTooltipText(e.X);
@@ -647,14 +719,6 @@ namespace DCE_Manager
             }
         }
 
-        //private void HideQuickActionsToolTip()
-        //{
-        //    if (_lastQuickActionsZone == -1)
-        //        return;
-
-        //    _lastQuickActionsZone = -1;
-        //    _quickActionsToolTip.Hide(_mainForm.dataGridViewCampaigns);
-        //}
 
         private void HideQuickActionsToolTip()
         {
@@ -826,6 +890,7 @@ namespace DCE_Manager
         }
 
         // e.X est relatif à la cellule dans CellMouseClick (comme pour QuickActions).
+        // e.X est relatif à la cellule dans CellMouseClick (comme pour QuickActions).
         private async void GridCampaigns_Family_CellMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left || e.RowIndex < 0)
@@ -870,7 +935,8 @@ namespace DCE_Manager
                     _expandedMasters.Add(CampaignHierarchy.ResolveMaster(name));
                 }
 
-                await LoadCampaignsAsync(selectCampaignName: name);
+                // keepRightPanel : le panneau de droite garde la campagne affichée
+                await LoadCampaignsAsync(selectCampaignName: name, keepRightPanel: true);
             }
             else
             {
@@ -897,7 +963,7 @@ namespace DCE_Manager
                     }
                 }
 
-                await LoadCampaignsAsync(selectCampaignName: name);
+                await LoadCampaignsAsync(selectCampaignName: name, keepRightPanel: true);
             }
         }
 
@@ -979,6 +1045,8 @@ namespace DCE_Manager
         // tout est déjà déplié.
         // Clic sur l'en-tête de la colonne Family : moitié gauche (▶) = tout replier,
         // moitié droite (▼) = tout déplier. e.X est relatif à la cellule d'en-tête.
+        // Clic sur l'en-tête de la colonne Family : moitié gauche (▶) = tout replier,
+        // moitié droite (▼) = tout déplier. e.X est relatif à la cellule d'en-tête.
         private async void GridCampaigns_Family_HeaderMouseClickAsync(object sender, DataGridViewCellMouseEventArgs e)
         {
             if (e.Button != MouseButtons.Left || e.ColumnIndex < 0)
@@ -997,7 +1065,7 @@ namespace DCE_Manager
                     _expandedMasters.Add(master);
             }
 
-            await LoadCampaignsAsync();
+            await LoadCampaignsAsync(keepRightPanel: true);
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat via le GUI
@@ -1023,11 +1091,16 @@ namespace DCE_Manager
         // par GridCampaigns_CellClick pour ces 3 actions.
         private void EnsureCampaignFilesUpToDate(string name)
         {
+            if (!_scriptsModInstalled)
+                return;   // sans ScriptsMod, pas de fichiers de référence : on ne marque PAS la campagne comme "recalée"
+
             if (!_alreadyUpdated.Add(name))
                 return;
 
             ConfUpdateResult campInitResult = new CampInitUpdater().UpdateCampaign(name);
             ConfUpdateResult confModResult = new ConfModTemplateUpdater().UpdateCampaign(name); // dans cet ordre
+
+            ConfMod_SunTimes.UpdateConfMod(name);   // dawn / dusk d'après le soleil (une fois par session)
 
             if (!_referenceWarningShown &&
                 (campInitResult == ConfUpdateResult.ReferenceMissing || confModResult == ConfUpdateResult.ReferenceMissing))
@@ -1062,6 +1135,91 @@ namespace DCE_Manager
             {
                 _mainForm.dataGridViewCampaigns.Columns["Triggers"].Visible = isCampaignMaker;
             }
+
+            // Wargame : même règle (et l'onglet Wargame change de vue joueur / campaignMaker)
+            if (_mainForm.dataGridViewCampaigns.Columns.Contains("Wargame"))
+            {
+                _mainForm.dataGridViewCampaigns.Columns["Wargame"].Visible = isCampaignMaker;
+            }
+
+            _mainForm.CampaignView?.RefreshWargameTab(ParamCampaignSelected.NameCampaign);
+        }
+
+        // Dessine l'icône Wargame : noire si la campagne a un wargame, grisée sinon.
+        // Rien sur la ligne corbeille ni sur les lignes "problème".
+        private void GridCampaigns_Wargame_CellPainting(object sender, DataGridViewCellPaintingEventArgs e)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Wargame")
+                return;
+
+            e.PaintBackground(e.ClipBounds, true);
+            e.Handled = true;
+
+            var row = grid.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return;
+
+            bool hasWargame = row.Cells[e.ColumnIndex].Tag is bool b && b;
+            Color color = hasWargame ? Color.Black : Color.FromArgb(190, 190, 190);
+
+            using (var font = new Font("Segoe UI", 14, FontStyle.Bold))
+            {
+                TextRenderer.DrawText(e.Graphics, "🗺", font, e.CellBounds, color,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            }
+        }
+
+        // Clic sur l'icône (campaignMaker seulement) : crée le wargame s'il n'existe pas encore, puis ouvre l'éditeur.
+        private void GridCampaigns_Wargame_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            var grid = _mainForm.dataGridViewCampaigns;
+
+            if (e.RowIndex < 0 || e.ColumnIndex < 0 || grid.Columns[e.ColumnIndex].Name != "Wargame")
+                return;
+
+            if (ParamConf.UserLevel != UserLevel.CampaignMaker)
+                return;
+
+            var row = grid.Rows[e.RowIndex];
+            string name = row.Cells["Name"].Value?.ToString();
+
+            if (DeleteSelectedRowTag.Equals(row.Tag) || string.IsNullOrEmpty(name) || _incompleteOrOrphanNames.Contains(name))
+                return;
+
+            if (!DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(name))
+            {
+                string mizPath = Path.Combine(WargameZoneRepository.GetCampaignFolder(name), "Init", "Wargame", "wargame_zone.miz");
+
+                if (!File.Exists(mizPath))
+                {
+                    MessageBox.Show(
+                        "To create a wargame, first draw its zones in the DCS Mission Editor\r\nand save the mission as:\r\n\r\n" + mizPath,
+                        "Create a wargame", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+
+                var confirm = MessageBox.Show(
+                    "Create a wargame for '" + name + "' ?\r\n\r\nThe zones are read from wargame_zone.miz, then the wargame editor opens.",
+                    "Create a wargame", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+                if (confirm != DialogResult.Yes)
+                    return;
+            }
+
+            using (var form = new WargameEditor_Form(name))
+            {
+                form.ShowDialog(_mainForm);
+            }
+
+            // Mise à jour de la ligne sur place (pas de rechargement de la grid : le clic est encore en cours)
+            bool hasWargame = DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(name);
+            row.Cells["Wargame"].Tag = hasWargame;
+            row.Cells["Wargame"].ToolTipText = hasWargame ? "Edit the wargame of this campaign" : "Create a wargame for this campaign";
+            grid.InvalidateCell(row.Cells["Wargame"]);
         }
 
         // Lance FirstMission.bat / SkipMission.bat / DEBUG_DebriefMission.bat en tâche de fond
@@ -1450,14 +1608,26 @@ namespace DCE_Manager
         // de la grid.
         // Pas de async : tout le corps est synchrone (accès disque local, remplissage de grid).
         // On renvoie quand même un Task pour ne rien changer aux appelants qui font "await".
-        public Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null)
+        public Task LoadCampaignsAsync(string selectCampaignName = null, int? restoreRowIndex = null, bool keepRightPanel = false)
         {
             // Different configurations (DCSA/DCSB...) can contain campaigns with the
             // same folder name; the ConfMod cache is only keyed by that name, so it
             // must be cleared whenever the campaign list is (re)loaded.
             ConfModLoader.ClearCache();
 
-            ResetCurrentCampaign();
+            RefreshScriptsModState();
+
+            if (keepRightPanel && CurrentCampaignEdit != null)
+            {
+                // On garde la campagne affichée à droite. Sans ligne précise demandée, on
+                // re-sélectionne la ligne de la campagne affichée (Rows.Clear() vide la sélection).
+                if (string.IsNullOrEmpty(selectCampaignName))
+                    selectCampaignName = ParamCampaignSelected.NameCampaign;
+            }
+            else
+            {
+                ResetCurrentCampaign();
+            }
 
             _repairableIncompleteNames.Clear();
             _mainForm.dataGridViewCampaigns.Rows.Clear();
@@ -1846,6 +2016,12 @@ namespace DCE_Manager
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Select"].Value = false;
 
                             _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["DebriefPending"].Value = debriefPending ? "1" : "";
+
+                            // Icône Wargame : Tag = la campagne a un wargame (sert au dessin et à l'infobulle)
+                            bool hasWargame = DCE_Manager.UserControls.ucCampaign.CampaignHasWargame(NameCamp);
+                            var wargameCell = _mainForm.dataGridViewCampaigns.Rows[rowIndex].Cells["Wargame"];
+                            wargameCell.Tag = hasWargame;
+                            wargameCell.ToolTipText = hasWargame ? "Edit the wargame of this campaign" : "Create a wargame for this campaign";
                         }
 
                       
@@ -2708,6 +2884,7 @@ namespace DCE_Manager
             Main_Form.Instance.ShowHome();
 
             ParamCampaignSelected.NameCampaign = "";
+            Main_Form.Instance.CampaignView.RefreshWargameTab("");
 
             CurrentCampaignEdit = null;
             UpdateCampaignButtonsVisibility();
@@ -2836,7 +3013,7 @@ namespace DCE_Manager
                     report.Add("Active folder cleared.");
                     report.Add("Generating missions from base_mission.miz...");
 
-                    Saver_TargetList_Wargame.WriteInitialFormations(name);
+                    WargameLog.FirstMission(name);
                     await RunScriptsModInteractiveAsync(name, folderPath, "FirstMission.bat");
 
                     WargameEngineLosses.ProcessBeforeMission(name);

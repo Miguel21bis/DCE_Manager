@@ -47,6 +47,8 @@ namespace DCE_Manager
             }
 
             WriteListClassSquadsToFile(pathFile, folderName);
+
+            ConfMod_SunTimes.UpdateConfMod(ParamCampaignSelected.NameCampaign);   // base du joueur peut avoir changé : dawn / dusk
         }
 
 

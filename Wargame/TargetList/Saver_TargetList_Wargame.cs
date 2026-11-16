@@ -62,11 +62,19 @@ namespace DCE_Manager
             if (all.Count == 0)
                 return failures;
 
+
             List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
             WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
 
+            // Seules les formations des zones jouées dans DCS sont posées, les autres restent sur la carte
+            HashSet<string> dcsZones = WargameEngineCombat.FindDcsZones(allZones, campaignInfo.CombatConfig.DcsZoneDepth);
+            all = all.Where(p => dcsZones.Contains(p.zone.Id)).ToList();
+
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
+
             var rng = new Random();
+
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
 
             // side -> lignes Lua déjà indentées, prêtes à insérer telles quelles
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
@@ -151,7 +159,12 @@ namespace DCE_Manager
                 return failures;
             }
 
-            List<(WargameZoneData zone, WargameFormation formation)> all = LoadAllFormations(campaignName);
+            // Zones de l'Init + état évolutif de l'Active (camps, formations déplacées,
+            // ForcePower). Une seule liste pour tout : formations ET zones voisines.
+            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
+            new WargameZoneActiveLoader().ApplyActiveState(WargameZoneRepository.GetActiveWargameZonesPath(campaignName), allZones);
+
+            List<(WargameZoneData zone, WargameFormation formation)> all = FlattenFormations(allZones, true);
             if (all.Count == 0)
                 return failures;
 
@@ -160,23 +173,28 @@ namespace DCE_Manager
             HashSet<int> existingIds = FindExistingWargameFormationIds(lines);
             Dictionary<string, int> nextIndexBySide = FindNextNumericIndexBySide(lines);
 
-            List<(WargameZoneData zone, WargameFormation formation)> missing = all
-                .Where(p => !existingIds.Contains(p.formation.FormationId))
+            WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
+
+            // Une formation n'est posée que si sa zone est jouée dans DCS (sinon elle reste sur la carte)
+            HashSet<string> dcsZones = WargameEngineCombat.FindDcsZones(allZones, campaignInfo.CombatConfig.DcsZoneDepth);
+
+            var missing = all
+                .Where(p => !existingIds.Contains(p.formation.FormationId) && dcsZones.Contains(p.zone.Id))
                 .ToList();
 
             if (missing.Count == 0)
                 return failures; // rien de nouveau, on ne touche pas au fichier
-
-            List<WargameZoneData> allZones = WargameZoneRepository.LoadOrGenerateInit(campaignName);
-            WargameCampaignInfo campaignInfo = WargameCampaignInfo.Load(campaignName);
             WargameSpawnAreas spawnAreas = LoadSpawnAreas(campaignName);
+
+            var placedCenters = new List<KeyValuePair<string, PointF>>();
+
             var rng = new Random();
 
             var newBlocksBySide = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase)
-    {
-        { WargameSide.Blue, new List<string>() },
-        { WargameSide.Red, new List<string>() },
-    };
+            {
+                { WargameSide.Blue, new List<string>() },
+                { WargameSide.Red, new List<string>() },
+            };
 
             foreach (var pair in missing)
             {
@@ -220,7 +238,8 @@ namespace DCE_Manager
 
         private static List<WargamePlacedUnit> PlaceFormation(WargameFormation formation, WargameZoneData zone,
             WargameCampaignInfo campaignInfo, WargameSpawnAreas spawnAreas, Random rng, PointF? threatPoint,
-            int sectorIndex, int sectorCount, List<WargameZoneData> allZones)
+            int sectorIndex, int sectorCount, List<WargameZoneData> allZones,
+            List<KeyValuePair<string, PointF>> placedCenters = null)
         {
             string stmPath = campaignInfo?.GetTemplateFilePath(formation.Template);
             if (string.IsNullOrEmpty(stmPath))
@@ -236,9 +255,14 @@ namespace DCE_Manager
                 return null;
             }
 
+            // Les formations ennemies déjà posées sont tenues à distance (elles se tireraient dessus au lancement)
+            List<PointF> enemies = placedCenters == null ? null : WargameEngineLosses.EnemyCenters(placedCenters, formation.Side);
+
             List<WargamePlacedUnit> placed = WargameSpawnSolver.PlaceTemplate(
-     zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, formation.Side, allZones,
-     campaignInfo?.ZoneEdgeMarginMeters ?? WargameSpawnSolver.DefaultZoneEdgeMarginMeters);
+                zone, layout, spawnAreas, rng, threatPoint, sectorIndex, sectorCount, formation.Side, allZones,
+                campaignInfo?.ZoneEdgeMarginMeters ?? WargameSpawnSolver.DefaultZoneEdgeMarginMeters,
+                enemies,
+                campaignInfo?.EnemyFormationDistanceMeters ?? WargameSpawnSolver.DefaultEnemyFormationDistanceMeters);
 
             if (placed == null)
             {
@@ -246,8 +270,13 @@ namespace DCE_Manager
                 return null;
             }
 
+            if (placedCenters != null)
+                placedCenters.Add(new KeyValuePair<string, PointF>(formation.Side, WargameSpawnSolver.CenterOf(placed)));
+
             return placed;
         }
+
+
         // Zone contrôlée par le camp adverse la plus proche du centre de "ownZone" -
         // sans limite de distance (couvre aussi bien l'infanterie que
         // l'artillerie longue portée, sans logique séparée par type d'unité).
@@ -263,7 +292,7 @@ namespace DCE_Manager
                 return null;
 
             WargameZoneData nearest = allZones
-                .Where(z => z.Control == enemySide && z != ownZone)
+                .Where(z => z.Control == enemySide && z != ownZone && !WargameEngineCombat.IsReserveZone(z))
                 .OrderBy(z => Distance(ownZone.Center, z.Center))
                 .FirstOrDefault();
 
@@ -292,6 +321,29 @@ namespace DCE_Manager
                 if (zone.Formations == null) continue;
                 foreach (WargameFormation formation in zone.Formations)
                     result.Add((zone, formation));
+            }
+
+            return result;
+        }
+
+        // Aplatit une liste de zones en paires (zone, formation).
+        // skipExhausted : on ignore les formations à ForcePower <= 0 (épuisées ou
+        // détruites par le combat) pour qu'elles ne soient jamais reposées.
+        private static List<(WargameZoneData zone, WargameFormation formation)> FlattenFormations(List<WargameZoneData> zones, bool skipExhausted)
+        {
+            var result = new List<(WargameZoneData, WargameFormation)>();
+
+            foreach (WargameZoneData zone in zones)
+            {
+                if (zone.Formations == null) continue;
+
+                foreach (WargameFormation formation in zone.Formations)
+                {
+                    if (skipExhausted && formation.ForcePower <= 0)
+                        continue;
+
+                    result.Add((zone, formation));
+                }
             }
 
             return result;

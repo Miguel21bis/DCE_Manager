@@ -39,8 +39,32 @@ namespace DCE_Manager
             sb.AppendLine("\t\t[\"control\"] = \"" + Escape(zone.Control) + "\",");
             sb.AppendLine("\t\t[\"resupplyModifier\"] = " + zone.ResupplyModifier.ToString(CultureInfo.InvariantCulture) + ",");
 
+            // Plan de débarquement : où en est le déroulé des vagues (-1 = pas lancé)
+            if (WargameEngineCombat.IsLandingZone(zone))
+            {
+                sb.AppendLine("\t\t[\"landingWait\"] = " + zone.LandingWait + ",");
+                sb.AppendLine("\t\t[\"landingRetries\"] = " + zone.LandingRetries + ",");
+                if (!string.IsNullOrEmpty(zone.LandingBeach))
+                    sb.AppendLine("\t\t[\"landingBeach\"] = \"" + Escape(zone.LandingBeach) + "\",");
+            }
+
+            // Zone coupée du ravitaillement : depuis combien de tours (écrit seulement si > 0)
+            if (zone.CutOffTurns != 0)   // négatif = stock emporté d'une vague débarquée
+            {
+                sb.AppendLine("\t\t[\"cutOffTurns\"] = " + zone.CutOffTurns + ",");
+                sb.AppendLine("\t\t[\"cutOffSide\"] = \"" + Escape(zone.CutOffSide) + "\",");
+            }
+
+            // Point de ravitaillement avancé (convois) : réserve restante en tours (écrit seulement s'il y en a un)
+            if (zone.ForwardReserve > 0)
+            {
+                sb.AppendLine("\t\t[\"forwardReserve\"] = " + zone.ForwardReserve.ToString(CultureInfo.InvariantCulture) + ",");
+                sb.AppendLine("\t\t[\"forwardSide\"] = \"" + Escape(zone.ForwardSide) + "\",");
+                sb.AppendLine("\t\t[\"forwardSlot\"] = " + zone.ForwardSlot + ",");
+            }
+
             WriteFormations(sb, zone.Formations);
-            WriteIrregular(sb, zone.Irregular);
+            //WriteIrregular(sb, zone.Irregular);
 
             sb.AppendLine("\t},");
         }
@@ -62,6 +86,7 @@ namespace DCE_Manager
                 sb.AppendLine("\t\t\t\t[\"multiplier\"] = " + f.Multiplier + ",");
                 sb.AppendLine("\t\t\t\t[\"forcePower\"] = " + FormatNumber(f.ForcePower) + ",");
                 sb.AppendLine("\t\t\t\t[\"spawnGeneration\"] = " + f.SpawnGeneration + ",");
+                sb.AppendLine("\t\t\t\t[\"wave\"] = " + f.Wave + ",");
                 sb.AppendLine("\t\t\t},");
                 index++;
             }
@@ -69,14 +94,6 @@ namespace DCE_Manager
             sb.AppendLine("\t\t},");
         }
 
-        private static void WriteIrregular(StringBuilder sb, WargameIrregularMarker irregular)
-        {
-            sb.AppendLine("\t\t[\"irregular\"] = ");
-            sb.AppendLine("\t\t{");
-            sb.AppendLine("\t\t\t[\"active\"] = " + (irregular != null && irregular.Active ? "true" : "false") + ",");
-            sb.AppendLine("\t\t\t[\"residualStock\"] = " + (irregular?.ResidualStock ?? 0) + ",");
-            sb.AppendLine("\t\t},");
-        }
 
         private static string FormatNumber(double value)
         {

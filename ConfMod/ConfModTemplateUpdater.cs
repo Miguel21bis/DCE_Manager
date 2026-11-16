@@ -26,6 +26,14 @@ namespace DCE_Manager
     // simplement, puisqu'on ne le recopie jamais : on ne part plus du fichier local
     // pour le "nettoyer", on part de la référence et on va juste piocher les valeurs.
     //
+    // RÈGLE : pour une clé présente dans la référence ET en local, la ligne écrite est
+    // celle de la référence (valeur par défaut, commentaire, tag @ui), dans laquelle on
+    // remet seulement la VALEUR locale. Changer un @ui dans la référence (ex: format=hhmm)
+    // arrive donc dans toutes les campagnes existantes, sans toucher à leurs valeurs.
+    // Même principe que ModifiCampInit côté Lua (setValueOnLine).
+    // Pour un tableau multi-lignes de valeurs brutes (ex: runway), les valeurs viennent
+    // du local, mais le commentaire / @ui de la ligne d'ouverture vient de la référence.
+    //
     // Les 4 tables de premier niveau de la référence (mission_ini_check,
     // mission_forcedOptions_check, Debug_check, campMod_check) sont renommées à la
     // volée en enlevant le suffixe "_check" (générique : n'importe quelle clé qui se
@@ -203,10 +211,12 @@ namespace DCE_Manager
                         // référence - jamais un mélange des deux, qui casse dès que le
                         // découpage en lignes ne correspond pas exactement (ex: le client
                         // a tout mis sur une seule ligne, la référence sur plusieurs).
+                        // Seule exception : le commentaire (@ui compris) de la ligne
+                        // d'ouverture est toujours celui de la référence.
                         if (localSubExists)
                         {
                             for (int i = localSubStart; i <= localSubEnd; i++)
-                                output.Add(localLines[i]);
+                                output.Add(i == localSubStart ? WithReferenceComment(localLines[i], refLine) : localLines[i]);
                         }
                         else
                         {
@@ -221,7 +231,8 @@ namespace DCE_Manager
                 }
 
                 // delta <= 0 : ligne "clé = valeur" simple (scalaire, ou tableau
-                // entièrement sur une seule ligne)
+                // entièrement sur une seule ligne). On part de la ligne de la référence
+                // (valeur par défaut, commentaire, @ui) et on y remet la valeur locale.
                 string mergedLine = refLine;
 
                 if (localExists)
@@ -233,7 +244,7 @@ namespace DCE_Manager
                     if (TryFindBlock(localLines, localKey, localStart, localEnd, out localSubStart, out localSubEnd))
                     {
                         for (int i = localSubStart; i <= localSubEnd; i++)
-                            output.Add(localLines[i]);
+                            output.Add(i == localSubStart ? WithReferenceComment(localLines[i], refLine) : localLines[i]);
 
                         refIndex++;
                         continue;
@@ -257,6 +268,22 @@ namespace DCE_Manager
         private static string RenameKeyToken(string line, string oldKey, string newKey)
         {
             return Regex.Replace(line, @"^(\s*)" + Regex.Escape(oldKey) + @"(\s*=)", "$1" + newKey.Replace("$", "$$") + "$2");
+        }
+
+        // Ligne locale dont on garde la partie code (clé, valeurs), avec le commentaire
+        // (espaces avant "--" compris) de la ligne de la référence. Si la ligne locale ne
+        // porte pas la clé elle-même (accolade seule sur sa ligne), elle est rendue telle quelle.
+        private static string WithReferenceComment(string localLine, string refLine)
+        {
+            string localCode = ConfUiSchemaParser.StripComment(localLine);
+
+            if (!FieldKeyRegex.IsMatch(localCode))
+                return localLine;
+
+            string refCode = ConfUiSchemaParser.StripComment(refLine);
+            string refTail = refLine.Substring(refCode.TrimEnd().Length); // "   -- @ui ..." ou ""
+
+            return localCode.TrimEnd() + refTail;
         }
 
         // ---------------------------------------------------------------

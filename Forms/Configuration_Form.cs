@@ -250,11 +250,19 @@ namespace DCE_Manager
                 ParamConf.configDictionary["NbLancement"] = ParamManager.NbLancement.ToString();
                 ParamConf.configDictionary["verScriptsMod"] = ParamScriptsMod.verScriptsMod ?? string.Empty;
 
+                // Un chemin vide ou invalide en mémoire n'efface JAMAIS un chemin déjà enregistré
+                // (dossier momentanément introuvable : disque externe, OneDrive, DCS jamais lancé...).
+                // Effacement volontaire : voir but_PATH_SAVE_Click, qui écrit directement dans le dictionnaire.
                 string prefix = $"config_{ParamConf.NumSelectConfig}_";
-                ParamConf.configDictionary[prefix + "pathDCS"] = ParamConf.PATH_DCS_Root ?? string.Empty;
-                ParamConf.configDictionary[prefix + "pathSavedGames"] = ParamConf.PATH_SavedGames_DCS ?? string.Empty;
-                ParamConf.configDictionary[prefix + "pathOVGME"] = ParamConf.PATH_OVGME_MOD ?? string.Empty;
-                ParamConf.configDictionary[prefix + "installedCampCount"] = ParamConf.InstalledCampaignCount.ToString();
+
+                if (!string.IsNullOrWhiteSpace(ParamConf.PATH_DCS_Root))
+                    ParamConf.configDictionary[prefix + "pathDCS"] = ParamConf.PATH_DCS_Root;
+
+                if (!string.IsNullOrWhiteSpace(ParamConf.PATH_SavedGames_DCS))
+                    ParamConf.configDictionary[prefix + "pathSavedGames"] = ParamConf.PATH_SavedGames_DCS;
+
+                if (!string.IsNullOrWhiteSpace(ParamConf.PATH_OVGME_MOD))
+                    ParamConf.configDictionary[prefix + "pathOVGME"] = ParamConf.PATH_OVGME_MOD;
 
                 // 2. Charger le fichier actuel pour la fusion (en ignorant les clés corrompues ou vides)
                 Dictionary<string, string> fileDictionary = new Dictionary<string, string>();
@@ -286,8 +294,11 @@ namespace DCE_Manager
                 }
 
 
-                // 4. Écriture propre filtrée sans résidus ni orphelins
-                using (StreamWriter writer = new StreamWriter(filePath))
+                // 4. Écriture dans un fichier temporaire, puis remplacement :
+                //    un plantage ou un verrou antivirus en plein milieu ne peut plus laisser un options.txt tronqué.
+                string tempPath = filePath + ".tmp";
+
+                using (StreamWriter writer = new StreamWriter(tempPath))
                 {
                     foreach (var entry in fileDictionary)
                     {
@@ -314,6 +325,11 @@ namespace DCE_Manager
                         writer.WriteLine($"{entry.Key}={entry.Value}");
                     }
                 }
+
+                if (File.Exists(filePath))
+                    File.Replace(tempPath, filePath, filePath + ".bak");   // garde aussi une copie de secours
+                else
+                    File.Move(tempPath, filePath);
 
                 return true;
             }
@@ -399,7 +415,7 @@ namespace DCE_Manager
                     if (ParamConf.configMap.TryGetValue(newActiveConfig, out int newId))
                     {
                         ParamConf.NumSelectConfig = newId;
-                            
+
                         // On recharge les VRAIS chemins de la nouvelle config active depuis le
                         // dictionnaire, sinon Save_Config() va les écraser avec les anciennes
                         // valeurs globales (celles de la config qu'on vient de supprimer)
@@ -408,7 +424,7 @@ namespace DCE_Manager
                         ParamConf.PATH_SavedGames_DCS = ParamConf.configDictionary.TryGetValue(newPrefix + "pathSavedGames", out var pSaved) ? pSaved : "";
                         ParamConf.PATH_OVGME_MOD = ParamConf.configDictionary.TryGetValue(newPrefix + "pathOVGME", out var pOvgme) ? pOvgme : "";
                     }
-                    
+
                 }
                 else
                 {

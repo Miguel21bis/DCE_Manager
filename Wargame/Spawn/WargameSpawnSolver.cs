@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using DCE_Manager;
 using DCE_Manager.Utils;
 
 namespace DCE_Manager
@@ -85,6 +86,55 @@ namespace DCE_Manager
         // par campagne plutôt qu'en dur ici.
         public const double DefaultZoneEdgeMarginMeters = 1000.0;
 
+        // Marge appliquée aux bords qui ne donnent PAS sur l'ennemi, en part de la
+        // marge "ennemie". Avant, ces bords n'avaient aucune marge : une formation
+        // pouvait coller à la limite de sa zone, donc se retrouver nez à nez avec
+        // celle de la zone voisine dès que celle-ci changeait de camp.
+        private const double FriendlyEdgeMarginRatio = 0.5;
+
+        // Distance à tenir entre une formation et les formations ENNEMIES déjà posées
+        // (mètres). Valeur de secours si camp.wargame_config.enemy_formation_distance_meters
+        // n'est pas renseignée. 4 km : au-delà de la portée du canon de char et de la
+        // plupart des missiles antichars, elles ne s'entretuent donc pas au lancement.
+        public const double DefaultEnemyFormationDistanceMeters = 4000.0;
+
+        // Paliers d'essai : on commence avec toutes les contraintes, on ne les relâche
+        // que si rien ne rentre (zone petite ou très chargée). La marge côté ENNEMI ne
+        // bouge jamais - c'est le comportement d'avant, il reste garanti.
+        //   { part de la marge côté ami, part de la distance aux formations ennemies }
+        private static readonly double[][] RelaxSteps =
+        {
+            new[] { 1.0, 1.0 },
+            new[] { 0.6, 0.6 },
+            new[] { 0.3, 0.3 },
+            new[] { 0.0, 0.0 },   // dernier essai : on pose quand même, comme avant
+        };
+
+        // Contraintes d'un essai de placement.
+        private class PlaceLimits
+        {
+            public bool[] EnemyMask;      // bords de la zone donnant sur l'ennemi
+            public double EnemyEdge;      // marge à ces bords
+            public double OtherEdge;      // marge aux autres bords
+            public double KeepAway;       // distance mini aux points de Avoid
+            public List<PointF> Avoid;    // centres des formations ennemies déjà posées ce tour
+
+            public bool FarEnough(PointF p)
+            {
+                if (Avoid == null || KeepAway <= 0) return true;
+
+                foreach (PointF a in Avoid)
+                    if (Distance(p, a) < KeepAway) return false;
+
+                return true;
+            }
+
+            public bool PointOk(PointF p, List<PointF> zonePoly)
+            {
+                return IsPointInPolygonWithMargin(p, zonePoly, EnemyEdge, OtherEdge, EnemyMask);
+            }
+        }
+
         // Paliers de compression de la distance ENTRE paquets (jamais à
         // l'intérieur d'un paquet), utilisés pour les trois cas de placement.
         private static readonly double[] CompressionScales = { 1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3 };
@@ -100,7 +150,8 @@ namespace DCE_Manager
     WargameZoneData zone, List<WargameTemplateUnit> templateUnits, WargameSpawnAreas spawnAreas, Random rng,
     PointF? threatPoint = null, int sectorIndex = 0, int sectorCount = 1,
     string formationSide = null, List<WargameZoneData> allZones = null,
-    double zoneEdgeMarginMeters = DefaultZoneEdgeMarginMeters)
+    double zoneEdgeMarginMeters = DefaultZoneEdgeMarginMeters,
+    List<PointF> keepAwayFrom = null, double keepAwayMeters = DefaultEnemyFormationDistanceMeters)
         {
             if (templateUnits == null || templateUnits.Count == 0)
                 return null;
@@ -116,45 +167,81 @@ namespace DCE_Manager
 
             bool[] enemyEdgeMask = BuildEnemyEdgeMask(zone, formationSide, allZones);
 
-            if (sectorCount > 1)
+            PointF centroid = GetCentroid(zone.DcsPoints);
+            double sectorSpan = 2 * Math.PI / Math.Max(1, sectorCount);
+            double sectorStart = sectorIndex * sectorSpan;
+            double sectorEnd = sectorStart + sectorSpan;
+
+            // Toutes les contraintes d'abord ; on ne les relâche que si rien ne rentre.
+            for (int step = 0; step < RelaxSteps.Length; step++)
             {
-                PointF centroid = GetCentroid(zone.DcsPoints);
-                double sectorSpan = 2 * Math.PI / sectorCount;
-                double sectorStart = sectorIndex * sectorSpan;
-                double sectorEnd = sectorStart + sectorSpan;
+                var limits = new PlaceLimits
+                {
+                    EnemyMask = enemyEdgeMask,
+                    EnemyEdge = zoneEdgeMarginMeters,
+                    OtherEdge = zoneEdgeMarginMeters * FriendlyEdgeMarginRatio * RelaxSteps[step][0],
+                    KeepAway = keepAwayMeters * RelaxSteps[step][1],
+                    Avoid = keepAwayFrom,
+                };
+
+                if (sectorCount > 1)
+                {
+                    for (int attempt = 0; attempt < MaxAttempts; attempt++)
+                    {
+                        PointF? candidate = RandomPointInPolygonSector(zone.DcsPoints, rng, centroid, sectorStart, sectorEnd);
+                        if (candidate == null) continue;
+
+                        // le relief (web) ne sert que sur les 30 premières tentatives : après, on ne bloque jamais
+                        List<WargamePlacedUnit> sectorResult = TryPlaceAt(candidate.Value, clusters, zone, spawnAreas, threatPoint, limits, attempt < 30);
+                        if (sectorResult != null)
+                            return Accepted(sectorResult, zone, step);
+                    }
+                }
 
                 for (int attempt = 0; attempt < MaxAttempts; attempt++)
                 {
-                    PointF? candidate = RandomPointInPolygonSector(zone.DcsPoints, rng, centroid, sectorStart, sectorEnd);
-                    if (candidate == null) continue;
+                    PointF candidate = RandomPointInPolygon(zone.DcsPoints, rng);
 
-                    List<WargamePlacedUnit> sectorResult = TryPlaceAt(candidate.Value, clusters, zone, spawnAreas, threatPoint, enemyEdgeMask, zoneEdgeMarginMeters);
-                    if (sectorResult != null)
-                        return sectorResult;
+                    List<WargamePlacedUnit> result = TryPlaceAt(candidate, clusters, zone, spawnAreas, threatPoint, limits, attempt < 30);
+                    if (result != null)
+                        return Accepted(result, zone, step);
                 }
             }
 
-            for (int attempt = 0; attempt < MaxAttempts; attempt++)
-            {
-                PointF candidate = RandomPointInPolygon(zone.DcsPoints, rng);
-
-                List<WargamePlacedUnit> result = TryPlaceAt(candidate, clusters, zone, spawnAreas, threatPoint, enemyEdgeMask, zoneEdgeMarginMeters);
-                if (result != null)
-                    return result;
-            }
-
-            int attemptsTried = sectorCount > 1 ? MaxAttempts * 2 : MaxAttempts;
             FormUtils.LogRegister("WargameSpawnSolver | aucune position valide trouvée pour la zone '"
-                + zone.Id + "' après " + attemptsTried + " tentatives");
+                + zone.Id + "' après " + (RelaxSteps.Length * (sectorCount > 1 ? MaxAttempts * 2 : MaxAttempts)) + " tentatives");
             return null;
+        }
+
+        // Centre du paquet posé. Les appelants s'en servent pour tenir les formations
+        // ennemies à distance les unes des autres (liste keepAwayFrom).
+        public static PointF CenterOf(List<WargamePlacedUnit> placed)
+        {
+            return placed == null || placed.Count == 0 ? PointF.Empty : GetCentroid(placed.Select(u => u.Position));
+        }
+
+        // Journalisé seulement quand il a fallu relâcher : utile pour comprendre une
+        // formation posée plus près du bord que prévu.
+        private static List<WargamePlacedUnit> Accepted(List<WargamePlacedUnit> result, WargameZoneData zone, int step)
+        {
+            if (step > 0)
+                FormUtils.LogRegister("WargameSpawnSolver | zone '" + zone.Id + "' : placement accepté au palier "
+                    + (step + 1) + "/" + RelaxSteps.Length + " (marges réduites : zone petite ou chargée)");
+
+            return result;
         }
 
         // Factorise ce que faisait le corps de la boucle d'origine : résout un
         // point candidat (libre ou dans une zone interdite), applique
         // l'orientation qui va avec, et valide que tout tombe bien dans la zone.
         private static List<WargamePlacedUnit> TryPlaceAt(PointF candidate, List<List<WargameTemplateUnit>> clusters,
-    WargameZoneData zone, WargameSpawnAreas spawnAreas, PointF? threatPoint, bool[] enemyEdgeMask, double zoneEdgeMarginMeters)
+    WargameZoneData zone, WargameSpawnAreas spawnAreas, PointF? threatPoint, PlaceLimits limits, bool useTerrain)
         {
+            // Le point d'ancrage doit déjà tenir ses distances : inutile de construire
+            // tout un placement pour le jeter ensuite.
+            if (!limits.FarEnough(candidate))
+                return null;
+
             WargameSpawnPolygon forbidden = spawnAreas.FindAllPolygonsAt(candidate)
                 .FirstOrDefault(p => p.Policy == WargameSpawnPolicy.Forbidden);
 
@@ -162,7 +249,9 @@ namespace DCE_Manager
 
             if (forbidden == null)
             {
-                result = PlaceCompressed(clusters, candidate, p => IsPointInPolygon(p, zone.DcsPoints));
+                // la compression tient compte des marges : le template se resserre pour
+                // rentrer SANS toucher les bords, au lieu d'être refusé après coup
+                result = PlaceCompressed(clusters, candidate, p => limits.PointOk(p, zone.DcsPoints));
                 double desiredHeading = threatPoint.HasValue ? Bearing(candidate, threatPoint.Value) : 0;
                 result = ApplyRotation(result, desiredHeading);
             }
@@ -171,7 +260,17 @@ namespace DCE_Manager
                 result = PlaceInsideForbidden(clusters, candidate, forbidden, zone, spawnAreas, threatPoint);
             }
 
-            return (result != null && AllInsideZone(result, zone.DcsPoints, enemyEdgeMask, zoneEdgeMarginMeters)) ? result : null;
+            if (result == null || !AllInsideZone(result, zone.DcsPoints, limits))
+                return null;
+
+            if (!limits.FarEnough(CenterOf(result)))
+                return null;
+
+            // Relief (web, facultatif) : on écarte l'eau et les fortes pentes. Sans réponse du web : point accepté.
+            if (useTerrain && !WargameRelief.PlacementOk(result.Select(u => u.Position), zone.Terrain))
+                return null;
+
+            return result;
         }
 
         private static List<WargamePlacedUnit> PlaceInsideForbidden(List<List<WargameTemplateUnit>> clusters,
@@ -754,22 +853,24 @@ namespace DCE_Manager
             return inside;
         }
 
-        private static bool AllInsideZone(List<WargamePlacedUnit> placed, List<PointF> zonePoly, bool[] enemyEdgeMask, double zoneEdgeMarginMeters)
+        private static bool AllInsideZone(List<WargamePlacedUnit> placed, List<PointF> zonePoly, PlaceLimits limits)
         {
             foreach (WargamePlacedUnit u in placed)
             {
-                if (!IsPointInPolygonWithMargin(u.Position, zonePoly, zoneEdgeMarginMeters, enemyEdgeMask))
+                if (!limits.PointOk(u.Position, zonePoly))
                     return false;
             }
 
             return true;
         }
 
-        // Comme IsPointInPolygon, mais rejette aussi un point trop proche d'un bord
-        // ENNEMI (même techniquement "dedans") - evite le corps à corps avec la
-        // zone adverse. enemyEdgeMask[i] correspond au côté (polygon[i-1], polygon[i]) ;
-        // null = pas d'info dispo, on applique la marge partout comme avant.
-        private static bool IsPointInPolygonWithMargin(PointF p, List<PointF> polygon, double marginMeters, bool[] enemyEdgeMask)
+        // Comme IsPointInPolygon, mais rejette aussi un point trop proche d'un bord :
+        // marge pleine (enemyMargin) sur un bord qui donne sur l'ennemi, marge réduite
+        // (otherMargin) sur les autres - évite le corps à corps avec la zone adverse
+        // ET les formations collées à la limite de leur propre zone.
+        // enemyEdgeMask[i] correspond au côté (polygon[i-1], polygon[i]) ;
+        // null = pas d'info dispo, on applique la marge pleine partout comme avant.
+        private static bool IsPointInPolygonWithMargin(PointF p, List<PointF> polygon, double enemyMargin, double otherMargin, bool[] enemyEdgeMask)
         {
             if (!IsPointInPolygon(p, polygon))
                 return false;
@@ -777,10 +878,10 @@ namespace DCE_Manager
             int j = polygon.Count - 1;
             for (int i = 0; i < polygon.Count; i++)
             {
-                bool applyMargin = enemyEdgeMask == null || enemyEdgeMask[i];
-                double margin = applyMargin ? marginMeters : 0;
+                bool enemyEdge = enemyEdgeMask == null || enemyEdgeMask[i];
+                double margin = enemyEdge ? enemyMargin : otherMargin;
 
-                if (DistancePointToSegment(p, polygon[i], polygon[j]) < margin)
+                if (margin > 0 && DistancePointToSegment(p, polygon[i], polygon[j]) < margin)
                     return false;
 
                 j = i;

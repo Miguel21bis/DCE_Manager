@@ -186,6 +186,10 @@ namespace DCE_Manager
 
             lua["PATH_SavedGames_DCS"] = ToLuaPath(ParamConf.PATH_SavedGames_DCS);
 
+            // Dossier d'installation de DCS (avec / final) : DCEM_Function.lua y lit les entry.lua de tous les modules pour les plages radio
+            if (!string.IsNullOrEmpty(ParamConf.PATH_DCS_Root))
+                lua["pathDCS"] = ToLuaPath(ParamConf.PATH_DCS_Root).TrimEnd('/') + "/";
+
             if (!string.IsNullOrEmpty(campaignName))
             {
                 string campaign = CampaignPath(campaignName);
