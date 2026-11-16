@@ -617,7 +617,7 @@ namespace DCE_Manager
         private bool _showBg;
         private readonly Dictionary<string, List<Map_Drawing>> _drawingGroups = new Dictionary<string, List<Map_Drawing>>();
         private readonly HashSet<string> _shownGroups = new HashSet<string>();
-        private static readonly string[] GroupOrder = { "spawn", "zones", "mission", "radars", "threats", "ships", "plans" };      // du dessous au dessus
+        private static readonly string[] GroupOrder = { "spawn", "zones", "mission", "radars", "threats", "aaa", "ships", "plans" };      // du dessous au dessus     // du dessous au dessus
 
         // Tuiles plus fines : on attend que la vue ne bouge plus avant de les demander
         private readonly Timer _detailTimer = new Timer { Interval = 300 };
