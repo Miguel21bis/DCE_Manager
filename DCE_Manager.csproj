@@ -105,7 +105,7 @@
     <TargetZone>Internet</TargetZone>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationManifest>Grid_Campaign\app.manifest</ApplicationManifest>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Google.Apis, Version=1.68.0.0, Culture=neutral, PublicKeyToken=4b01fa6e34db77ab, processorArchitecture=MSIL">
@@ -222,20 +222,74 @@
     <Compile Include="Grid_Campaign\CampaignHierarchy.cs" />
     <Compile Include="Grid_Campaign\CampaignImporter.cs" />
     <Compile Include="Grid_Campaign\CampaignProgress_Form.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.Family.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.Load.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.Maintenance.cs" />
+    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.QuickActions.cs" />
+    <Compile Include="Grid_Campaign\LaunchOptions_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Grid_Campaign\ManageFamily_Form.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Map\Map_Data.cs" />
+    <Compile Include="Map\Map_Detail.cs" />
+    <Compile Include="Map\Map_Drawings.cs" />
+    <Compile Include="Map\Map_Drawings.Ground.cs" />
+    <Compile Include="Map\Map_Drawings.Lua.cs" />
+    <Compile Include="Map\Map_Drawings.Mission.cs" />
+    <Compile Include="Map\Map_Drawings.Save.cs" />
     <Compile Include="Map\Map_Events_Form.cs" />
     <Compile Include="Map\Map_FlightEdit.cs" />
+    <Compile Include="Map\Map_MissionStats.cs" />
+    <Compile Include="Map\Map_MissionTypes.cs" />
+    <Compile Include="Map\Map_RunwayData.cs" />
+    <Compile Include="Map\Map_RunwayDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Map\Map_UI_Briefing.cs" />
+    <Compile Include="Map\Map_UI_Controls.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="Map\Map_UI_Flights.cs" />
+    <Compile Include="Map\Map_UI_Form.Background.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Bases.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Map\Map_UI_Form.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.FlightInfo.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Flights.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Overlays.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.ParksRunways.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Radio.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Save.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Map\Map_UI_Form.Units.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Map\Map_UI_Sky.cs" />
     <Compile Include="Map\Map_UI_View.cs" />
     <Compile Include="Map\Map_Web.cs" />
+    <Compile Include="Map\Map_Web.Projection.cs" />
+    <Compile Include="Map\Map_Web.Runways.cs" />
+    <Compile Include="Map\Map_Web.Tiles.cs" />
+    <Compile Include="Map\Map_Web_Types.cs" />
     <Compile Include="Parser\Parser_BugList.cs" />
     <Compile Include="Core\UserLevel.cs" />
     <Compile Include="Grid_Campaign\CampaignRepair.cs" />
@@ -270,7 +324,6 @@
     <Compile Include="DropZoneControl.cs">
       <SubType>Component</SubType>
     </Compile>
-    <Compile Include="Grid_Campaign\Campaigns_List_Grid_Left.cs" />
     <Compile Include="Forms\Main_Form.Install.cs" />
     <Compile Include="Core\Statistics.cs" />
     <Compile Include="MissionGenerator\ScriptsModBatParser.cs" />
@@ -425,7 +478,6 @@
     <Content Include="Data\dce_data.ini">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <None Include="Grid_Campaign\app.manifest" />
     <None Include="Core\FixedProcess.bak">
       <SubType>Component</SubType>
     </None>

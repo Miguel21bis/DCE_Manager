@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -79,6 +79,13 @@ namespace DCE_Manager
 
         public double StartDelay;           // "start_time" du groupe : retard au décollage (secondes)
 
+        // Départ en vol : si le vol arrive trop tôt à son heure fixe, le temps en trop est mis dans une orbite d'attente
+        // (fonction DCE OrbitPosition) sur un waypoint d'après le 0, au lieu de ralentir tout le vol. Calculé par ApplyPlanTimes.
+        public const double MinHoldS = 30;  // en dessous de cette durée : pas d'orbite, on corrige par la vitesse
+        public int HoldWp = -1;             // waypoint qui porte l'orbite (jamais le 0), -1 = aucune
+        public double HoldS;                // secondes ajoutées à l'orbite
+        public bool HoldNew;                // vrai : orbite à créer sur ce waypoint ; faux : on rallonge celle qui est dans le fichier
+
         // Calculés par Compute()
         public double[] Times = new double[0];      // heure de chaque waypoint (secondes depuis le début de la mission)
         public double[] LegM = new double[0];       // longueur du tronçon qui MÈNE à chaque waypoint (mètres)
@@ -94,6 +101,7 @@ namespace DCE_Manager
             LegM = new double[n];
             DistanceM = 0;
             EtaFromFile = false;
+            HoldWp = -1; HoldS = 0; HoldNew = false;
             MinAlt = double.MaxValue;
             MaxAlt = 0;
             if (n == 0) { MinAlt = 0; return; }
@@ -167,6 +175,9 @@ namespace DCE_Manager
                     dt[i] = LegM[i] / Waypoints[i - 1].Speed;                       // vitesse choisie à la main (valable pour le tronçon qui suit le waypoint)
             }
 
+            // Départ en vol : le premier tronçon se vole à la vitesse du WP 0 (au moins la vitesse de nav), pas à la vitesse du décollage du plan
+            if (StartAir && n > 1 && LegM[1] > 1 && Waypoints[0].Speed > 1) dt[1] = LegM[1] / Waypoints[0].Speed;
+
             // Diagnostic (voir DumpState) : ce que fait ApplyPlanTimes, pas à pas
             var dbg = DebugLog ? new System.Text.StringBuilder() : null;
 
@@ -203,7 +214,9 @@ namespace DCE_Manager
                 }
             }
 
-            // Départ en vol choisi à la main : le vol commence au début de la mission (heure 0), jamais plus tard
+            // Départ en vol choisi à la main : le vol commence au début de la mission (heure 0), jamais plus tard.
+            // Les vitesses du plan sont gardées. Si le vol est trop en avance sur son heure fixe, le temps en trop va dans une orbite
+            // (celle du fichier si elle existe, sinon une nouvelle) sur un waypoint d'après le 0. S'il est en retard : les tronçons sont comprimés.
             if (StartAir && t0 > 0.5)
             {
                 t0 = 0;
@@ -213,9 +226,19 @@ namespace DCE_Manager
                     double sum1 = 0;
                     for (int i = 1; i <= f1; i++) sum1 += dt[i];
                     double avail1 = fixedT[f1];
-                    if (sum1 > 1 && avail1 > 1)
+                    double surplus = avail1 - sum1;
+                    int h = surplus >= MinHoldS ? PickHoldWp(f1) : -1;
+                    if (h >= 1)
                     {
-                        double k1 = avail1 / sum1;
+                        HoldWp = h;
+                        HoldS = surplus;
+                        HoldNew = Waypoints[h].OrbitUntil <= 0;
+                        dt[h + 1] += surplus;                                       // l'attente est entre le waypoint h et le suivant
+                        if (dbg != null) dbg.AppendLine("  depart en vol : attente de " + surplus.ToString("0") + " s sur le WP " + h + (HoldNew ? " (orbite a creer)" : " (orbite du fichier rallongee)"));
+                    }
+                    else if (sum1 > 1 && avail1 > 1)
+                    {
+                        double k1 = avail1 / sum1;                                  // pas d'orbite possible : on ajuste les durees
                         for (int i = 1; i <= f1; i++) dt[i] *= k1;
                     }
                 }
@@ -238,6 +261,35 @@ namespace DCE_Manager
             Times[0] = t0;
             for (int i = 1; i < n; i++) Times[i] = Times[i - 1] + dt[i];
             if (dbg != null) DebugApply = dbg.ToString();
+        }
+
+        // Waypoint (entre 1 et f1 - 1, donc avant l'heure fixe) qui portera l'attente d'un départ en vol : d'abord une orbite OrbitPosition
+        // déjà dans le fichier, sinon le premier waypoint sans orbite (le 1, en général). Jamais le 0, jamais un waypoint ajouté à la carte.
+        private int PickHoldWp(int f1)
+        {
+            for (int i = 1; i < f1 && i < Waypoints.Count - 1; i++)
+                if (!Waypoints[i].IsNew && Waypoints[i].OrbitUntil > 0) return i;
+            for (int i = 1; i < f1 && i < Waypoints.Count - 1; i++)
+                if (!Waypoints[i].IsNew && Waypoints[i].OrbitPattern == "" && Waypoints[i].Role != "airfield") return i;
+            return -1;
+        }
+
+        // Heure de fin de l'orbite d'attente (secondes depuis le début de la mission), 0 si pas d'attente.
+        // Orbite du fichier : sa durée d'origine (fin - heure du waypoint au plan) est gardée, on ajoute le temps en trop.
+        public double HoldUntil()
+        {
+            if (HoldWp < 1 || HoldWp >= Waypoints.Count || HoldS <= 0 || PlanTimes == null || HoldWp >= PlanTimes.Length) return 0;
+            double d = HoldNew ? 0 : Math.Max(0, Waypoints[HoldWp].OrbitUntil - PlanTimes[HoldWp]);
+            return Times[HoldWp] + d + HoldS;
+        }
+
+        // Vitesse de croisière du vol (m/s) : celle du premier tronçon de transit du plan, sinon une valeur par défaut
+        public double NavSpeed()
+        {
+            double min = IsHeli ? 30 : 100;
+            for (int i = 1; i < Waypoints.Count; i++)
+                if (Waypoints[i].Speed >= min) return Waypoints[i].Speed;
+            return IsHeli ? 60 : 200;
         }
 
         // ------------------------------------------------------------------------------------------
@@ -477,11 +529,12 @@ namespace DCE_Manager
 
             if (air)
             {
-                // Départ en vol : altitude et vitesse non nulles (1500 m, ou la vitesse du tronçon suivant)
+                // Départ en vol : altitude non nulle (1500 m) et vitesse au moins égale à la vitesse de nav du vol
                 if (w.Alt < 300) { w.Alt = 1500; w.Dirty.Add("alt"); w.StartAuto = true; }
-                if (w.Speed < 50)
+                double nav = NavSpeed();
+                if (w.Speed < nav)
                 {
-                    w.Speed = Waypoints[1].Speed >= 50 ? Waypoints[1].Speed : 200;
+                    w.Speed = nav;
                     w.Dirty.Add("speed");
                     w.StartAuto = true;
                 }
@@ -643,7 +696,7 @@ namespace DCE_Manager
             for (int b = 1, a = 0; b <= last && b < n; b++)
             {
                 // Un bloc va d'un waypoint "ferme" au suivant ; entre les deux : les waypoints souples (circuit d'attente et fin de piste)
-                bool soft = Waypoints[b].OrbitPattern != "" || Waypoints[b - 1].OrbitPattern == "Race-Track";
+                bool soft = Waypoints[b].OrbitPattern != "" || Waypoints[b - 1].OrbitPattern == "Race-Track" || b == HoldWp;
                 if (soft && b < last && !_fixed.Contains(b)) continue;
 
                 CheckBlock(a, b);
@@ -664,6 +717,7 @@ namespace DCE_Manager
         private void CheckBlock(int a, int b)
         {
             double dt = Times[b] - Times[a];
+            if (HoldS > 0 && HoldWp >= a && HoldWp < b) dt -= HoldS;       // l'attente ne compte pas dans la vitesse de vol
             double d = 0, d0 = 0;
             for (int k = a + 1; k <= b; k++) { d += LegM[k]; d0 += OrigLegM[k]; }
             if (dt < 5 || d <= 0) return;
@@ -1382,6 +1436,9 @@ namespace DCE_Manager
                 speedText = Map_Units.Speed(f.LegSpeed[nx]) + " needed to WP " + nx + "\nplan: " + Map_Units.Speed(w.Speed)
                     + (f.LegStatus[nx] == 2 ? "\nIMPOSSIBLE" : (f.LegStatus[nx] == 1 ? "\nstretched" : ""));
             rows.Add(new KeyValuePair<string, string>("Speed", speedText));
+            if (f.HoldWp == index && f.HoldS > 0)
+                rows.Add(new KeyValuePair<string, string>("Hold", (f.HoldNew ? "new orbit here: " : "orbit extended by ") + Duration(f.HoldS)
+                    + "\nuntil " + Clock(missionStart, f.HoldUntil())));
 
             if (w.OrbitPattern != "")
                 rows.Add(new KeyValuePair<string, string>("Orbit", w.OrbitPattern
@@ -1710,17 +1767,15 @@ namespace DCE_Manager
         }
     }
 
-    // Bouton "engrenage" qui affiche / cache une colonne de la carte : coché = colonne visible.
-    // Un engrenage aux couleurs de sa colonne, avec un petit symbole qui dit de quoi il s'agit.
-    internal class Map_UI_GearButton : CheckBox
+    // Bouton qui montre / cache la colonne de gauche ou de droite d'une carte : un petit écran avec la colonne dessinée pleine (visible) ou vide (cachée).
+    // Les trois cartes (Map, mission, événements) ont les deux mêmes boutons, aux mêmes endroits : tout à gauche et tout à droite de la barre du haut.
+    internal class Map_UI_SideToggle : CheckBox
     {
-        public Color Accent = Color.SteelBlue;
-        public string Glyph = "";
+        public bool LeftSide;
 
-        public Map_UI_GearButton(Color accent, string glyph)
+        public Map_UI_SideToggle(bool leftSide)
         {
-            Accent = accent;
-            Glyph = glyph;
+            LeftSide = leftSide;
             Appearance = Appearance.Button;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
@@ -1737,26 +1792,36 @@ namespace DCE_Manager
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.Clear(Parent != null ? Parent.BackColor : SystemColors.Control);
 
-            Color body = Checked ? Accent : Color.FromArgb(175, 178, 186);
-            float cx = Width / 2f, cy = Height / 2f, r = 11.5f, R = 15.5f;
+            Color body = Checked ? Color.FromArgb(40, 110, 200) : Color.FromArgb(160, 163, 172);
+            var r = new RectangleF(4.5f, 8.5f, Width - 10f, Height - 17f);
+            float w = r.Width * 0.38f;
+            RectangleF col = LeftSide ? new RectangleF(r.X, r.Y, w, r.Height) : new RectangleF(r.Right - w, r.Y, w, r.Height);
 
-            // Roue dentée : 8 dents
-            var pts = new List<PointF>();
-            for (int k = 0; k < 8; k++)
+            if (Checked) using (var br = new SolidBrush(body)) g.FillRectangle(br, col);          // colonne visible : pleine
+            using (var pen = new Pen(body, 1.8f)) g.DrawRectangle(pen, r.X, r.Y, r.Width, r.Height);
+            using (var pen = new Pen(body, 1.2f))
             {
-                double a = k * Math.PI / 4;
-                double[] da = { -0.30, -0.17, 0.17, 0.30 };
-                double[] rr = { r, R, R, r };
-                for (int i = 0; i < 4; i++)
-                    pts.Add(new PointF(cx + (float)(Math.Cos(a + da[i]) * rr[i]), cy + (float)(Math.Sin(a + da[i]) * rr[i])));
+                float lx = LeftSide ? col.Right : col.X;
+                g.DrawLine(pen, lx, r.Y, lx, r.Bottom);
             }
-            using (var br = new SolidBrush(body)) g.FillPolygon(br, pts.ToArray());
-            using (var pen = new Pen(Color.FromArgb(90, 0, 0, 0), 1f)) g.DrawPolygon(pen, pts.ToArray());
+        }
 
-            // Le symbole, au centre
-            using (var f = new Font("Segoe UI Symbol", 9.5f, FontStyle.Bold))
-                TextRenderer.DrawText(g, Glyph, f, new Rectangle(0, 0, Width, Height), Color.White,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+        // Barre du haut commune : le bouton de gauche tout à gauche, celui de droite tout à droite, le reste (inner) au milieu.
+        // outer = la barre à ajouter à la fenêtre (Dock Top) ; inner = là où la fenêtre pose ses propres contrôles.
+        public static Panel Wrap(int height, out Panel inner, out Map_UI_SideToggle left, out Map_UI_SideToggle right)
+        {
+            var outer = new Panel { Dock = DockStyle.Top, Height = height };
+            var pl = new Panel { Dock = DockStyle.Left, Width = 40 };
+            var pr = new Panel { Dock = DockStyle.Right, Width = 40 };
+            inner = new Panel { Dock = DockStyle.Fill };
+            left = new Map_UI_SideToggle(true) { Location = new Point(3, 2) };
+            right = new Map_UI_SideToggle(false) { Location = new Point(3, 2) };
+            pl.Controls.Add(left);
+            pr.Controls.Add(right);
+            outer.Controls.Add(inner);          // Fill d'abord, puis les deux côtés (le dernier ajouté s'accroche en premier)
+            outer.Controls.Add(pl);
+            outer.Controls.Add(pr);
+            return outer;
         }
     }
 

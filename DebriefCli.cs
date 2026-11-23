@@ -132,7 +132,8 @@ namespace DCE_Manager
             }
             catch (TimeoutException)
             {
-                return false; // personne au bout du tuyau : on fera le travail nous-memes
+                FormUtils.LogRegister("DebriefCli | aucun ecouteur sur le pipe (delai depasse)");
+                return false;
             }
             catch (Exception ex)
             {

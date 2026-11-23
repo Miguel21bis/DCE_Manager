@@ -14,10 +14,18 @@ namespace DCE_Manager
     {
         /// <summary>
         /// Point d'entrée principal de l'application.
+        /// Retourne un code de sortie : utile seulement pour le mode "admin ponctuel"
+        /// (--dcs-patch...), 0 dans tous les autres cas.
         /// </summary>
         [STAThread]
-        static void Main()
+        static int Main(string[] args)
         {
+            // Mode "admin ponctuel" : DCE_Manager normal relance son propre exe en administrateur
+            // pour modifier MissionScripting.lua (voir DcsPatcher.RelaunchElevated).
+            // On fait le travail et on sort tout de suite : aucune fenêtre, aucune autre init.
+            int adminExitCode;
+            if (DcsPatcher.RunCli(args, out adminExitCode))
+                return adminExitCode;
 
             // Empêche une exception non gérée sur le thread UI de tuer l'appli sans prévenir :
             // on l'intercepte et on montre notre propre fenêtre (texte copiable), l'utilisateur
@@ -61,7 +69,7 @@ namespace DCE_Manager
                     DebriefCli.Run(debriefCampaign);
                 }
 
-                return;
+                return 0;
             }
 
 
@@ -81,6 +89,7 @@ namespace DCE_Manager
 
             Application.Run(new DCE_Manager.Main_Form());
 
+            return 0;
         }
 
     }

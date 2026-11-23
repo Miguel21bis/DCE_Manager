@@ -318,7 +318,7 @@ namespace DCE_Manager
         // Pourquoi : préremplir immédiatement la fenêtre d'édition.
         private void FillControls()
         {
-            textBoxName.Text = EditedSquad.DisplayName;
+            textBoxName.Text = EditedSquad.Name;
 
             comboBoxType.Text = EditedSquad.Type;
             comboBoxCountry.Text = EditedSquad.Country;
@@ -1282,7 +1282,17 @@ namespace DCE_Manager
 
                 bool stateChanged = _original.Squad_Inactive != EditedSquad.Squad_Inactive;
 
+                bool nameChanged = _original.Name != EditedSquad.Name;
+
                 CopyValues(EditedSquad, _original);
+
+                // Le nom doit rester identique dans Init et Active (DCE les associe par le nom).
+                // Au Save de la campagne, les deux fichiers seront écrits.
+                if (nameChanged)
+                {
+                    SyncTwinName(_original);
+                    Parser_OobAir.NamesTouched = true;
+                }
 
                 // Un squad existe en deux versions (Init et Active). Si le type d'avion change, l'autre version doit suivre,
                 // sinon elle reste sur l'ancien type (A-10) et la génération de mission remet le squad à l'ancien type.
@@ -1303,6 +1313,28 @@ namespace DCE_Manager
             DialogResult = DialogResult.OK;
             SquadUpdated?.Invoke();
             Close();
+        }
+
+        // Nom : l'autre version (Init <-> Active) du même squad prend le même nom
+        private void SyncTwinName(Squad edited)
+        {
+            var list = _campaignContext?.CampaignEditRef?.CurrentCampaignSquads;
+            if (list == null)
+                return;
+
+            foreach (CampaignSquad cs in list)
+            {
+                Squad twin = ReferenceEquals(cs.Init, edited) ? cs.Active
+                           : ReferenceEquals(cs.Active, edited) ? cs.Init
+                           : null;
+
+                if (twin == null || ReferenceEquals(twin, edited))
+                    continue;
+
+                twin.Name = edited.Name;
+                twin.DisplayName = edited.Name;
+                return;
+            }
         }
 
         // Actif / inactif : l'export de la Preview relit la version Init, l'autre version doit donc suivre

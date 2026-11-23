@@ -116,6 +116,7 @@ namespace DCE_Manager
 
         public void LoadSquads()
         {
+            Parser_OobAir.NamesTouched = false;   // rechargement depuis les fichiers : plus rien à propager
             var parser = new Parser_OobAir();
             CurrentCampaignSquads = parser.LoadCampaignSquads(_campaignName);
             CurrentSquads = List_oob_air_Manager.List_oob_air;
@@ -534,8 +535,74 @@ namespace DCE_Manager
         }
 
  
+        // Familles de squads encore en doublon (clés renvoyées par DuplicateKey).
+        // Recalculé à chaque rafraîchissement de grille : renommer un squad remet donc les autres en couleur normale.
+        private static HashSet<string> _duplicateKeys = new HashSet<string>();
+
+        // Clé de famille : camp + nom. Les squads "DOUBLON-174 ARW-1", "DOUBLON-174 ARW-2"... forment UNE famille
+        // (clé "d:174 arw") ; un nom normal forme sa propre famille avec les squads de même nom exact.
+        private static string DuplicateKey(Squad s)
+        {
+            string name = (s.Name ?? "").Trim();
+            string family = "";
+
+            if (Parser_OobAir.IsDoublonName(name))
+            {
+                family = "d:";
+                name = name.Substring(Parser_OobAir.DoublonPrefix.Length);
+
+                int dash = name.LastIndexOf('-');
+                int number;
+                if (dash > 0 && int.TryParse(name.Substring(dash + 1), out number))
+                    name = name.Substring(0, dash);
+            }
+
+            return ((s.SideString ?? "") + "|" + family + name).ToLowerInvariant();
+        }
+
+        // Squad "en défaut" : sa famille compte encore au moins 2 squads dans Init ou dans Active.
+        // Un squad DOUBLON-... resté seul de sa famille (les autres ont été renommés) n'est plus en défaut.
+        private static bool IsBugSquad(Squad s)
+        {
+            return s != null && _duplicateKeys.Contains(DuplicateKey(s));
+        }
+
+        // Recalcule les familles en doublon et met (ou retire) le petit ⚠ sur les onglets OOB Blue / OOB Red.
+        // Init ET Active comptent : un défaut dans l'un des deux suffit.
+        private static void RefreshDuplicateState(List<Squad> squads)
+        {
+            _duplicateKeys = new HashSet<string>();
+
+            foreach (var family in squads.GroupBy(DuplicateKey))
+            {
+                int nbInit = family.Count(s => s.FolderFile == "Init");
+                int nbActive = family.Count(s => s.FolderFile == "Active");
+
+                if (nbInit > 1 || nbActive > 1)
+                    _duplicateKeys.Add(family.Key);
+            }
+
+            bool blue = false;
+            bool red = false;
+
+            foreach (Squad s in squads)
+            {
+                if (!IsBugSquad(s)) continue;
+
+                if (s.SideString == "blue") blue = true;
+                else if (s.SideString == "red") red = true;
+            }
+
+            var view = Main_Form.Instance?.CampaignView;
+            if (view == null) return;
+
+            view.tabPage14.Text = blue ? "OOB Blue ⚠" : "OOB Blue";
+            view.tabPage15.Text = red ? "OOB Red ⚠" : "OOB Red";
+        }
+
         public static void LoadGridStatic(DataGridView grid, List<Squad> squads, string side, string state)
         {
+            RefreshDuplicateState(squads);
 
             var filtered = squads
                 .Where(s => s.SideString == side && s.FolderFile == state)
@@ -969,6 +1036,23 @@ namespace DCE_Manager
             var grid = sender as DataGridView;
             if (grid == null || e.RowIndex < 0 || e.ColumnIndex < 0) return;
 
+            // Squad en défaut (famille encore en doublon) : toute la ligne est colorée,
+            // avec une infobulle qui explique pourquoi. Voir IsBugSquad / RefreshDuplicateState.
+            Squad rowSquad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
+
+            if (IsBugSquad(rowSquad))
+            {
+                e.CellStyle.BackColor = Color.FromArgb(255, 232, 190);
+                e.CellStyle.SelectionBackColor = Color.FromArgb(255, 205, 130);
+                e.CellStyle.SelectionForeColor = Color.Black;
+
+                grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ToolTipText =
+                    Parser_OobAir.IsDoublonName(rowSquad.Name)
+                    ? "Several squads had the same name, so they were renamed DOUBLON-... "
+                      + "Give each one a real name (remove DOUBLON-), then click Save."
+                    : "Another squad has the same name. DCE needs unique names. Rename one of them.";
+            }
+
             // colonne Player
             if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn")
                 return;
@@ -998,30 +1082,6 @@ namespace DCE_Manager
             e.ThrowException = false;
         }
 
-        //private void Grid_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        //{
-        //    var grid = sender as DataGridView;
-
-        //    // colonne Player
-        //    //if (e.ColumnIndex != 1 || e.RowIndex < 0)
-        //    if (grid.Columns[e.ColumnIndex].Name != "PlayerColumn" || e.RowIndex < 0)
-        //        return;
-
-        //    var squad = grid.Rows[e.RowIndex].DataBoundItem as Squad;
-        //    if (squad == null)
-        //        return;
-
-        //    bool playable = _campaignContext.LuaData.PlayableAircraft.Contains(squad.Type);
-
-        //    if (!playable)
-        //    {
-        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].ReadOnly = true;
-        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.ForeColor =
-        //            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.BackColor;
-        //        grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionForeColor =
-        //            grid.Rows[e.RowIndex].Cells[e.ColumnIndex].Style.SelectionBackColor;
-        //    }
-        //}
 
         // 🔧 Nettoie les events pour éviter les duplications
         // Pourquoi : sinon les anciennes instances restent abonnées aux grids du Main_Form
@@ -1077,7 +1137,7 @@ namespace DCE_Manager
         }
 
 
-        public void modifiedCampaign(string pathFile, string pathFileBackup, string folderName)
+        public void modifiedCampaign(string pathFile, string pathFileBackup, string folderName, bool showMessage = true)
         {
             //sauvegarde la fichier oob_air_init pour éviter de l'écraser et le réutiliser si pb
             if (pathFileBackup != null && !File.Exists(pathFileBackup))
@@ -1120,7 +1180,8 @@ namespace DCE_Manager
             // REF: FormMain - remplacer modifiedCampaign
             Saver_Campaign.Save(pathFile, pathFileBackup, folderName);
 
-            MessageBox.Show("Changes saved.", "Report");
+            if (showMessage)
+                MessageBox.Show("Changes saved.", "Report");
         }
 
         // Sauve les priorités des Targets modifiées dans le fichier Lua correspondant
@@ -1176,7 +1237,22 @@ namespace DCE_Manager
 
             FormUtils.LogRegister("buttonSaveChgtCampaign_Click pathFile: " + pathFile + ", pathFileBackup: " + pathFileBackup + ", FolderName: " + FolderName);
 
-            modifiedCampaign(pathFile, pathFileBackup, FolderName);
+            // Le backup est celui du fichier Init : on ne l'utilise jamais pour sauver Active
+            modifiedCampaign(pathFile, FolderName == "Init" ? pathFileBackup : null, FolderName);
+
+            // Des noms de squads ont changé (doublons renommés, ou renommage dans l'éditeur) :
+            // l'autre fichier doit suivre, sinon Init et Active n'auraient plus les mêmes noms.
+            if (Parser_OobAir.NamesTouched)
+            {
+                string otherFolder = FolderName == "Init" ? "Active" : "Init";
+                string otherFile = ParamConf.PATH_SavedGames_DCS + @"\Mods\tech\DCE\Missions\Campaigns\" + ParamCampaignSelected.NameCampaign
+                    + (otherFolder == "Init" ? @"\Init\oob_air_init.lua" : @"\Active\oob_air.lua");
+
+                if (File.Exists(otherFile))
+                    modifiedCampaign(otherFile, otherFolder == "Init" ? pathFileBackup : null, otherFolder, false);
+
+                Parser_OobAir.NamesTouched = false;
+            }
 
             // Recherche le squad actuellement marqué Player = true
             string newType = null;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -75,6 +76,31 @@ namespace DCE_Manager
         // Silhouette d'avion à côté des bases à plusieurs squadrons : seulement sur la carte de la campagne
         // (sur la carte de mission elle se confond avec les plans de vol voisins)
         public bool ShowSilhouettes = true;
+
+        // Pistes des bases : false = chaque base n'est plus qu'un petit rond (le nom reste affiché)
+        private bool _showRunways = true;
+        public bool ShowRunways
+        {
+            get { return _showRunways; }
+            set { _showRunways = value; Invalidate(); }
+        }
+
+        // Noms écrits sur la carte (bases, groupes au sol, zones, textes du fichier mission) : false = tous cachés
+        // (les numéros des waypoints des plans de vol restent)
+        private bool _showLabels = true;
+        public bool ShowLabels
+        {
+            get { return _showLabels; }
+            set { _showLabels = value; Invalidate(); }
+        }
+
+        // Zones AAA hachurées (groupe "aaa") : les cercles sont dans _drawingGroups["aaa"], les hachures sont dessinées par DrawAaaHatch
+        private readonly List<Map_AaaZones.Hatch> _aaaHatch = new List<Map_AaaZones.Hatch>();
+
+        public void SetAaaZones(List<AaaZone> zones)
+        {
+            SetDrawings("aaa", Map_AaaZones.Build(zones ?? new List<AaaZone>(), true, _aaaHatch));
+        }
 
         // Dessin par-dessus la carte (juste avant la règle) : utilisé par la carte des événements du debrief
         public event Action<Graphics> OverlayPaint;
@@ -325,6 +351,7 @@ namespace DCE_Manager
         // ------------------------------------------------------------------
 
         public const double ParkRadiusM = 16.0;         // cercle : le CH-46 (2 rotors de 15,2 m, 25,7 m rotors tournants) y tient avec de la marge
+        public const float MaxPxPerM = 8f;               // zoom maximum (pixels par mètre) : 8 px/m = échelle d'environ 10 m sur la barre ; au-delà de 2 px/m le fond de carte est agrandi (pixellisé)
         public const double ParkMinPxPerM = 1.0;        // taille minimale à l'écran (pixels par mètre) : à ce plancher la silhouette fait environ 27 pixels
 
         public event Action<string> ParksEdited;                // base dont une place a été déplacée / tournée (au lâcher)
@@ -612,12 +639,18 @@ namespace DCE_Manager
         private double _ax, _ay, _bx, _by;
         private Point _mouse = Point.Empty;
 
+        // Position sous la souris (X Y DCS + latitude / longitude) : petit contrôle posé sur la carte, un clic ou Alt+clic la copie
+        private Label _lblCoord;
+        private string _coordText = "";
+        private Timer _coordTimer;
+        private bool _altCopy;
+
         // Fond de carte pris sur le web (tuiles OpenStreetMap), assombri pour garder les noms lisibles
         private Map_Background _bg;
         private bool _showBg;
         private readonly Dictionary<string, List<Map_Drawing>> _drawingGroups = new Dictionary<string, List<Map_Drawing>>();
         private readonly HashSet<string> _shownGroups = new HashSet<string>();
-        private static readonly string[] GroupOrder = { "spawn", "zones", "mission", "radars", "threats", "aaa", "ships", "plans" };      // du dessous au dessus     // du dessous au dessus
+        private static readonly string[] GroupOrder = { "spawn", "zones", "mission", "aaa", "radars", "threats", "ships", "plans" };      // du dessous au dessus
 
         // Tuiles plus fines : on attend que la vue ne bouge plus avant de les demander
         private readonly Timer _detailTimer = new Timer { Interval = 300 };
@@ -836,6 +869,7 @@ namespace DCE_Manager
         private bool _gBlue, _gRed, _gNames;
         private Map_GroundUnit _selGround;
         public event Action<Map_GroundUnit> GroundClicked;
+        public event Action GroundDismissed;        // clic gauche qui ne touche aucun élément au sol (la fenêtre de ses propriétés se ferme)
         private readonly SolidBrush _gBlueBrush = new SolidBrush(Color.FromArgb(70, 150, 255));
         private readonly SolidBrush _gRedBrush = new SolidBrush(Color.FromArgb(240, 70, 70));
         private readonly Pen _gBluePen = new Pen(Color.FromArgb(70, 150, 255), 1.6f);
@@ -972,7 +1006,7 @@ namespace DCE_Manager
             g.SmoothingMode = old;
 
             // Noms de groupes : seulement assez zoomé, police plus grande quand on zoome, max 200, pas deux noms l'un sur l'autre
-            if (_gNames && _scale >= 0.004f)
+            if (_gNames && _showLabels && _scale >= 0.004f)
             {
                 int fi = _scale > 0.08f ? 3 : (_scale > 0.03f ? 2 : (_scale > 0.01f ? 1 : 0));
                 Font font = _fontsGround[fi];
@@ -1066,7 +1100,7 @@ namespace DCE_Manager
             const float margin = 30f;
 
             float scale = (float)Math.Min((Width - 2 * margin) / rangeY, (Height - 2 * margin) / rangeX);
-            _scale = Math.Max(_fitScale * 0.4f, Math.Min(2f, scale));
+            _scale = Math.Max(_fitScale * 0.4f, Math.Min(MaxPxPerM, scale));
 
             double cx = (minX + maxX) / 2.0, cy = (minY + maxY) / 2.0;
             _ox = Width / 2f - (float)(cy * _scale);
@@ -1134,7 +1168,7 @@ namespace DCE_Manager
             const float margin = 30f;
 
             float scale = (float)Math.Min((Width - 2 * margin) / rangeY, (Height - 2 * margin) / rangeX);
-            _scale = Math.Max(_fitScale * 0.4f, Math.Min(2f, scale));
+            _scale = Math.Max(_fitScale * 0.4f, Math.Min(MaxPxPerM, scale));
 
             double cx = (minX + maxX) / 2.0;
             double cy = (minY + maxY) / 2.0;
@@ -1205,6 +1239,7 @@ namespace DCE_Manager
         protected override void OnResize(EventArgs e)
         {
             base.OnResize(e);
+            if (_lblCoord != null) _lblCoord.Location = new Point(10, Height - 94);
             DropDragCache();
             if (!_userMoved)
                 Refit();
@@ -1233,10 +1268,28 @@ namespace DCE_Manager
             PaintScene(g);
         }
 
+        // Lecture du debrief : le fond (tuiles, grille, bases) est mémorisé dans une image tant que la vue ne bouge pas ; seul ce qui est par-dessus est redessiné à chaque image
+        private bool _playCache;
+        private Bitmap _playBmp;
+        private float _pbScale, _pbOx, _pbOy;
+        private int _pbTick;
+        private double _pbStep;
+        private bool _pbBg;
+
+        public bool PlayCache
+        {
+            get { return _playCache; }
+            set { _playCache = value; DropPlayBmp(); }
+        }
+
+        private void DropPlayBmp()
+        {
+            if (_playBmp != null) { _playBmp.Dispose(); _playBmp = null; }
+        }
+
         private void PaintScene(Graphics g)
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(BackColor);
 
             // La vue a bougé (zoom, déplacement, taille) : on redemandera les tuiles fines dans un instant
             if (_scale != _seenScale || _ox != _seenOx || _oy != _seenOy || Width != _seenW || Height != _seenH)
@@ -1246,32 +1299,28 @@ namespace DCE_Manager
                 _detailTimer.Start();
             }
 
-            bool bgDrawn = DrawBackground(g);
-            double stepKm = DrawGrid(g);
-            try { DrawDrawings(g); }
-            catch (Exception ex) { DCE_Manager.Utils.FormUtils.LogRegister("Map_UI_View | tracés : " + ex.Message); }
-
-            // La base choisie est dessinée en dernier, pour rester visible
-            Map_Base selected = null;
-            foreach (Map_Base b in _bases)
+            double stepKm;
+            bool bgDrawn;
+            if (_playCache && Width > 0 && Height > 0)
             {
-                if (string.Equals(b.Name, _selectedName, StringComparison.OrdinalIgnoreCase))
+                int now = Environment.TickCount;
+                if (_playBmp == null || _playBmp.Width != Width || _playBmp.Height != Height || _pbScale != _scale || _pbOx != _ox || _pbOy != _oy || unchecked(now - _pbTick) > 2000)
                 {
-                    selected = b;
-                    continue;
+                    DropPlayBmp();
+                    _playBmp = new Bitmap(Width, Height);
+                    using (Graphics bg = Graphics.FromImage(_playBmp))
+                    {
+                        bg.SmoothingMode = SmoothingMode.AntiAlias;
+                        PaintBackdrop(bg, out _pbStep, out _pbBg);
+                    }
+                    _pbScale = _scale; _pbOx = _ox; _pbOy = _oy; _pbTick = now;        // refait au plus tard toutes les 2 secondes (tuiles qui arrivent)
                 }
-                DrawBase(g, b, false);
+                g.DrawImageUnscaled(_playBmp, 0, 0);
+                stepKm = _pbStep;
+                bgDrawn = _pbBg;
             }
-            if (selected != null)
-                DrawBase(g, selected, true);
-
-            if (_parkShow) DrawParks(g, selected);
-
-            if (_runwayEdit)
-            {
-                if (selected != null && !selected.IsFarp) DrawRunwayEdit(g, selected);
-                else g.DrawString("Runway editing: click a base, then drag the round handles at the ends of its runway.", _fontBold, Brushes.Gold, 20, 44);
-            }
+            else
+                PaintBackdrop(g, out stepKm, out bgDrawn);
 
             // Dessin externe (carte des événements du debrief) : par-dessus tout, sous la règle
             if (OverlayPaint != null)
@@ -1353,10 +1402,105 @@ namespace DCE_Manager
             {
                 List<Map_Drawing> list;
                 if (_shownGroups.Contains(group) && _drawingGroups.TryGetValue(group, out list))
+                {
                     DrawGroup(g, list);
+                    if (group == "aaa") DrawAaaHatch(g);
+                }
             }
 
             if (_cacheSkip == "") DrawSelectionOverlay(g);
+        }
+
+        // Tout ce qui est sous le dessin externe : fond, grille, tracés, bases, parkings
+        private void PaintBackdrop(Graphics g, out double stepKm, out bool bgDrawn)
+        {
+            g.Clear(BackColor);
+            bgDrawn = DrawBackground(g);
+            stepKm = DrawGrid(g);
+            try { DrawDrawings(g); }
+            catch (Exception ex) { DCE_Manager.Utils.FormUtils.LogRegister("Map_UI_View | tracés : " + ex.Message); }
+
+            // La base choisie est dessinée en dernier, pour rester visible
+            Map_Base selected = null;
+            foreach (Map_Base b in _bases)
+            {
+                if (string.Equals(b.Name, _selectedName, StringComparison.OrdinalIgnoreCase))
+                {
+                    selected = b;
+                    continue;
+                }
+                DrawBase(g, b, false);
+            }
+            if (selected != null)
+                DrawBase(g, selected, true);
+
+            if (_parkShow) DrawParks(g, selected);
+
+            if (_runwayEdit)
+            {
+                if (selected != null && !selected.IsFarp) DrawRunwayEdit(g, selected);
+                else g.DrawString("Runway editing: click a base, then drag the round handles at the ends of its runway.", _fontBold, Brushes.Gold, 20, 44);
+            }
+        }
+
+        // Vrai pendant un zoom / déplacement (la vue redemande ses tuiles fines dans un instant) : les dessins externes peuvent se simplifier
+        internal bool IsMoving { get { return _detailTimer.Enabled; } }
+
+        // Grand cercle (zoom fort : un rayon de plusieurs milliers de pixels) : GDI+ est très lent sur une telle ellipse, surtout en pointillés.
+        // On le dessine donc comme un polygone découpé aux bords de l'écran.
+        private void DrawBigCircle(Graphics g, PointF c, float rr, Map_Drawing d)
+        {
+            int n = rr > 6000f ? 360 : 180;
+            var poly = new PointF[n];
+            for (int i = 0; i < n; i++)
+            {
+                double a = 2 * Math.PI * i / n;
+                poly[i] = new PointF(c.X + (float)Math.Cos(a) * rr, c.Y + (float)Math.Sin(a) * rr);
+            }
+            if (d.Fill.A > 0)
+            {
+                PointF[] cl = ClipPolygon(poly, ClipArea);
+                if (cl.Length >= 3)
+                    using (var fb = new SolidBrush(d.Fill)) g.FillPolygon(fb, cl);
+            }
+            using (var cp = new Pen(d.Line, d.Thickness))
+            {
+                if (d.Dashed) cp.DashStyle = DashStyle.Dash;
+                DrawClippedLines(g, cp, poly, true);
+            }
+        }
+
+        // Hachures denses sur les zones AAA à éviter (surface de chaque zone, découpée au polygone)
+        private void DrawAaaHatch(Graphics g)
+        {
+            if (_aaaHatch.Count == 0) return;
+            var view = new RectangleF(-50, -50, Width + 100, Height + 100);
+            foreach (Map_AaaZones.Hatch a in _aaaHatch)
+            {
+                var pts = new PointF[a.Pts.Count];
+                bool ok = pts.Length >= 3;
+                for (int i = 0; ok && i < pts.Length; i++)
+                {
+                    pts[i] = ToScreen(a.Pts[i][0], a.Pts[i][1]);
+                    if (!Finite(pts[i]) || Math.Abs(pts[i].X) > 1e6f || Math.Abs(pts[i].Y) > 1e6f) ok = false;
+                }
+                if (!ok) continue;
+                float minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X), minY = pts.Min(q => q.Y), maxY = pts.Max(q => q.Y);
+                if (!view.IntersectsWith(new RectangleF(minX, minY, maxX - minX, maxY - minY))) continue;
+
+                // Polygone découpé aux bords de l'écran puis rempli en hachures : pas de région GDI+ (très lente quand la zone dépasse l'écran de loin)
+                PointF[] cl = ClipPolygon(pts, ClipArea);
+                if (cl.Length < 3) continue;
+
+                GraphicsState st = g.Save();
+                try
+                {
+                    g.SmoothingMode = SmoothingMode.None;      // hachures plus nettes, et plus rapides
+                    using (var hb = new HatchBrush(HatchStyle.DarkUpwardDiagonal, Color.FromArgb(210, a.Color), Color.Transparent))
+                        g.FillPolygon(hb, cl);
+                }
+                finally { g.Restore(st); }
+            }
         }
 
         // Anneau doré du waypoint choisi + petite bulle d'info pendant le déplacement
@@ -1429,6 +1573,7 @@ namespace DCE_Manager
 
                 if (d.Kind == "Text")
                 {
+                    if (!_showLabels && d.Group != "plans") continue;       // textes du fichier mission : cachés avec les noms (les numéros de waypoints restent)
                     // Numéros des waypoints des vols non joueurs : seulement quand le vol est sélectionné
                     if (d.Label == "onsel" && !selected) continue;
 
@@ -1461,15 +1606,19 @@ namespace DCE_Manager
                     PointF c = ToScreen(d.Points[0][0], d.Points[0][1]);
                     float rr = (float)(d.Radius * _scale);
                     if (rr < 1f || rr > 20000f || !Finite(c) || Math.Abs(c.X) > 1e6f || Math.Abs(c.Y) > 1e6f) continue;
-                    if (d.Fill.A > 0)
-                        using (var fb = new SolidBrush(d.Fill))
-                            g.FillEllipse(fb, c.X - rr, c.Y - rr, rr * 2, rr * 2);
-                    using (var cp = new Pen(d.Line, d.Thickness))
+                    if (rr > 1200f) DrawBigCircle(g, c, rr, d);
+                    else
                     {
-                        if (d.Dashed) cp.DashStyle = DashStyle.Dash;
-                        g.DrawEllipse(cp, c.X - rr, c.Y - rr, rr * 2, rr * 2);
+                        if (d.Fill.A > 0)
+                            using (var fb = new SolidBrush(d.Fill))
+                                g.FillEllipse(fb, c.X - rr, c.Y - rr, rr * 2, rr * 2);
+                        using (var cp = new Pen(d.Line, d.Thickness))
+                        {
+                            if (d.Dashed) cp.DashStyle = DashStyle.Dash;
+                            g.DrawEllipse(cp, c.X - rr, c.Y - rr, rr * 2, rr * 2);
+                        }
                     }
-                    if (d.Label != "" && rr > 25)
+                    if (d.Label != "" && rr > 25 && _showLabels)
                     {
                         string ctext = d.LabelText;
                         SizeF csz = g.MeasureString(ctext, _fontBold);
@@ -1516,7 +1665,7 @@ namespace DCE_Manager
                     }
 
                 // Nom de la zone au milieu (seulement si elle est assez grande à l'écran)
-                if (d.Label != "" && !dim && pts.Length >= 3 && pts.All(Finite))
+                if (d.Label != "" && !dim && _showLabels && pts.Length >= 3 && pts.All(Finite))
                 {
                     float minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X);
                     if (maxX - minX > 50)
@@ -1673,7 +1822,7 @@ namespace DCE_Manager
         //  ce qui arrive dès qu'on zoome sur une frontière de 800 km. On ne dessine donc que ce qui touche l'écran.
         // ------------------------------------------------------------------
 
-        private RectangleF ClipArea
+        internal RectangleF ClipArea
         {
             get { return new RectangleF(-60, -60, Width + 120, Height + 120); }
         }
@@ -1707,7 +1856,7 @@ namespace DCE_Manager
             return true;
         }
 
-        private void DrawClippedLines(Graphics g, Pen pen, PointF[] pts, bool closed)
+        internal void DrawClippedLines(Graphics g, Pen pen, PointF[] pts, bool closed)
         {
             RectangleF r = ClipArea;
             var run = new List<PointF>();
@@ -1746,7 +1895,7 @@ namespace DCE_Manager
         }
 
         // Sutherland-Hodgman : polygone découpé aux bords du rectangle (pour le remplissage)
-        private static PointF[] ClipPolygon(PointF[] poly, RectangleF r)
+        internal static PointF[] ClipPolygon(PointF[] poly, RectangleF r)
         {
             List<PointF> cur = new List<PointF>(poly);
             for (int edge = 0; edge < 4 && cur.Count > 0; edge++)
@@ -1842,14 +1991,32 @@ namespace DCE_Manager
             return stepKm;
         }
 
+        // Échelle en bas à gauche, 2 barres : mètres / kilomètres (en haut), pieds / milles nautiques (en dessous). Chacune prend la plus petite valeur ronde qui fait au moins 70 pixels.
+        private static readonly double[] ScaleStepsMetric = { 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000, 200000, 500000 };                    // mètres
+        private static readonly double[] ScaleStepsNautical = { 3.048, 6.096, 15.24, 30.48, 60.96, 152.4, 304.8, 609.6, 1524, 1852, 3704, 9260, 18520, 37040, 92600, 185200, 370400, 926000 };   // 10, 20, 50, 100, 200, 500, 1000, 2000, 5000 ft puis 1, 2, 5, 10, 20, 50, 100, 200, 500 Nm
+
         private void DrawScaleBar(Graphics g, double stepKm)
         {
-            float len = (float)(stepKm * 1000 * _scale);
-            float x = 14, y = Height - 22;
-            g.DrawLine(Pens.Gainsboro, x, y, x + len, y);
-            g.DrawLine(Pens.Gainsboro, x, y - 4, x, y + 4);
-            g.DrawLine(Pens.Gainsboro, x + len, y - 4, x + len, y + 4);
-            g.DrawString(Map_Units.Dist(stepKm * 1000, "0.#"), _fontLabel, Brushes.Gainsboro, x + len + 6, y - 9);
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            float x = 14, y1 = Height - 40, y2 = Height - 20;
+
+            double mM = ScaleStepsMetric[ScaleStepsMetric.Length - 1];
+            foreach (double m in ScaleStepsMetric) if (m * _scale >= 70) { mM = m; break; }
+            string tM = mM >= 1000 ? (mM / 1000).ToString("0.#", inv) + " km" : mM.ToString("0.#", inv) + " m";
+            float lM = (float)(mM * _scale);
+            g.DrawLine(Pens.Gainsboro, x, y1, x + lM, y1);
+            g.DrawLine(Pens.Gainsboro, x, y1 - 4, x, y1 + 4);
+            g.DrawLine(Pens.Gainsboro, x + lM, y1 - 4, x + lM, y1 + 4);
+            g.DrawString(tM, _fontLabel, Brushes.Gainsboro, x + lM + 6, y1 - 9);
+
+            double mN = ScaleStepsNautical[ScaleStepsNautical.Length - 1];
+            foreach (double m in ScaleStepsNautical) if (m * _scale >= 70) { mN = m; break; }
+            string tN = mN >= 1852 ? (mN / 1852).ToString("0.#", inv) + " Nm" : Math.Round(mN / 0.3048).ToString("0", inv) + " ft";
+            float lN = (float)(mN * _scale);
+            g.DrawLine(Pens.Gainsboro, x, y2, x + lN, y2);
+            g.DrawLine(Pens.Gainsboro, x, y2 - 4, x, y2 + 4);
+            g.DrawLine(Pens.Gainsboro, x + lN, y2 - 4, x + lN, y2 + 4);
+            g.DrawString(tN, _fontLabel, Brushes.Gainsboro, x + lN + 6, y2 - 9);
         }
 
         private static Color SideColor(Map_Base b)
@@ -1885,6 +2052,8 @@ namespace DCE_Manager
                     r = Math.Max(r, s.Len / 2f + (float)Math.Sqrt(s.Off.X * s.Off.X + s.Off.Y * s.Off.Y));
             r = Math.Min(r, strips != null && strips.Any(q => q.Real) ? 3000f : 45f);
 
+            if (!_showRunways && !b.IsFarp) r = 11f;        // pistes cachées : le nom se pose près du petit rond
+
             // FARP : empreinte réelle (carré creux) et ses 4 pads, quand le zoom la rend plus grande que l'icône
             if (b.IsFarp)
             {
@@ -1906,11 +2075,18 @@ namespace DCE_Manager
             // FARP = plateforme d'hélico (carré avec un H) ; base = toutes ses pistes, tournées et allongées comme les vraies.
             // Base inactive = contour seul.
             if (b.IsFarp) DrawHelipad(g, p, c, b.Inactive);
-            else DrawRunways(g, p, c, b.Inactive, strips, Width, Height);
+            else if (_showRunways) DrawRunways(g, p, c, b.Inactive, strips, Width, Height);
+            else
+            {
+                using (var br = new SolidBrush(b.Inactive ? Color.FromArgb(90, c) : c)) g.FillEllipse(br, p.X - 5, p.Y - 5, 10, 10);
+                g.DrawEllipse(Pens.White, p.X - 5, p.Y - 5, 10, 10);
+            }
 
             // Plusieurs squadrons : petite silhouette d'avion à gauche, d'autant plus grande qu'il y a d'avions
             if (ShowSilhouettes && b.Squads >= 2)
                 DrawSilhouette(g, p.X - r - 8, p.Y, b.Aircraft, c);
+
+            if (!_showLabels) return;       // bouton "labels" : plus de nom de base
 
             string counts = b.Squads > 0 ? "  [" + b.Squads + " sq / " + b.Aircraft + " ac]" : "";
             float tx = p.X + r + 5;
@@ -2337,26 +2513,69 @@ namespace DCE_Manager
             return best;
         }
 
+        // Vols sous le clic : un tronçon, un cercle / hippodrome d'attente (orbite) ou un waypoint du vol à moins de 6 px.
+        // Ordre = ce qu'on VOIT : les vols sélectionnés d'abord (ils sont dessinés par-dessus), puis du dessus au dessous.
+        // Les cercles de menace, zones et autres dessins ne gênent jamais : ils ne sont pas testés.
         private List<string> HitFlights(Point p)
         {
-            var result = new List<string>();
+            var found = new List<string>();
             List<Map_Drawing> list;
             if (!_shownGroups.Contains("plans") || !_drawingGroups.TryGetValue("plans", out list))
-                return result;
+                return found;
 
             for (int i = list.Count - 1; i >= 0; i--)
             {
                 Map_Drawing d = list[i];
-                if (d.Kind != "Line" || d.Points.Count < 2 || result.Contains(d.Name)) continue;
+                if (d.Name == "" || d.Points.Count == 0 || found.Contains(d.Name)) continue;
 
-                PointF a = ToScreen(d.Points[0][0], d.Points[0][1]);
-                PointF b = ToScreen(d.Points[1][0], d.Points[1][1]);
-                if (!Finite(a) || !Finite(b)) continue;
-
-                if (DistToSegment(p, a, b) <= 6f)
-                    result.Add(d.Name);
+                bool hit = false;
+                if (d.Kind == "Line" || d.Kind == "Polygon")
+                    hit = HitOutline(d, p, d.Kind == "Line" ? 6f : 5f);
+                else if (d.Kind == "Marker" && d.Text != "airfield")      // un terrain reste cliquable comme base : pas de vol choisi par lui
+                {
+                    PointF q = ToScreen(d.Points[0][0], d.Points[0][1]);
+                    if (Finite(q))
+                    {
+                        float dx = q.X - p.X, dy = q.Y - p.Y;
+                        hit = Math.Sqrt(dx * dx + dy * dy) <= Math.Max(9f, Math.Min(MarkerPx(d), 14f));
+                    }
+                }
+                if (hit) found.Add(d.Name);
             }
-            return result;
+            return found.Where(n => _selSet.Contains(n)).Concat(found.Where(n => !_selSet.Contains(n))).ToList();
+        }
+
+        // Le clic est-il à moins de tol pixels du contour (suite de segments, refermé si la forme l'est) ?
+        private bool HitOutline(Map_Drawing d, Point p, float tol)
+        {
+            int n = d.Points.Count;
+            if (n < 2) return false;
+            PointF prev = ToScreen(d.Points[0][0], d.Points[0][1]);
+            PointF first = prev;
+            for (int i = 1; i <= n; i++)
+            {
+                PointF cur;
+                if (i < n) cur = ToScreen(d.Points[i][0], d.Points[i][1]);
+                else if (d.Closed) cur = first;
+                else break;
+
+                if (Finite(prev) && Finite(cur) && DistToSegment(p, prev, cur) <= tol) return true;
+                prev = cur;
+            }
+            return false;
+        }
+
+        // CTRL + clic : le vol sous la souris entre dans la sélection, ou en sort
+        private void ToggleFlightAt(Point p)
+        {
+            List<string> names = HitFlights(p);
+            if (names.Count == 0) return;
+
+            string n = names[0];
+            if (!_selSet.Remove(n)) _selSet.Add(n);
+            _selectedFlight = _selSet.Contains(n) ? n : (_selSet.Count > 0 ? _selSet.Last() : "");
+            Invalidate();
+            FlightsSelected?.Invoke(_selSet.ToList());
         }
 
         // Nom affiché au survol d'un élément éclaté (donné par la fenêtre : titre, joueur / package) ; sinon le nom du groupe
@@ -2654,6 +2873,11 @@ namespace DCE_Manager
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
+            if (e.Button == MouseButtons.Left && (ModifierKeys & Keys.Alt) == Keys.Alt)         // Alt + clic : copie la position, rien d'autre ne se passe
+            {
+                _altCopy = true;
+                return;
+            }
             base.OnMouseDown(e);
             Focus();
 
@@ -2731,6 +2955,29 @@ namespace DCE_Manager
             }
         }
 
+        // Retire de la sélection le vol dont le tracé est sous la souris.
+        // Au départ la sélection est vide, ce qui veut dire "tous les vols" (rien n'est estompé) : le premier clic droit
+        // sélectionne alors tous les vols SAUF celui-là. Un clic gauche dans le vide remet tout (sélection vide).
+        private void DeselectFlightAt(Point p)
+        {
+            List<string> names = HitFlights(p);
+            if (names.Count == 0) return;
+            string n = names[0];
+
+            if (_selSet.Count == 0)
+            {
+                List<Map_Drawing> list;
+                if (!_drawingGroups.TryGetValue("plans", out list)) return;
+                foreach (Map_Drawing d in list)
+                    if (d.Kind == "Line" && d.Name != "" && d.Name != n) _selSet.Add(d.Name);
+            }
+            else if (!_selSet.Remove(n)) return;                // ce vol n'était déjà pas dans la sélection
+
+            _selectedFlight = _selSet.Count > 0 ? _selSet.Last() : "";
+            Invalidate();
+            FlightsSelected?.Invoke(_selSet.ToList());
+        }
+
         // Clic droit sur un waypoint du vol choisi : le supprimer. Sur un tronçon du vol choisi : y ajouter un waypoint (le point
         // est posé sur le trait lui-même, à l'endroit du clic).
         private void ShowPlanMenu(Point p)
@@ -2797,10 +3044,74 @@ namespace DCE_Manager
             return index >= 1;
         }
 
+        // ------------------------------------------------------------------
+        //  Position sous la souris : X / Y de la mission DCS (x = nord, y = est) et latitude / longitude
+        // ------------------------------------------------------------------
+
+        private void UpdateCoord(Point p)
+        {
+            if (Width < 20) return;
+
+            if (_lblCoord == null)
+            {
+                _lblCoord = new Label
+                {
+                    AutoSize = false, Size = new Size(330, 38), BackColor = Color.FromArgb(32, 32, 32), ForeColor = Color.Gainsboro,
+                    Font = new Font("Consolas", 9f), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(6, 0, 0, 0),
+                    Cursor = Cursors.Hand, Visible = false
+                };
+                _lblCoord.Click += (s, e) => CopyCoord();
+                Controls.Add(_lblCoord);
+                _lblCoord.Location = new Point(10, Height - 94);
+            }
+
+            double x, y;
+            ToWorld(p.X, p.Y, out x, out y);
+            var inv = CultureInfo.InvariantCulture;
+            string l1 = "X " + x.ToString("0", inv) + "   Y " + y.ToString("0", inv) + "   (DCS)";
+            string l2;
+            string copy = "x = " + x.ToString("0.##", inv) + ",\r\ny = " + y.ToString("0.##", inv) + ",";
+
+            Map_Projection pr = _bg != null ? _bg.Proj : null;
+            if (pr != null)
+            {
+                double lat, lon;
+                Map_Web.DcsToLatLon(pr, x, y, out lat, out lon);
+                l2 = "Lat " + lat.ToString("0.00000", inv) + "   Lon " + lon.ToString("0.00000", inv) + "   (click: copy)";
+                copy += "\r\n-- lat " + lat.ToString("0.000000", inv) + "  lon " + lon.ToString("0.000000", inv);
+            }
+            else l2 = "(click: copy)";
+
+            _coordText = copy;
+            _lblCoord.Text = l1 + "\r\n" + l2;
+            if (!_lblCoord.Visible)
+            {
+                _lblCoord.Visible = true;
+                _lblCoord.BringToFront();
+            }
+        }
+
+        private void CopyCoord()
+        {
+            if (_coordText == "" || _lblCoord == null) return;
+            try { Clipboard.SetText(_coordText); }
+            catch { return; }               // presse-papiers pris par une autre application : on ne bloque pas la carte
+
+            _lblCoord.ForeColor = Color.LightGreen;
+            if (_coordTimer == null)
+            {
+                _coordTimer = new Timer { Interval = 700 };
+                _coordTimer.Tick += (s, e) => { _coordTimer.Stop(); _lblCoord.ForeColor = Color.Gainsboro; };
+            }
+            _coordTimer.Stop();
+            _coordTimer.Start();
+        }
+
         protected override void OnMouseMove(MouseEventArgs e)
         {
             base.OnMouseMove(e);
             _mouse = e.Location;
+            UpdateCoord(e.Location);
 
             if (_spread != null && e.Button == MouseButtons.None)
             {
@@ -2874,6 +3185,13 @@ namespace DCE_Manager
 
         protected override void OnMouseUp(MouseEventArgs e)
         {
+            if (_altCopy)
+            {
+                _altCopy = false;
+                UpdateCoord(e.Location);
+                CopyCoord();
+                return;
+            }
             base.OnMouseUp(e);
 
             if (e.Button == MouseButtons.Left && _parkDrag != null)
@@ -2912,6 +3230,13 @@ namespace DCE_Manager
                     Invalidate();
                     return;
                 }
+            }
+
+            // Clic droit sur un plan de vol (carte de mission, hors règle et hors mode crayon) : le vol sort de la sélection
+            if (e.Button == MouseButtons.Right && !_rulerEnabled && !_moveEnabled && _spread == null && _drawingGroups.ContainsKey("plans"))
+            {
+                DeselectFlightAt(e.Location);
+                return;
             }
 
             if (e.Button != MouseButtons.Left || _panning)
@@ -2954,8 +3279,16 @@ namespace DCE_Manager
                 return;
             }
 
-            // Carte de mission : plusieurs icônes superposées sous le clic (waypoints de plusieurs vols, base) -> elles s'écartent (CTRL + clic : sélection multiple, pas d'éclatement)
-            if (_drawingGroups.ContainsKey("plans") && (ModifierKeys & Keys.Control) != Keys.Control && TryPickSpread(e.Location))
+            // Carte de mission, CTRL + clic : le vol sous la souris entre dans la sélection ou en sort, AVANT tout le reste
+            // (éclatement des icônes, waypoint, unité au sol, base : avant, ils volaient le clic et la sélection se perdait)
+            if (_drawingGroups.ContainsKey("plans") && (ModifierKeys & Keys.Control) == Keys.Control)
+            {
+                ToggleFlightAt(e.Location);
+                return;
+            }
+
+            // Carte de mission : plusieurs icônes superposées sous le clic (waypoints de plusieurs vols, base) -> elles s'écartent
+            if (_drawingGroups.ContainsKey("plans") && TryPickSpread(e.Location))
                 return;
 
             // Carte de mission : un waypoint sous le clic passe avant le reste
@@ -2983,6 +3316,7 @@ namespace DCE_Manager
                 return;
             }
             if (_selGround != null) { _selGround = null; Invalidate(); }
+            GroundDismissed?.Invoke();
 
             Map_Base hit = HitTest(e.Location);
             if (hit != null)
@@ -2998,20 +3332,6 @@ namespace DCE_Manager
             {
                 List<string> names = HitFlights(e.Location);
                 string chosen = "";
-
-                // CTRL + clic : on ajoute / retire le vol du dessus à la sélection
-                if ((ModifierKeys & Keys.Control) == Keys.Control)
-                {
-                    if (names.Count > 0)
-                    {
-                        string n = names[0];
-                        if (!_selSet.Remove(n)) _selSet.Add(n);
-                        _selectedFlight = _selSet.Contains(n) ? n : (_selSet.Count > 0 ? _selSet.Last() : "");
-                        Invalidate();
-                        FlightsSelected?.Invoke(_selSet.ToList());
-                    }
-                    return;
-                }
 
                 if (names.Count > 0)
                 {
@@ -3045,7 +3365,7 @@ namespace DCE_Manager
             CloseSpread(true);
 
             float factor = e.Delta > 0 ? 1.25f : 0.8f;
-            float newScale = Math.Max(_fitScale * 0.4f, Math.Min(2f, _scale * factor));
+            float newScale = Math.Max(_fitScale * 0.4f, Math.Min(MaxPxPerM, _scale * factor));
             factor = newScale / _scale;
 
             // Le point sous la souris reste sous la souris
@@ -3075,6 +3395,7 @@ namespace DCE_Manager
         {
             if (disposing)
             {
+                DropPlayBmp();
                 _detailTimer.Stop();
                 _detailTimer.Dispose();
                 _tilePaintTimer.Stop();
@@ -3083,6 +3404,7 @@ namespace DCE_Manager
                 _spreadTimer.Dispose();
                 _areaMsgTimer.Stop();
                 _areaMsgTimer.Dispose();
+                if (_coordTimer != null) { _coordTimer.Stop(); _coordTimer.Dispose(); }
                 DropDragCache();
                 _dim.Dispose();
                 _dimBrush.Dispose();
@@ -3090,6 +3412,290 @@ namespace DCE_Manager
                 _fontBold.Dispose();
             }
             base.Dispose(disposing);
+        }
+    }
+
+    // Zones AAA (trigger zones AAA_ZONE_<BLUE|RED>_*) : les cercles qui se touchent forment UNE zone (ovale = enveloppe des cercles), avec surface hachurée.
+    // Partagé par la carte de la campagne et la carte de mission (la carte des événements a sa propre copie du même code).
+    internal static class Map_AaaZones
+    {
+        public class Hatch { public Color Color; public List<double[]> Pts = new List<double[]>(); }
+
+        public static List<Map_Drawing> Build(List<AaaZone> zones, bool oval, List<Hatch> hatch)
+        {
+            var result = new List<Map_Drawing>();
+            hatch.Clear();
+            foreach (string owner in new[] { "blue", "red" })
+            {
+                List<AaaZone> zs = zones.Where(z => z.Owner == owner).ToList();
+                if (zs.Count == 0) continue;
+                Color c = owner == "red" ? Color.FromArgb(255, 80, 70) : Color.FromArgb(60, 140, 255);
+
+                // Groupes de cercles qui se touchent
+                int[] grp = new int[zs.Count];
+                for (int i = 0; i < grp.Length; i++) grp[i] = -1;
+                int nGrp = 0;
+                for (int i = 0; i < zs.Count; i++)
+                {
+                    if (grp[i] >= 0) continue;
+                    var stack = new Stack<int>();
+                    stack.Push(i);
+                    grp[i] = nGrp;
+                    while (stack.Count > 0)
+                    {
+                        int a = stack.Pop();
+                        for (int b = 0; b < zs.Count; b++)
+                        {
+                            if (grp[b] >= 0) continue;
+                            double dx = zs[a].X - zs[b].X, dy = zs[a].Y - zs[b].Y;
+                            if (Math.Sqrt(dx * dx + dy * dy) < zs[a].R + zs[b].R) { grp[b] = nGrp; stack.Push(b); }
+                        }
+                    }
+                    nGrp++;
+                }
+
+                for (int g = 0; g < nGrp; g++)
+                {
+                    List<AaaZone> members = new List<AaaZone>();
+                    for (int i = 0; i < zs.Count; i++) if (grp[i] == g) members.Add(zs[i]);
+
+                    if (members.Count == 1)
+                    {
+                        // Zone seule : un cercle, même style que les zones jointes
+                        AaaZone z = members[0];
+                        var circle = new Map_Drawing
+                        {
+                            Name = z.Name, Group = "aaa", Kind = "Circle", Radius = z.R, RangeM = z.R, Label = "AAA " + owner + " : " + z.Name,
+                            Line = Color.FromArgb(235, c), Fill = Color.FromArgb(22, c), Thickness = 2.5f
+                        };
+                        circle.Points.Add(new double[] { z.X, z.Y });
+                        result.Add(circle);
+                        hatch.Add(new Hatch { Color = c, Pts = CirclePoints(z.X, z.Y, z.R, 72) });
+                        continue;
+                    }
+
+                    string names = string.Join(", ", members.Select(m => m.Name));
+                    List<List<double[]>> loops;
+                    if (oval)
+                    {
+                        // Un ovale : enveloppe convexe de tous les cercles du groupe
+                        var cloud = new List<double[]>();
+                        foreach (AaaZone m in members) cloud.AddRange(CirclePoints(m.X, m.Y, m.R, 72));
+                        loops = new List<List<double[]>> { ConvexHull(cloud) };
+                    }
+                    else loops = UnionOutline(members);
+
+                    foreach (List<double[]> loop in loops)
+                    {
+                        if (loop.Count < 3) continue;
+                        bool outer = SignedArea(loop) > 0;            // sens inverse = trou au milieu des cercles : contour seul
+                        var poly = new Map_Drawing
+                        {
+                            Name = names, Group = "aaa", Kind = "Polygon", Closed = true,
+                            Label = outer ? "AAA " + owner + " : " + members.Count + " zones" : "",
+                            Line = Color.FromArgb(235, c), Fill = Color.FromArgb(outer ? 22 : 0, c), Thickness = 2.5f
+                        };
+                        poly.Points.AddRange(loop);
+                        result.Add(poly);
+                        if (outer) hatch.Add(new Hatch { Color = c, Pts = loop });
+                    }
+                }
+            }
+            return result;
+        }
+
+        private static List<double[]> CirclePoints(double x, double y, double r, int n)
+        {
+            var l = new List<double[]>();
+            for (int i = 0; i < n; i++)
+            {
+                double a = Math.PI * 2 * i / n;
+                l.Add(new double[] { x + r * Math.Cos(a), y + r * Math.Sin(a) });
+            }
+            return l;
+        }
+
+        // Enveloppe convexe (Andrew), résultat dans le sens anti-horaire
+        private static List<double[]> ConvexHull(List<double[]> pts)
+        {
+            List<double[]> p = pts.OrderBy(a => a[0]).ThenBy(a => a[1]).ToList();
+            if (p.Count < 3) return p;
+            var h = new List<double[]>();
+            for (int pass = 0; pass < 2; pass++)
+            {
+                int start = h.Count;
+                for (int i = 0; i < p.Count; i++)
+                {
+                    while (h.Count >= start + 2 && Cross2(h[h.Count - 2], h[h.Count - 1], p[i]) <= 0) h.RemoveAt(h.Count - 1);
+                    h.Add(p[i]);
+                }
+                h.RemoveAt(h.Count - 1);
+                p.Reverse();
+            }
+            return h;
+        }
+
+        private static double Cross2(double[] o, double[] a, double[] b)
+        {
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+        }
+
+        private static double SignedArea(List<double[]> p)
+        {
+            double sum = 0;
+            for (int i = 0; i < p.Count; i++)
+            {
+                double[] a = p[i], b = p[(i + 1) % p.Count];
+                sum += a[0] * b[1] - b[0] * a[1];
+            }
+            return sum / 2.0;
+        }
+
+        // Contour de la réunion de plusieurs cercles : pour chaque cercle, on garde les arcs qui ne sont dans aucun autre, puis on les relie bout à bout.
+        // Résultat : une ou plusieurs boucles (sens anti-horaire = bord extérieur, sens horaire = trou).
+        private static List<List<double[]>> UnionOutline(List<AaaZone> zs)
+        {
+            const double TwoPi = Math.PI * 2;
+            var arcs = new List<List<double[]>>();
+
+            for (int i = 0; i < zs.Count; i++)
+            {
+                AaaZone a = zs[i];
+                var cov = new List<double[]>();         // angles couverts par les autres cercles
+                bool inside = false;
+
+                for (int j = 0; j < zs.Count && !inside; j++)
+                {
+                    if (j == i) continue;
+                    AaaZone b = zs[j];
+                    double dx = b.X - a.X, dy = b.Y - a.Y, d = Math.Sqrt(dx * dx + dy * dy);
+                    if (d >= a.R + b.R) continue;
+                    if (d <= Math.Abs(a.R - b.R))
+                    {
+                        if (b.R > a.R || (b.R == a.R && j < i)) inside = true;      // a est entièrement dans b
+                        continue;
+                    }
+                    double ang = Math.Atan2(dy, dx);
+                    double cosH = (a.R * a.R + d * d - b.R * b.R) / (2 * a.R * d);
+                    double half = Math.Acos(Math.Max(-1.0, Math.Min(1.0, cosH)));
+                    double lo = ((ang - half) % TwoPi + TwoPi) % TwoPi;
+                    double hi = lo + 2 * half;
+                    if (hi > TwoPi) { cov.Add(new[] { lo, TwoPi }); cov.Add(new[] { 0.0, hi - TwoPi }); }
+                    else cov.Add(new[] { lo, hi });
+                }
+                if (inside) continue;
+
+                // Arcs libres = ce qui reste du cercle une fois les angles couverts retirés
+                cov.Sort((p, q) => p[0].CompareTo(q[0]));
+                var free = new List<double[]>();
+                double pos = 0;
+                foreach (double[] iv in cov)
+                {
+                    if (iv[0] > pos + 1e-9) free.Add(new[] { pos, iv[0] });
+                    pos = Math.Max(pos, iv[1]);
+                }
+                if (pos < TwoPi - 1e-9) free.Add(new[] { pos, TwoPi });
+                if (free.Count == 0) continue;
+                if (free.Count > 1 && free[0][0] <= 1e-9 && free[free.Count - 1][1] >= TwoPi - 1e-9)
+                {
+                    // l'arc libre passe par l'angle 0 : on recolle les deux bouts
+                    double[] last = free[free.Count - 1], first = free[0];
+                    free.RemoveAt(free.Count - 1);
+                    free[0] = new[] { last[0], first[1] + TwoPi };
+                }
+
+                foreach (double[] f in free)
+                {
+                    int n = Math.Max(2, (int)Math.Ceiling((f[1] - f[0]) / (Math.PI / 60)));      // un point tous les 3 degrés
+                    var pts = new List<double[]>();
+                    for (int k = 0; k <= n; k++)
+                    {
+                        double t = f[0] + (f[1] - f[0]) * k / n;
+                        pts.Add(new double[] { a.X + a.R * Math.Cos(t), a.Y + a.R * Math.Sin(t) });
+                    }
+                    arcs.Add(pts);
+                }
+            }
+
+            // Relie les arcs : la fin de l'un est le début du suivant (ils se rejoignent aux points d'intersection des cercles)
+            var loops = new List<List<double[]>>();
+            var used = new bool[arcs.Count];
+            for (int s0 = 0; s0 < arcs.Count; s0++)
+            {
+                if (used[s0]) continue;
+                used[s0] = true;
+                var loop = new List<double[]>(arcs[s0]);
+
+                for (int guard = 0; guard <= arcs.Count; guard++)
+                {
+                    double[] end = loop[loop.Count - 1], start = loop[0];
+                    if (loop.Count > 2 && PtDist(end, start) < 2.0) break;      // boucle fermée
+
+                    int best = -1;
+                    double bestD = 5.0;
+                    for (int k = 0; k < arcs.Count; k++)
+                    {
+                        if (used[k]) continue;
+                        double d = PtDist(end, arcs[k][0]);
+                        if (d < bestD) { bestD = d; best = k; }
+                    }
+                    if (best < 0) break;
+                    used[best] = true;
+                    loop.AddRange(arcs[best].Skip(1));
+                }
+                loops.Add(loop);
+            }
+            return loops;
+        }
+
+        private static double PtDist(double[] a, double[] b)
+        {
+            double dx = a[0] - b[0], dy = a[1] - b[1];
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+    }
+
+    // Lecture des zones AAA dans un .miz : trigger zones AAA_ZONE_<BLUE|RED>_* (ancien format AAA_ZONE_<nom> = RED), cercle x / y / radius
+    internal static partial class Map_Drawings
+    {
+        internal static List<AaaZone> ReadAaaZones(string file)
+        {
+            var list = new List<AaaZone>();
+            try
+            {
+                if (string.IsNullOrEmpty(file) || !System.IO.File.Exists(file)) return list;
+
+                string text;
+                using (System.IO.Compression.ZipArchive zip = System.IO.Compression.ZipFile.OpenRead(file))
+                {
+                    System.IO.Compression.ZipArchiveEntry entry = zip.GetEntry("mission");
+                    if (entry == null) return list;
+                    using (var sr = new System.IO.StreamReader(entry.Open(), System.Text.Encoding.UTF8))
+                        text = sr.ReadToEnd();
+                }
+
+                // On ne lit que la table "triggers" (le reste du fichier mission est lourd et inutile ici)
+                System.Text.RegularExpressions.Match m = System.Text.RegularExpressions.Regex.Match(text, "\\[\"triggers\"\\]\\s*=\\s*\\{");
+                if (!m.Success) return list;
+                var triggers = new LuaReader(text, m.Index + m.Length - 1).ReadValue() as Dictionary<string, object>;
+                Dictionary<string, object> zones = Sub(triggers, "zones");
+                if (zones == null) return list;
+
+                foreach (object zo in zones.Values)
+                {
+                    var z = zo as Dictionary<string, object>;
+                    string name = Str(z, "name");
+                    if (!name.StartsWith("AAA_ZONE_", StringComparison.Ordinal)) continue;
+                    double r = Num(z, "radius");
+                    if (r <= 0) continue;
+                    list.Add(new AaaZone { Name = name, Owner = name.StartsWith("AAA_ZONE_BLUE_", StringComparison.Ordinal) ? "blue" : "red", X = Num(z, "x"), Y = Num(z, "y"), R = r });
+                }
+            }
+            catch (Exception ex)
+            {
+                DCE_Manager.Utils.FormUtils.LogRegister("Map_Drawings | AAA zones : " + ex.Message);
+            }
+            return list;
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -14,6 +14,19 @@ namespace DCE_Manager
 {
     internal class Parser_OobAir
     {
+        // Préfixe mis devant un squad dont le nom était en double (écrit dans le .lua)
+        public const string DoublonPrefix = "DOUBLON-";
+
+        // Vrai quand des noms de squads ont changé en mémoire (doublons renommés, ou renommage dans l'éditeur).
+        // Au Save, Init ET Active sont alors écrits, pour que les deux fichiers gardent les mêmes noms.
+        // Remis à false par Campaign_Edit_Grid_Right.LoadSquads (rechargement) et après le Save.
+        public static bool NamesTouched = false;
+
+        public static bool IsDoublonName(string name)
+        {
+            return name != null && name.StartsWith(DoublonPrefix, StringComparison.OrdinalIgnoreCase);
+        }
+
         private static readonly HashSet<string> ignoredKeys = new HashSet<string>
         {
             "displayReady",
@@ -38,7 +51,12 @@ namespace DCE_Manager
 
             FixSquadIds();
 
-            DetectDuplicateNames(campaignName);
+            // Doublons de noms : renommés automatiquement en DOUBLON-<nom>-<n> (en mémoire, écrit au Save)
+            if (FixDuplicateNames(campaignName))
+            {
+                NamesTouched = true;
+                RebuildCampaignSquads();
+            }
 
             return List_oob_air_Manager.List_campaignSquads;
         }
@@ -637,53 +655,119 @@ namespace DCE_Manager
                 || type == typeof(Guid);
         }
 
-        //private static void Log(int indent, string msg)
-        //{
-        //    FormUtils.LogRegister(new string(' ', indent) + msg);
-        //}
-
-        // Détecte les doublons de noms de squad et alerte
-        // Pourquoi : informer sans casser le parsing ni la logique
-        private void DetectDuplicateNames(string campaignName)
+        // Clé camp|fichier|nom (minuscules) : sert à savoir si un nom est déjà pris dans un fichier
+        private static string NameKey(Squad s, string name)
         {
-            var duplicates = List_oob_air_Manager.List_oob_air
-                .GroupBy(s => (s.SideString + "|" + s.Name + "|" + s.FolderFile).ToLowerInvariant())
-                .Where(g => g.Count() > 1);
+            return ((s.SideString ?? "") + "|" + (s.FolderFile ?? "") + "|" + (name ?? "")).Trim().ToLowerInvariant();
+        }
 
-            List<string> messages = new List<string>();
+        private static bool SameText(string a, string b)
+        {
+            return string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+        }
 
-            foreach (var group in duplicates)
+        // Renomme les squads dont le nom est en double (même camp, même nom, dans Init ou dans Active).
+        // Nouveau nom : DOUBLON-<nom>-1, -2, -3... Le jumeau Init/Active (même type + même base de préférence)
+        // reçoit exactement le même nom, pour que DCE les associe toujours.
+        // Rien n'est écrit sur disque ici : l'écriture se fait au Save de la campagne.
+        // Renvoie true si au moins un squad a été renommé.
+        private bool FixDuplicateNames(string campaignName)
+        {
+            List<Squad> all = List_oob_air_Manager.List_oob_air;
+            bool renamed = false;
+
+            // noms déjà pris, pour ne jamais fabriquer un nom qui existe déjà
+            var used = new HashSet<string>(all.Select(s => NameKey(s, s.Name)));
+
+            var groups = all
+                .GroupBy(s => (s.SideString ?? "").Trim().ToLowerInvariant() + "|" + (s.Name ?? "").Trim().ToLowerInvariant())
+                .Where(g => g.Count(s => s.FolderFile == "Init") > 1 || g.Count(s => s.FolderFile == "Active") > 1)
+                .ToList();
+
+            foreach (var group in groups)
             {
-                var squads = group.ToList();
+                List<Squad> inits = group.Where(s => s.FolderFile == "Init").ToList();
+                List<Squad> freeActives = group.Where(s => s.FolderFile == "Active").ToList();
 
-                // Marquage UI
-                foreach (var s in squads)
+                // paires [Init, Active] ; un des deux peut être null
+                var pairs = new List<Squad[]>();
+
+                foreach (Squad init in inits)
                 {
-                    s.DisplayName = "DOUBLON_" + s.Name;
+                    Squad twin = freeActives.FirstOrDefault(a => SameText(a.Type, init.Type) && SameText(a.Base, init.Base))
+                              ?? freeActives.FirstOrDefault(a => SameText(a.Type, init.Type))
+                              ?? freeActives.FirstOrDefault();
+
+                    if (twin != null)
+                        freeActives.Remove(twin);
+
+                    pairs.Add(new[] { init, twin });
                 }
 
-                // Message détaillé
-                string detail = string.Join(" | ",
-                    squads.Select(s =>
-                        $"{s.Name} ({s.FolderFile} / base={s.Base} / type={s.Type})"
-                    )
-                );
+                foreach (Squad active in freeActives)
+                    pairs.Add(new[] { null, active });
 
-                messages.Add(detail);
+                string oldName = group.First().Name ?? "";
+                string root = IsDoublonName(oldName) ? oldName : DoublonPrefix + oldName;
+                int n = 1;
 
-                FormUtils.LogRegister(" DOUBLON DETECTE: " + detail);
+                foreach (Squad[] pair in pairs)
+                {
+                    string newName;
+
+                    do
+                    {
+                        newName = root + "-" + n;
+                        n++;
+                    }
+                    while (pair.Any(s => s != null && used.Contains(NameKey(s, newName))));
+
+                    foreach (Squad s in pair)
+                    {
+                        if (s == null) continue;
+
+                        s.Name = newName;
+                        s.DisplayName = newName;
+                        used.Add(NameKey(s, newName));
+                    }
+
+                    FormUtils.LogRegister(" DOUBLON RENOMME (" + campaignName + "): " + oldName + " -> " + newName
+                        + " (" + string.Join(" / ", pair.Where(s => s != null).Select(s => s.FolderFile + " base=" + s.Base + " type=" + s.Type)) + ")");
+
+                    renamed = true;
+                }
             }
 
-            // Popup UNIQUE
-            if (messages.Count > 0)
+            return renamed;
+        }
+
+        // Reconstruit la liste logique Init/Active à partir de la liste à plat (après un renommage).
+        // Même clé que dans LoadFile : camp|nom en minuscules.
+        private void RebuildCampaignSquads()
+        {
+            var list = new List<CampaignSquad>();
+            var byKey = new Dictionary<string, CampaignSquad>();
+
+            foreach (Squad s in List_oob_air_Manager.List_oob_air)
             {
-                string msg =
-                    "ATTENTION : doublons détectés dans la campagne '" + campaignName + "'\n\n" +
-                    string.Join("\n", messages) +
-                    "\n\nLes données peuvent être incohérentes.";
+                string key = (s.SideString ?? "").Trim().ToLowerInvariant() + "|" +
+                             (s.Name != null ? s.Name.Trim().ToLowerInvariant() : "");
 
-                MessageBox.Show(msg, "Doublons détectés", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                CampaignSquad cs;
+                if (!byKey.TryGetValue(key, out cs))
+                {
+                    cs = new CampaignSquad { Key = key, SideString = s.SideString };
+                    byKey[key] = cs;
+                    list.Add(cs);
+                }
+
+                if (s.FolderFile == "Init")
+                    cs.Init = s;
+                else
+                    cs.Active = s;
             }
+
+            List_oob_air_Manager.List_campaignSquads = list;
         }
 
     }

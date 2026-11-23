@@ -31,6 +31,7 @@ namespace DCE_Manager
         public double Mass;
         public string KillerGroup = "";     // tueur au sol : son groupe (voir _groundGroups) et sa position de départ
         public bool HasKillerPos;
+        public bool GroundKiller;           // le tueur est un groupe au sol : KillerFlight contient alors le nom de son groupe (sert de "vol" pour la sélection)
         public double KX, KY;
         public double Health = -1;          // avion endommagé (kind damage) : vie restante en %, -1 = inconnue
         public int MissionNo;
@@ -105,6 +106,11 @@ namespace DCE_Manager
         private readonly Dictionary<string, List<string>> _flightPlayers = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, string> _unitPlayer = new Dictionary<string, string>(StringComparer.Ordinal);                  // avion -> joueur (fichier debrief)
         private readonly Dictionary<string, List<string>> _flightUnits = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);  // vol -> ses avions (fichier mission, même sans événement)
+        // Noms de remplacement (Init\various_table.lua de la campagne) : TypeAlias (types d'avion) et BaseNameAlias (bases)
+        private readonly Dictionary<string, string> _typeAlias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _baseAlias = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _unitType = new Dictionary<string, string>(StringComparer.Ordinal);       // avion -> type DCS exact (fichier mission ou événements)
+        private CheckBox _chkRunways;
         private bool _samInFile;           // le fichier debrief contient les sites SAM de SA mission (table "samSites")
         private List<Map_Drawing> _samDraw = new List<Map_Drawing>();     // cercles des menaces SAM
         private class AaaHatch { public Color Color; public List<double[]> Pts = new List<double[]>(); }
@@ -126,7 +132,33 @@ namespace DCE_Manager
 
         // Contrôles
         private ComboBox _cmbSide, _cmbFlight, _cmbUnit;
+        // 3 lignes de choix : 0 = avions, 1 = hélicoptères, 2 = tireurs au sol. Une seule est active à la fois.
+        private readonly ComboBox[] _fCombo = new ComboBox[3], _uCombo = new ComboBox[3];
+        private static readonly string[] RowTitle = { "Aircraft:", "Helicopters:", "Ground:" };
+        private static readonly string[] RowAllFlights = { "All flights", "All helicopter flights", "All ground shooters" };
+        private static readonly string[] RowAllUnits = { "All aircraft", "All choppers", "All units" };
+        private readonly List<Control> _rowCtrls = new List<Control>();         // lignes 2 et 3 (cachées par le bouton)
+        private readonly List<Control> _mapRowCtrls = new List<Control>();      // ligne "Map style" : remonte quand les lignes 2 et 3 sont cachées
+        private Button _btnSelRows;
+        private bool _selRowsOpen = true;
+        private Panel _topBarOuter;
+        private readonly HashSet<string> _heliFlights = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, string> _gndSide = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);    // groupe au sol qui a détruit quelque chose -> son camp
+        private bool _selFromList;             // le dernier événement choisi l'a été dans la liste de droite : il ne change ni la sélection du haut ni la liste
         private CheckBox _chkKills, _chkPlans, _chkBg, _chkRuler;
+        private CheckBox _chkTime;                  // curseur de temps : les traces ne montrent que la période [T - longueur, T]
+        private TrackBar _barTime;
+        private TrackBar _barTrail;                // longueur de la traîne : de 30 s à 20 min, puis "All"
+        private Label _lblTime, _lblTrail, _lblSpeed;
+        private Button _btnPlay, _btnSlow, _btnFast;
+        private CheckBox _chkFollow;               // la carte suit l'avion choisi
+        private Panel _timePanel;
+        private Timer _playTimer;
+        private double _tNow;                       // heure du curseur (secondes), avec les décimales de la lecture
+        private bool _syncBar;                      // vrai quand c'est le programme qui bouge la barre (pas l'utilisateur)
+        private int _lastTick;
+        private static readonly double[] PlaySpeeds = { 1, 2, 5, 10, 20, 50, 100, 200, 500 };
+        private int _speedIdx = 1;                  // x2 au départ
         private ListView _list, _listNoPos;
         private TextBox _details;
         private BufferedPanel _iconBox;        // grosse icône de l'événement choisi (panneau de droite)
@@ -143,9 +175,18 @@ namespace DCE_Manager
 
         // Dessin
         private const float CellPx = 40f;          // les bombes et les décors se regroupent par case de 40 pixels (icônes deux fois plus grandes)
+        private float _pxPerM = 0f;                // pixels par mètre au zoom actuel (sert à la taille réelle des camions et des cratères)
+        private const float FamilyMinPx = 14f;                      // longueur mini à l'écran d'une icône (camion, char, bâtiment, avion au sol...)
+        private const float CraterMinPx = 8f, CraterDefaultM = 6f;  // cratère : diamètre mini à l'écran, diamètre réel d'une bombe de 87 kg
         private float _iconScale = 2f;             // taille des icônes sur la carte : 2 = deux fois la taille d'origine, jusqu'à 4,5 quand on zoome fort
-        private const float IconScaleMin = 2f, IconScaleMax = 4.5f;
-        private const float ZoomStartPxKm = 20f, ZoomFullPxKm = 200f;    // en dessous de 20 pixels par km : taille normale ; au dessus de 200 pixels par km : taille maximale
+        private const float IconScaleMin = 2f, IconScaleMax = 3f;
+        private float _iconMul = 1f;                // réglage des boutons "icônes plus petites / plus grandes" : multiplie la taille automatique (0,4 à 3)
+        private Splitter _splitRight;
+        private ComboBox _cmbStyle;
+        private CheckBox _chkRight;                 // montre / cache la partie droite (listes et détails)
+        private CheckBox _chkLeft;                  // montre / cache la colonne d'outils de gauche
+        private CheckBox _chkLabels, _chkSpread;       // _chkSpread : icônes superposées écartées les unes des autres (trait pointillé vers le vrai lieu)
+        private const float ZoomStartPxKm = 20f, ZoomFullPxKm = 2000f;   // en dessous de 20 pixels par km : taille normale ; à 2000 pixels par km (zoom maximum de la carte) : taille maximale
         private static readonly string[] Layers = { "bomb", "scenery", "static", "ground", "ship", "landing", "oldsar", "crew", "damage", "rescue", "air" };    // du dessous au dessus
         private readonly Font _fontBold = new Font("Segoe UI", 9f, FontStyle.Bold);
         private readonly StringFormat _sfCenter = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
@@ -163,6 +204,11 @@ namespace DCE_Manager
         private bool _comboFromClick;               // les listes du haut ont été réglées par un clic sur la carte (un clic dans le vide les remet sur "All")
         private string _focus = "";                 // vol mis en avant par un clic (icône, tracé, plan de vol) ; "" = aucun
         private string _focusNow = "";              // idem, figé au début de chaque dessin (le filtre "Flight" passe avant)
+        // Vols AJOUTÉS à la mise en avant par CTRL + clic (le vol principal reste dans _selFlight / _focus). Vide = un seul vol, comme avant.
+        private readonly HashSet<string> _extraFlights = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private string ExtraKey { get { return string.Join(",", _extraFlights.OrderBy(x => x, StringComparer.Ordinal).ToArray()); } }
+        private bool InFocus(string flight) { return !string.IsNullOrEmpty(flight) && (string.Equals(flight, _focusNow, StringComparison.OrdinalIgnoreCase) || _extraFlights.Contains(flight)); }
+        private bool InSelFlight(string flight) { return flight == _selFlight || (!string.IsNullOrEmpty(flight) && _extraFlights.Contains(flight)); }
         private Bitmap _ghost;                      // icône d'un événement hors du vol mis en avant : dessinée ici puis recopiée très pâle
         private ImageAttributes _ghostAttr;
         private Point _downPt;
@@ -202,7 +248,11 @@ namespace DCE_Manager
 
             BuildUi();
             LoadEvents();
+            RemoveDestroyedTargetObjects();
+            SetTargetObjectTimes();
             LoadTracks();
+            SetupTimeBar();
+            LoadAliases();
             FillFlights();
 
             Map_Background cached = null;
@@ -243,24 +293,32 @@ namespace DCE_Manager
             _view.MouseDown += (s, e) => { _downPt = e.Location; };
             _view.MouseUp += (s, e) =>
             {
-                if (e.Button == MouseButtons.Left && !_view.RulerEnabled && Math.Abs(e.X - _downPt.X) <= 4 && Math.Abs(e.Y - _downPt.Y) <= 4)
+                bool still = Math.Abs(e.X - _downPt.X) <= 4 && Math.Abs(e.Y - _downPt.Y) <= 4;
+                if (e.Button == MouseButtons.Left && !_view.RulerEnabled && still)
                     MapClicked(e.Location);
+                else if (e.Button == MouseButtons.Right && !_view.RulerEnabled && still)
+                {
+                    string rf = FlightAt(e.Location);          // clic droit sur un tracé / un plan de vol : ce vol sort de la sélection
+                    if (rf != "") RemoveFlight(rf);
+                }
             };
             _view.MouseMove += (s, e) => { if (e.Button == MouseButtons.None) HoverAt(e.Location); };
+
             _view.MouseLeave += (s, e) => { _hoverKey = ""; _hoverTip.Hide(_view); };
 
             // --- Panneau de droite : liste des événements, puis ceux sans position, puis la fiche ---
-            var right = new Panel { Dock = DockStyle.Right, Width = 420, Padding = new Padding(6) };
+            var right = new Panel { Dock = DockStyle.Right, Width = 500, Padding = new Padding(6) };
 
             _lblList = new Label { Dock = DockStyle.Top, Height = 22, Font = new Font("Segoe UI", 9f, FontStyle.Bold), TextAlign = ContentAlignment.BottomLeft, Text = "Events" };
             _list = new ListView { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true, GridLines = true, HideSelection = false, MultiSelect = false };
-            _list.Columns.Add("Time", 60);
-            _list.Columns.Add("Event", 130);
-            _list.Columns.Add("Name", 200);
+            _list.Columns.Add("Time", 55);
+            _list.Columns.Add("Event", 125);
+            _list.Columns.Add("Name", 180);
+            _list.Columns.Add("Type", 120);
             _list.SelectedIndexChanged += (s, e) =>
             {
                 if (_syncSel || _list.SelectedItems.Count == 0) return;
-                SelectEvent(_list.SelectedItems[0].Tag as Map_Event, true);
+                SelectEvent(_list.SelectedItems[0].Tag as Map_Event, true, true);       // clic dans la liste : on centre seulement, la sélection du haut ne bouge pas
             };
             hint(_list, "Events", "The events that pass the filters and have a position on the map. Click one: the map centers on it and the details are shown below.");
 
@@ -273,7 +331,7 @@ namespace DCE_Manager
             _listNoPos.SelectedIndexChanged += (s, e) =>
             {
                 if (_syncSel || _listNoPos.SelectedItems.Count == 0) return;
-                SelectEvent(_listNoPos.SelectedItems[0].Tag as Map_Event, false);
+                SelectEvent(_listNoPos.SelectedItems[0].Tag as Map_Event, false, true);
             };
             hint(_listNoPos, "Position unknown", "Aircraft lost with no position in the mission log: no ejection, no parachute seen. They can not be put on the map (nothing is invented). When the in-game tracker records the position of a kill, they will move to the map.");
             noPosPanel.Controls.Add(_listNoPos);
@@ -298,42 +356,21 @@ namespace DCE_Manager
             right.Controls.Add(_lblList);
 
             // --- Bande de gauche : un bouton par famille d'icônes, puis plans de vol, fond, règle, cadrage ---
-            var strip = new Panel { Dock = DockStyle.Left, Width = 38, BackColor = Color.FromArgb(243, 243, 243) };
+            var strip = new Panel { Dock = DockStyle.Left, Width = 38 + SystemInformation.VerticalScrollBarWidth, BackColor = Color.FromArgb(243, 243, 243), AutoScroll = true };      // ascenseur vertical : trop de boutons pour un petit écran
             int sy = 6;
             Func<int> nextY = () => { int r = sy; sy += 38; return r; };
+            // Parties "carte" en haut (règle, cadrage, calques, noms, taille des icônes), puis les familles d'événements : même logique que les autres cartes
+            _chkRuler = MakeToggle("⟷", nextY());
+            _chkRuler.CheckedChanged += (s, e) => _view.RulerEnabled = _chkRuler.Checked;
+            hint(_chkRuler, "Ruler", "Distance between two points: click A, move, click B. Right-click or Esc = clear. Untick to go back to normal clicks.");
+            strip.Controls.Add(_chkRuler);
 
-            AddKindToggle(strip, hint, nextY(), "air", "✈", "Aircraft lost", "Planes and helicopters lost: silhouette with a cross, blue or red = side of the lost aircraft. A PALE icon is an approximate position (where the crew landed, or the start position of the aircraft). Aircraft with no position at all are in the list 'Position unknown'.");
-            AddKindToggle(strip, hint, nextY(), "ground", "■", "Vehicles destroyed", "Ground vehicles destroyed: tank, truck, infantry, SAM, gun or radar icon (chosen from the unit type), with a cross.");
-            AddKindToggle(strip, hint, nextY(), "ship", "⚓", "Ships destroyed", "Ships destroyed: ship icon with a cross.");
-            AddKindToggle(strip, hint, nextY(), "static", "◆", "Static objects destroyed", "Static objects destroyed (parked aircraft, crates, barrels, sandbags, buildings, trucks...): the icon follows the object type, with a cross.");
-            AddKindToggle(strip, hint, nextY(), "scenery", "⌂", "Scenery destroyed", "Scenery objects destroyed: building, bridge, railway station, ship, tree... chosen from the object name. A GOLD icon is an object that belongs to a target of the target list (the debriefing links them). Many objects close together are grouped in a circle with their number: click it to zoom in.");
-            AddKindToggle(strip, hint, nextY(), "crew", "☂", "Crew", "Parachute = ejection point. Person = pilot of this mission waiting for rescue (SAR, green). Black disc with a cross = pilot killed.");
-            AddKindToggle(strip, hint, nextY(), "rescue", "✚", "Rescues (SAR / CSAR)", "Green cross = a helicopter picked up a pilot. The icon is where the pilot was waiting. Click it to see the helicopter and the rescued pilot.");
-            AddKindToggle(strip, hint, nextY(), "landing", "H", "Helicopter and transport landings", "A helicopter (or a Transport / airlift flight) landed somewhere that is NOT its own base: H in a square. One point per flight and per place. The details tell the place.");
-            AddKindToggle(strip, hint, nextY(), "damage", "⚠", "Aircraft damaged", "Aircraft that were hit but NOT lost: aircraft icon with an orange warning sign, at the point where the worst hit happened. The details tell the life left and who hit it.");
-            AddKindToggle(strip, hint, nextY(), "oldsar", "⟲", "Pilots from earlier missions", "Pilots still waiting for rescue from PREVIOUS missions (grey person). Their name tells the mission number.");
-            AddKindToggle(strip, hint, nextY(), "bomb", "●", "Bomb impacts", "Bomb impacts (orange dot). Many impacts close together are grouped in a circle with their number: click it to zoom in.");
+            var btnFit = MakeToolButton("⛶", nextY());
+            btnFit.Click += (s, e) => FitShown();
+            hint(btnFit, "Fit", "Zoom on the events that are shown now (all of them if none is shown).");
+            strip.Controls.Add(btnFit);
+
             sy += 16;
-
-            _chkPlans = MakeToggle("➤", nextY());
-            _chkPlans.Checked = true;
-            _chkPlans.CheckedChanged += (s, e) => _view.SetDrawingsVisible("ships", _chkPlans.Checked);
-            hint(_chkPlans, "Flight plans", "Show or hide the flight plans in the background (faint). The flights of the filter (side, flight) are drawn stronger. Read from the mission file of this debriefing.");
-            strip.Controls.Add(_chkPlans);
-
-            _chkTracks = MakeToggle("∿", nextY());
-            _chkTracks.Checked = true;
-            _chkTracks.Enabled = _tracks.Count > 0;
-            _chkTracks.CheckedChanged += (s, e) => _view.Invalidate();
-            hint(_chkTracks, "Player tracks", "The real track flown by each player (a point every few seconds, from the file DebriefTracks <n>.txt written in game). Light blue = blue side, pink = red side. With a flight or an aircraft chosen, its track is drawn stronger with a mark every 5 minutes; the others are faint. Hover the line for time, altitude and speed. Greyed out = no track file for this mission.");
-            strip.Controls.Add(_chkTracks);
-
-            _chkTObj = MakeToggle("▣", nextY());
-            _chkTObj.Checked = true;
-            _chkTObj.Enabled = false;          // activé quand le fichier contient des bâtiments de la target list près des bombes
-            _chkTObj.CheckedChanged += (s, e) => _view.Invalidate();
-            hint(_chkTObj, "Target buildings not destroyed", "Buildings of the target list (added objects and map buildings) that are within 500 m of a bomb impact but were NOT destroyed: the targets that were bombed and missed. Drawn as an empty icon with a dashed ring, in the colour of the side that owns the target. Grey = already destroyed before this mission. Only buildings near bombs are shown.");
-            strip.Controls.Add(_chkTObj);
 
             _chkBorders = MakeToggle("⬚", nextY());
             _chkBorders.Checked = true;
@@ -353,23 +390,85 @@ namespace DCE_Manager
             hint(_chkAaa, "AAA zones", "Zones AAA_ZONE_BLUE_* / AAA_ZONE_RED_* of the in-game script AAA_Barrage. Zones that overlap are drawn as ONE area to avoid, with a common outline. The colour is the side that DEFENDS the zone: it fires at the opposite side. A zone does nothing if the campaign has no AAA preset for its side.");
             strip.Controls.Add(_chkAaa);
 
-            _chkBg = MakeToggle("▤", nextY());
-            _chkBg.CheckedChanged += (s, e) => _view.ShowBackground = _chkBg.Checked;
-            hint(_chkBg, "Web map", "Show or hide the web map (the one of the mission map). If it is greyed out, open the Map window of this campaign once to build it.");
-            strip.Controls.Add(_chkBg);
+            _chkRunways = MakeToggle("═", nextY());
+            _chkRunways.Checked = true;
+            _chkRunways.CheckedChanged += (s, e) => _view.ShowRunways = _chkRunways.Checked;
+            hint(_chkRunways, "Runways", "Show or hide the runways of the airbases. Hidden: each base is a small dot with its name (the alias of Init\\various_table.lua if there is one).");
+            strip.Controls.Add(_chkRunways);
 
-            _chkRuler = MakeToggle("⟷", nextY());
-            _chkRuler.CheckedChanged += (s, e) => _view.RulerEnabled = _chkRuler.Checked;
-            hint(_chkRuler, "Ruler", "Distance between two points: click A, move, click B. Right-click or Esc = clear. Untick to go back to normal clicks.");
-            strip.Controls.Add(_chkRuler);
+            _chkPlans = MakeToggle("➤", nextY());
+            _chkPlans.Checked = true;
+            _chkPlans.CheckedChanged += (s, e) => _view.SetDrawingsVisible("ships", _chkPlans.Checked);
+            hint(_chkPlans, "Flight plans", "Show or hide the flight plans in the background (faint). The flights of the filter (side, flight) are drawn stronger. Read from the mission file of this debriefing.");
+            strip.Controls.Add(_chkPlans);
 
-            var btnFit = MakeToolButton("⛶", nextY());
-            btnFit.Click += (s, e) => FitShown();
-            hint(btnFit, "Fit", "Zoom on the events that are shown now (all of them if none is shown).");
-            strip.Controls.Add(btnFit);
+            _chkTracks = MakeToggle("∿", nextY());
+            _chkTracks.Checked = true;
+            _chkTracks.Enabled = _tracks.Count > 0;
+            _chkTracks.CheckedChanged += (s, e) => _view.Invalidate();
+            hint(_chkTracks, "Player tracks", "The real track flown by each player (a point every few seconds, from the file DebriefTracks <n>.txt written in game). Light blue = blue side, pink = red side. With a flight or an aircraft chosen, its track is drawn stronger with a mark every 5 minutes; the others are faint. Hover the line for time, altitude and speed. Greyed out = no track file for this mission.");
+            strip.Controls.Add(_chkTracks);
+
+            sy += 16;
+
+            _chkLabels = MakeToggle("Tt", nextY());
+            _chkLabels.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
+            _chkLabels.Checked = true;
+            _chkLabels.CheckedChanged += (s, e) => _view.ShowLabels = _chkLabels.Checked;
+            hint(_chkLabels, "Labels", "Show or hide ALL the names written on the map: bases, victory and track labels, ground killers, drawings. Untick for a clean map (the list on the right keeps the names).");
+            strip.Controls.Add(_chkLabels);
+
+            _chkSpread = MakeToggle("\u2735", nextY());
+            _chkSpread.Checked = true;
+            _chkSpread.CheckedChanged += (s, e) => _view.Invalidate();
+            hint(_chkSpread, "Spread icons", "When icons are on top of each other, move them apart so none touches another. A dotted line goes from the real place of the event (small dot) to its icon. Zoomed out, only the pile of the event you clicked is spread; zoomed in, all piles are spread. Untick to see every icon exactly where it happened.");
+            strip.Controls.Add(_chkSpread);
+
+            var btnIconSmall = MakeToolButton("⇙", nextY());
+            btnIconSmall.Click += (s, e) => ChangeIconSize(0.8f);
+            hint(btnIconSmall, "Smaller icons", "Make all the icons of the events smaller (each click = 20 % less). They still grow a little when you zoom in.");
+            strip.Controls.Add(btnIconSmall);
+
+            var btnIconBig = MakeToolButton("⇗", nextY());
+            btnIconBig.Click += (s, e) => ChangeIconSize(1.25f);
+            hint(btnIconBig, "Bigger icons", "Make all the icons of the events bigger (each click = 25 % more).");
+            strip.Controls.Add(btnIconBig);
+
+            sy += 16;
+
+            AddKindToggle(strip, hint, nextY(), "air", "✈", "Aircraft lost", "Planes and helicopters lost: silhouette with a cross, blue or red = side of the lost aircraft. A PALE icon is an approximate position (where the crew landed, or the start position of the aircraft). Aircraft with no position at all are in the list 'Position unknown'.");
+            AddKindToggle(strip, hint, nextY(), "ground", "■", "Vehicles destroyed", "Ground vehicles destroyed: tank, truck, infantry, SAM, gun or radar icon (chosen from the unit type), with a cross.");
+            AddKindToggle(strip, hint, nextY(), "ship", "⚓", "Ships destroyed", "Ships destroyed: ship icon with a cross.");
+            AddKindToggle(strip, hint, nextY(), "static", "◆", "Static objects destroyed", "Static objects destroyed (parked aircraft, crates, barrels, sandbags, buildings, trucks...): the icon follows the object type, with a cross.");
+            AddKindToggle(strip, hint, nextY(), "scenery", "⌂", "Scenery destroyed", "Scenery objects destroyed: building, bridge, railway station, ship, tree... chosen from the object name. Many objects close together are grouped in a circle with their number: click it to zoom in.");
+            AddKindToggle(strip, hint, nextY(), "crew", "☂", "Crew", "Parachute = ejection point. Person = pilot of this mission waiting for rescue (SAR, green). Black disc with a cross = pilot killed.");
+            AddKindToggle(strip, hint, nextY(), "rescue", "✚", "Rescues (SAR / CSAR)", "Green cross = a helicopter picked up a pilot. The icon is where the pilot was waiting. Click it to see the helicopter and the rescued pilot.");
+            AddKindToggle(strip, hint, nextY(), "landing", "H", "Helicopter and transport landings", "A helicopter (or a Transport / airlift flight) landed somewhere that is NOT its own base: H in a square. One point per flight and per place. The details tell the place.");
+            AddKindToggle(strip, hint, nextY(), "damage", "⚠", "Aircraft damaged", "Aircraft that were hit but NOT lost: aircraft icon with an orange warning sign, at the point where the worst hit happened. The details tell the life left and who hit it.");
+            AddKindToggle(strip, hint, nextY(), "oldsar", "⟲", "Pilots from earlier missions", "Pilots still waiting for rescue from PREVIOUS missions (grey person). Their name tells the mission number.");
+            AddKindToggle(strip, hint, nextY(), "bomb", "●", "Bomb impacts", "Bomb impacts (orange dot). Many impacts close together are grouped in a circle with their number: click it to zoom in.");
+
+            sy += 16;
+
+
+            _chkTObj = MakeToggle("▣", nextY());
+            _chkTObj.Checked = true;
+            _chkTObj.Enabled = false;          // activé quand le fichier contient des bâtiments de la target list près des bombes
+            _chkTObj.CheckedChanged += (s, e) => _view.Invalidate();
+            hint(_chkTObj, "Intact target objects", "Show or hide ALL the intact target objects (buildings of the target list near the bomb impacts that are still standing). Empty icon with a green check = intact (a filled icon with a cross = destroyed). Small square when zoomed out. Grey = already destroyed before this mission.");
+            strip.Controls.Add(_chkTObj);
+
+            // La molette fait défiler la bande aussi quand la souris est sur un bouton
+            MouseEventHandler wheel = (s, e) => strip.AutoScrollPosition = new Point(0, -strip.AutoScrollPosition.Y - e.Delta / 2);
+            strip.MouseWheel += wheel;
+            foreach (Control c in strip.Controls) c.MouseWheel += wheel;
 
             // --- Barre du haut : filtres ---
-            var top = new Panel { Dock = DockStyle.Top, Height = 40 };
+            Panel top;
+            Map_UI_SideToggle tglLeft, tglRight;
+            Panel topBar = Map_UI_SideToggle.Wrap(80, out top, out tglLeft, out tglRight);       // les 2 boutons de colonne, comme sur les autres cartes
+            _chkLeft = tglLeft;
+            _chkRight = tglRight;
             top.Controls.Add(new Label { Text = "Side:", Location = new Point(10, 12), AutoSize = true });
             _cmbSide = new ComboBox { Location = new Point(52, 8), Width = 90, DropDownStyle = ComboBoxStyle.DropDownList };
             _cmbSide.Items.AddRange(new object[] { "All", "Blue", "Red" });
@@ -383,33 +482,57 @@ namespace DCE_Manager
             hint(_cmbSide, "Side", "Show only the events of one side: what this side lost (and, with a flight chosen, what it destroyed).");
             top.Controls.Add(_cmbSide);
 
-            top.Controls.Add(new Label { Text = "Flight:", Location = new Point(156, 12), AutoSize = true });
-            _cmbFlight = new ComboBox { Location = new Point(204, 8), Width = 470, DropDownWidth = 640, DropDownStyle = ComboBoxStyle.DropDownList };
-            _cmbFlight.SelectionChangeCommitted += (s, e) =>
+            for (int r = 0; r < 3; r++)
             {
-                FlightItem chosen = _cmbFlight.SelectedItem as FlightItem;
-                _comboFromClick = false;
-                _selFlight = (_cmbFlight.SelectedIndex <= 0 || chosen == null) ? "" : chosen.Key;
-                _focus = "";
-                FillUnits();
-                ApplyFilters();
-                if (_selected == null) _details.Text = FlightSummary();
-            };
-            hint(_cmbFlight, "Flight", "Put one whole flight (all its aircraft) in focus: its events, flight plan and track are highlighted, the rest is faded (or hidden, see \"Hide the rest\"). Clicking an icon, a track or a flight plan on the map fills this list for you.");
-            top.Controls.Add(_cmbFlight);
+                int row = r, ry = 8 + 41 * r;
+                var lbl = new Label { Text = RowTitle[r], Location = new Point(156, ry + 4), AutoSize = true };
+                var cf = new ComboBox { Location = new Point(240, ry), Width = 430, DropDownWidth = 640, DropDownStyle = ComboBoxStyle.DropDownList };
+                var cu = new ComboBox { Location = new Point(680, ry), Width = 398, DropDownWidth = 640, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
+                _fCombo[r] = cf; _uCombo[r] = cu;
 
-            top.Controls.Add(new Label { Text = "Aircraft:", Location = new Point(688, 12), AutoSize = true });
-            _cmbUnit = new ComboBox { Location = new Point(748, 8), Width = 330, DropDownWidth = 640, DropDownStyle = ComboBoxStyle.DropDownList, Enabled = false };
-            _cmbUnit.SelectionChangeCommitted += (s, e) =>
-            {
-                FlightItem chosen = _cmbUnit.SelectedItem as FlightItem;
-                _comboFromClick = false;
-                _selUnit = (_cmbUnit.SelectedIndex <= 0 || chosen == null) ? "" : chosen.Key;
-                ApplyFilters();
-                if (_selected == null) _details.Text = FlightSummary();
-            };
-            hint(_cmbUnit, "Aircraft", "Put one aircraft of the chosen flight in focus (its loss, its ejection, its pilot, its track). Clicking an icon or a track on the map fills this list for you.");
-            top.Controls.Add(_cmbUnit);
+                cf.SelectionChangeCommitted += (s, e) =>
+                {
+                    FlightItem chosen = cf.SelectedItem as FlightItem;
+                    _comboFromClick = false;
+                    _extraFlights.Clear();
+                    _selFlight = (cf.SelectedIndex <= 0 || chosen == null) ? "" : chosen.Key;
+                    _focus = "";
+                    _selFromList = false;
+                    ResetOtherRows(row);                    // une seule ligne active à la fois
+                    FillUnits();
+                    ApplyFilters();
+                    if (_selected == null) _details.Text = FlightSummary();
+                };
+                cu.SelectionChangeCommitted += (s, e) =>
+                {
+                    FlightItem chosen = cu.SelectedItem as FlightItem;
+                    _comboFromClick = false;
+                    _selUnit = (cu.SelectedIndex <= 0 || chosen == null) ? "" : chosen.Key;
+                    ApplyFilters();
+                    if (_selected == null) _details.Text = FlightSummary();
+                };
+
+                if (r == 0)
+                {
+                    hint(cf, "Aircraft flight", "Put one whole flight of airplanes (all its aircraft) in focus: its events, flight plan and track are highlighted, the rest is faded (or hidden, see \"Hide the rest\"). Clicking an icon, a track or a flight plan on the map fills this list for you. CTRL + click on a track or a flight plan adds a flight to the focus; right-click takes one out (at the start all flights count). Only one of the three lines (aircraft, helicopters, ground) is active at a time.");
+                    hint(cu, "Aircraft", "Put one aircraft of the chosen flight in focus (its loss, its ejection, its pilot, its track). Clicking an icon or a track on the map fills this list for you.");
+                }
+                else if (r == 1)
+                {
+                    hint(cf, "Helicopter flight", "Put one whole flight of helicopters in focus (its rescues, landings, losses, kills). Choosing here puts the other two lines back on \"All\".");
+                    hint(cu, "Chopper", "Put one helicopter of the chosen flight in focus.");
+                }
+                else
+                {
+                    hint(cf, "Ground shooters", "Ground groups that destroyed something in this mission: SAM, AAA, guns, artillery, ships... Put one in focus: what it destroyed is listed and its position is drawn. Only groups with at least one kill are in this list. Choosing here puts the other two lines back on \"All\".");
+                    hint(cu, "Ground unit", "Put one unit of the chosen ground group in focus (only the units that destroyed something).");
+                }
+
+                top.Controls.Add(lbl); top.Controls.Add(cf); top.Controls.Add(cu);
+                if (r > 0) { _rowCtrls.Add(lbl); _rowCtrls.Add(cf); _rowCtrls.Add(cu); }
+            }
+            _cmbFlight = _fCombo[0];
+            _cmbUnit = _uCombo[0];
 
             _chkKills = new CheckBox { Text = "+ what it destroyed", Location = new Point(1094, 10), AutoSize = true, Checked = true };
             _chkKills.CheckedChanged += (s, e) => { if (_selFlight != "") ApplyFilters(); };
@@ -421,11 +544,107 @@ namespace DCE_Manager
             hint(_chkHide, "Hide the rest", "Unticked (default): the events that are not about the chosen flight / aircraft stay on the map, faded. Ticked: they are removed from the map and from the list.");
             top.Controls.Add(_chkHide);
 
+            // 2e ligne : style de la carte web et ses outils (comme les autres cartes), puis le bouton qui montre / cache la partie droite
+            var lblStyle = new Label { Text = "Map style:", Location = new Point(10, 53), AutoSize = true };
+            top.Controls.Add(lblStyle);
+            _cmbStyle = new ComboBox { Location = new Point(80, 49), Width = 290, DropDownStyle = ComboBoxStyle.DropDownList };
+            foreach (Map_Style st in Map_Web.Styles) _cmbStyle.Items.Add(st.Label);
+            _cmbStyle.SelectedIndex = Math.Max(0, Map_Web.Styles.FindIndex(x => x.Id == Map_Web.CurrentStyle.Id));
+            _cmbStyle.SelectionChangeCommitted += (s, e) => StyleChanged();
+            hint(_cmbStyle, "Map style", "Look of the web map. The style is remembered for each campaign (same choice as the other maps). Satellite and shaded relief have no names at all.");
+            top.Controls.Add(_cmbStyle);
+
+            _chkBg = MakeToggle("▤", 0);
+            _chkBg.Location = new Point(378, 46);
+            _chkBg.CheckedChanged += (s, e) => _view.ShowBackground = _chkBg.Checked;
+            hint(_chkBg, "Web map", "Show or hide the web map (the one of the mission map). If there is none, open the Map window of this campaign once to build it.");
+            top.Controls.Add(_chkBg);
+
+            var btnArea = MakeToolButton("\u2316", 0);
+            btnArea.Location = new Point(416, 46);
+            btnArea.Click += (s, e) => _view.LoadVisibleArea();
+            hint(btnArea, "Load visible area", "Download the map tiles of what you see now, even far from the conflict zone. Then zoom in on this area and the detailed tiles come by themselves.");
+            top.Controls.Add(btnArea);
+
+            var btnDetail = MakeToolButton("\u229E", 0);
+            btnDetail.Location = new Point(454, 46);
+            btnDetail.Click += (s, e) => _view.ForceDetailHere();
+            hint(btnDetail, "Detail now", "Load the detailed tiles of the zoom level you are at, right now (click here when the map looks blurry).");
+            top.Controls.Add(btnDetail);
+
+            // Bouton qui cache / montre les lignes Helicopters et Ground
+            _btnSelRows = new Button { Size = new Size(200, 28), Location = new Point(500, 46), FlatStyle = FlatStyle.System };
+            _btnSelRows.Click += (s, e) => SetSelRows(!_selRowsOpen);
+            hint(_btnSelRows, "Helicopters / Ground lines", "Show or hide the two extra selection lines (helicopters, ground shooters). Hidden = more room for the map; a choice made on those lines is put back on \"All\".");
+            top.Controls.Add(_btnSelRows);
+
+            foreach (Control c in new Control[] { lblStyle, _cmbStyle, _chkBg, btnArea, btnDetail, _btnSelRows }) { c.Tag = c.Top; _mapRowCtrls.Add(c); }
+            _topBarOuter = topBar;
+            LayoutSelRows();
+
+            _chkRight.CheckedChanged += (s, e) => { right.Visible = _chkRight.Checked; _splitRight.Visible = _chkRight.Checked; };
+            hint(_chkRight, "Events panel", "Show or hide the right part: list of events, aircraft with no position, details of the selected event. Hidden = a bigger map.");
+            _chkLeft.CheckedChanged += (s, e) => strip.Visible = _chkLeft.Checked;
+            hint(_chkLeft, "Tools column", "Show or hide the column of buttons on the left of the map (event kinds, ruler, zoom...). Hidden = a bigger map.");
+
             // --- Ligne d'état ---
             _lblStatus = new Label { Dock = DockStyle.Bottom, Height = 26, Padding = new Padding(8, 5, 8, 0) };
 
+            // --- Barre de temps : lecteur, curseur sur la durée des traces, longueur de la traîne ---
+            _timePanel = new Panel { Dock = DockStyle.Bottom, Height = 38, BackColor = Color.FromArgb(243, 243, 243) };
+            _chkTime = new CheckBox { Text = "Time", Location = new Point(10, 10), AutoSize = true, Enabled = false };
+            _chkTime.CheckedChanged += (s, e) =>
+            {
+                _barTime.Enabled = _chkTime.Checked; _barTrail.Enabled = _chkTime.Checked;
+                if (!_chkTime.Checked) StopPlay();
+                _view.Invalidate();
+            };
+            hint(_chkTime, "Time", "Off = the whole tracks and all the events. On = the map shows the situation at the time of the cursor: each track shows only its last part, and each icon appears at the time of its event.");
+
+            _btnSlow = new Button { Text = "\u25C0\u25C0", Location = new Point(70, 6), Size = new Size(34, 26), FlatStyle = FlatStyle.System };
+            _btnPlay = new Button { Text = "\u25B6", Location = new Point(106, 6), Size = new Size(38, 26), FlatStyle = FlatStyle.System, Enabled = false };
+            _btnFast = new Button { Text = "\u25B6\u25B6", Location = new Point(146, 6), Size = new Size(34, 26), FlatStyle = FlatStyle.System };
+            _lblSpeed = new Label { Location = new Point(184, 11), AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Text = "x2" };
+            _btnSlow.Click += (s, e) => { if (_speedIdx > 0) _speedIdx--; _lblSpeed.Text = "x" + PlaySpeeds[_speedIdx]; };
+            _btnFast.Click += (s, e) => { if (_speedIdx < PlaySpeeds.Length - 1) _speedIdx++; _lblSpeed.Text = "x" + PlaySpeeds[_speedIdx]; };
+            _btnPlay.Click += (s, e) => { if (_playTimer.Enabled) StopPlay(); else StartPlay(); };
+            hint(_btnSlow, "Slower", "Slow the time down (x500, x200 ... x1).");
+            hint(_btnFast, "Faster", "Speed the time up (x1 ... x500).");
+            hint(_btnPlay, "Play / pause", "Plays the mission time from the cursor. Starts again from the beginning when the cursor is at the end.");
+            _playTimer = new Timer { Interval = 20 };
+            _playTimer.Tick += (s, e) => PlayTick();
+
+            _barTime = new TrackBar { Location = new Point(232, 3), Width = 360, Height = 32, TickStyle = TickStyle.None, Enabled = false, SmallChange = 10, LargeChange = 60 };
+            _barTime.ValueChanged += (s, e) => { if (!_syncBar) SetTime(_barTime.Value); };
+            _lblTime = new Label { Location = new Point(600, 11), AutoSize = true, Font = new Font("Segoe UI", 9f, FontStyle.Bold), Text = "T+0:00" };
+            var lblTrailCap = new Label { Text = "Trail:", Location = new Point(680, 11), AutoSize = true };
+            _barTrail = new TrackBar { Location = new Point(720, 3), Width = 130, Height = 32, TickStyle = TickStyle.None, Enabled = false, Minimum = 1, Maximum = 41, Value = 10, SmallChange = 1, LargeChange = 4 };
+            _lblTrail = new Label { Location = new Point(856, 11), AutoSize = true, Text = "5:00" };
+            _chkFollow = new CheckBox { Text = "Follow", Location = new Point(905, 10), AutoSize = true };
+            _chkFollow.CheckedChanged += (s, e) => { UpdatePlayCache(); if (_chkFollow.Checked) FollowSelected(); };
+            hint(_chkFollow, "Follow", "The map follows the chosen aircraft (choose a flight or an aircraft first): the aircraft stays in the middle and the map moves. Uncheck it to move the map yourself.");
+            _barTrail.ValueChanged += (s, e) =>
+            {
+                double sec = TrailSeconds();
+                _lblTrail.Text = sec <= 0 ? "All" : FmtT(sec).Replace("T+", "");
+                if (_chkTime.Checked) _view.Invalidate();
+            };
+            hint(_barTrail, "Trail length", "How long the track stays visible behind the aircraft: from 30 seconds to 20 minutes, or All (the whole track before the cursor).");
+            _timePanel.Controls.Add(_chkTime);
+            _timePanel.Controls.Add(_btnSlow);
+            _timePanel.Controls.Add(_btnPlay);
+            _timePanel.Controls.Add(_btnFast);
+            _timePanel.Controls.Add(_lblSpeed);
+            _timePanel.Controls.Add(_barTime);
+            _timePanel.Controls.Add(_lblTime);
+            _timePanel.Controls.Add(lblTrailCap);
+            _timePanel.Controls.Add(_barTrail);
+            _timePanel.Controls.Add(_lblTrail);
+            _timePanel.Controls.Add(_chkFollow);
+
             Controls.Add(_view);
-            Controls.Add(new Splitter { Dock = DockStyle.Right, Width = 6, MinSize = 250, MinExtra = 300 });
+            _splitRight = new Splitter { Dock = DockStyle.Right, Width = 6, MinSize = 250, MinExtra = 300 };
+            Controls.Add(_splitRight);
             Controls.Add(right);
             Controls.Add(strip);
 
@@ -435,7 +654,8 @@ namespace DCE_Manager
             _stats.Resize += (s, e) => { if (_stats.ClientSize.Width != _statsLayoutW) LayoutStats(); };
             hint(_stats, "Summary", "What the chosen side / flight / aircraft did and suffered in this mission. A whole flight = the sum of all its aircraft; one aircraft chosen = that aircraft only. Grey = zero. Destroyed = what it shot down or destroyed (friendly fire is counted apart).");
             Controls.Add(_stats);
-            Controls.Add(top);
+            Controls.Add(topBar);
+            Controls.Add(_timePanel);
             Controls.Add(_lblStatus);
 
             KeyPreview = true;
@@ -449,6 +669,13 @@ namespace DCE_Manager
             chk.CheckedChanged += (s, e) => { _groupOn[group] = chk.Checked; ApplyFilters(); };
             hint(chk, title, text);
             strip.Controls.Add(chk);
+        }
+
+        private void ChangeIconSize(float factor)
+        {
+            _iconMul = Math.Max(0.4f, Math.Min(3f, _iconMul * factor));
+            _lblStatus.Text = "Icon size: " + Math.Round(_iconMul * 100) + " %";
+            _view.Invalidate();
         }
 
         // Les symboles de la police se posent un peu bas dans le bouton : on les dessine nous-mêmes, remontés de 2 pixels
@@ -725,6 +952,7 @@ namespace DCE_Manager
                         object cur = t["current"];
                         e.Current = !(cur is bool) || (bool)cur;
                         e.Group = GroupOf(e);
+                        if (e.Kind == "static_kill" && RxDecorStatic.IsMatch((e.Type ?? "") + " " + (e.Name ?? ""))) continue;        // sacs de sable, filets de camouflage : ni comptés ni affichés (anciens fichiers)
                         _all.Add(e);
                     }
                 }
@@ -734,8 +962,20 @@ namespace DCE_Manager
                 // Camp de chaque vol : lu dans les événements (victime ou tueur)
                 foreach (Map_Event e in _all)
                 {
+                    if (e.Kind == "air_lost" && e.Name != "" && e.Type != "" && !_unitType.ContainsKey(e.Name)) _unitType[e.Name] = e.Type;
+                    if (e.Killer != "" && e.KillerFlight != "" && e.KillerType != "" && !_unitType.ContainsKey(e.Killer)) _unitType[e.Killer] = e.KillerType;
                     if (e.Flight != "" && e.Side != "" && !_flightSide.ContainsKey(e.Flight)) _flightSide[e.Flight] = e.Side;
                     if (e.KillerFlight != "" && e.KillerSide != "" && !_flightSide.ContainsKey(e.KillerFlight)) _flightSide[e.KillerFlight] = e.KillerSide;
+                }
+
+                // Tireurs au sol qui ont détruit quelque chose : leur groupe sert de "vol" pour la 3e ligne de choix
+                foreach (Map_Event e in _all)
+                {
+                    if (e.Killer == "" || e.KillerFlight != "" || e.KillerGroup == "" || e.Killer == e.Name) continue;     // un statique qui saute seul n'est pas un tireur
+                    e.KillerFlight = e.KillerGroup;
+                    e.GroundKiller = true;
+                    if (!_gndSide.ContainsKey(e.KillerGroup)) _gndSide[e.KillerGroup] = e.KillerSide;
+                    if (e.KillerType != "" && !_unitType.ContainsKey(e.Killer)) _unitType[e.Killer] = e.KillerType;
                 }
             }
             catch (Exception ex)
@@ -743,6 +983,64 @@ namespace DCE_Manager
                 _loadError = "The events file could not be read: " + ex.Message;
                 FormUtils.LogRegister("Map_Events_Form | lecture : " + ex);
             }
+        }
+
+        // Init\various_table.lua : blocs BaseNameAlias et TypeAlias, lignes ["nom"] = "alias"
+        private void LoadAliases()
+        {
+            _typeAlias.Clear();
+            _baseAlias.Clear();
+            try
+            {
+                string file = Path.Combine(ParamConf.PATH_SavedGames_DCS, @"Mods\tech\DCE\Missions\Campaigns", _campaign, "Init", "various_table.lua");
+                if (!File.Exists(file)) return;
+
+                string block = "";
+                foreach (string raw in File.ReadAllLines(file))
+                {
+                    string line = raw.Trim();
+                    if (line.StartsWith("--")) continue;
+                    if (line.StartsWith("BaseNameAlias")) { block = "base"; continue; }
+                    if (line.StartsWith("TypeAlias")) { block = "type"; continue; }
+                    if (block == "") continue;
+                    if (line.StartsWith("}")) { block = ""; continue; }
+
+                    Match m = Regex.Match(line, "^\\[\"(.+?)\"\\]\\s*=\\s*\"(.*?)\"");
+                    if (!m.Success) continue;
+                    if (block == "base") _baseAlias[m.Groups[1].Value] = m.Groups[2].Value;
+                    else _typeAlias[m.Groups[1].Value] = m.Groups[2].Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Map_Events_Form | various_table : " + ex.Message);
+            }
+        }
+
+        // Type d'avion tel qu'on l'affiche : l'alias s'il existe, sinon le type DCS exact
+        private string TypeName(string type)
+        {
+            if (string.IsNullOrEmpty(type)) return "";
+            string a;
+            return _typeAlias.TryGetValue(type, out a) && a != "" ? a : type;
+        }
+
+        private string TypeOfUnit(string unit)
+        {
+            string t;
+            return _unitType.TryGetValue(unit ?? "", out t) ? TypeName(t) : "";
+        }
+
+        // Types différents des avions d'un vol : "F-105D" ou "F-4E, F-105D"
+        private string TypesOfFlight(string flight)
+        {
+            var list = new List<string>();
+            foreach (string n in UnitsOfFlight(flight))
+            {
+                string t = TypeOfUnit(n);
+                if (t != "" && !list.Contains(t)) list.Add(t);
+            }
+            return string.Join(", ", list);
         }
 
         // Bases de la campagne (repères) : mêmes données que la carte de mission
@@ -765,6 +1063,7 @@ namespace DCE_Manager
                         Y = a.Y,
                         Side = a.Side,
                         Inactive = a.Inactive,
+                        Alias = BaseAlias(kv.Key, a.AliasName),
                         IsFarp = kv.Key.IndexOf("FARP", StringComparison.OrdinalIgnoreCase) >= 0,
                         Runways = a.Runways == null ? new List<Map_Runway>()
                             : a.Runways.Select(rw => new Map_Runway { Hdg = rw.Hdg, Length = rw.Length, X = rw.X, Y = rw.Y }).ToList()
@@ -777,6 +1076,38 @@ namespace DCE_Manager
                 FormUtils.LogRegister("Map_Events_Form | bases : " + ex.Message);
             }
             _view.SetBases(markers);
+        }
+
+        private string BaseAlias(string name, string fromDb)
+        {
+            string a;
+            if (_baseAlias.TryGetValue(name, out a) && a != "") return a;
+            return string.IsNullOrWhiteSpace(fromDb) ? "" : fromDb;
+        }
+
+        // Nouveau style de tuiles : même calage que les autres cartes, on recharge le fond de ce style
+        private void StyleChanged()
+        {
+            Map_Web.UseCampaign(_campaign);
+            Map_Web.CurrentStyle = Map_Web.Styles[_cmbStyle.SelectedIndex];
+
+            if (_background != null)
+            {
+                _view.SetBackground(null);
+                _background.Dispose();
+                _background = null;
+            }
+
+            Map_Background cached = null;
+            try { cached = Map_Web.TryLoadCached(_campaign); }
+            catch (Exception ex) { FormUtils.LogRegister("Map_Events_Form | style : " + ex.Message); }
+
+            if (cached != null) UseBackground(cached);
+            else
+            {
+                _view.ShowBackground = false;
+                _lblStatus.Text = "Web map: no map in the cache for this style. Open the Map window of this campaign once to build it.";
+            }
         }
 
         private void UseBackground(Map_Background bg)
@@ -868,6 +1199,7 @@ namespace DCE_Manager
                 // Les joueurs des traces complètent ceux du fichier debrief (utile pour les anciens fichiers)
                 foreach (Map_Track tr in _tracks)
                 {
+                    if (tr.Type != "" && !_unitType.ContainsKey(tr.Unit)) _unitType[tr.Unit] = tr.Type;      // le type exact vient aussi du fichier de traces
                     if (tr.Player == "") continue;
                     if (!_unitPlayer.ContainsKey(tr.Unit)) _unitPlayer[tr.Unit] = tr.Player;
                     AddPlayer(tr.Flight, tr.Player);
@@ -906,15 +1238,15 @@ namespace DCE_Manager
         {
             if (_focusNow == "") return true;
             bool unit = _selFlight != "" && _selUnit != "";
-            if (string.Equals(e.Flight, _focusNow, StringComparison.OrdinalIgnoreCase) && (!unit || UnitNameOf(e) == _selUnit)) return true;
-            return _chkKills.Checked && string.Equals(e.KillerFlight, _focusNow, StringComparison.OrdinalIgnoreCase) && (!unit || e.Killer == _selUnit);
+            if (InFocus(e.Flight) && (!unit || UnitNameOf(e) == _selUnit)) return true;
+            return _chkKills.Checked && InFocus(e.KillerFlight) && (!unit || e.Killer == _selUnit);
         }
 
         // Vols / avions liés au vol mis en avant : celui qui l'a abattu, et ceux qu'il a abattus. Calculé quand la mise en avant change.
         private void UpdateRelated()
         {
             if (_chkKills == null) return;
-            string key = _focusNow + "|" + _selUnit + "|" + (_selFlight != "") + "|" + _chkKills.Checked;
+            string key = _focusNow + "|" + _selUnit + "|" + (_selFlight != "") + "|" + _chkKills.Checked + "|" + ExtraKey;
             if (key == _relKey) return;
             _relKey = key;
             _related.Clear();
@@ -926,19 +1258,22 @@ namespace DCE_Manager
             foreach (Map_Event e in _all)
             {
                 // ce qui lui est arrivé : qui l'a fait ?
-                bool subj = string.Equals(e.Flight, _focusNow, StringComparison.OrdinalIgnoreCase) && (!unitSel || UnitNameOf(e) == _selUnit);
+                bool subj = InFocus(e.Flight) && (!unitSel || UnitNameOf(e) == _selUnit);
                 if (subj && e.Killer != "")
                 {
-                    if (e.KillerFlight != "")
+                    if (e.KillerFlight != "" && !e.GroundKiller)
                     {
-                        if (!string.Equals(e.KillerFlight, _focusNow, StringComparison.OrdinalIgnoreCase)) AddRelated(e.KillerFlight, e.Killer);
+                        if (!InFocus(e.KillerFlight)) AddRelated(e.KillerFlight, e.Killer);
                     }
                     else if (e.KillerGroup != "" && e.HasKillerPos && seenGround.Add(e.Killer)) _gndKillers.Add(e);
                 }
 
+                // le tireur au sol mis en avant : sa position est dessinée
+                if (e.GroundKiller && InFocus(e.KillerFlight) && e.HasKillerPos && seenGround.Add(e.Killer)) _gndKillers.Add(e);
+
                 // ce qu'il a fait : qui l'a subi ?
-                if (_chkKills.Checked && string.Equals(e.KillerFlight, _focusNow, StringComparison.OrdinalIgnoreCase) && (!unitSel || e.Killer == _selUnit)
-                    && e.Flight != "" && !string.Equals(e.Flight, _focusNow, StringComparison.OrdinalIgnoreCase))
+                if (_chkKills.Checked && InFocus(e.KillerFlight) && (!unitSel || e.Killer == _selUnit)
+                    && e.Flight != "" && !InFocus(e.Flight))
                     AddRelated(e.Flight, UnitNameOf(e));
             }
         }
@@ -960,7 +1295,7 @@ namespace DCE_Manager
         private int FocusRank(Map_Event e)
         {
             if (_focusNow == "" || IsFocused(e)) return 2;
-            if (_related.Count > 0 && ((e.Flight != "" && IsRelatedUnit(e.Flight, UnitNameOf(e))) || (e.KillerFlight != "" && IsRelatedUnit(e.KillerFlight, e.Killer)))) return 1;
+            if (_related.Count > 0 && ((e.Flight != "" && IsRelatedUnit(e.Flight, UnitNameOf(e))) || (e.KillerFlight != "" && !e.GroundKiller && IsRelatedUnit(e.KillerFlight, e.Killer)))) return 1;
             return 0;
         }
 
@@ -968,90 +1303,401 @@ namespace DCE_Manager
         {
             if (focusFlight == "" && _selUnit == "") return true;
             if (IsRelatedUnit(tr.Flight, tr.Unit)) return true;
-            return (focusFlight == "" || string.Equals(tr.Flight, focusFlight, StringComparison.OrdinalIgnoreCase)) && (_selUnit == "" || tr.Unit == _selUnit);
+            return (focusFlight == "" || string.Equals(tr.Flight, focusFlight, StringComparison.OrdinalIgnoreCase) || _extraFlights.Contains(tr.Flight)) && (_selUnit == "" || tr.Unit == _selUnit);
+        }
+
+        // Victoires du vol / avion mis en avant : une étoile sur sa trace à l'heure de la victoire
+        private void DrawVictories(Graphics g)
+        {
+            if (_focusNow == "" || _chkKills == null || !_chkKills.Checked || _tracks.Count == 0) return;
+
+            foreach (Map_Event e in _all)
+            {
+                if (e.Killer == "" || e.Group == "bomb" || !e.HasPos || !TimeOk(e)) continue;
+                if (!InFocus(e.KillerFlight)) continue;
+                if (_selFlight != "" && _selUnit != "" && e.Killer != _selUnit) continue;
+
+                Map_Track tr = _tracks.FirstOrDefault(t => t.Unit == e.Killer && t.Pts.Count > 0);
+                if (tr == null) continue;                       // pas de trace pour le tueur : pas de marque (la fiche du vol donne la victoire)
+
+                double[] best = tr.Pts[0];
+                foreach (double[] pt in tr.Pts)
+                    if (Math.Abs(pt[0] - e.T) < Math.Abs(best[0] - e.T)) best = pt;
+
+                PointF k = _view.ToScreen(best[1], best[2]);
+                if (float.IsNaN(k.X) || float.IsNaN(k.Y) || Math.Abs(k.X) > 1e5f || Math.Abs(k.Y) > 1e5f) continue;
+
+                var star = new PointF[10];
+                for (int i = 0; i < 10; i++)
+                {
+                    double a = -Math.PI / 2 + i * Math.PI / 5;
+                    float r = i % 2 == 0 ? 10f : 4.5f;
+                    star[i] = new PointF(k.X + (float)Math.Cos(a) * r, k.Y + (float)Math.Sin(a) * r);
+                }
+                using (var fill = new SolidBrush(Color.Gold)) g.FillPolygon(fill, star);
+                g.DrawPolygon(Pens.Black, star);
+
+                string label = "Victory " + FmtT(e.T) + ": " + (TypeName(e.Type) != "" ? TypeName(e.Type) : e.Name);
+                if (_view.ShowLabels)
+                {
+                    g.DrawString(label, _fontBold, Brushes.Black, k.X + 13, k.Y - 7);
+                    g.DrawString(label, _fontBold, Brushes.Gold, k.X + 12, k.Y - 8);
+                }
+            }
+        }
+
+        // Un élément de la target list qui figure aussi parmi les détruits (même nom, ou même place à 3 m près) n'est PAS intact : on ne garde que l'icône "détruit"
+        // (le fichier de debriefing peut le classer "encore debout" alors que le journal de mission l'a bien vu mourir)
+        private void RemoveDestroyedTargetObjects()
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var dead = new List<Map_Event>();
+            foreach (Map_Event e in _all)
+            {
+                if (e.Kind != "static_kill" && e.Kind != "ground_kill" && e.Kind != "scenery_kill") continue;
+                if (e.Name != "") names.Add(e.Name);
+                if (e.Element != "") names.Add(e.Element);
+                if (e.HasPos) dead.Add(e);
+            }
+            _targetObjs.RemoveAll(te =>
+            {
+                if (te.Name != "" && names.Contains(te.Name)) return true;
+                foreach (Map_Event d in dead)
+                {
+                    double dx = d.X - te.X, dy = d.Y - te.Y;
+                    if (dx * dx + dy * dy <= 9.0) return true;
+                }
+                return false;
+            });
+        }
+
+        // Un élément intact n'apparaît qu'à l'heure de la première bombe tombée près de lui (distance : celle de l'impact le plus proche, au moins 500 m)
+        private void SetTargetObjectTimes()
+        {
+            var bombs = _all.Where(b => b.Group == "bomb" && b.HasPos).ToList();
+            foreach (Map_Event te in _targetObjs)
+            {
+                double d;
+                if (!double.TryParse(te.Info, NumberStyles.Float, CultureInfo.InvariantCulture, out d)) d = 0;
+                double r = Math.Max(500.0, d), r2 = r * r, first = double.MaxValue;
+                foreach (Map_Event b in bombs)
+                {
+                    double dx = b.X - te.X, dy = b.Y - te.Y;
+                    if (dx * dx + dy * dy <= r2 && b.T < first) first = b.T;
+                }
+                te.T = first == double.MaxValue ? 0 : first;
+            }
+        }
+
+        // Curseur de temps : de la première à la dernière trace
+        private void SetupTimeBar()
+        {
+            double t0 = double.MaxValue, t1 = double.MinValue;
+            foreach (Map_Track tr in _tracks)
+                if (tr.Pts.Count > 1) { t0 = Math.Min(t0, tr.Pts[0][0]); t1 = Math.Max(t1, tr.Pts[tr.Pts.Count - 1][0]); }
+            if (t1 <= t0) return;           // pas de traces : le curseur reste désactivé
+            _syncBar = true;            // la barre change de bornes : pas de réaction pendant ce temps
+            try
+            {
+                _barTime.Maximum = (int)Math.Ceiling(t1);
+                _barTime.Minimum = (int)Math.Floor(t0);
+            }
+            finally { _syncBar = false; }
+            SetTime(StartTime());
+            _chkTime.Enabled = true;
+            _btnPlay.Enabled = true;
+        }
+
+        // Change l'heure du curseur (barre, étiquette, carte)
+        private void SetTime(double t)
+        {
+            t = Math.Max(_barTime.Minimum, Math.Min(_barTime.Maximum, t));
+            _tNow = t;
+            _syncBar = true;
+            try { _barTime.Value = (int)Math.Round(t); }
+            finally { _syncBar = false; }
+            _lblTime.Text = FmtT(t);
+            if (_chkTime.Checked)
+            {
+                FollowSelected();
+                _view.Invalidate();
+            }
+        }
+
+        // Fond mémorisé seulement pendant la lecture, et pas quand la carte suit l'avion (elle bouge à chaque image)
+        private void UpdatePlayCache()
+        {
+            if (_view != null) _view.PlayCache = _playTimer != null && _playTimer.Enabled && !(_chkFollow != null && _chkFollow.Checked);
+        }
+
+        // Heure de départ : 20 % de la durée des traces
+        private double StartTime()
+        {
+            return _barTime.Minimum + 0.2 * (_barTime.Maximum - _barTime.Minimum);
+        }
+
+        // La carte se centre sur l'avion choisi (position lissée de sa tête) : l'avion reste fixe, c'est la carte qui bouge
+        private void FollowSelected()
+        {
+            if (_chkFollow == null || !_chkFollow.Checked || !TimeOn()) return;
+            if (FocusFlight() == "" && _selUnit == "") return;          // aucun avion choisi : rien à suivre
+
+            string focus = TrackFocusFlight();
+            Map_Track best = null;
+            foreach (Map_Track tr in _tracks)
+            {
+                if (tr.Pts.Count < 2 || !TrackStrong(tr, focus)) continue;
+                if (tr.Pts[0][0] > _tNow || tr.Pts[tr.Pts.Count - 1][0] < _tNow) continue;       // pas de trace à cette heure
+                if (best == null || (_selUnit != "" && tr.Unit == _selUnit)) best = tr;
+            }
+            if (best == null) return;
+
+            double vx, vy;
+            List<double[]> w = TrackWindow(best, out vx, out vy);
+            if (w.Count == 0) return;
+            double[] head = w[w.Count - 1];
+            _view.CenterOn(head[1], head[2]);
+        }
+
+        private void StartPlay()
+        {
+            if (!_chkTime.Enabled) return;
+            if (!_chkTime.Checked) _chkTime.Checked = true;
+            if (_tNow >= _barTime.Maximum - 0.5) SetTime(StartTime());
+            _lastTick = Environment.TickCount;
+            _playTimer.Start();
+            UpdatePlayCache();
+            _btnPlay.Text = "\u275A\u275A";
+        }
+
+        private void StopPlay()
+        {
+            if (_playTimer != null) _playTimer.Stop();
+            UpdatePlayCache();
+            if (_btnPlay != null) _btnPlay.Text = "\u25B6";
+        }
+
+        private void PlayTick()
+        {
+            int now = Environment.TickCount;
+            double dt = Math.Min(0.25, Math.Max(0, (now - _lastTick) / 1000.0));
+            _lastTick = now;
+            SetTime(_tNow + dt * PlaySpeeds[_speedIdx]);
+            if (_tNow >= _barTime.Maximum) StopPlay();
+        }
+
+        // Curseur de temps actif ? Alors une icône n'existe qu'à partir de l'heure de son événement.
+        private bool TimeOn() { return _chkTime != null && _chkTime.Checked; }
+        private bool TimeOk(Map_Event e) { return !TimeOn() || e.T <= _tNow; }
+
+        // Longueur de la traîne en secondes (0 = toute la trace avant le curseur) : 30 s par cran, le dernier cran = All
+        private double TrailSeconds()
+        {
+            return _barTrail.Value >= _barTrail.Maximum ? 0 : _barTrail.Value * 30.0;
+        }
+
+        // Les points de la trace entre (curseur - traîne) et le curseur.
+        // Le dernier point (la tête) est calculé entre deux points enregistrés par une courbe lisse (Hermite : la vitesse est continue d'un segment à l'autre),
+        // et sa vitesse (m/s, nord et est) sert à tourner la silhouette. Peu de calcul : un seul segment par trace et par image.
+        private List<double[]> TrackWindow(Map_Track tr, out double vx, out double vy)
+        {
+            vx = 0; vy = 0;
+            double t1 = _tNow, t0 = TrailSeconds() > 0 ? t1 - TrailSeconds() : double.MinValue;
+            var res = new List<double[]>();
+            int iLast = -1, iNext = -1;
+            for (int i = 0; i < tr.Pts.Count; i++)
+            {
+                double[] pt = tr.Pts[i];
+                if (pt[0] > t1) { iNext = i; break; }
+                iLast = i;
+                if (pt[0] >= t0) res.Add(pt);
+            }
+
+            if (iLast >= 0 && iNext > iLast && res.Count > 0 && res[res.Count - 1] == tr.Pts[iLast] && tr.Pts[iNext][0] - tr.Pts[iLast][0] < 120)
+            {
+                double[] p0 = tr.Pts[iLast], p1 = tr.Pts[iNext];
+                double[] pm = iLast > 0 ? tr.Pts[iLast - 1] : p0;                           // point avant
+                double[] pp = iNext + 1 < tr.Pts.Count ? tr.Pts[iNext + 1] : p1;            // point après
+                double h = p1[0] - p0[0];
+                double dm = p1[0] - pm[0], dp = pp[0] - p0[0];
+                double[] m0 = new double[3], m1 = new double[3];                          // vitesses aux deux bouts (x, y, z)
+                for (int c = 0; c < 3; c++)
+                {
+                    m0[c] = dm > 0 ? (p1[c + 1] - pm[c + 1]) / dm : (p1[c + 1] - p0[c + 1]) / h;
+                    m1[c] = dp > 0 ? (pp[c + 1] - p0[c + 1]) / dp : (p1[c + 1] - p0[c + 1]) / h;
+                }
+                double uEnd = (t1 - p0[0]) / h;
+                // quelques points intermédiaires pour que la traîne suive la courbe, puis la tête
+                for (int k = 1; k <= 6; k++)
+                {
+                    double u = uEnd * k / 6.0, u2 = u * u, u3 = u2 * u;
+                    double h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = -2 * u3 + 3 * u2, h11 = u3 - u2;
+                    var q = new double[4];
+                    q[0] = p0[0] + u * h;
+                    for (int c = 0; c < 3; c++) q[c + 1] = h00 * p0[c + 1] + h10 * h * m0[c] + h01 * p1[c + 1] + h11 * h * m1[c];
+                    res.Add(q);
+                }
+                double e2 = uEnd * uEnd;
+                double d00 = 6 * e2 - 6 * uEnd, d10 = 3 * e2 - 4 * uEnd + 1, d01 = -6 * e2 + 6 * uEnd, d11 = 3 * e2 - 2 * uEnd;
+                vx = (d00 * p0[1] + d10 * h * m0[0] + d01 * p1[1] + d11 * h * m1[0]) / h;
+                vy = (d00 * p0[2] + d10 * h * m0[1] + d01 * p1[2] + d11 * h * m1[1]) / h;
+            }
+            else if (res.Count >= 2)
+            {
+                double[] a = res[res.Count - 2], b = res[res.Count - 1];
+                double dt = b[0] - a[0];
+                if (dt > 0) { vx = (b[1] - a[1]) / dt; vy = (b[2] - a[2]) / dt; }
+            }
+            return res;
+        }
+
+        // Têtes de trace (silhouettes) : calculées pendant le dessin des traces, dessinées en dernier, au-dessus de toutes les icônes
+        private class TrackHead
+        {
+            public PointF P;
+            public float Ang;
+            public Color Col;
+            public bool Heli;
+            public string Label = "";
+        }
+        private readonly List<TrackHead> _heads = new List<TrackHead>();
+
+        private void DrawTrackHeads(Graphics g)
+        {
+            if (_heads.Count == 0) return;
+            SmoothingMode old = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            foreach (TrackHead hd in _heads)
+            {
+                GraphicsState hs = g.Save();
+                g.TranslateTransform(hd.P.X, hd.P.Y);
+                g.RotateTransform(hd.Ang);
+                g.ScaleTransform(0.95f, 0.95f);
+                using (var hf = new SolidBrush(hd.Col))
+                using (var he = new Pen(Color.Black, 1.1f) { LineJoin = LineJoin.Round })
+                    DrawFamily(g, hd.Heli ? "heli" : "plane", hf, he, hd.Col);
+                g.Restore(hs);
+                if (_view.ShowLabels && hd.Label != "")
+                {
+                    g.DrawString(hd.Label, _fontBold, Brushes.Black, hd.P.X + 11f, hd.P.Y - 7f);
+                    using (var tb = new SolidBrush(hd.Col)) g.DrawString(hd.Label, _fontBold, tb, hd.P.X + 10f, hd.P.Y - 8f);
+                }
+            }
+            g.SmoothingMode = old;
         }
 
         private void DrawTracks(Graphics g)
         {
+            _heads.Clear();
             if (_chkTracks == null || !_chkTracks.Checked || _tracks.Count == 0) return;
 
             string focusFlight = TrackFocusFlight();
             bool focus = focusFlight != "" || _selUnit != "";
+            bool moving = _view.IsMoving;       // pendant un zoom / déplacement : pas de lissage, pas de traces pâles (bien plus fluide)
             SmoothingMode oldMode = g.SmoothingMode;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.SmoothingMode = moving ? SmoothingMode.HighSpeed : SmoothingMode.AntiAlias;
 
             foreach (Map_Track tr in _tracks)
             {
                 if (tr.Pts.Count < 2 || (_selSide != "" && tr.Side != _selSide)) continue;
                 bool strong = TrackStrong(tr, focusFlight);
+                if (moving && !strong) continue;
                 Color col = TrackColor(tr.Side);
+                double hvx = 0, hvy = 0;
+                List<double[]> pts = (_chkTime != null && _chkTime.Checked) ? TrackWindow(tr, out hvx, out hvy) : tr.Pts;
+                if (pts.Count < 2) continue;
 
-                // La trace en tronçons d'écran (on saute les points à moins de 2 pixels ; on coupe si un point est très loin hors écran)
-                var runs = new List<List<PointF>>();
+                // La trace en points d'écran (on saute ceux à moins de 2 pixels du précédent) ; la découpe aux bords de l'écran est faite au dessin
                 var run = new List<PointF>();
-                var pix = new PointF[tr.Pts.Count];
-                for (int i = 0; i < tr.Pts.Count; i++)
+                var pix = new PointF[pts.Count];
+                for (int i = 0; i < pts.Count; i++)
                 {
-                    PointF p = _view.ToScreen(tr.Pts[i][1], tr.Pts[i][2]);
+                    PointF p = _view.ToScreen(pts[i][1], pts[i][2]);
                     pix[i] = p;
-                    bool ok = !float.IsNaN(p.X) && !float.IsInfinity(p.X) && !float.IsNaN(p.Y) && !float.IsInfinity(p.Y) && Math.Abs(p.X) < 30000f && Math.Abs(p.Y) < 30000f;
-                    if (!ok) { if (run.Count > 1) runs.Add(run); run = new List<PointF>(); continue; }
-                    if (run.Count > 0 && i < tr.Pts.Count - 1)
+                    if (float.IsNaN(p.X) || float.IsInfinity(p.X) || float.IsNaN(p.Y) || float.IsInfinity(p.Y)) continue;
+                    if (run.Count > 0 && i < pts.Count - 1)
                     {
                         PointF q = run[run.Count - 1];
                         if (Math.Abs(p.X - q.X) < 2f && Math.Abs(p.Y - q.Y) < 2f) continue;
                     }
                     run.Add(p);
                 }
-                if (run.Count > 1) runs.Add(run);
+                if (run.Count < 2) continue;
+                PointF[] line = run.ToArray();
 
-                if (strong)
+                bool timeOn = TimeOn();
+                if (strong && timeOn)
                 {
-                    using (var halo = new Pen(Color.FromArgb(140, 0, 0, 0), 5f) { LineJoin = LineJoin.Round })
+                    // Curseur de temps : traîne qui s'efface vers l'arrière (transparente derrière, pleine devant)
+                    const int Steps = 12;
+                    for (int k = 0; k < Steps; k++)
+                    {
+                        int i0 = (int)((long)(line.Length - 1) * k / Steps), i1 = (int)((long)(line.Length - 1) * (k + 1) / Steps);
+                        if (i1 <= i0) continue;
+                        var seg = new PointF[i1 - i0 + 1];
+                        Array.Copy(line, i0, seg, 0, seg.Length);
+                        using (var pen = new Pen(Color.FromArgb(25 + 230 * (k + 1) / Steps, col), 3f) { LineJoin = LineJoin.Round })
+                            _view.DrawClippedLines(g, pen, seg, false);
+                    }
+                }
+                else if (strong)
+                {
+                    if (!moving)
+                        using (var halo = new Pen(Color.FromArgb(140, 0, 0, 0), 5f) { LineJoin = LineJoin.Round })
+                            _view.DrawClippedLines(g, halo, line, false);
                     using (var pen = new Pen(col, 2.6f) { LineJoin = LineJoin.Round })
-                        foreach (List<PointF> r in runs)
-                        {
-                            g.DrawLines(halo, r.ToArray());
-                            g.DrawLines(pen, r.ToArray());
-                        }
+                        _view.DrawClippedLines(g, pen, line, false);
                 }
                 else
                 {
                     using (var pen = new Pen(Color.FromArgb(70, col), 1.2f))
-                        foreach (List<PointF> r in runs) g.DrawLines(pen, r.ToArray());
+                        _view.DrawClippedLines(g, pen, line, false);
                     continue;
                 }
 
                 // Départ : rond blanc ; arrivée : carré ; nom du joueur à côté
                 PointF a0 = pix[0], a1 = pix[pix.Length - 1];
-                if (Math.Abs(a0.X) < 30000f && Math.Abs(a0.Y) < 30000f)
+                if (!timeOn && Math.Abs(a0.X) < 30000f && Math.Abs(a0.Y) < 30000f)
                 {
                     g.FillEllipse(Brushes.White, a0.X - 4.5f, a0.Y - 4.5f, 9f, 9f);
                     using (var edge = new Pen(col, 2f)) g.DrawEllipse(edge, a0.X - 4.5f, a0.Y - 4.5f, 9f, 9f);
                 }
                 if (Math.Abs(a1.X) < 30000f && Math.Abs(a1.Y) < 30000f)
                 {
-                    using (var fill = new SolidBrush(col)) g.FillRectangle(fill, a1.X - 4f, a1.Y - 4f, 8f, 8f);
-                    g.DrawRectangle(Pens.Black, a1.X - 4f, a1.Y - 4f, 8f, 8f);
-                    string label = tr.Player != "" ? tr.Player : tr.Unit;
-                    g.DrawString(label, _fontBold, Brushes.Black, a1.X + 8f, a1.Y - 7f);
-                    using (var tb = new SolidBrush(col)) g.DrawString(label, _fontBold, tb, a1.X + 7f, a1.Y - 8f);
+                    // Avant de la trace : une silhouette (avion ou hélico) tournée dans le sens de la marche ; elle est dessinée plus tard, au-dessus des icônes
+                    float ang = 0f;
+                    if (TimeOn() && (hvx != 0 || hvy != 0))
+                    {
+                        // sens de la vitesse lissée de la tête (sur l'écran : le nord n'est pas forcément en haut)
+                        PointF ahead = _view.ToScreen(pts[pts.Count - 1][1] + hvx, pts[pts.Count - 1][2] + hvy);
+                        ang = (float)(Math.Atan2(ahead.X - a1.X, -(ahead.Y - a1.Y)) * 180.0 / Math.PI);
+                    }
+                    else
+                        for (int j = run.Count - 2; j >= 0; j--)
+                        {
+                            float ddx = run[run.Count - 1].X - run[j].X, ddy = run[run.Count - 1].Y - run[j].Y;
+                            if (ddx * ddx + ddy * ddy >= 64f || j == 0) { ang = (float)(Math.Atan2(ddx, -ddy) * 180.0 / Math.PI); break; }
+                        }
+                    _heads.Add(new TrackHead { P = a1, Ang = ang, Col = col, Heli = RxStaticHeli.IsMatch(tr.Type ?? ""), Label = tr.Player != "" ? tr.Player : tr.Unit });
                 }
 
                 // Une marque toutes les 5 minutes (seulement quand un vol ou un avion est choisi)
                 if (focus)
                 {
-                    for (int i = 1; i < tr.Pts.Count; i++)
+                    for (int i = 1; i < pts.Count; i++)
                     {
-                        long k = (long)Math.Floor(tr.Pts[i][0] / 300.0);
-                        if (k == (long)Math.Floor(tr.Pts[i - 1][0] / 300.0)) continue;
+                        long k = (long)Math.Floor(pts[i][0] / 300.0);
+                        if (k == (long)Math.Floor(pts[i - 1][0] / 300.0)) continue;
                         PointF m = pix[i];
                         if (Math.Abs(m.X) > 30000f || Math.Abs(m.Y) > 30000f) continue;
                         g.FillEllipse(Brushes.White, m.X - 3f, m.Y - 3f, 6f, 6f);
                         g.DrawEllipse(Pens.Black, m.X - 3f, m.Y - 3f, 6f, 6f);
                         string tt = FmtT(k * 300);
-                        g.DrawString(tt, Font, Brushes.Black, m.X + 6f, m.Y - 5f);
-                        g.DrawString(tt, Font, Brushes.White, m.X + 5f, m.Y - 6f);
+                        if (_view.ShowLabels)
+                        {
+                            g.DrawString(tt, Font, Brushes.Black, m.X + 6f, m.Y - 5f);
+                            g.DrawString(tt, Font, Brushes.White, m.X + 5f, m.Y - 6f);
+                        }
                     }
                 }
             }
@@ -1065,17 +1711,34 @@ namespace DCE_Manager
             index = -1;
             if (_chkTracks == null || !_chkTracks.Checked) return false;
 
-            float best = 49f;
+            // Le tracé est une suite de segments : on mesure la distance au SEGMENT (et pas seulement aux points échantillonnés),
+            // puis on garde le point le plus proche du clic sur ce segment pour l'info-bulle
+            float best = 7f;
             foreach (Map_Track tr in _tracks)
             {
                 if (_selSide != "" && tr.Side != _selSide) continue;
+                PointF prev = new PointF(float.NaN, float.NaN);
                 for (int i = 0; i < tr.Pts.Count; i++)
                 {
                     PointF q = _view.ToScreen(tr.Pts[i][1], tr.Pts[i][2]);
-                    float dx = q.X - p.X, dy = q.Y - p.Y;
-                    if (Math.Abs(dx) > 7f || Math.Abs(dy) > 7f) continue;
-                    float d = dx * dx + dy * dy;
-                    if (d < best) { best = d; found = tr; index = i; }
+                    bool ok = !float.IsNaN(q.X) && Math.Abs(q.X) < 1e5f && Math.Abs(q.Y) < 1e5f;
+                    if (ok && !float.IsNaN(prev.X))
+                    {
+                        float d = SegDist(p, prev, q);
+                        if (d < best)
+                        {
+                            best = d; found = tr;
+                            float dp = (prev.X - p.X) * (prev.X - p.X) + (prev.Y - p.Y) * (prev.Y - p.Y);
+                            float dq = (q.X - p.X) * (q.X - p.X) + (q.Y - p.Y) * (q.Y - p.Y);
+                            index = dp <= dq ? i - 1 : i;
+                        }
+                    }
+                    else if (ok && tr.Pts.Count == 1)
+                    {
+                        float d = (float)Math.Sqrt((q.X - p.X) * (q.X - p.X) + (q.Y - p.Y) * (q.Y - p.Y));
+                        if (d < best) { best = d; found = tr; index = i; }
+                    }
+                    prev = ok ? q : new PointF(float.NaN, float.NaN);
                 }
             }
             return found != null;
@@ -1434,21 +2097,76 @@ namespace DCE_Manager
             public override string ToString() { return Text; }
         }
 
+        // Ligne de choix d'un vol : 2 = tireur au sol, 1 = hélicoptère, 0 = avion
+        private int KindOf(string flight)
+        {
+            if (string.IsNullOrEmpty(flight)) return 0;
+            if (_gndSide.ContainsKey(flight)) return 2;
+            return _heliFlights.Contains(flight) ? 1 : 0;
+        }
+
+        // Vols d'hélicoptères : événement "air_lost" d'un hélico, ou type d'avion de la famille des hélicos
+        private void ComputeKinds()
+        {
+            foreach (Map_Event e in _all)
+                if (e.Kind == "air_lost" && e.Category == "helicopter" && e.Flight != "") _heliFlights.Add(e.Flight);
+            foreach (KeyValuePair<string, string> kv in _unitType)
+                if (RxStaticHeli.IsMatch(kv.Value ?? "")) _heliFlights.Add(FlightOfUnit(kv.Key));
+        }
+
         private void FillFlights()
         {
             _syncFilter = true;
-            _cmbFlight.Items.Clear();
-            _cmbFlight.Items.Add(new FlightItem("", "All flights"));
-            foreach (string f in _flightSide.Where(kv => _selSide == "" || kv.Value == _selSide).Select(kv => kv.Key).OrderBy(NatKey, StringComparer.Ordinal))
+            ComputeKinds();
+            for (int k = 0; k < 3; k++)
             {
-                List<string> players;
-                string text = _flightPlayers.TryGetValue(f, out players) ? f + "   [" + string.Join(", ", players) + "]" : f;
-                _cmbFlight.Items.Add(new FlightItem(f, text));
+                _fCombo[k].Items.Clear();
+                _fCombo[k].Items.Add(new FlightItem("", RowAllFlights[k]));
+                IEnumerable<KeyValuePair<string, string>> src = k == 2 ? _gndSide.AsEnumerable() : _flightSide.Where(kv => KindOf(kv.Key) == k);
+                int kk = k;
+                foreach (string f in src.Where(kv => _selSide == "" || kv.Value == _selSide).Select(kv => kv.Key).OrderBy(NatKey, StringComparer.Ordinal))
+                {
+                    List<string> players;
+                    string types = TypesOfFlight(f);
+                    string text = f + (types != "" ? "   (" + types + ")" : "") + (kk != 2 && _flightPlayers.TryGetValue(f, out players) ? "   [" + string.Join(", ", players) + "]" : "");
+                    _fCombo[k].Items.Add(new FlightItem(f, text));
+                }
+                _fCombo[k].SelectedIndex = 0;
             }
-            _cmbFlight.SelectedIndex = 0;
             _selFlight = "";
+            _extraFlights.Clear();
             FillUnits();
             _syncFilter = false;
+        }
+
+        // Une seule ligne active : les listes de vols des 2 autres lignes reviennent sur "All"
+        private void ResetOtherRows(int keep)
+        {
+            for (int k = 0; k < 3; k++)
+                if (k != keep && _fCombo[k] != null && _fCombo[k].Items.Count > 0) _fCombo[k].SelectedIndex = 0;
+        }
+
+        // Montre / cache les lignes Helicopters et Ground ; la ligne "Map style" remonte
+        private void SetSelRows(bool open)
+        {
+            if (!open && KindOf(_selFlight) != 0)
+            {
+                _selFlight = ""; _selUnit = ""; _focus = "";
+                ResetOtherRows(-1);
+                FillUnits();
+                ApplyFilters();
+            }
+            _selRowsOpen = open;
+            LayoutSelRows();
+        }
+
+        private void LayoutSelRows()
+        {
+            int off = _selRowsOpen ? 82 : 0;
+            foreach (Control c in _rowCtrls) c.Visible = _selRowsOpen;
+            foreach (Control c in _mapRowCtrls) c.Top = (int)c.Tag + off;
+            if (_topBarOuter != null) _topBarOuter.Height = 80 + off;
+            if (_btnSelRows != null) _btnSelRows.Text = _selRowsOpen ? "Helicopters / Ground  \u25B4" : "Helicopters / Ground  \u25BE";
         }
 
         private static string UnitNameOf(Map_Event e)
@@ -1491,6 +2209,8 @@ namespace DCE_Manager
                 string name = u.TryGetValue("name", out n) ? Convert.ToString(n, CultureInfo.InvariantCulture) : "";
                 if (name == "") continue;
                 names.Add(name);
+                object ty;
+                if (u.TryGetValue("type", out ty) && Convert.ToString(ty, CultureInfo.InvariantCulture) != "") _unitType[name] = Convert.ToString(ty, CultureInfo.InvariantCulture);
                 string skill = u.TryGetValue("skill", out sk) ? Convert.ToString(sk, CultureInfo.InvariantCulture) : "";
                 if (skill.Equals("Client", StringComparison.OrdinalIgnoreCase) || skill.Equals("Player", StringComparison.OrdinalIgnoreCase)) _clientUnits.Add(name);
             }
@@ -1514,9 +2234,10 @@ namespace DCE_Manager
         // "Pack 1 - 469th TFS - Escort 1-1   [Rayak_89 - Bobois]" ; "[client]" = slot joueur dont le nom n'est pas connu
         private string UnitLabel(string unit)
         {
-            string who;
-            if (_unitPlayer.TryGetValue(unit, out who)) return unit + "   [" + who + "]";
-            return _clientUnits.Contains(unit) ? unit + "   [client]" : unit;
+            string who, ty = TypeOfUnit(unit);
+            string head = ty != "" ? unit + "   (" + ty + ")" : unit;
+            if (_unitPlayer.TryGetValue(unit, out who)) return head + "   [" + who + "]";
+            return _clientUnits.Contains(unit) ? head + "   [client]" : head;
         }
 
         // Fiche du vol choisi (affichée dans les détails quand aucun événement n'est sélectionné)
@@ -1525,25 +2246,59 @@ namespace DCE_Manager
             string flight = FocusFlight();
             if (flight == "") return "";
             var sb = new StringBuilder();
+            if (_extraFlights.Count > 0)
+            {
+                var all = new List<string> { flight };
+                all.AddRange(_extraFlights.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+                sb.AppendLine(all.Count + " flights chosen (CTRL + click adds one, right-click takes one out):");
+                foreach (string f in all)
+                {
+                    string ft2 = TypesOfFlight(f);
+                    List<string> pl2 = PlayersOf(f);
+                    sb.AppendLine("  " + f + (ft2 != "" ? "   (" + ft2 + ")" : "") + (pl2.Count > 0 ? "   [" + string.Join(", ", pl2.ToArray()) + "]" : ""));
+                }
+                return sb.ToString().TrimEnd();
+            }
             sb.AppendLine(flight);
             string side;
             if (_flightSide.TryGetValue(flight, out side) && side != "") sb.AppendLine("Side:     " + side);
             List<string> pl = PlayersOf(flight);
             if (pl.Count > 0) sb.AppendLine("Players:  " + string.Join(", ", pl));
-            sb.AppendLine("Aircraft:");
+            string ft = TypesOfFlight(flight);
+            if (ft != "") sb.AppendLine("Type:     " + ft);
+            sb.AppendLine(KindOf(flight) == 2 ? "Units that destroyed something:" : "Aircraft:");
             foreach (string n in UnitsOfFlight(flight)) sb.AppendLine("  " + UnitLabel(n));
+
+            // Victoires : ce que ce vol (ou l'avion choisi) a abattu / détruit
+            var wins = new List<string>();
+            foreach (Map_Event e in _all)
+            {
+                if (e.Killer == "" || e.Group == "bomb" || !string.Equals(e.KillerFlight, flight, StringComparison.OrdinalIgnoreCase)) continue;
+                if (_selFlight != "" && _selUnit != "" && e.Killer != _selUnit) continue;
+                string what = TypeName(e.Type) != "" ? TypeName(e.Type) : e.Name;
+                wins.Add("  " + FmtT(e.T) + "  " + what + (e.Name != "" && e.Name != what ? " (" + e.Name + ")" : "") + "   by " + e.Killer);
+            }
+            if (wins.Count > 0)
+            {
+                sb.AppendLine("Victories (" + wins.Count + "):");
+                foreach (string w in wins) sb.AppendLine(w);
+            }
             return sb.ToString().TrimEnd();
         }
 
         private void FillUnits()
         {
-            _cmbUnit.Items.Clear();
-            _cmbUnit.Items.Add(new FlightItem("", "All aircraft"));
             _selUnit = "";
-            if (_selFlight != "")
-                foreach (string n in UnitsOfFlight(_selFlight)) _cmbUnit.Items.Add(new FlightItem(n, UnitLabel(n)));
-            _cmbUnit.SelectedIndex = 0;
-            _cmbUnit.Enabled = _selFlight != "";
+            int row = KindOf(_selFlight);
+            for (int k = 0; k < 3; k++)
+            {
+                _uCombo[k].Items.Clear();
+                _uCombo[k].Items.Add(new FlightItem("", RowAllUnits[k]));
+                if (_selFlight != "" && k == row)
+                    foreach (string n in UnitsOfFlight(_selFlight)) _uCombo[k].Items.Add(new FlightItem(n, UnitLabel(n)));
+                _uCombo[k].SelectedIndex = 0;
+                _uCombo[k].Enabled = _selFlight != "" && k == row;
+            }
         }
 
         private bool Match(Map_Event e)
@@ -1555,11 +2310,13 @@ namespace DCE_Manager
             if (!hasSide && !hasFlight && !hasUnit) return true;
 
             // ce qui est arrivé au camp / vol / avion choisi
-            if ((!hasSide || e.Side == _selSide) && (!hasFlight || e.Flight == _selFlight) && (!hasUnit || UnitNameOf(e) == _selUnit)) return true;
+            if ((!hasSide || e.Side == _selSide) && (!hasFlight || InSelFlight(e.Flight)) && (!hasUnit || UnitNameOf(e) == _selUnit)) return true;
 
-            // ce qu'il a détruit (seulement quand un vol ou un avion est choisi)
-            if (_chkKills.Checked && (hasFlight || hasUnit))
-                return (!hasSide || e.KillerSide == _selSide) && (!hasFlight || e.KillerFlight == _selFlight) && (!hasUnit || e.Killer == _selUnit);
+            // ce qu'il a détruit (quand un vol ou un avion est choisi, même si "Hide the rest" est décoché :
+            // les victimes sont de l'autre camp, le filtre de camp les aurait sinon toutes masquées)
+            bool flightSel = _selFlight != "", unitSel = _selFlight != "" && _selUnit != "";
+            if (_chkKills.Checked && (flightSel || unitSel))
+                return (!hasSide || e.KillerSide == _selSide) && (!flightSel || InSelFlight(e.KillerFlight)) && (!unitSel || e.Killer == _selUnit);
 
             return false;
         }
@@ -1570,12 +2327,61 @@ namespace DCE_Manager
             return i < 0 ? 0 : i;
         }
 
-        private void ApplyFilters()
+        // ------------------------------------------------------------------
+        //  Listes de droite : seulement ce qui touche l'avion / le vol / l'unité sol choisi ; rien de choisi = tout
+        // ------------------------------------------------------------------
+
+        private string _listKey = "";
+
+        // Unité sol / navire / statique : l'événement choisi n'a aucun avion derrière lui
+        private bool GroundSelected()
+        {
+            return !_selFromList && _selected != null && _selected.Flight == "" && (_selected.KillerFlight == "" || _selected.GroundKiller)
+                && (_selected.Group == "ground" || _selected.Group == "ship" || _selected.Group == "static");
+        }
+
+        private bool InListFocus(Map_Event e)
+        {
+            if (ReferenceEquals(e, _selected)) return true;
+
+            string fl = FocusFlight();
+            if (fl != "")
+                return IsFocused(e);            // seulement le vol / avion choisi : ce qu'il a subi et (si coché) ce qu'il a détruit
+
+            if (GroundSelected())
+            {
+                Map_Event s = _selected;
+                if (e.Id == s.Id) return true;
+                if (s.Name != "" && e.Killer == s.Name) return true;                        // ce que cette unité a détruit
+                if (s.Killer != "" && (e.Killer == s.Killer || e.Name == s.Killer)) return true;   // son tueur et ses autres victimes
+            }
+            return true;
+        }
+
+        private bool ListFiltered()
+        {
+            return FocusFlight() != "" || GroundSelected();
+        }
+
+        // Reconstruit les deux listes si la mise en avant a changé (garde le défilement sinon)
+        private void RefreshList()
         {
             if (_syncFilter) return;
+            _focusNow = FocusFlight();
+            UpdateRelated();
+            string key = _focusNow + "|" + _selUnit + "|" + (_chkKills != null && _chkKills.Checked) + "|" + (GroundSelected() ? _selected.Id.ToString() : "") + "|" + ExtraKey;
+            if (key == _listKey) return;
+            BuildLists(_all.Where(Match).ToList());
+        }
 
-            List<Map_Event> match = _all.Where(Match).ToList();                 // dans l'ordre du temps
-            _shown = match.Where(e => e.HasPos).OrderBy(LayerOf).ToList();      // dans l'ordre de dessin
+        private void BuildLists(List<Map_Event> match)
+        {
+            _focusNow = FocusFlight();
+            UpdateRelated();
+            _listKey = _focusNow + "|" + _selUnit + "|" + (_chkKills != null && _chkKills.Checked) + "|" + (GroundSelected() ? _selected.Id.ToString() : "") + "|" + ExtraKey;
+
+            if (ListFiltered())
+                match = match.Where(e => InListFocus(e)).ToList();
             List<Map_Event> noPos = match.Where(e => !e.HasPos).ToList();
 
             // Liste des événements placés
@@ -1586,6 +2392,7 @@ namespace DCE_Manager
                 var it = new ListViewItem(FmtT(e.T)) { Tag = e };
                 it.SubItems.Add(KindLabel(e));
                 it.SubItems.Add(DisplayName(e));
+                it.SubItems.Add(e.Kind == "bomb" ? "" : TypeName(e.Type));
                 it.ForeColor = e.Side == "blue" ? Color.RoyalBlue : (e.Side == "red" ? Color.Firebrick : Color.Black);
                 _list.Items.Add(it);
             }
@@ -1598,13 +2405,25 @@ namespace DCE_Manager
             {
                 var it = new ListViewItem(FmtT(e.T)) { Tag = e };
                 it.SubItems.Add(DisplayName(e));
-                it.SubItems.Add(e.Killer != "" ? "shot down by " + (e.KillerType != "" ? e.KillerType : e.Killer) : (e.Cause != "" ? e.Cause : "no killer in the log"));
+                it.SubItems.Add(e.Killer != "" ? "shot down by " + (e.KillerType != "" ? TypeName(e.KillerType) : e.Killer) : (e.Cause != "" ? e.Cause : "no killer in the log"));
                 it.ForeColor = e.Side == "blue" ? Color.RoyalBlue : (e.Side == "red" ? Color.Firebrick : Color.Black);
                 _listNoPos.Items.Add(it);
             }
             _listNoPos.EndUpdate();
             _lblNoPos.Text = "Position unknown (" + noPos.Count + ")";
             _lblList.Text = "Events on the map (" + _list.Items.Count + ")";
+        }
+
+        private void ApplyFilters()
+        {
+            if (_syncFilter) return;
+
+            List<Map_Event> match = _all.Where(Match).ToList();                 // dans l'ordre du temps
+            _shown = match.Where(e => e.HasPos).OrderBy(LayerOf).ToList();      // dans l'ordre de dessin
+            List<Map_Event> noPos = match.Where(e => !e.HasPos).ToList();
+
+            _listKey = "";
+            BuildLists(match);
 
             if (_selected != null && _selected.Group != "tobj" && !match.Contains(_selected)) { _selected = null; _details.Text = ""; }
 
@@ -1659,7 +2478,7 @@ namespace DCE_Manager
             foreach (Map_Event e in _all)
             {
                 // Ce que le camp / vol / avion a détruit
-                bool doer = e.Killer != "" && (!hasSide || e.KillerSide == _selSide) && (!hasFlight || e.KillerFlight == _selFlight) && (!hasUnit || e.Killer == _selUnit);
+                bool doer = e.Killer != "" && (!hasSide || e.KillerSide == _selSide) && (!hasFlight || InSelFlight(e.KillerFlight)) && (!hasUnit || e.Killer == _selUnit);
                 if (doer)
                 {
                     if (e.Friendly) { if (e.Kind != "bomb") friendly++; }
@@ -1678,7 +2497,7 @@ namespace DCE_Manager
                 }
 
                 // Ce qui lui est arrivé
-                bool subj = (!hasSide || e.Side == _selSide) && (!hasFlight || e.Flight == _selFlight) && (!hasUnit || UnitNameOf(e) == _selUnit);
+                bool subj = (!hasSide || e.Side == _selSide) && (!hasFlight || InSelFlight(e.Flight)) && (!hasUnit || UnitNameOf(e) == _selUnit);
                 if (subj)
                 {
                     switch (e.Kind)
@@ -1698,7 +2517,7 @@ namespace DCE_Manager
                 {
                     var m = RxPilotUnit.Match(e.Info);
                     string pu = m.Success ? m.Groups[1].Value : "";
-                    if (pu != "" && (!hasSide || e.Side == _selSide) && (!hasFlight || FlightOfUnit(pu) == _selFlight) && (!hasUnit || pu == _selUnit))
+                    if (pu != "" && (!hasSide || e.Side == _selSide) && (!hasFlight || InSelFlight(FlightOfUnit(pu))) && (!hasUnit || pu == _selUnit))
                         rescued++;
                 }
             }
@@ -1707,11 +2526,19 @@ namespace DCE_Manager
             string title;
             string sideTxt = hasSide ? (_selSide == "blue" ? "Blue" : "Red") : "";
             if (hasUnit) title = "Aircraft: " + UnitLabel(_selUnit) + "     (this aircraft only)";
+            else if (hasFlight && _extraFlights.Count > 0)
+            {
+                var names = new List<string> { _selFlight };
+                names.AddRange(_extraFlights.OrderBy(x => x, StringComparer.OrdinalIgnoreCase));
+                title = "Flights: " + names.Count + " flights chosen     (sum of all their aircraft)     " + string.Join(", ", names.Take(3).ToArray()) + (names.Count > 3 ? ", ..." : "");
+            }
             else if (hasFlight)
             {
                 int n = UnitsOfFlight(_selFlight).Count;
                 List<string> pl = PlayersOf(_selFlight);
-                title = "Flight: " + _selFlight + "     (sum of " + (n > 0 ? n + " aircraft" : "the whole flight") + ")" + (pl.Count > 0 ? "     Players: " + string.Join(", ", pl) : "");
+                string ftypes = TypesOfFlight(_selFlight);
+                bool gnd = KindOf(_selFlight) == 2;
+                title = (gnd ? "Ground shooter: " : "Flight: ") + _selFlight + (ftypes != "" ? "  (" + ftypes + ")" : "") + "     (sum of " + (n > 0 ? n + (gnd ? " units" : " aircraft") : (gnd ? "the whole group" : "the whole flight")) + ")" + (pl.Count > 0 ? "     Players: " + string.Join(", ", pl) : "");
             }
             else title = hasSide ? "Side: " + sideTxt + "     (whole side)" : "Whole mission     (all sides)";
             _statsTitle = title;
@@ -1854,7 +2681,7 @@ namespace DCE_Manager
                 string side;
                 if (!_flightSide.TryGetValue(kv.Key, out side)) side = "";
 
-                bool isStrong = focus != "" ? (string.Equals(kv.Key, focus, StringComparison.OrdinalIgnoreCase) || _related.ContainsKey(kv.Key)) : (_selSide != "" && side == _selSide);
+                bool isStrong = focus != "" ? (InFocus(kv.Key) || _related.ContainsKey(kv.Key)) : (_selSide != "" && side == _selSide);
                 Color col = isStrong ? SideColor(side) : (anySel ? Color.FromArgb(35, 190, 190, 190) : Color.FromArgb(90, SideColor(side)));
                 float width = isStrong ? 4.5f : (anySel ? 1f : 1.3f);
 
@@ -1915,14 +2742,28 @@ namespace DCE_Manager
         //  Sélection, clic, survol
         // ------------------------------------------------------------------
 
-        private void SelectEvent(Map_Event e, bool center)
+        private void SelectEvent(Map_Event e, bool center, bool fromList = false)
         {
+            if (fromList && e != null)
+            {
+                // Centre la carte, montre la fiche et la grosse icône ; ne touche ni à la sélection du haut, ni au contenu des listes
+                _selFromList = true;
+                _selected = e;
+                _details.Text = Describe(e);
+                if (_iconBox != null) _iconBox.Invalidate();
+                if (e.HasPos && center) _view.CenterOn(e.X, e.Y);
+                _view.Invalidate();
+                return;
+            }
+            _selFromList = false;
+            _extraFlights.Clear();                 // un clic simple remplace la sélection multiple
             _selected = e;
             _focus = e == null ? "" : (e.Flight != "" ? e.Flight : e.KillerFlight);      // tout ce qui est lié à ce vol est mis en avant
             if (e != null && _focus != "")
                 SyncCombos(_focus, e.Flight != "" ? UnitNameOf(e) : e.Killer);              // les listes Flight / Aircraft du haut suivent le clic
             _details.Text = e == null ? FlightSummary() : Describe(e);
             if (_iconBox != null) _iconBox.Invalidate();
+            RefreshList();
 
             _syncSel = true;
             try
@@ -1947,10 +2788,12 @@ namespace DCE_Manager
             if (flight == "") return;
             if (string.Equals(_selFlight, flight, StringComparison.OrdinalIgnoreCase) && _selUnit == unit) { _comboFromClick = true; return; }      // déjà réglées
 
+            int row = KindOf(flight);
+            ComboBox cf = _fCombo[row], cu = _uCombo[row];
             int fi = -1;
-            for (int i = 1; i < _cmbFlight.Items.Count; i++)
+            for (int i = 1; i < cf.Items.Count; i++)
             {
-                FlightItem it = _cmbFlight.Items[i] as FlightItem;
+                FlightItem it = cf.Items[i] as FlightItem;
                 if (it != null && string.Equals(it.Key, flight, StringComparison.OrdinalIgnoreCase)) { fi = i; break; }
             }
             if (fi < 0) return;                                  // vol absent de la liste (ex: autre camp filtré) : la mise en avant simple suffit
@@ -1958,14 +2801,15 @@ namespace DCE_Manager
             _syncFilter = true;
             try
             {
-                _cmbFlight.SelectedIndex = fi;
-                _selFlight = ((FlightItem)_cmbFlight.Items[fi]).Key;
-                FillUnits();                                      // remet "All aircraft"
+                ResetOtherRows(row);
+                cf.SelectedIndex = fi;
+                _selFlight = ((FlightItem)cf.Items[fi]).Key;
+                FillUnits();                                      // remet "All ..."
                 if (unit != "")
-                    for (int j = 1; j < _cmbUnit.Items.Count; j++)
+                    for (int j = 1; j < cu.Items.Count; j++)
                     {
-                        FlightItem u = _cmbUnit.Items[j] as FlightItem;
-                        if (u != null && u.Key == unit) { _cmbUnit.SelectedIndex = j; _selUnit = unit; break; }
+                        FlightItem u = cu.Items[j] as FlightItem;
+                        if (u != null && u.Key == unit) { cu.SelectedIndex = j; _selUnit = unit; break; }
                     }
             }
             finally { _syncFilter = false; }
@@ -1983,6 +2827,7 @@ namespace DCE_Manager
         // Un clic dans le vide : si les listes du haut avaient été réglées par un clic, retour sur "All flights"
         private void ClearComboFocus()
         {
+            _extraFlights.Clear();
             if (!_comboFromClick) return;
             _comboFromClick = false;
 
@@ -1990,7 +2835,7 @@ namespace DCE_Manager
             try
             {
                 _selFlight = "";
-                if (_cmbFlight.Items.Count > 0) _cmbFlight.SelectedIndex = 0;
+                ResetOtherRows(-1);
                 FillUnits();
             }
             finally { _syncFilter = false; }
@@ -2000,9 +2845,11 @@ namespace DCE_Manager
         // Clic sur un tracé ou un plan de vol : on met le vol en avant, sans événement choisi
         private void SelectFlight(string flight, string unit)
         {
+            _extraFlights.Clear();                 // un clic simple remplace la sélection multiple
             _selected = null;
             _focus = flight;
             SyncCombos(flight, unit);
+            RefreshList();
             _syncSel = true;
             try { _list.SelectedItems.Clear(); _listNoPos.SelectedItems.Clear(); }
             finally { _syncSel = false; }
@@ -2056,8 +2903,103 @@ namespace DCE_Manager
             return null;
         }
 
+        // Vol dont le tracé (ou à défaut le plan de vol) est sous la souris, "" sinon
+        private string FlightAt(Point p)
+        {
+            Map_Track tr;
+            int idx;
+            if (TrackHitAt(p, out tr, out idx) && tr.Flight != "") return tr.Flight;
+            string pf = PlanHitAt(p);
+            return pf ?? "";
+        }
+
+        // CTRL + clic : ce vol entre dans la sélection (ou en sort s'il y est déjà)
+        private void ToggleFlight(string flight)
+        {
+            string prim = FocusFlight();
+            if (prim == "") { SelectFlight(flight, ""); return; }
+            if (string.Equals(prim, flight, StringComparison.OrdinalIgnoreCase) || _extraFlights.Contains(flight)) { RemoveFlight(flight); return; }
+            _extraFlights.Add(flight);
+            RefreshMulti();
+        }
+
+        // Clic droit : ce vol sort de la sélection. Au départ rien n'est choisi, ce qui veut dire "tous les vols" : on garde alors tous les vols SAUF celui-ci.
+        private void RemoveFlight(string flight)
+        {
+            string prim = FocusFlight();
+            if (prim == "" && _extraFlights.Count == 0)
+            {
+                var others = new List<string>();
+                ComboBox rc = _fCombo[KindOf(flight)];
+                for (int i = 1; i < rc.Items.Count; i++)
+                {
+                    FlightItem it = rc.Items[i] as FlightItem;
+                    if (it != null && !string.Equals(it.Key, flight, StringComparison.OrdinalIgnoreCase)) others.Add(it.Key);
+                }
+                if (others.Count == 0) return;
+                SelectFlight(others[0], "");
+                for (int i = 1; i < others.Count; i++) _extraFlights.Add(others[i]);
+                RefreshMulti();
+                return;
+            }
+
+            if (_extraFlights.Remove(flight)) { RefreshMulti(); return; }
+            if (!string.Equals(prim, flight, StringComparison.OrdinalIgnoreCase)) return;        // ce vol n'est pas dans la sélection
+
+            if (_extraFlights.Count > 0)
+            {
+                string next = _extraFlights.First();
+                List<string> rest = _extraFlights.Where(x => !string.Equals(x, next, StringComparison.OrdinalIgnoreCase)).ToList();
+                SelectFlight(next, "");                      // le suivant devient le vol principal (vide _extraFlights)
+                foreach (string r in rest) _extraFlights.Add(r);
+                RefreshMulti();
+                return;
+            }
+
+            // c'était le seul : plus rien n'est mis en avant
+            SelectEvent(null, false);
+            _comboFromClick = true;
+            ClearComboFocus();
+        }
+
+        // La sélection de vols a changé : tout se redessine (listes, plans, tracés, bilan). Un seul vol : les listes Aircraft reviennent.
+        private void RefreshMulti()
+        {
+            _selected = null;
+            _relKey = "\u0001";
+            _listKey = "\u0001";
+            _syncFilter = true;
+            try
+            {
+                if (_extraFlights.Count == 0) FillUnits();
+                else
+                {
+                    _selUnit = "";                           // un avion précis n'a pas de sens avec plusieurs vols
+                    for (int k = 0; k < 3; k++)
+                    {
+                        _uCombo[k].Items.Clear();
+                        _uCombo[k].Items.Add(new FlightItem("", RowAllUnits[k]));
+                        _uCombo[k].SelectedIndex = 0;
+                        _uCombo[k].Enabled = false;
+                    }
+                }
+            }
+            finally { _syncFilter = false; }
+
+            _details.Text = FlightSummary();
+            ApplyFilters();                          // listes, plans, tracés, bilan, barre d'état et icône
+        }
+
         private void MapClicked(Point p)
         {
+            // CTRL + clic : le vol dont le tracé / plan est sous la souris entre dans la sélection ou en sort, avant les icônes (comme sur la carte de mission)
+            if ((Control.ModifierKeys & Keys.Control) == Keys.Control)
+            {
+                string cf = FlightAt(p);
+                if (cf != "") ToggleFlight(cf);
+                return;
+            }
+
             Hit h = HitAt(p);
             if (h == null)
             {
@@ -2108,7 +3050,7 @@ namespace DCE_Manager
                     if (pkey != _hoverKey)
                     {
                         _hoverKey = pkey;
-                        _hoverTip.Show("Flight plan: " + pf + "\nClick to focus on this flight.", _view, p.X + 16, p.Y + 16);
+                        _hoverTip.Show("Flight plan: " + pf + "\nClick to focus on this flight.\nCTRL + click: add / remove it.  Right-click: take it out.", _view, p.X + 16, p.Y + 16);
                     }
                     return;
                 }
@@ -2121,17 +3063,19 @@ namespace DCE_Manager
             _hoverKey = key;
 
             string text;
-            if (h.Ev != null) text = Describe(h.Ev);
+            if (h.Ev != null) text = TipText(h.Ev);
             else
             {
                 bool bomb = h.Items[0].Group == "bomb";
                 bool tobj = h.Items[0].Group == "tobj";
                 var sb = new StringBuilder();
-                sb.AppendLine(h.Items.Count + (tobj ? " target objects NOT destroyed" : bomb ? " bomb impacts" : " scenery objects destroyed"));
+                if (tobj) { sb.Append(h.Items.Count + " intact target objects"); goto tipDone; }        // éléments intacts : une seule ligne
+                sb.AppendLine(h.Items.Count + (bomb ? " bomb impacts" : " scenery objects destroyed"));
                 foreach (Map_Event e in h.Items.Take(12))
                     sb.AppendLine("  " + (tobj ? DisplayName(e) : FmtT(e.T) + "  " + (bomb ? (e.Weapon != "" ? e.Weapon : "bomb") : DisplayName(e))));
                 if (h.Items.Count > 12) sb.AppendLine("  ... and " + (h.Items.Count - 12) + " more");
                 sb.Append("Click to zoom in.");
+            tipDone:
                 text = sb.ToString();
             }
             _hoverTip.Show(text, _view, p.X + 16, p.Y + 16);
@@ -2193,6 +3137,79 @@ namespace DCE_Manager
             }
         }
 
+        // Texte de l'info-bulle : court, même architecture pour toutes les icônes (la fiche du panneau, elle, reste complète)
+        //   ligne 0 : l'heure ; puis Type (alias) ; le nom ou le vol ; la cause ; et seulement l'indispensable (le tueur)
+        private string TipText(Map_Event e)
+        {
+            if (e.Kind == "target_obj") return DisplayName(e);                  // une seule ligne
+
+            var sb = new StringBuilder();
+            string tn = TypeName(e.Type);
+
+            if (e.Kind == "killer_gnd")
+            {
+                sb.AppendLine(tn != "" ? tn : e.Name);
+                if (e.Target != "") sb.AppendLine("Group: " + e.Target);
+                if (e.Info != "") sb.AppendLine("Victim: " + e.Info);
+                return sb.ToString().TrimEnd();
+            }
+
+            // Ligne 0 : l'heure (et, pour les icônes qu'on ne devine pas, un mot)
+            string head = FmtT(e.T);
+            switch (e.Kind)
+            {
+                case "eject": head += "   Ejected"; break;
+                case "pilot_dead": head += "   Pilot killed"; break;
+                case "pilot_sar": head = e.Current ? "Pilot waiting" : "Pilot waiting (old)"; break;
+                case "rescue": head += "   Pilot rescued"; break;
+                case "landing": head += "   Landed"; break;
+                case "damage": head += "   Damaged"; break;
+            }
+            sb.AppendLine(head);
+
+            switch (e.Kind)
+            {
+                case "bomb":
+                    sb.AppendLine(e.Weapon != "" ? e.Weapon + (e.Mass > 0 ? " (" + e.Mass.ToString("0", CultureInfo.InvariantCulture) + " kg)" : "") : "bomb");
+                    break;
+
+                case "air_lost":
+                case "damage":
+                case "eject":
+                case "pilot_dead":
+                case "pilot_sar":
+                case "landing":
+                    if (tn != "") sb.AppendLine("Type: " + tn);
+                    if (e.Flight != "") sb.AppendLine(e.Flight);
+                    if (e.Pilot != "" && e.Kind != "air_lost" && e.Kind != "damage") sb.AppendLine("Pilot: " + e.Pilot);
+                    if (e.Kind == "damage" && e.Health >= 0) sb.AppendLine("Life left: " + e.Health.ToString("0", CultureInfo.InvariantCulture) + " %");
+                    if (e.Kind == "pilot_sar" && e.Status != "") sb.AppendLine("Status: " + e.Status);
+                    if (e.Cause != "" && e.Kind != "pilot_sar") sb.AppendLine("Cause: " + e.Cause);
+                    break;
+
+                case "rescue":
+                    if (e.Unit != "") sb.AppendLine(e.Unit);
+                    break;
+
+                default:        // ground_kill, static_kill, ship_kill, scenery_kill
+                    if (tn != "") sb.AppendLine("Type: " + tn);
+                    string nm = DisplayName(e);
+                    if (nm != "" && nm != e.Type && nm != tn) sb.AppendLine(nm);
+                    break;
+            }
+
+            // Le tueur : seulement l'essentiel (le vol, ou le type du tireur au sol)
+            if (e.Kind != "bomb" && e.Kind != "eject" && e.Kind != "pilot_sar" && e.Kind != "rescue" && e.Kind != "landing")
+            {
+                string by = e.GroundKiller ? (TypeName(e.KillerType) != "" ? TypeName(e.KillerType) : e.Killer)
+                                           : (e.KillerFlight != "" ? e.KillerFlight : (TypeName(e.KillerType) != "" ? TypeName(e.KillerType) : e.Killer));
+                if (by != "") sb.AppendLine("By: " + by);
+            }
+            else if (e.Kind == "bomb" && e.KillerFlight != "") sb.AppendLine("By: " + e.KillerFlight);
+
+            return sb.ToString().TrimEnd();
+        }
+
         private string Describe(Map_Event e)
         {
             if (e.Kind == "killer_gnd")
@@ -2204,7 +3221,7 @@ namespace DCE_Manager
             if (name != "") sb.AppendLine(name);
 
             if (e.Side != "") sb.AppendLine("Side:     " + e.Side);
-            if (e.Type != "" && e.Type != name) sb.AppendLine("Type:     " + e.Type + (e.Category != "" ? " (" + e.Category + ")" : ""));
+            if (e.Type != "" && e.Type != name) sb.AppendLine("Type:     " + TypeName(e.Type) + (TypeName(e.Type) != e.Type ? " [" + e.Type + "]" : "") + (e.Category != "" ? " (" + e.Category + ")" : ""));
             if (e.Flight != "") sb.AppendLine("Flight:   " + e.Flight);
             if (e.Flight != "" && PlayersOf(e.Flight).Count > 0) sb.AppendLine("Players:  " + string.Join(", ", PlayersOf(e.Flight)));
             if (e.Unit != "" && e.Kind == "pilot_sar") sb.AppendLine("Aircraft: " + e.Unit);
@@ -2222,10 +3239,10 @@ namespace DCE_Manager
 
             if (e.Killer != "")
             {
-                string by = e.Killer + (e.KillerType != "" ? " [" + e.KillerType + "]" : "");
+                string by = e.Killer + (e.KillerType != "" ? " [" + TypeName(e.KillerType) + "]" : "");
                 if (e.KillerSide != "") by += "  (" + e.KillerSide + ")";
                 sb.AppendLine("Killed by: " + by);
-                if (e.KillerFlight != "") sb.AppendLine("  flight:  " + e.KillerFlight);
+                if (e.KillerFlight != "") sb.AppendLine((e.GroundKiller ? "  group:   " : "  flight:  ") + e.KillerFlight);
                 string killerWho;
                 if (_unitPlayer.TryGetValue(e.Killer, out killerWho)) sb.AppendLine("  player:  " + killerWho);
             }
@@ -2270,9 +3287,10 @@ namespace DCE_Manager
             UpdateRelated();
             DrawAaaHatch(g);
             DrawTracks(g);
+            DrawVictories(g);
             DrawGroundKillers(g);
             DrawTargetObjects(g);
-            if (_shown.Count == 0) return;
+            if (_shown.Count == 0) { DrawTrackHeads(g); return; }
 
             int w = _view.Width, h = _view.Height;
             var bombs = new Dictionary<long, Cluster>();
@@ -2283,6 +3301,7 @@ namespace DCE_Manager
             foreach (Map_Event e in _shown)
             {
                 if (e.Group != "bomb" && e.Group != "scenery") continue;
+                if (!TimeOk(e)) continue;
                 PointF p = _view.ToScreen(e.X, e.Y);
                 if (p.X < -40 || p.Y < -40 || p.X > w + 40 || p.Y > h + 40) continue;
 
@@ -2302,34 +3321,160 @@ namespace DCE_Manager
             foreach (Map_Event e in ownBombs)
             {
                 PointF p = _view.ToScreen(e.X, e.Y);
-                DrawFocusGlow(g, p.X, p.Y, FocusRank(e) == 2);
                 DrawEvent(g, e, p.X, p.Y);
-                _hits.Add(new Hit { X = p.X, Y = p.Y, R = 8f * _iconScale, Ev = e });
+                _hits.Add(new Hit { X = p.X, Y = p.Y, R = Math.Max(6f, 8f * ScaleOf(e)), Ev = e });
             }
 
             // 2) Les autres événements, couche par couche. Avec un vol mis en avant : d'abord les autres (pâles), puis ceux liés (halo blanc), puis ceux du vol (dessus, halo or)
+            var main = new List<Map_Event>();
+            foreach (Map_Event e in _shown)
+            {
+                if (e.Group == "bomb" || e.Group == "scenery") continue;
+                if (!TimeOk(e)) continue;
+                PointF p0 = _view.ToScreen(e.X, e.Y);
+                if (p0.X < -40 || p0.Y < -40 || p0.X > w + 40 || p0.Y > h + 40) continue;
+                main.Add(e);
+            }
+
+            // Positions où les icônes sont dessinées : le vrai lieu, ou un lieu voisin libre quand les icônes se touchent
+            Dictionary<Map_Event, PointF> disp = SpreadIcons(main);
+            DrawLeaders(g, main, disp);
+
             for (int pass = 0; pass < 3; pass++)
             {
-                foreach (Map_Event e in _shown)
+                foreach (Map_Event e in main)
                 {
-                    if (e.Group == "bomb" || e.Group == "scenery") continue;
                     int rank = FocusRank(e);
                     if (rank != pass) continue;
 
-                    PointF p = _view.ToScreen(e.X, e.Y);
-                    if (p.X < -40 || p.Y < -40 || p.X > w + 40 || p.Y > h + 40) continue;
-                    if (rank > 0 && _focusNow != "") DrawFocusGlow(g, p.X, p.Y, rank == 2);
+                    PointF p = disp[e];
                     DrawEvent(g, e, p.X, p.Y);
-                    _hits.Add(new Hit { X = p.X, Y = p.Y, R = 10f * _iconScale, Ev = e });
+                    _hits.Add(new Hit { X = p.X, Y = p.Y, R = Math.Max(7f, 10f * ScaleOf(e)), Ev = e });
                 }
             }
 
-            // 3) L'événement choisi : anneau doré
-            if (_selected != null && _selected.HasPos)
+            DrawTrackHeads(g);          // les silhouettes des avions passent au-dessus de toutes les icônes
+        }
+
+        // Icônes qui se touchent : chacune garde son vrai lieu si la place est libre, sinon elle est posée sur le cercle libre le plus proche.
+        // Les icônes du vol mis en avant sont placées en premier (elles restent à leur vrai lieu). Distance minimum = taille de l'icône : elle suit le zoom.
+        private Dictionary<Map_Event, PointF> SpreadIcons(List<Map_Event> list)
+        {
+            var res = new Dictionary<Map_Event, PointF>();
+            var truth = new Dictionary<Map_Event, PointF>();
+            foreach (Map_Event e in list) truth[e] = _view.ToScreen(e.X, e.Y);
+
+            bool spread = _chkSpread != null && _chkSpread.Checked && list.Count > 1 && list.Count <= 250 && !_view.IsMoving;
+            float minD = 14f * _iconScale + 2f;              // chevauchement permis jusqu'à la moitié d'une icône (une icône fait 28 unités de large, halo compris)
+
+            // Dézoomé : on n'écarte rien (ce serait un nuage de traits), sauf le tas dont fait partie l'événement cliqué.
+            // Zoomé : on écarte tous les tas.
+            HashSet<Map_Event> only = null;
+            if (spread && !ZoomedIn())
             {
-                PointF p = _view.ToScreen(_selected.X, _selected.Y);
-                using (var pen = new Pen(Color.Gold, 2.5f))
-                    g.DrawEllipse(pen, p.X - 13f * _iconScale, p.Y - 13f * _iconScale, 26f * _iconScale, 26f * _iconScale);
+                if (_selected != null && truth.ContainsKey(_selected)) only = TouchingCluster(list, truth, _selected, minD);
+                else spread = false;
+            }
+
+            if (!spread)
+            {
+                foreach (Map_Event e in list) res[e] = truth[e];
+                return res;
+            }
+
+            // Ordre fixe (peu importe qui est cliqué) : la disposition ne saute pas quand on clique un autre icône du même tas
+            var order = list.Select((e, i) => new { e, i, r = FocusRank(e), mv = only == null || only.Contains(e) })
+                .OrderBy(x => x.mv ? 1 : 0).ThenByDescending(x => x.r).ThenBy(x => x.i).ToList();
+            var placed = new List<PointF>();
+            var placedR = new List<float>();
+            const int Angles = 12, MaxRings = 6;
+
+            foreach (var item in order)
+            {
+                PointF p = truth[item.e];
+                PointF best = p;
+                float rq = 14f * ScaleOf(item.e);
+                bool found = !item.mv || IsFree(p, rq, placed, placedR);
+                for (int k = 1; !found && k <= MaxRings; k++)
+                {
+                    float bestD = float.MaxValue;
+                    for (int a = 0; a < Angles; a++)
+                    {
+                        double ang = (a + (k % 2) * 0.5) * 2 * Math.PI / Angles;
+                        var q = new PointF(p.X + (float)Math.Cos(ang) * minD * k, p.Y + (float)Math.Sin(ang) * minD * k);
+                        if (!IsFree(q, rq, placed, placedR)) continue;
+                        float d = (q.X - p.X) * (q.X - p.X) + (q.Y - p.Y) * (q.Y - p.Y);
+                        if (d < bestD) { bestD = d; best = q; found = true; }
+                    }
+                }
+                placed.Add(best);
+                placedR.Add(rq);
+                res[item.e] = best;
+            }
+            return res;
+        }
+
+        // Assez zoomé pour écarter tous les tas : à mi-chemin (échelle logarithmique) entre le début et la fin du grossissement des icônes
+        private bool ZoomedIn()
+        {
+            PointF a = _view.ToScreen(0, 0), b = _view.ToScreen(0, 1000);
+            float pxKm = Math.Abs(b.X - a.X);
+            return !(float.IsNaN(pxKm) || float.IsInfinity(pxKm)) && pxKm >= Math.Sqrt((double)ZoomStartPxKm * ZoomFullPxKm);
+        }
+
+        // L'événement et tous ceux qui le touchent (de proche en proche)
+        private static HashSet<Map_Event> TouchingCluster(List<Map_Event> list, Dictionary<Map_Event, PointF> truth, Map_Event seed, float minD)
+        {
+            var set = new HashSet<Map_Event> { seed };
+            var todo = new Queue<Map_Event>();
+            todo.Enqueue(seed);
+            float m2 = minD * minD;
+            while (todo.Count > 0)
+            {
+                PointF c = truth[todo.Dequeue()];
+                foreach (Map_Event e in list)
+                {
+                    if (set.Contains(e)) continue;
+                    float dx = truth[e].X - c.X, dy = truth[e].Y - c.Y;
+                    if (dx * dx + dy * dy >= m2) continue;
+                    set.Add(e);
+                    todo.Enqueue(e);
+                }
+            }
+            return set;
+        }
+
+        // Libre si le centre est à au moins la moitié des deux rayons des icônes déjà posées (donc elles se recouvrent d'une demi-icône au plus)
+        private static bool IsFree(PointF q, float rq, List<PointF> placed, List<float> placedR)
+        {
+            for (int i = 0; i < placed.Count; i++)
+            {
+                float need = (placedR[i] + rq) * 0.5f + 1.5f;
+                float dx = placed[i].X - q.X, dy = placed[i].Y - q.Y;
+                if (dx * dx + dy * dy < need * need) return false;
+            }
+            return true;
+        }
+
+        // Trait pointillé entre le vrai lieu de l'événement (petit point) et son icône écartée, dessiné sous toutes les icônes
+        private void DrawLeaders(Graphics g, List<Map_Event> list, Dictionary<Map_Event, PointF> disp)
+        {
+            foreach (Map_Event e in list)
+            {
+                PointF t = _view.ToScreen(e.X, e.Y), d = disp[e];
+                if ((t.X - d.X) * (t.X - d.X) + (t.Y - d.Y) * (t.Y - d.Y) < 9f) continue;      // à sa place : pas de trait
+
+                int a = (_focusNow != "" && FocusRank(e) == 0) ? 90 : 255;
+                using (var dark = new Pen(Color.FromArgb(a, 0, 0, 0), 3.2f))
+                    g.DrawLine(dark, t, d);
+                using (var line = new Pen(Color.FromArgb(a, 255, 255, 255), 1.6f) { DashStyle = DashStyle.Dot })
+                    g.DrawLine(line, t, d);
+                using (var br = new SolidBrush(Color.FromArgb(a, 255, 255, 255)))
+                using (var pen = new Pen(Color.FromArgb(a, 0, 0, 0), 1.4f))
+                {
+                    g.FillEllipse(br, t.X - 3.5f, t.Y - 3.5f, 7f, 7f);
+                    g.DrawEllipse(pen, t.X - 3.5f, t.Y - 3.5f, 7f, 7f);
+                }
             }
         }
 
@@ -2355,14 +3500,11 @@ namespace DCE_Manager
                     float minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X), minY = pts.Min(q => q.Y), maxY = pts.Max(q => q.Y);
                     if (!view.IntersectsWith(new RectangleF(minX, minY, maxX - minX, maxY - minY))) continue;
 
-                    using (var path = new GraphicsPath())
-                    {
-                        path.AddPolygon(pts);
-                        g.SetClip(view);
-                        using (var rg = new Region(path)) g.IntersectClip(rg);
-                        using (var hb = new HatchBrush(HatchStyle.DarkUpwardDiagonal, Color.FromArgb(210, a.Color), Color.Transparent))
-                            g.FillRectangle(hb, minX, minY, maxX - minX, maxY - minY);
-                    }
+                    // Polygone découpé aux bords de l'écran puis rempli : pas de région GDI+ (très lente quand la zone dépasse l'écran de loin)
+                    PointF[] cl = Map_UI_View.ClipPolygon(pts, _view.ClipArea);
+                    if (cl.Length < 3) continue;
+                    using (var hb = new HatchBrush(HatchStyle.DarkUpwardDiagonal, Color.FromArgb(210, a.Color), Color.Transparent))
+                        g.FillPolygon(hb, cl);
                 }
             }
             finally { g.Restore(st); }
@@ -2374,12 +3516,25 @@ namespace DCE_Manager
         {
             if (_chkTObj == null || !_chkTObj.Checked || _targetObjs.Count == 0) return;
             int w = _view.Width, h = _view.Height;
+            bool near = ZoomedIn();
 
             var groups = new Dictionary<string, Cluster>();
             foreach (Map_Event e in _targetObjs)
             {
+                if (!TimeOk(e)) continue;               // pas avant la bombe qui le touche
                 PointF p = _view.ToScreen(e.X, e.Y);
                 if (p.X < -40 || p.Y < -40 || p.X > w + 40 || p.Y > h + 40) continue;
+
+                if (!near)
+                {
+                    // Dézoomé : un tout petit carré vide (pas de pastille ni de nombre), pour ne voir surtout que les détruits
+                    Color tc = e.Status == "dead" ? Color.FromArgb(130, 130, 130) : SideColor(e.Side);
+                    using (var tb = new SolidBrush(Color.FromArgb(235, 255, 255, 255))) g.FillRectangle(tb, p.X - 3f, p.Y - 3f, 6f, 6f);
+                    using (var tp = new Pen(tc, 1.6f)) g.DrawRectangle(tp, p.X - 3f, p.Y - 3f, 6f, 6f);
+                    _hits.Add(new Hit { X = p.X, Y = p.Y, R = 5f, Ev = e });
+                    continue;
+                }
+
                 string key = e.Side + "|" + Math.Floor(p.X / CellPx) + "|" + Math.Floor(p.Y / CellPx);
                 Cluster c;
                 if (!groups.TryGetValue(key, out c)) { c = new Cluster(); groups[key] = c; }
@@ -2424,7 +3579,7 @@ namespace DCE_Manager
                 if (c.Items.Count == 1)
                 {
                     DrawEvent(g, c.Items[0], cx, cy);
-                    _hits.Add(new Hit { X = cx, Y = cy, R = 8f * _iconScale, Ev = c.Items[0] });
+                    _hits.Add(new Hit { X = cx, Y = cy, R = Math.Max(6f, 8f * ScaleOf(c.Items[0])), Ev = c.Items[0] });
                     continue;
                 }
 
@@ -2490,6 +3645,7 @@ namespace DCE_Manager
         };
 
         private static readonly Regex RxStaticPlane = new Regex(@"^(F-?\d|A-?\d|AV-|MiG|Su-|Tu-|Il-|An-|B-\d|C-\d|E-\d|KC-|P-3|Yak|JF-|Mirage|F/A|vwv_|L-39)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex RxDecorStatic = new Regex(@"camouflage|sandbag|(^|[^a-z])bag([^a-z]|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         private static readonly Regex RxStaticHeli = new Regex(@"^(UH-|AH-|CH-|Mi-|Ka-|SA342|OH-|MH-|HH-)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
         private static string FirstMatch(IconRule[] rules, string text)
@@ -2513,17 +3669,14 @@ namespace DCE_Manager
                 case "ground_kill":
                     return FirstMatch(VehicleRules, typ) ?? FirstMatch(VehicleRules, nam) ?? "truck";
 
+                // Objets au sol (posés par la mission, décors de la carte, éléments de la target list) : UNE seule règle, donc le même type donne la même icône
                 case "static_kill":
+                case "scenery_kill":
+                case "target_obj":
                     if (RxStaticHeli.IsMatch(typ)) return "heli";
                     if (RxStaticPlane.IsMatch(typ)) return "plane";
                     return FirstMatch(VehicleRules, typ) ?? FirstMatch(StructureRules, typ)
-                        ?? FirstMatch(StructureRules, nam) ?? "crate";
-
-                case "scenery_kill":
-                    return FirstMatch(StructureRules, typ) ?? FirstMatch(StructureRules, nam) ?? "building";
-
-                case "target_obj":
-                    return FirstMatch(StructureRules, typ) ?? FirstMatch(StructureRules, nam) ?? (e.Category == "MapObject" ? "building" : "crate");
+                        ?? FirstMatch(StructureRules, nam) ?? "building";
             }
             return "";
         }
@@ -2535,8 +3688,8 @@ namespace DCE_Manager
             alpha = (e.PosSrc == "sar_approx" || e.PosSrc == "oob_start") ? 130 : 255;
             Color c = Color.FromArgb(alpha, SideColor(e.Side));
 
-            // Décors : beige ; objet d'une cible de la target list : or
-            if (e.Kind == "scenery_kill") c = e.Target != "" ? Color.FromArgb(255, 215, 0) : Color.FromArgb(220, 190, 150, 90);
+            // Décor dont le camp est inconnu : beige (sinon la couleur du camp, comme tout le reste)
+            if (e.Kind == "scenery_kill" && SideColor(e.Side) == SideColor("")) c = Color.FromArgb(220, 190, 150, 90);
             return c;
         }
 
@@ -2545,22 +3698,61 @@ namespace DCE_Manager
         {
             PointF a = _view.ToScreen(0, 0), b = _view.ToScreen(0, 1000);      // 1 km vers l'est
             float pxKm = Math.Abs(b.X - a.X);
-            if (float.IsNaN(pxKm) || float.IsInfinity(pxKm) || pxKm <= 0f) return IconScaleMin;
+            if (float.IsNaN(pxKm) || float.IsInfinity(pxKm) || pxKm <= 0f) { _pxPerM = 0f; return IconScaleMin * _iconMul; }
+            _pxPerM = pxKm / 1000f;
 
             double t = (Math.Log10(pxKm) - Math.Log10(ZoomStartPxKm)) / (Math.Log10(ZoomFullPxKm) - Math.Log10(ZoomStartPxKm));
             t = Math.Max(0.0, Math.Min(1.0, t));
-            return IconScaleMin + (float)t * (IconScaleMax - IconScaleMin);
+            return (IconScaleMin + (float)t * (IconScaleMax - IconScaleMin)) * _iconMul;
         }
 
-        // Halo clair derrière une icône du vol mis en avant
-        // primary : le vol choisi (anneau or) ; sinon un vol lié, tueur ou victime (anneau blanc en pointillés)
-        private void DrawFocusGlow(Graphics g, float x, float y, bool primary)
+        // Taille réelle au sol (en mètres) de ce que représente chaque famille d'icône
+        private static float RealMeters(string fam)
         {
-            float r = 14f * _iconScale;
-            using (var br = new SolidBrush(Color.FromArgb(primary ? 120 : 90, 255, 255, 255)))
-                g.FillEllipse(br, x - r, y - r, 2 * r, 2 * r);
-            using (var pen = primary ? new Pen(Color.FromArgb(220, 255, 215, 0), 2f) : new Pen(Color.FromArgb(230, 255, 255, 255), 2f) { DashStyle = DashStyle.Dash })
-                g.DrawEllipse(pen, x - r, y - r, 2 * r, 2 * r);
+            switch (fam)
+            {
+                case "plane": return 15f;
+                case "heli": return 12f;
+                case "tank": return 8f;
+                case "truck": return 7f;
+                case "inf": return 3f;
+                case "sam": return 12f;
+                case "aaa": return 6f;
+                case "radar": return 8f;
+                case "art": return 7f;
+                case "ship": return 90f;
+                case "building": return 12f;
+                case "bridge": return 40f;
+                case "crate": return 5f;
+                default: return 8f;
+            }
+        }
+
+        // Échelle d'une icône. Taille à l'écran = taille réelle (mètres x pixels par mètre), avec un minimum lisible :
+        // de loin toutes les icônes ont donc le même petit format, et au zoom maximum elles ont leur vraie taille au sol.
+        // Le bouton "icônes plus petites / plus grandes" change le minimum. Jamais plus grosse que la taille automatique.
+        private float ScaleOf(Map_Event e)
+        {
+            if (_pxPerM <= 0f) return _iconScale;
+
+            if (e.Kind == "bomb")
+            {
+                float m = e.Mass > 0 ? 1.3f * (float)Math.Pow(e.Mass, 1.0 / 3.0) : CraterDefaultM;       // 87 kg -> environ 6 m
+                float px = Math.Max(CraterMinPx * _iconMul, m * _pxPerM);
+                return Math.Min(px, 14f * _iconScale) / 14f;                                            // l'icône du cratère fait 14 unités
+            }
+
+            if (e.Kind == "air_lost") return _iconScale;        // même logique que le parachute : taille automatique du zoom
+
+            if (e.Kind == "ground_kill" || e.Kind == "ship_kill" || e.Kind == "static_kill"
+                || e.Kind == "scenery_kill" || e.Kind == "target_obj")
+            {
+                string fam = IconOf(e);
+                float units = fam == "truck" ? 20f : 18f;                                               // longueur de l'icône dans son dessin
+                float px = Math.Max(FamilyMinPx * _iconMul, RealMeters(fam) * _pxPerM);
+                return Math.Min(px, units * _iconScale) / units;
+            }
+            return _iconScale;
         }
 
         // Tueur au sol : tout son groupe (petits carrés), le tueur lui-même en gros, et un trait pointillé vers l'avion touché
@@ -2573,6 +3765,7 @@ namespace DCE_Manager
 
             foreach (Map_Event ev in _gndKillers)
             {
+                if (!TimeOk(ev)) continue;
                 Color col = SideColor(ev.KillerSide);
                 PointF k = _view.ToScreen(ev.KX, ev.KY);
                 if (float.IsNaN(k.X) || Math.Abs(k.X) > 1e5f || Math.Abs(k.Y) > 1e5f) continue;
@@ -2580,8 +3773,14 @@ namespace DCE_Manager
                 if (ev.HasPos)
                 {
                     PointF v = _view.ToScreen(ev.X, ev.Y);
-                    using (var pen = new Pen(Color.FromArgb(200, col), 1.6f) { DashStyle = DashStyle.Dash })
-                        g.DrawLine(pen, k, v);
+                    // Cause du kill : trait ROUGE épais en pointillés (sur un liseré sombre pour qu'il se voie sur tous les fonds)
+                    if (Math.Abs(v.X) < 1e5f && Math.Abs(v.Y) < 1e5f)
+                    {
+                        using (var dark = new Pen(Color.FromArgb(150, 0, 0, 0), 6f))
+                            g.DrawLine(dark, k, v);
+                        using (var pen = new Pen(Color.FromArgb(245, 255, 40, 30), 3.6f) { DashStyle = DashStyle.Custom, DashPattern = new float[] { 2.2f, 1.6f } })
+                            g.DrawLine(pen, k, v);
+                    }
                 }
 
                 GroundGroup gg;
@@ -2608,8 +3807,11 @@ namespace DCE_Manager
                     g.DrawLine(white, k.X, k.Y - r * 0.6f, k.X, k.Y + r * 0.6f);
                 }
                 string label = ev.KillerType != "" ? ev.KillerType : ev.Killer;
-                g.DrawString(label, _fontBold, Brushes.Black, k.X + r * 1.8f + 1f, k.Y - 7f);
-                using (var tb = new SolidBrush(col)) g.DrawString(label, _fontBold, tb, k.X + r * 1.8f, k.Y - 8f);
+                if (_view.ShowLabels)
+                {
+                    g.DrawString(label, _fontBold, Brushes.Black, k.X + r * 1.8f + 1f, k.Y - 7f);
+                    using (var tb = new SolidBrush(col)) g.DrawString(label, _fontBold, tb, k.X + r * 1.8f, k.Y - 8f);
+                }
 
                 var info = new Map_Event { Id = -(2000 + (ev.Killer.GetHashCode() & 0xFFFFF)), Kind = "killer_gnd", Name = ev.Killer, Type = ev.KillerType, Side = ev.KillerSide, Target = ev.KillerGroup, HasPos = true, X = ev.KX, Y = ev.KY, Info = ev.Name };
                 _hits.Add(new Hit { X = k.X, Y = k.Y, R = r * 1.7f, Ev = info });
@@ -2651,8 +3853,23 @@ namespace DCE_Manager
 
         private void DrawEvent(Graphics g, Map_Event e, float x0, float y0)
         {
+            float keepScale = _iconScale;
+            _iconScale = ScaleOf(e);              // taille propre à cet événement (camion, cratère) ; remise en place à la fin
+            try { DrawEventAt(g, e, x0, y0); }
+            finally { _iconScale = keepScale; }
+        }
+
+        private void DrawEventAt(Graphics g, Map_Event e, float x0, float y0)
+        {
             if (_focusNow != "" && FocusRank(e) == 0)
             {
+                if (_view.IsMoving)         // pendant un zoom : un simple point pâle (l'image pâle de l'icône est refaite à chaque icône)
+                {
+                    int ga;
+                    Color gc = EventColor(e, out ga);
+                    using (var gb = new SolidBrush(Color.FromArgb(80, gc))) g.FillEllipse(gb, x0 - 5f, y0 - 5f, 10f, 10f);
+                    return;
+                }
                 DrawGhost(g, e, x0, y0);
                 return;
             }
@@ -2683,21 +3900,23 @@ namespace DCE_Manager
                     case "static_kill":
                     case "scenery_kill":
                         DrawFamily(g, IconOf(e), fill, edge, c);
-                        // Pas de croix sur un décor ordinaire (trop nombreux) ; croix sur tout le reste
-                        if (e.Kind != "scenery_kill" || e.Target != "") DrawCross(g, x, y, e.Kind == "air_lost" ? 6f : 5f);
+                        DrawCross(g, x, y, e.Kind == "air_lost" ? 6f : 5f);
                         break;
 
                     case "target_obj":
                         {
-                            // Cible encore debout : icône vide (fond blanc, contour de la couleur du camp) dans un anneau en pointillés ; grise si détruite avant cette mission
+                            // Cible encore debout : icône VIDE (fond blanc, gros contour de la couleur du camp) + pastille verte avec une coche ; grise sans coche si détruite avant cette mission
                             bool oldDead = e.Status == "dead";
                             Color line = oldDead ? Color.FromArgb(alpha, 130, 130, 130) : c;
-                            using (var tfill = new SolidBrush(Color.FromArgb(oldDead ? 110 : 220, 255, 255, 255)))
-                            using (var tpen = new Pen(line, 1.8f) { LineJoin = LineJoin.Round })
-                            using (var ring = new Pen(line, 1.2f) { DashStyle = DashStyle.Dash })
-                            {
+                            using (var tfill = new SolidBrush(Color.FromArgb(oldDead ? 110 : 235, 255, 255, 255)))
+                            using (var tpen = new Pen(line, 2.4f) { LineJoin = LineJoin.Round })
                                 DrawFamily(g, IconOf(e), tfill, tpen, line);
-                                g.DrawEllipse(ring, -13f, -13f, 26f, 26f);
+                            if (!oldDead)
+                            {
+                                using (var gb = new SolidBrush(Color.FromArgb(255, 40, 170, 70))) g.FillEllipse(gb, x + 3f, y - 14f, 11f, 11f);
+                                g.DrawEllipse(Pens.White, x + 3f, y - 14f, 11f, 11f);
+                                using (var ck = new Pen(Color.White, 1.8f) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round })
+                                    g.DrawLines(ck, new[] { new PointF(x + 5.4f, y - 8.4f), new PointF(x + 7.6f, y - 6f), new PointF(x + 11.6f, y - 11f) });
                             }
                             break;
                         }
@@ -2715,13 +3934,34 @@ namespace DCE_Manager
                         }
 
                     case "pilot_dead":
-                        g.FillEllipse(Brushes.Black, x - 7, y - 7, 14, 14);
-                        using (var white = new Pen(Color.White, 1.2f))
                         {
-                            g.DrawLine(white, x - 3, y, x + 3, y);
-                            g.DrawLine(white, x, y - 4, x, y + 4);
+                            // Pilote de profil (casque, visière, masque à oxygène), noir avec un fin liseré blanc ; croix rouge dessus = tué
+                            using (var wl = new Pen(Color.FromArgb(alpha, 255, 255, 255), 1.0f) { LineJoin = LineJoin.Round })
+                            {
+                                var sh = new[] { new PointF(x - 10, y + 10), new PointF(x - 8, y + 5), new PointF(x - 2, y + 3.5f), new PointF(x + 4, y + 4.5f), new PointF(x + 10, y + 10) };
+                                g.FillPolygon(Brushes.Black, sh);                                                   // épaules
+                                g.DrawPolygon(wl, sh);
+                                var mask = new[] { new PointF(x + 3, y - 1), new PointF(x + 9, y - 0.5f), new PointF(x + 9.5f, y + 3), new PointF(x + 5.5f, y + 6), new PointF(x + 1, y + 4.5f) };
+                                g.FillPolygon(Brushes.Black, mask);                                                 // masque
+                                g.DrawPolygon(wl, mask);
+                                g.FillEllipse(Brushes.Black, x - 8.5f, y - 11, 16, 15);                             // casque
+                                g.DrawEllipse(wl, x - 8.5f, y - 11, 16, 15);
+                                var visor = new[] { new PointF(x + 0.5f, y - 6.5f), new PointF(x + 7.5f, y - 5), new PointF(x + 8.5f, y - 1.5f), new PointF(x + 2, y - 1.5f) };
+                                g.FillPolygon(Brushes.Black, visor);                                                // visière
+                                g.DrawPolygon(wl, visor);
+                            }
+                            using (var hi = new Pen(Color.White, 1.3f)) g.DrawArc(hi, x - 6, y - 9.5f, 10, 8, 200, 70);           // reflet du casque
+                            using (var hose = new Pen(Color.FromArgb(200, 200, 200), 1.4f)) g.DrawCurve(hose, new[] { new PointF(x + 4, y + 5), new PointF(x + 2, y + 8), new PointF(x - 1, y + 10) });   // tuyau
+                            using (var rb = new Pen(Color.Black, 4.4f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                            using (var rr = new Pen(Color.FromArgb(255, 235, 30, 30), 2.6f) { StartCap = LineCap.Round, EndCap = LineCap.Round })
+                            {
+                                g.DrawLine(rb, x - 8, y - 9, x + 8, y + 9);
+                                g.DrawLine(rb, x - 8, y + 9, x + 8, y - 9);
+                                g.DrawLine(rr, x - 8, y - 9, x + 8, y + 9);
+                                g.DrawLine(rr, x - 8, y + 9, x + 8, y - 9);
+                            }
+                            break;
                         }
-                        break;
 
                     case "pilot_sar":
                         {
@@ -2773,9 +4013,14 @@ namespace DCE_Manager
                         }
 
                     case "bomb":
-                        using (var br = new SolidBrush(Color.FromArgb(255, 150, 40))) g.FillEllipse(br, x - 3.5f, y - 3.5f, 7, 7);
-                        g.DrawEllipse(edge, x - 3.5f, y - 3.5f, 7, 7);
-                        break;
+                        {
+                            // Cratère : bourrelet de terre claire, creux sombre, fond très sombre (14 unités de large)
+                            using (var rim = new SolidBrush(Color.FromArgb(alpha, 196, 160, 110))) g.FillEllipse(rim, x - 7f, y - 7f, 14f, 14f);
+                            using (var pit = new SolidBrush(Color.FromArgb(alpha, 92, 62, 38))) g.FillEllipse(pit, x - 4.8f, y - 4.8f, 9.6f, 9.6f);
+                            using (var core = new SolidBrush(Color.FromArgb(alpha, 34, 22, 14))) g.FillEllipse(core, x - 2.4f, y - 2.4f, 4.8f, 4.8f);
+                            g.DrawEllipse(edge, x - 7f, y - 7f, 14f, 14f);
+                            break;
+                        }
 
                     default:
                         g.FillEllipse(Brushes.Gainsboro, x - 3, y - 3, 6, 6);
@@ -2792,7 +4037,7 @@ namespace DCE_Manager
                 case "plane":
                     {
                         var pts = new PointF[JetShape.Length];
-                        for (int i = 0; i < pts.Length; i++) pts[i] = new PointF(JetShape[i].X * 9f, JetShape[i].Y * 9f);
+                        for (int i = 0; i < pts.Length; i++) pts[i] = new PointF(JetShape[i].X * 11f, JetShape[i].Y * 11f);
                         g.FillPolygon(fill, pts);
                         g.DrawPolygon(edge, pts);
                         break;
@@ -2815,12 +4060,16 @@ namespace DCE_Manager
                     break;
 
                 case "truck":
-                    g.FillRectangle(fill, -9, -5, 11, 9);                 // benne
-                    g.DrawRectangle(edge, -9, -5, 11, 9);
-                    g.FillRectangle(fill, 2, -3, 7, 7);                   // cabine
-                    g.DrawRectangle(edge, 2, -3, 7, 7);
-                    g.FillEllipse(Brushes.Black, -7, 3, 4, 4);            // roues
-                    g.FillEllipse(Brushes.Black, 3, 3, 4, 4);
+                    // Camion vu de dessus, cabine en haut (nord), 20 unités de long x 9 de large
+                    g.FillRectangle(Brushes.Black, -5.2f, -8f, 1.6f, 3.4f);        // roues avant
+                    g.FillRectangle(Brushes.Black, 3.6f, -8f, 1.6f, 3.4f);
+                    g.FillRectangle(Brushes.Black, -5.2f, 3.5f, 1.6f, 3.4f);       // roues arrière
+                    g.FillRectangle(Brushes.Black, 3.6f, 3.5f, 1.6f, 3.4f);
+                    g.FillRectangle(fill, -3.6f, -1f, 7.2f, 11f);                  // benne
+                    g.DrawRectangle(edge, -3.6f, -1f, 7.2f, 11f);
+                    g.FillRectangle(fill, -3.6f, -10f, 7.2f, 8f);                  // cabine
+                    g.DrawRectangle(edge, -3.6f, -10f, 7.2f, 8f);
+                    g.FillRectangle(Brushes.DimGray, -2.6f, -8.6f, 5.2f, 2.4f);    // pare-brise
                     break;
 
                 case "inf":
@@ -2935,6 +4184,8 @@ namespace DCE_Manager
 
         protected override void OnFormClosed(FormClosedEventArgs e)
         {
+            if (_playTimer != null) { _playTimer.Stop(); _playTimer.Dispose(); }
+            _view.PlayCache = false;
             _view.OverlayPaint -= PaintEvents;
             _hoverTip.Dispose();
             if (_ghost != null) _ghost.Dispose();

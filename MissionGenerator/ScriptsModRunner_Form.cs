@@ -42,8 +42,13 @@ namespace DCE_Manager
         private readonly string _luaScriptName; // null = déduit du nom du .bat (convention BAT_xxx.lua)
         private readonly string _workingDirectory;
         private readonly string _campaignName;
+        private readonly bool _scanRelief;   // demandé par le clic droit sur ▶ (CampaignMaker), pour CE lancement seulement : rien n'est retenu
         private bool _errorWarningShown = false;
         private bool _userCancelled = false;
+        // Scan du relief demandé depuis la carte de mission (CampaignMaker) : nom de la campagne concernée, null = rien.
+        // Statique : la carte et ce runner sont deux fenêtres différentes. Jamais écrit sur disque.
+        public static string ScanReliefCampaign = null;
+        private bool _scanReliefAsked = false;   // vrai si CE lancement a envoyé DCEM_SCAN_RELIEF
         private Button btnForceExit;
 
         private bool _showTechnicalLog = false; // caché par défaut, "Show technical details" pour l'afficher
@@ -195,6 +200,32 @@ namespace DCE_Manager
 
         private readonly List<FlightWishSection> _flightWishSections = new List<FlightWishSection>();
         private FlightWishSection _currentBuildingSection;
+
+        // Suivi d'un lot (= un cycle) de souhaits / options reçus du Lua. Le lot est fermé par ##DCEM_FLIGHTPREVIEW_DONE## :
+        // le FLIGHTWISH suivant ouvre alors un NOUVEAU lot, et le modèle de l'ancien est vidé d'abord.
+        private bool _wishBatchClosed = false;
+        private bool _flightListShown = false;      // l'écran "Choose your flight packages" est dans panelQuickOptions
+
+        // Chiffres de fin de génération, lus dans le texte de la console (DC_Prune, DC_Final_steps). Affichés avant les boutons Accept / Skip.
+        private static readonly Regex RegexGenBefore = new Regex(@"Number of plane Before Prune:\s*(\d+)\s*PlaneStatic:\s*(\d+)\s*Nb Helic:\s*(\d+)\s*HeliStatic\s*(\d+)", RegexOptions.IgnoreCase);
+        private static readonly Regex RegexGenAfter = new Regex(@"Number of plane After Prune:\s*(\d+)\s*PlaneStatic:\s*(\d+)\s*Nb Helic:\s*(\d+)\s*HeliStatic\s*(\d+)", RegexOptions.IgnoreCase);
+        private static readonly Regex RegexGenPruned = new Regex(@"Pruned\s+(\d+),\s*kept\s+(\d+)", RegexOptions.IgnoreCase);
+        private static readonly Regex RegexGenGroups = new Regex(@"Number of (aircraft|helicopter|ship|vehicle|static) groups:\s*(\d+)\s*\|\s*Number of \w+:\s*(\d+)", RegexOptions.IgnoreCase);
+        private int _genPrunedNb = -1, _genKeptNb = -1;
+        private int _genStatPlaneBefore = -1, _genStatHeliBefore = -1, _genStatPlaneAfter = -1, _genStatHeliAfter = -1;
+        private readonly Dictionary<string, int[]> _genGroups = new Dictionary<string, int[]>(StringComparer.OrdinalIgnoreCase);   // type -> { groupes, unités }
+        private readonly List<string> _genModules = new List<string>();
+        private bool _genModulesOpen = false;       // on est dans la liste "this mission requires these modules"
+
+        private void ResetGenStats()
+        {
+            _genPrunedNb = _genKeptNb = -1;
+            _genStatPlaneBefore = _genStatHeliBefore = _genStatPlaneAfter = _genStatHeliAfter = -1;
+            _genGroups.Clear();
+            _genModules.Clear();
+            _genModulesOpen = false;
+        }
+        private int _batchWishCount, _batchOptCount, _batchOptRejected;
         // Un même paquet physique (même index Lua) peut apparaître dans plusieurs sections si
         // plusieurs vols demandés partagent le même type d'avion - on le retrouve ici pour
         // pouvoir le griser partout ailleurs dès qu'il est choisi une fois.
@@ -298,12 +329,13 @@ namespace DCE_Manager
         private ComboBox _cmbAircraftId;
         private ComboBox _cmbTaskCode;
 
-        public ScriptsModRunner_Form(string batPath, string workingDirectory, string campaignName, string luaScriptName = null)
+        public ScriptsModRunner_Form(string batPath, string workingDirectory, string campaignName, string luaScriptName = null, bool scanRelief = false)
         {
             _batPath = batPath;
             _luaScriptName = luaScriptName;
             _workingDirectory = workingDirectory;
             _campaignName = campaignName;
+            _scanRelief = scanRelief;
             _confModData = new ConfModLoader().Load(campaignName);
 
             Text = "ScriptsMod - " + campaignName + " (" + Path.GetFileNameWithoutExtension(batPath) + ")";
@@ -401,6 +433,15 @@ namespace DCE_Manager
                 // lui rendre la main pour le debriefing. Absent si lancement manuel du .bat.
                 // Slashes normaux obligatoires : TableSerialization n'échappe pas les antislashs.
                 launchInfo.EnvironmentVariables["DCEM_EXE_PATH"] = Application.ExecutablePath.Replace('\\', '/');
+
+                // Scan du relief : génération seulement, jamais le debrief
+                if (_scanRelief && _luaScriptName == null) launchInfo.EnvironmentVariables["DCEM_SCAN_RELIEF"] = "1";
+
+
+                // Scan du relief : seulement pour une génération (FirstMission / SkipMission, donc _luaScriptName == null), jamais pour le debrief
+                _scanReliefAsked = _luaScriptName == null && string.Equals(ScanReliefCampaign, _campaignName, StringComparison.OrdinalIgnoreCase);
+                if (_scanReliefAsked)
+                    launchInfo.EnvironmentVariables["DCEM_SCAN_RELIEF"] = "1";
 
                 _bridge.Start(launchInfo.ExePath, launchInfo.Arguments, _workingDirectory, launchInfo.EnvironmentVariables);
                 lblStatus.Text = "Running...";
@@ -1037,6 +1078,9 @@ namespace DCE_Manager
                     int nb;
                     int.TryParse(parts[0], out nb);
 
+                    // Le lot précédent est fini (PREVIEW_DONE reçu) : ce souhait ouvre le lot d'un nouveau cycle
+                    if (_wishBatchClosed) ResetFlightModel("new FLIGHTWISH after PREVIEW_DONE");
+
                     _currentBuildingSection = new FlightWishSection
                     {
                         Nb = nb,
@@ -1045,7 +1089,11 @@ namespace DCE_Manager
                         Task = parts[3]
                     };
                     _flightWishSections.Add(_currentBuildingSection);
+                    _batchWishCount++;
+                    AppendOutputLine("[DCEM] FLIGHTWISH #" + _batchWishCount + " (cycle " + _headerCycle + "): " + line.Substring(FlightWishMarkerPrefix.Length));
                 }
+                else
+                    AppendOutputLine("[DCEM] FLIGHTWISH ignored (" + parts.Length + " fields instead of 4): " + line);
                 return;
             }
 
@@ -1055,9 +1103,18 @@ namespace DCE_Manager
                 if (_multiFlightOptionActive || _flightOptionUIBuilt)
                     return;
 
+                // Une option appartient au DERNIER souhait reçu dans ce lot (jamais à un souhait d'un autre cycle)
                 FlightOptionEntry entry = ParseFlightOptionMarkerLineRaw(line);
-                if (entry != null && _currentBuildingSection != null)
+                if (entry != null && _currentBuildingSection != null && !_wishBatchClosed)
+                {
                     _currentBuildingSection.Entries.Add(entry);
+                    _batchOptCount++;
+                }
+                else
+                {
+                    _batchOptRejected++;
+                    AppendOutputLine("[DCEM] FLIGHTOPT ignored (" + (entry == null ? "unreadable line" : "no open wish") + "): " + line);
+                }
                 return;
             }
 
@@ -1065,7 +1122,17 @@ namespace DCE_Manager
             if (!isError && line.StartsWith(FlightPreviewDoneMarkerPrefix))
             {
                 if (!_multiFlightOptionActive && !_flightOptionUIBuilt)
+                {
+                    // Ce qui est réellement arrivé du Lua pour ce cycle (à comparer avec le log Lua)
+                    var perWish = new List<string>();
+                    for (int i = 0; i < _flightWishSections.Count; i++)
+                        perWish.Add((i + 1) + ":" + _flightWishSections[i].Entries.Count);
+                    AppendOutputLine("[DCEM] cycle " + _headerCycle + " : " + _batchWishCount + " FLIGHTWISH, " + _batchOptCount + " FLIGHTOPT"
+                        + (_batchOptRejected > 0 ? " (+" + _batchOptRejected + " ignored)" : "") + "  -  options per wish [" + string.Join(" ", perWish.ToArray()) + "]");
+
+                    _wishBatchClosed = true;
                     BuildAllFlightSectionsUI();
+                }
                 return;
             }
 
@@ -1078,6 +1145,7 @@ namespace DCE_Manager
             if (!isError && line.StartsWith(HeaderMarkerPrefix))
             {
                 ParseHeaderMarkerLine(line);
+                ResetGenStats();
                 _pendingLines.Clear(); // repart propre : tout ce qui précède est du bandeau/texte d'accueil
                 return;
             }
@@ -1137,6 +1205,8 @@ namespace DCE_Manager
 
             if (isError && RegexLuaCrashSignature.IsMatch(line))
                 ShowCrashWarning(line);
+
+            if (!isError) ParseGenStatsLine(line);
 
             AppendOutputLine(isError ? "[ERR] " + line : line);
 
@@ -1206,6 +1276,91 @@ namespace DCE_Manager
             return _campaignEndResult == "" ? "result unknown" : _campaignEndResult.ToUpperInvariant();
         }
 
+        // ---- Chiffres de fin de génération ----
+
+        private void ParseGenStatsLine(string raw)
+        {
+            string line = raw.Trim();
+            if (line.Length == 0) return;                      // les lignes vides restent permises dans la liste des modules
+
+            if (line.IndexOf("this mission requires these modules", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                _genModules.Clear();
+                _genModulesOpen = true;
+                return;
+            }
+            if (_genModulesOpen)
+            {
+                if (line.StartsWith("-"))
+                {
+                    if (line.IndexOf("==>", StringComparison.Ordinal) < 0)          // "- name" garde le nom ; "-------==> from: ..." est ignoré
+                    {
+                        string name = line.Substring(1).Trim();
+                        if (name.Length > 0 && !_genModules.Contains(name)) _genModules.Add(name);
+                    }
+                    return;
+                }
+                _genModulesOpen = false;                       // autre texte : la liste est finie
+            }
+
+            Match m = RegexGenBefore.Match(line);
+            if (m.Success) { _genStatPlaneBefore = int.Parse(m.Groups[2].Value); _genStatHeliBefore = int.Parse(m.Groups[4].Value); return; }
+            m = RegexGenAfter.Match(line);
+            if (m.Success) { _genStatPlaneAfter = int.Parse(m.Groups[2].Value); _genStatHeliAfter = int.Parse(m.Groups[4].Value); return; }
+            m = RegexGenPruned.Match(line);
+            if (m.Success) { _genPrunedNb = int.Parse(m.Groups[1].Value); _genKeptNb = int.Parse(m.Groups[2].Value); return; }
+            m = RegexGenGroups.Match(line);
+            if (m.Success) _genGroups[m.Groups[1].Value] = new[] { int.Parse(m.Groups[2].Value), int.Parse(m.Groups[3].Value) };
+        }
+
+        // Petit tableau posé avant les boutons : rien n'est affiché si le script n'a donné aucun chiffre
+        private Control BuildGenStatsPanel()
+        {
+            if (_genGroups.Count == 0 && _genPrunedNb < 0 && _genModules.Count == 0) return null;
+
+            // Pas de Dock dans un conteneur AutoSize (il se réduisait à une boîte vide) : on empile simplement, de haut en bas
+            var box = new FlowLayoutPanel() { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Color.White, BorderStyle = BorderStyle.FixedSingle, Padding = new Padding(8), Margin = new Padding(3, 3, 3, 12) };
+            var tbl = new TableLayoutPanel() { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, ColumnCount = 3, BackColor = Color.White, Margin = new Padding(0) };
+            Font bold = new Font(Font, FontStyle.Bold);
+
+            Action<string, string, string, bool> row = (a, b, c, isBold) =>
+            {
+                var la = new Label() { Text = a, AutoSize = true, Margin = new Padding(2, 2, 24, 2), Font = isBold ? bold : Font };
+                var lb = new Label() { Text = b, AutoSize = true, Margin = new Padding(2, 2, 24, 2), Font = isBold ? bold : Font, TextAlign = ContentAlignment.MiddleRight };
+                var lc = new Label() { Text = c, AutoSize = true, Margin = new Padding(2, 2, 2, 2), Font = isBold ? bold : Font, TextAlign = ContentAlignment.MiddleRight };
+                int r = tbl.RowCount++;
+                tbl.Controls.Add(la, 0, r); tbl.Controls.Add(lb, 1, r); tbl.Controls.Add(lc, 2, r);
+            };
+
+            row("Generated mission", "Groups", "Units", true);
+            string[,] kinds = { { "aircraft", "Planes" }, { "helicopter", "Helicopters" }, { "ship", "Ships" }, { "vehicle", "Vehicles" }, { "static", "Statics" } };
+            int sg = 0, su = 0;
+            for (int i = 0; i < kinds.GetLength(0); i++)
+            {
+                int[] v;
+                if (!_genGroups.TryGetValue(kinds[i, 0], out v)) continue;
+                row(kinds[i, 1], v[0].ToString(), v[1].ToString(), false);
+                sg += v[0]; su += v[1];
+            }
+            if (_genGroups.Count > 0) row("Total", sg.ToString(), su.ToString(), true);
+            box.Controls.Add(tbl);
+
+            var below = new FlowLayoutPanel() { AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, FlowDirection = FlowDirection.TopDown, WrapContents = false, BackColor = Color.White, Margin = new Padding(0, 8, 0, 0), Padding = new Padding(0) };
+            if (_genPrunedNb >= 0)
+            {
+                string txt = "DC_Prune: " + _genPrunedNb + " elements removed, " + _genKeptNb + " kept";
+                if (_genStatPlaneBefore >= 0 && _genStatPlaneAfter >= 0)
+                    txt += "   (static planes " + _genStatPlaneBefore + " > " + _genStatPlaneAfter + ", static helicopters " + _genStatHeliBefore + " > " + _genStatHeliAfter + ")";
+                below.Controls.Add(new Label() { Text = txt, AutoSize = true, Margin = new Padding(2) });
+            }
+            if (_genModules.Count > 0)
+            {
+                below.Controls.Add(new Label() { Text = "Required modules (" + _genModules.Count + "):\n  - " + string.Join("\n  - ", _genModules.ToArray()), AutoSize = true, Margin = new Padding(2, 6, 2, 2) });
+            }
+            box.Controls.Add(below);
+            return box;
+        }
+
         // ---- Menu à lettre classique (comportement d'origine) ----
 
         private void RebuildQuickOptions()
@@ -1234,6 +1389,9 @@ namespace DCE_Manager
             }
 
             SetStageCaption("Choose an option"); // remet Visible=false, normal : le menu est prêt, à l'utilisateur de jouer
+
+            Control stats = BuildGenStatsPanel();   // chiffres de la mission générée, avant les boutons
+            if (stats != null) panelQuickOptions.Controls.Add(stats);
 
             var fullTexts = new List<string>();
             foreach (var opt in options)
@@ -1976,7 +2134,27 @@ namespace DCE_Manager
 
             // Génération réussie (pas annulée par l'utilisateur) : on ouvre la carte de mission
             if (success && !_userCancelled)
+            {
+                if (_scanReliefAsked) ScanReliefCampaign = null;   // scan fait une seule fois : la case se décoche pour la suite
+                WritePruneStatsInMiz();
                 OpenMissionMapBehind();
+            }
+        }
+
+        // Le nombre d'éléments supprimés par DC_Prune est rangé dans le .miz (camp_status.lua), pour que la carte de mission puisse l'afficher
+        private void WritePruneStatsInMiz()
+        {
+            try
+            {
+                if (_genPrunedNb < 0) return;
+                string miz = Map_Drawings.FindMissionSource(_campaignName, true);
+                if (miz == null) return;
+                Map_MissionStats.WritePrune(miz, _genPrunedNb, _genKeptNb, _genStatPlaneBefore, _genStatPlaneAfter, _genStatHeliBefore, _genStatHeliAfter);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("ScriptsModRunner_Form | WritePruneStatsInMiz | " + ex.Message);
+            }
         }
 
         // Panneau final ("Style 1" de la maquette) : réutilise panelQuickOptions, libre une fois
@@ -2277,8 +2455,14 @@ namespace DCE_Manager
 
         private void ParseCycleMarkerLine(string line)
         {
-            _headerCycle = line.Substring(CycleMarkerPrefix.Length);
+            string newCycle = line.Substring(CycleMarkerPrefix.Length);
+            bool changed = newCycle != _headerCycle;
+            _headerCycle = newCycle;
             RefreshHeaderLabel();
+
+            // Nouveau cycle (ex. après "Skip mission") : on repart d'un modèle vide, sauf si on est en train d'envoyer les choix / d'attendre le clic Confirm
+            if (changed && !_multiFlightOptionActive && !_flightOptionUIBuilt)
+                ResetFlightModel("cycle " + newCycle);
         }
 
         // Filet de sécurité si le script est resté bloqué en REPL interactif après un crash (plus
@@ -2590,6 +2774,28 @@ namespace DCE_Manager
             panelQuickOptions.Controls.Add(container);
 
             _flightOptionUIBuilt = true;
+            _flightListShown = true;
+        }
+
+        // Vide tout ce qui concerne le choix des vols : souhaits, options, sélections en cours, compteurs, et l'écran s'il est affiché.
+        // Appelé à chaque nouveau cycle, avant de traiter les lignes du Lua.
+        private void ResetFlightModel(string why)
+        {
+            _flightWishSections.Clear();
+            _currentBuildingSection = null;
+            _flightOptionButtonsByGlobalIndex.Clear();
+            _btnConfirmAllFlights = null;
+            _wishBatchClosed = false;
+            _batchWishCount = 0;
+            _batchOptCount = 0;
+            _batchOptRejected = 0;
+
+            if (_flightListShown)
+            {
+                ClearQuickOptionsPanel();
+                _flightListShown = false;
+            }
+            AppendOutputLine("[DCEM] flight list reset (" + why + ")");
         }
 
         private void ToggleFlightOptionSelection(FlightWishSection section, FlightOptionEntry entry, Button button)

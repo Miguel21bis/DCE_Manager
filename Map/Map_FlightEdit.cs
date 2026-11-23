@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -10,6 +10,13 @@ using DCE_Manager.Utils;
 
 namespace DCE_Manager
 {
+    // Un problème trouvé dans le fichier mission (encart "Mission check" de la carte de mission)
+    internal class Map_Issue
+    {
+        public bool Error;          // true = ids en double (bloquant pour DCS) ; false = simple avertissement (noms, numéros de queue)
+        public string Text = "";
+    }
+
     // Modifications d'un vol dans le fichier mission (partie de Map_Drawings : elle utilise son lecteur Lua) :
     //  1) AuditFlight  : lecture seule, liste tout ce qui touche un vol (ids, noms, triggers, autres vols, scripts)
     //  2) ApplyUnits : avions d'un vol (1 à 4 : ajout = copie du dernier avion, retrait, noms / indicatifs / numéros de queue)
@@ -161,6 +168,120 @@ namespace DCE_Manager
         {
             int n;
             d[key] = d.TryGetValue(key, out n) ? n + 1 : 1;
+        }
+
+        // Vrai si "after" a une clé en double que "before" n'avait pas (ou plus de fois) : seul ce qu'un changement AJOUTE compte.
+        // Les doublons déjà dans le fichier ne doivent pas bloquer une modification qui n'y touche pas (ex. un simple numéro de queue).
+        private static bool MoreDuplicates<T>(Dictionary<T, int> before, Dictionary<T, int> after)
+        {
+            foreach (KeyValuePair<T, int> kv in after)
+            {
+                if (kv.Value <= 1) continue;
+                int n;
+                if (!before.TryGetValue(kv.Key, out n) || kv.Value > n) return true;
+            }
+            return false;
+        }
+
+        private static void AddTo<T>(Dictionary<T, List<string>> d, T key, string who)
+        {
+            List<string> l;
+            if (!d.TryGetValue(key, out l)) { l = new List<string>(); d[key] = l; }
+            l.Add(who);
+        }
+
+        private static string Few(List<string> l)
+        {
+            return string.Join(", ", l.Take(4).ToArray()) + (l.Count > 4 ? ", ... (" + l.Count + " in all)" : "");
+        }
+
+        // Escadron d'un vol, d'après le nom du groupe : "Pack 3 - 615th TFS - Strike 1" -> "615th TFS" ; "Static 479 TFS 3" -> "479 TFS"
+        internal static string SquadOf(string groupName)
+        {
+            string g = (groupName ?? "").Trim();
+            string[] p = g.Split(new[] { " - " }, StringSplitOptions.None);
+            if (p.Length >= 3) return p[1].Trim();
+            if (g.StartsWith("Static ", StringComparison.OrdinalIgnoreCase)) g = g.Substring(7);
+            return Regex.Replace(g, @"\s*\d+$", "").Trim();
+        }
+
+        // CONTRÔLE : lecture seule, avant toute modification.
+        // Erreurs (rouge) : ids de groupes / d'unités en double, noms de groupes / d'unités en double.
+        // Infos (orange) : numéros de queue (onboard_num) en double DANS LE MEME ESCADRON (ce n'est pas une clé primaire).
+        internal static List<Map_Issue> CheckMission(string file)
+        {
+            var res = new List<Map_Issue>();
+            try
+            {
+                Dictionary<string, object> root = ReadMissionRoot(file);
+                Dictionary<string, object> coalitions = Sub(root, "coalition");
+                if (coalitions == null) { res.Add(new Map_Issue { Error = true, Text = "The mission file has no coalition table." }); return res; }
+
+                var gIds = new Dictionary<long, List<string>>();
+                var uIds = new Dictionary<long, List<string>>();
+                var gNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                var uNames = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+                var tails = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+
+                foreach (object co in coalitions.Values)
+                {
+                    Dictionary<string, object> countries = Sub(co as Dictionary<string, object>, "country");
+                    if (countries == null) continue;
+                    foreach (object cyo in countries.Values)
+                    {
+                        var country = cyo as Dictionary<string, object>;
+                        if (country == null) continue;
+                        foreach (KeyValuePair<string, object> cat in country)
+                        {
+                            Dictionary<string, object> gl = Sub(cat.Value as Dictionary<string, object>, "group");
+                            if (gl == null) continue;
+                            bool air = cat.Key == "plane" || cat.Key == "helicopter";
+                            foreach (object go in gl.Values)
+                            {
+                                var g = go as Dictionary<string, object>;
+                                if (g == null) continue;
+                                string gn = Str(g, "name");
+                                long gid = (long)Num(g, "groupId");
+                                if (gid > 0) AddTo(gIds, gid, gn);
+                                AddTo(gNames, gn, cat.Key);
+
+                                Dictionary<string, object> units = Sub(g, "units");
+                                if (units == null) continue;
+                                foreach (object uo in units.Values)
+                                {
+                                    var u = uo as Dictionary<string, object>;
+                                    if (u == null) continue;
+                                    string un = Str(u, "name");
+                                    long uid = (long)Num(u, "unitId");
+                                    if (uid > 0) AddTo(uIds, uid, un + " (in " + gn + ")");
+                                    AddTo(uNames, un, gn);
+                                    string ob = Str(u, "onboard_num");
+                                    if (air && ob != "") AddTo(tails, SquadOf(gn) + "|" + ob, un + " (in " + gn + ")");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                foreach (KeyValuePair<long, List<string>> kv in gIds.Where(k => k.Value.Count > 1))
+                    res.Add(new Map_Issue { Error = true, Text = "Group id " + kv.Key + " is used by " + kv.Value.Count + " groups: " + Few(kv.Value) });
+                foreach (KeyValuePair<long, List<string>> kv in uIds.Where(k => k.Value.Count > 1))
+                    res.Add(new Map_Issue { Error = true, Text = "Unit id " + kv.Key + " is used by " + kv.Value.Count + " units: " + Few(kv.Value) });
+                foreach (KeyValuePair<string, List<string>> kv in gNames.Where(k => k.Value.Count > 1 && k.Key != ""))
+                    res.Add(new Map_Issue { Error = true, Text = "Group name '" + kv.Key + "' is used " + kv.Value.Count + " times" });
+                foreach (KeyValuePair<string, List<string>> kv in uNames.Where(k => k.Value.Count > 1 && k.Key != ""))
+                    res.Add(new Map_Issue { Error = true, Text = "Unit name '" + kv.Key + "' is used " + kv.Value.Count + " times (groups: " + Few(kv.Value) + ")" });
+                foreach (KeyValuePair<string, List<string>> kv in tails.Where(k => k.Value.Count > 1))
+                    res.Add(new Map_Issue { Text = "Tail number " + kv.Key.Substring(kv.Key.IndexOf('|') + 1) + " is used by " + kv.Value.Count + " aircraft of squadron '" + kv.Key.Substring(0, kv.Key.IndexOf('|')) + "': " + Few(kv.Value) });
+
+                if (res.Count > 200) res.RemoveRange(200, res.Count - 200);
+            }
+            catch (Exception ex)
+            {
+                FormUtils.LogRegister("Map_Drawings | mission check : " + ex.Message);
+                res.Add(new Map_Issue { Error = true, Text = "The mission check failed: " + ex.Message });
+            }
+            return res;
         }
 
         private static string LuaText(string s)
@@ -555,7 +676,7 @@ namespace DCE_Manager
                 Dictionary<string, object> units2 = ag2 == null ? null : Sub(ag2.G, "units");
                 if (units2 == null || units2.Count != newCount) { message = "Check failed (aircraft count after the change): nothing was written."; return false; }
                 MissionIndex ix2 = BuildIndex(check);
-                if (ix2.UnitIds.Values.Any(c => c > 1) || ix2.GroupIds.Values.Any(c => c > 1)) { message = "Check failed (duplicate ids after the change): nothing was written."; return false; }
+                if (MoreDuplicates(ix.UnitIds, ix2.UnitIds) || MoreDuplicates(ix.GroupIds, ix2.GroupIds)) { message = "Check failed (the change creates a duplicate id): nothing was written."; return false; }
 
                 WriteMissionText(file, newText, isMiz);
                 message = "'" + flightName + "': " + newCount + " aircraft" + (newCount != n ? " (was " + n + ")" : "") + "."
@@ -1527,6 +1648,7 @@ namespace DCE_Manager
                 Dictionary<string, object> root = ParseMissionText(text, spans);
                 if (root == null || Sub(root, "coalition") == null) { message = "The mission file has no coalition table."; return false; }
 
+                MissionIndex ixStart = BuildIndex(root);        // état d'origine : les doublons déjà présents ne bloquent pas
                 List<AirGroup> air = ListAirGroups(root, spans);
                 var targets = new List<AirGroup>();
                 foreach (string n in names.Distinct())
@@ -1735,7 +1857,7 @@ namespace DCE_Manager
                     if (disableOnly && (still == null || Str(still.G, "lateActivation") != "true")) { message = "Check failed ('" + n + "' is not disabled): nothing was written."; return false; }
                 }
                 MissionIndex ix2 = BuildIndex(check);
-                if (ix2.UnitIds.Values.Any(c => c > 1) || ix2.GroupIds.Values.Any(c => c > 1)) { message = "Check failed (duplicate ids): nothing was written."; return false; }
+                if (MoreDuplicates(ixStart.UnitIds, ix2.UnitIds) || MoreDuplicates(ixStart.GroupIds, ix2.GroupIds)) { message = "Check failed (the change creates a duplicate id): nothing was written."; return false; }
                 Dictionary<string, object> rules2 = Sub(check, "trigrules");
                 if (rules2 != null)
                     foreach (object ro in rules2.Values)
